@@ -30,12 +30,12 @@ const INT_MAX:int requires Cxx_headers::cstdlib ;
 const INT_MIN:int requires Cxx_headers::cstdlib ;
 
 fun madd (x:int) (y:int) : success[int] => 
-    if x > 0 and y > (INT_MAX - x) then
-        Failure[int] "overflow"
-    else
-      Success (y + x)
-    endif
-    ;
+  if x > 0 and y > (INT_MAX - x) then
+      Failure[int] "overflow"
+  else
+    Success (y + x)
+  endif
+  ;
 
 fun msub (x:int) (y:int) : success[int] => 
   if x > 0 and y < (INT_MIN + x) then
@@ -46,17 +46,18 @@ fun msub (x:int) (y:int) : success[int] =>
   ;
 
 fun mmul (x:int) (y:int) : success[int] => 
-  if x != 0 and y > INT_MAX/x then
+  if x != 0 and y > (INT_MAX / x) then
     Failure[int] "overflow"
   else
-    Success(y * x) 
+    Success (y * x) 
   endif
-    ;
+  ;
 
 fun mdiv (x:int) (y:int) : success[int] => 
     if (x == 0) then 
         Failure[int] "attempted division by zero" 
-    else Success(y/x) 
+    else 
+      Success (y / x) 
     endif 
     ;
 
@@ -89,7 +90,7 @@ println$ "--" ;
 //We do it again, this time using the "traditional" rshift-assign
 //syntax.
 
-syntax monad //Override the left shift assignment operator.
+syntax monad //Override the right shift assignment operator.
 {
   x[ssetunion_pri] := x[ssetunion_pri] ">>=" x[>ssetunion_pri] =># "`(ast_apply ,_sr (bind (,_1 ,_3)))";
 }
