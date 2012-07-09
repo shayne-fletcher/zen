@@ -46,7 +46,11 @@ fun msub (x:int) (y:int) : success[int] =>
   ;
 
 fun mmul (x:int) (y:int) : success[int] => 
-    Success (y * x)
+  if x != 0 and y > INT_MAX/x then
+    Failure[int] "overflow"
+  else
+    Success(y * x) 
+  endif
     ;
 
 fun mdiv (x:int) (y:int) : success[int] => 
@@ -96,9 +100,13 @@ println$ "1 / 0 = " + str (ret 1 >>= mdiv 0) ;
 println$ "0 / 1 = " + str (ret 0 >>= mdiv 1) ;
 println$ "1 + 1 = " + str (ret 1 >>= madd 1) ;
 println$ "2 * (1 + 1) = " + str (ret 1 >>= madd 1 >>= mmul 2) ;
+println$ "INT_MAX = " + str (INT_MAX) ;
 println$ "INT_MAX - 1 = " + str (ret INT_MAX >>= msub 1) ;
 println$ "INT_MAX + 1 = " + str (ret INT_MAX >>= madd 1) ;
+println$ "INT_MIN = " + str (INT_MIN) ;
 println$ "INT_MIN - 1 = " + str (ret INT_MIN >>= msub 1) ;
 println$ "INT_MIN + 1 = " + str (ret INT_MIN >>= madd 1) ;
+println$ "2 * (INT_MAX/2) = " + str (ret INT_MAX >>= mdiv 2 >>= mmul 2 >>= madd 1) ; //The last one since we know INT_MAX is odd and that division will truncate.
+println$ "2 * (INT_MAX/2 + 1) = " + str (ret INT_MAX >>= mdiv 2 >>= madd 1 >>= mmul 2) ;
 
 //--
