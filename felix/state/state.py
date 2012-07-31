@@ -1,6 +1,6 @@
 class state: #State s a
   def __init__(self, run):
-      self.run = run # s -> (a, s)
+      self.run = run # s -> (a*s)
   
   #(>>=) :: State s a -> (a -> State s b) -> State s b
   def bind(self, f):
@@ -12,8 +12,8 @@ class state: #State s a
   def __rshift__(self, f): return self.bind(f)
   
   @classmethod
-  def return_(cls, a) : # a ->State s a
-    return cls(lambda s : (a, s))
+  def return_(cls, a) : # a ->State s a 
+   return cls(lambda s : (a, s))
   
 #Test 
   
