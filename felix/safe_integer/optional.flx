@@ -3,12 +3,15 @@ union success[T] =
   | Failure of string
   ;
 
-fun str[T] (x:success[T]) =>
-  match x with 
-    | Success ?t => "Success " + str(t)
-    | Failure ?s => "Failure " + s
-  endmatch
-  ;
+instance[T with Str[T]] Str[success[T]]
+{
+  fun str (x:success[T]):string =>
+    match x with 
+      | Success ?t => "Success " + (str t)
+      | Failure ?s => "Failure " + s
+    endmatch
+    ;
+}
 
 typedef fun Fallible (t:TYPE) : TYPE => success[t] ;
 
