@@ -1,0 +1,21 @@
+//A type for integer expressions.
+
+union expr =
+    | X //variable
+    | Const of int //constant
+    | BinOp of ((int * int ->int) * expr * expr) //'+','-',etc.
+    ;  
+
+//Evaluate by destructuring.
+
+fun eval (t:int)(xpr:expr):int =>
+  match xpr with
+    | X => t
+    | Const ?a => a
+    | BinOp (?f, ?l, ?r) => f ((eval t l),(eval t r))
+  endmatch
+  ;
+
+//Evaluate x + 2 at x = 3.
+
+println$ str(eval 3 (BinOp (add of (int*int), X, Const 2))) ;
