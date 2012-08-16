@@ -71,3 +71,4 @@ open syntax monad;
 
 val g = increment_counter_state >>= (fun (x:int):state[counter,int] => increment_counter_state) ;
 println $ str ((run_state g) (counter (24, 3))) ;
+
