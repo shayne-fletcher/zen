@@ -20,19 +20,20 @@ let rec eval : int->expr->int =
     | BinOp (f,l, r) -> f ((eval t l),(eval t r))
    ;;
 
-(* Integer arithmetic functions. *)
-
-let add : (int*int)->int = fun (a, b) -> (+) a b ;;
-let sub : (int*int)->int = fun (a, b) -> (-) a b ;;
-let div : (int*int)->int = fun (a, b) -> (/) a b ;;
-let mul : (int*int)->int = fun (a, b) -> ( * ) a b ;;
-
 (* Overload arithmetic operators for expressions. *)
 
-let (+) : expr->expr->expr = fun x y -> BinOp (add, x, y) ;;
-let (-) : expr->expr->expr = fun x y -> BinOp (sub, x, y) ;;
-let (/) : expr->expr->expr = fun x y -> BinOp (div, x, y) ;;
-let ( * ) : expr->expr->expr = fun x y -> BinOp (mul, x, y) ;;
+let (+) : expr->expr->expr = 
+  fun x y -> BinOp ((fun (a, b) -> (+) a b), x, y) 
+  ;;
+let (-) : expr->expr->expr = 
+  fun x y -> BinOp ((fun (a, b) -> (-) a b), x, y) 
+  ;;
+let (/) : expr->expr->expr = 
+  fun x y -> BinOp ((fun (a, b) -> (/) a b), x, y) 
+  ;;
+let ( * ) : expr->expr->expr = 
+  fun x y -> BinOp ((fun (a, b) -> ( * ) a b), x, y) 
+  ;;
 
 (* Some evaluations. *)
 
