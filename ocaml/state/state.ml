@@ -4,7 +4,7 @@ type ('s, 'a) state =
   | State of ('s -> 'a * 's)
   ;;
 
-let run_state : ('s, 'a) state -> 's -> ('a * 's) =
+let run : ('s, 'a) state -> 's -> ('a * 's) =
   fun x ->
      match x with
        | State u -> u
@@ -12,8 +12,10 @@ let run_state : ('s, 'a) state -> 's -> ('a * 's) =
 
 let bind : ('s, 'a) state -> ('a -> ('s, 'b) state) -> ('s, 'b) state = 
   fun m k -> 
-    State (fun state0 -> 
-      let (a, state1) =  run_state m state0 in run_state (k a) state1)
+    State (
+      fun state0 -> 
+        let (a, state1) =  run m state0 in run (k a) state1
+    )
   ;;
 
 let return_ : 'a -> ('s, 'a) state = 
@@ -41,7 +43,7 @@ let increment_counter_state : (counter, int) state =
   ;;
 
 let res = 
-  run_state 
+  run 
     (
        increment_counter_state >>= 
         (fun _ -> increment_counter_state)
