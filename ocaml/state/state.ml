@@ -18,7 +18,7 @@ let bind : ('s, 'a) state -> ('a -> ('s, 'b) state) -> ('s, 'b) state =
     )
   ;;
 
-let return_ : 'a -> ('s, 'a) state = 
+let return : 'a -> ('s, 'a) state = 
   fun x ->
     State (fun st -> (x, st))
   ;;
