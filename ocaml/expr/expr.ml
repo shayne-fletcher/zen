@@ -6,10 +6,6 @@ type expr =
   | BinOp of (((int * int) -> int) * expr * expr)  (* '+','-',etc. *)
   ;;
 
-let x : expr =  X ;;
-let one : expr = Const 1 ;;
-let two : expr = Const 2 ;;
-
 (* Evaluate by destructuring. *)
 
 let rec eval : int -> expr -> int = 
@@ -36,6 +32,10 @@ let ( * ) : expr -> expr -> expr =
   ;;
 
 (* Some evaluations. *)
+
+let x : expr =  X ;;
+let one : expr = Const 1 ;;
+let two : expr = Const 2 ;;
 
 let _ =
   let _ = 
