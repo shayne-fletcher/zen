@@ -36,15 +36,9 @@ let ( * ) : expr -> expr -> expr =
 let x : expr =  X ;;
 let one : expr = Const 1 ;;
 let two : expr = Const 2 ;;
-
 let _ =
-  let _ = 
-    let _ = 
-
-      Printf.printf "x + 2 (at x = 3) = %d\n" (eval 3 (x + two)) 
-    in 
-      Printf.printf "x - 2 (at x = 3) = %d\n" (eval 3 (x - two)) 
-  in
-      Printf.printf "x * 2 (at x = 3) = %d\n" (eval 3 (x * two))
-in
-      Printf.printf "x / 2 (at x = 3) = %d\n" (eval 3 (x / two))
+  Printf.printf "x + 2 (at x = 3) = %d\n" (eval 3 (x + two));
+  Printf.printf "x - 2 (at x = 3) = %d\n" (eval 3 (x - two));
+  Printf.printf "x * 2 (at x = 3) = %d\n" (eval 3 (x * two));
+  Printf.printf "x / 2 (at x = 3) = %d\n" (eval 3 (x / two));
+  ;;
