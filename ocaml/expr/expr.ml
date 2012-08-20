@@ -3,7 +3,7 @@
 type expr = 
   | X (* variable *)
   | Const of int (* constant *)
-  | BinOp of (((int * int) -> int)*expr*expr)  (* '+','-',etc. *)
+  | BinOp of (((int * int) -> int) * expr * expr)  (* '+','-',etc. *)
   ;;
 
 let x : expr =  X ;;
@@ -12,7 +12,7 @@ let two : expr = Const 2 ;;
 
 (* Evaluate by destructuring. *)
 
-let rec eval : int->expr->int = 
+let rec eval : int -> expr -> int = 
   fun t e -> 
     match e with
     | X -> t
@@ -22,16 +22,16 @@ let rec eval : int->expr->int =
 
 (* Overload arithmetic operators for expressions. *)
 
-let (+) : expr->expr->expr = 
+let (+) : expr -> expr -> expr = 
   fun x y -> BinOp ((fun (a, b) -> (+) a b), x, y) 
   ;;
-let (-) : expr->expr->expr = 
+let (-) : expr -> expr -> expr = 
   fun x y -> BinOp ((fun (a, b) -> (-) a b), x, y) 
   ;;
-let (/) : expr->expr->expr = 
+let (/) : expr -> expr -> expr = 
   fun x y -> BinOp ((fun (a, b) -> (/) a b), x, y) 
   ;;
-let ( * ) : expr->expr->expr = 
+let ( * ) : expr -> expr -> expr = 
   fun x y -> BinOp ((fun (a, b) -> ( * ) a b), x, y) 
   ;;
 
