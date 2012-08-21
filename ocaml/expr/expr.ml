@@ -1,14 +1,14 @@
-(* A type for integer expressions. *)
+(* A type for expressions. *)
 
-type expr = 
+type ('s) expr = 
   | X (* variable *)
-  | Const of int (* constant *)
-  | BinOp of (((int * int) -> int) * expr * expr)  (* '+','-',etc. *)
+  | Const of 's (* constant *)
+  | BinOp of ((('s * 's) -> 's) * ('s)expr * ('s)expr)  (* '+','-',etc. *)
   ;;
 
 (* Evaluate by destructuring. *)
 
-let rec eval : int -> expr -> int = 
+let rec eval : 's -> ('s) expr -> 's = 
   fun t e -> 
     match e with
     | X -> t
@@ -18,24 +18,24 @@ let rec eval : int -> expr -> int =
 
 (* Overload arithmetic operators for expressions. *)
 
-let (+) : expr -> expr -> expr = 
+let (+) : ('s) expr -> ('s) expr -> ('s) expr = 
   fun x y -> BinOp ((fun (a, b) -> (+) a b), x, y) 
   ;;
-let (-) : expr -> expr -> expr = 
+let (-) : ('s) expr -> ('s) expr -> ('s) expr = 
   fun x y -> BinOp ((fun (a, b) -> (-) a b), x, y) 
   ;;
-let (/) : expr -> expr -> expr = 
+let (/) : ('s) expr -> ('s) expr -> ('s) expr = 
   fun x y -> BinOp ((fun (a, b) -> (/) a b), x, y) 
   ;;
-let ( * ) : expr -> expr -> expr = 
+let ( * ) : ('s) expr -> ('s) expr -> ('s) expr = 
   fun x y -> BinOp ((fun (a, b) -> ( * ) a b), x, y) 
   ;;
 
 (* Some evaluations. *)
 
-let x : expr =  X ;;
-let one : expr = Const 1 ;;
-let two : expr = Const 2 ;;
+let x : (int) expr =  X ;;
+let one : (int) expr = Const 1 ;;
+let two : (int) expr = Const 2 ;;
 let _ =
   Printf.printf "x + 2 (at x = 3) = %d\n" (eval 3 (x + two));
   Printf.printf "x - 2 (at x = 3) = %d\n" (eval 3 (x - two));
