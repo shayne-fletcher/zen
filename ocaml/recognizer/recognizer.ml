@@ -1,7 +1,17 @@
+(* Recognizers 
+
+   Read a grammar directly as a recognizer.
+*)
+
+
+(* Recognizer constructors. *)
+
 type 'a remaining = 
   | Remains of 'a list
   | Fails
   ;;
+
+(* The type of a recognizer is an abbreviation. *)
 
 type 'a recognizer = 'a list -> 'a remaining ;;
 
@@ -202,5 +212,3 @@ let implode l =
 - : char remaining = Fails
 
 *)
-
-
