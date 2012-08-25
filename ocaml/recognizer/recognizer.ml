@@ -102,7 +102,7 @@ let andalso : 'a recognizer -> 'a recognizer -> 'a recognizer =
 let rec zero_or_more p = 
 (fun toks -> 
   ((p /* andalso */ (zero_or_more p)) /* orelse */ empty) toks) 
-;; (* val zero_or_more : 'a recognizer -> 'a recognizer = <fun>*)
+;; (* val zero_or_more : 'a recognizer -> 'a recognizer = <fun> *)
 
 (*
 
@@ -115,7 +115,7 @@ let rec zero_or_more p =
 
 (* Recognizers for regular expressions.*)
 
-let rec char_range c (*: char -> (char * char) list ->bool*) =
+let rec char_range c (*: char -> (char * char) list ->bool *) =
   fun x ->
     match x with
       | [] -> false
@@ -198,7 +198,7 @@ let implode l =
       match l with
         | [] -> res
         | (c :: l) -> res.[i] <- c; imp (i + 1) l in imp 0 l
-;;
+ ;;
 
 (*
 
@@ -212,3 +212,26 @@ let implode l =
 - : char remaining = Fails
 
 *)
+
+(* Various derived forms. *)
+
+(* "." *)
+let any : 'a recognizer =
+  fun x -> token (fun _ -> true) x 
+;; 
+
+(* "?" *)
+let optional : 'a recognizer -> 'a recognizer = 
+  (fun p -> (p /* orelse*/ empty)) 
+;;
+
+(* "+" *)
+let one_or_more : 'a recognizer -> 'a recognizer = 
+  (fun p -> (p /* andalso */ (zero_or_more p))) 
+;;
+
+
+
+
+
+
