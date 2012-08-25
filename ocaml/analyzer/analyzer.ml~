@@ -1,4 +1,0 @@
-type ('a, 'b) parsed = 
-  | Returns of 'b * ('a list)
-  | AnalyzeFails
-  ;;
