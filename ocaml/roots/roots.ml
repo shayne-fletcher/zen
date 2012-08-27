@@ -11,12 +11,12 @@
 (** Search for a zero of {i f(x)} in the interval {i (a, b)} in
     increments of [dx]. It returns the bounds [Some (x1, x2)] if the
     search was successful and [None] if not. After the first root (the
-    root closest to {i a}) has been detected, [root_search] can be
+    root closest to {i a}) has been detected, [search] can be
     called again with {i a} replaced by [x2] in order to find the next
-    root. This can be repeated as long as [root_search] detects a
+    root. This can be repeated as long as [search] detects a
     root.
 *)
-let root_search f a b dx =
+let search f a b dx =
   let rec loop x1 f1 x2 f2 =
     if (f1*.f2) <= 0. then
       Some (x1, x2)
@@ -31,10 +31,10 @@ let root_search f a b dx =
   in loop a (f a) (a +. dx) (f (a +. dx))
 ;;
 (*
-  val root_search : (float -> float) -> float -> float -> float -> (float * float) option
+  val search : (float -> float) -> float -> float -> float -> (float * float) option
 
   let f x = x**3. -. 10.*.(x**2.) +. 5.
-  in root_search f 0. 1. 0.2
+  in search f 0. 1. 0.2
   ;;
   - : (float * float) option = Some (0.60000000000000009, 0.8) 
 
@@ -65,19 +65,18 @@ let bisect f bounds eps =
 	  in
 	    let rec loop i x1 x2  f1 f2 = 
 	      if i < 0 then (x1 +. x2) /. 2.0 else
-		  let x3 = 0.5 *. (x1 +. x2) 
-		  in 
+		  let x3 = 0.5 *. (x1 +. x2)  in 
 		  let f3 = f x3 in
-	          if f3 = 0.0 then x3
-		  else
-		    if f2 *. f3 <= 0. then
-		      let x1 = x3
-		      and f1 = f3
-		      in loop (i-1) x1 x2 f1 f2
+	            if f3 = 0.0 then x3
 		    else
-		      let x2 = x3
-		      and f2 = f3
-		      in loop (i-1) x1 x2 f1 f2
+		      if f2 *. f3 <= 0. then
+			let x1 = x3
+			and f1 = f3
+			in loop (i-1) x1 x2 f1 f2
+		      else
+			let x2 = x3
+			and f2 = f3
+			in loop (i-1) x1 x2 f1 f2
 	      in loop n x1 x2 f1 f2
 ;;
 
@@ -98,7 +97,7 @@ let bisect f bounds eps =
     @param tol Tolerance
     @param max_its Maximum number iterations permitted
 *)
-let newton_raphson f f' bounds tol max_its = 
+let newton f f' bounds tol max_its = 
   let (a, b) = bounds in
   let fa = f a in
   if fa = 0. then a
@@ -109,7 +108,7 @@ let newton_raphson f f' bounds tol max_its =
       if fa *. fb > 0. then failwith "Root is not bracketed"
       else
   	let rec loop i a b fa =
-	  if i = 0 then failwith "Max iterations exceeded" else
+	  if i = max_its then failwith "Max iterations exceeded" else
 	    let x = 0.5 *. (a +. b) in
 	    let fx = f x and dfx = (f' x) in
 	    let fafx = fa*.fx in
@@ -123,16 +122,16 @@ let newton_raphson f f' bounds tol max_its =
 		x = if test then a +. dx else x in
               if ((abs_float dx) < tol*.(abs_float b)) then x
 	      else 
-  		  loop (i-1) a b fa
-	in loop max_its a b fa
+  		  loop (i+1) a b fa
+	in loop 0 a b fa
 ;;
 (*
-  val newton_raphson :
+  val newton :
   (float -> float) ->
   (float -> float) -> float * float -> float -> int -> float = <fun>
 
-  # newton_raphson (fun x -> x *. x -. 2.) (fun x -> 2.*.x) (1., 3.) 1.0e-9 30;;
+  # newton (fun x -> x *. x -. 2.) (fun x -> 2.*.x) (1., 3.) 1.0e-9 30;;
   - : float = 1.4142135623730951
 *)
 
-newton_raphson (fun x -> x *. x -. 2.) (fun x -> 2.*.x) (1., 3.) 1.0e-9 30;;
+newton (fun x -> x *. x -. 2.) (fun x -> 2.*.x) (1., 3.) 1.0e-9 30;;
