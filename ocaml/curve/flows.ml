@@ -23,8 +23,8 @@ module Flows =
 
 (* Test *)
 
-open Flows ;;
-open Dates ;;
+(* open Flows ;; *)
+(* open Dates ;; *)
 
 let start = CalendarLib.Date.make 2012 01 03
 and end_ = CalendarLib.Date.make 2012 07 03
@@ -32,7 +32,7 @@ in
   let pay = CalendarLib.Date.add start (CalendarLib.Date.Period.day 2)
   and accrual = Dates.year_fraction (start, end_) Dates.DC_ACT_360
   in 
-  let
-      flo = {start=start; end_=end_; pay=pay; accrual=accrual}
-  in Printf.printf "%s\n" (string_of_flow flo) 
+    let
+        flo = {start=start; end_=end_; pay=pay; accrual=accrual}
+    in Printf.printf "%s\n" (string_of_flow flo) 
 ;;
