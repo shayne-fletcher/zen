@@ -1,13 +1,5 @@
-(** A common problem encountered in engineering analysis is this :
-  given a function {i f(x)}, determine the values of {i x} for which
-  {i f(x) = 0}. The solutions (values of {i x}) are known as the
-  roots of the equation {i f(x) = 0}, or the zeroes of the function
-  {i f(x)}.
-
-  These algorithms have been adapted from chapter 4. of "Numerical
-  Methods in Engineering with Python" by Jaan Kiusalaas.
-*)
-
+module Roots = 
+struct
 (** Search for a zero of {i f(x)} in the interval {i (a, b)} in
     increments of [dx]. It returns the bounds [Some (x1, x2)] if the
     search was successful and [None] if not. After the first root (the
@@ -40,15 +32,6 @@ let search f a b dx =
 
 *)
 
-(** Use the method of bisection to compute the root of {i f(x) = 0 }
-    that is known to lie in the interval [(x1, x2)]. The number of
-    bisections {i n} required to reduce the interval to {i eps} is
-    computed.
-
-    @param f The function {i f(x)}
-    @param bounds The interval known to contain the root
-    @param eps The length of the interval in which to constrain the root
-*)
 let bisect f bounds eps =
   let (x1, x2) = bounds in
   let f1 = f x1 
@@ -85,18 +68,6 @@ let bisect f bounds eps =
 - : float = 0.73460350763052706
 *)
 
-(** This Newton-Raphson method assumes that the root to be computed is
-    initially bracketed in {i (a, b)}. The midpoint of the bracket is
-    used as the initial guess of the root. The brackets are updated
-    after each iteration. If a Newton-Raphson step jumps brackets, it
-    is replaced with a bisection step.
-
-    @param f The function {i f(x)}
-    @param f' The derivative of {i f(x)}
-    @param bounds The interval known to contain the root
-    @param tol Tolerance
-    @param max_its Maximum number iterations permitted
-*)
 let newton f f' bounds tol max_its = 
   let (a, b) = bounds in
   let fa = f a in
@@ -133,5 +104,5 @@ let newton f f' bounds tol max_its =
   # newton (fun x -> x *. x -. 2.) (fun x -> 2.*.x) (1., 3.) 1.0e-9 30;;
   - : float = 1.4142135623730951
 *)
-
-newton (fun x -> x *. x -. 2.) (fun x -> 2.*.x) (1., 3.) 1.0e-9 30;;
+end
+;;
