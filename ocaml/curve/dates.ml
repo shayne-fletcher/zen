@@ -3,7 +3,6 @@
 #load "str.cma";;
 #load "calendarLib.cma";;
 *)
-
 module Dates = 
 
 struct
