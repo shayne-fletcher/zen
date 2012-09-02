@@ -4,8 +4,7 @@ module Dates :
 
     (** {2 Holidays} *)
 
-    (** Test if the given day is a business day in the financial
-	calendar.*)
+    (** Return [true] if a day is a holiday; [false] otherwise. *)
     val is_business_day : CalendarLib.Date.t -> string -> bool
 
     (** {2 Date rolling} *)
