@@ -162,9 +162,11 @@ in
   Printf.printf "Today : %s\n" t ;
   Printf.printf "Shift following : %s\n" (CalendarLib.Printer.Date.to_string (Dates.shift today Following "nyc")) ;
   Printf.printf "Shift preceding : %s\n" (CalendarLib.Printer.Date.to_string (Dates.shift today Preceding "nyc"));
-  Printf.printf "Shift modified following: %s\n" (CalendarLib.Printer.Date.to_string (shift today ModifiedFollowing "nyc"));
-  Printf.printf "Shift modified_preceding: %s\n" (CalendarLib.Printer.Date.to_string (shift today ModifiedPreceding "nyc"));
-  Printf.printf "start(%s), unto(%s), act/360 = %f\n" s u (year_fraction_act_360 (start, unto)) ;
-  Printf.printf "start(%s), unto(%s), 30/360 = %f\n" s u (year_fraction_30_360 (start, unto)) ;
-  Printf.printf "start(%s), unto(%s), act/act = %f\n" s u (year_fraction_act_act (start, unto))
+  Printf.printf "Shift modified following: %s\n" (CalendarLib.Printer.Date.to_string (Dates.shift today ModifiedFollowing "nyc"));
+  Printf.printf "Shift modified_preceding: %s\n" (CalendarLib.Printer.Date.to_string (Dates.shift today ModifiedPreceding "nyc"));
+  Printf.printf "start(%s), unto(%s), act/360 = %f\n" s u (Dates.year_fraction_act_360 (start, unto)) ;
+  Printf.printf "start(%s), unto(%s), 30/360 = %f\n" s u (Dates.year_fraction_30_360 (start, unto)) ;
+  Printf.printf "start(%s), unto(%s), act/act = %f\n" s u (Dates.year_fraction_act_act (start, unto))
 ;;
+
+
