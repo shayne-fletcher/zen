@@ -1,8 +1,5 @@
-module Interpolation =
-  struct
-
-    let lower_bound : float -> float list -> int = 
-      fun x xs ->
+let lower_bound : float -> float list -> int = 
+  fun x xs ->
 	let rec loop = fun first count -> 
 	  if count = 0 then
 	    first
@@ -17,11 +14,11 @@ module Interpolation =
 	          loop first half
 	in
 	  loop 0 (List.length xs)
-    ;;
+;;
  
-    let upper_bound : float -> float list -> int = 
-     fun x xs ->
-       let rec loop = fun first count ->
+let upper_bound : float -> float list -> int = 
+ fun x xs ->
+   let rec loop = fun first count ->
 	 if count = 0 then first
 	 else
 	   let half=count/2
@@ -32,20 +29,20 @@ module Interpolation =
 	       loop first half
 	     else
 	       loop (mid+1) (count-half-1)
-       in
-        loop 0 (List.length xs)
-    ;;
+   in
+    loop 0 (List.length xs)
+;;
 
-    let equal_range : float -> float list -> (int*int) = 
-      fun x xs ->
+let equal_range : float -> float list -> (int*int) = 
+  fun x xs ->
 	let a = lower_bound x xs
 	and b = upper_bound x xs
 	in 
-          (a, b)
-    ;;
+      (a, b)
+;;
 
-    let bind : float -> float list -> (int*int)  = 
-      fun x xs ->
+let bind : float -> float list -> (int*int)  = 
+  fun x xs ->
 	let count = (List.length xs)
 	and (left, right) = equal_range x xs
 	in
@@ -60,8 +57,8 @@ module Interpolation =
 	     (left - 1, right)
 	   else (left, right)
 
-    let linear_interpolation : float list -> float list -> float -> float =
-      fun xs ys x ->
+let linear_interpolation : float list -> float list -> float -> float =
+  fun xs ys x ->
 	let (i', i) = bind x xs
 	in
   	  let (xi', xi) = ((List.nth xs i'), (List.nth xs i))
@@ -70,8 +67,8 @@ module Interpolation =
    	    let r = (x -. xi) /. (xi' -. xi)
 	    in r *. (yi' -. yi) +. yi
 
-    let loglinear_interpolation : float list -> float list -> float -> float =
-      fun xs ys x ->
+let loglinear_interpolation : float list -> float list -> float -> float =
+  fun xs ys x ->
 	let (i', i) = bind x xs
 	in
   	  let (xi', xi) = ((List.nth xs i'), (List.nth xs i))
@@ -81,16 +78,13 @@ module Interpolation =
 	    and lyi = log yi
 	    and lyi' = log yi'
 	    in exp ( r*.(lyi' -. lyi) +. lyi )
-  end
 ;;
-
-open Interpolation ;;
 
 let abscissae=[1.0 ; 2.0; 4.0]
 and ordinates=[2.0 ; 4.0; 8.0]
 in
- let lin_interp = Interpolation.linear_interpolation abscissae ordinates
- and log_interp = Interpolation.loglinear_interpolation abscissae ordinates
+ let lin_interp = linear_interpolation abscissae ordinates
+ and log_interp = loglinear_interpolation abscissae ordinates
  in
    Printf.printf "----\n";
 

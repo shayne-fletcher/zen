@@ -1,5 +1,5 @@
-module Roots = 
-struct
+(* module Roots =  *)
+(* struct *)
 (** Search for a zero of {i f(x)} in the interval {i (a, b)} in
     increments of [dx]. It returns the bounds [Some (x1, x2)] if the
     search was successful and [None] if not. After the first root (the
@@ -104,5 +104,5 @@ let newton f f' bounds tol max_its =
   # newton (fun x -> x *. x -. 2.) (fun x -> 2.*.x) (1., 3.) 1.0e-9 30;;
   - : float = 1.4142135623730951
 *)
-end
-;;
+(* end *)
+(* ;; *)

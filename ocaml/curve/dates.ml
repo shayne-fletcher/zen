@@ -3,9 +3,9 @@
 #load "str.cma";;
 #load "calendarLib.cma";;
 *)
-module Dates = 
+(* module Dates =  *)
 
-struct
+(* struct *)
 
 (*In this version, only weekends are holidays.*)
 let is_business_day : CalendarLib.Date.t -> string -> bool = 
@@ -143,12 +143,12 @@ let year_fraction : (CalendarLib.Date.t * CalendarLib.Date.t) -> day_count -> fl
     | DC_ACT_ACT -> year_fraction_act_act dt
 ;;
 
-end
-;;
+(* end *)
+(* ;; *)
 
 (*Test.*)
 
-open Dates ;;
+(* open Dates ;; *)
 
 let today = CalendarLib.Date.make 2012 09 01 
 and start = CalendarLib.Date.make 2012 09 01
@@ -159,13 +159,13 @@ and s = CalendarLib.Printer.Date.to_string start
 and u = CalendarLib.Printer.Date.to_string unto
 in
   Printf.printf "Today : %s\n" t ;
-  Printf.printf "Shift following : %s\n" (CalendarLib.Printer.Date.to_string (Dates.shift today Following "nyc")) ;
-  Printf.printf "Shift preceding : %s\n" (CalendarLib.Printer.Date.to_string (Dates.shift today Preceding "nyc"));
-  Printf.printf "Shift modified following: %s\n" (CalendarLib.Printer.Date.to_string (Dates.shift today ModifiedFollowing "nyc"));
-  Printf.printf "Shift modified_preceding: %s\n" (CalendarLib.Printer.Date.to_string (Dates.shift today ModifiedPreceding "nyc"));
-  Printf.printf "start(%s), unto(%s), act/360 = %f\n" s u (Dates.year_fraction_act_360 (start, unto)) ;
-  Printf.printf "start(%s), unto(%s), 30/360 = %f\n" s u (Dates.year_fraction_30_360 (start, unto)) ;
-  Printf.printf "start(%s), unto(%s), act/act = %f\n" s u (Dates.year_fraction_act_act (start, unto))
+  Printf.printf "Shift following : %s\n" (CalendarLib.Printer.Date.to_string (shift today Following "nyc")) ;
+  Printf.printf "Shift preceding : %s\n" (CalendarLib.Printer.Date.to_string (shift today Preceding "nyc"));
+  Printf.printf "Shift modified following: %s\n" (CalendarLib.Printer.Date.to_string (shift today ModifiedFollowing "nyc"));
+  Printf.printf "Shift modified_preceding: %s\n" (CalendarLib.Printer.Date.to_string (shift today ModifiedPreceding "nyc"));
+  Printf.printf "start(%s), unto(%s), act/360 = %f\n" s u (year_fraction_act_360 (start, unto)) ;
+  Printf.printf "start(%s), unto(%s), 30/360 = %f\n" s u (year_fraction_30_360 (start, unto)) ;
+  Printf.printf "start(%s), unto(%s), act/act = %f\n" s u (year_fraction_act_act (start, unto))
 ;;
 
 
