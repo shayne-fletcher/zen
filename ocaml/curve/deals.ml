@@ -47,11 +47,22 @@ let string_of_floating_leg : floating_leg -> string =
     in "{floating_leg_flows="^(string_of_flow_list leg.floating_leg_flows)^"}"
 ;;
 
+let make_floating_leg : Flows.gen_flows_param_pack -> floating_leg = 
+  fun s ->
+    {floating_leg_flows = (Flows.gen_flows s)}
+;;
+
 type vanilla_swap =
 {
   vanilla_swap_fixed_leg : fixed_leg ;
   vanilla_swap_floating_leg : floating_leg
 }
+;;
+
+let string_of_vanilla_swap : vanilla_swap -> string = 
+  fun swap ->
+      "{vanilla_swap_fixed_leg="^(string_of_fixed_leg swap.vanilla_swap_fixed_leg)^
+      ",vanilla_swap_floating_leg="^(string_of_floating_leg swap.vanilla_swap_floating_leg)^"}"
 ;;
 
 let make_vanilla_swap : fixed_leg -> floating_leg -> vanilla_swap =
