@@ -80,30 +80,4 @@ let loglinear_interpolation : float list -> float list -> float -> float =
 	    in exp ( r*.(lyi' -. lyi) +. lyi )
 ;;
 
-let abscissae=[1.0 ; 2.0; 4.0]
-and ordinates=[2.0 ; 4.0; 8.0]
-in
- let lin_interp = linear_interpolation abscissae ordinates
- and log_interp = loglinear_interpolation abscissae ordinates
- in
-   Printf.printf "----\n";
-
-   Printf.printf "log_interpolation 1.0 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (log_interp 1.0) ;
-   Printf.printf "log_interpolation 1.1 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (log_interp 1.1) ;
-   Printf.printf "log_interpolation 1.5 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (log_interp 1.5) ;
-   Printf.printf "log_interpolation 2.0 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (log_interp 2.0) ;
-   Printf.printf "log_interpolation 3.0 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (log_interp 3.0) ;
-   Printf.printf "log_interpolation 3.5 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (log_interp 3.5) ;
-   Printf.printf "log_interpolation 3.9 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (log_interp 3.9) ;
-
-   Printf.printf "----\n";
-
-   Printf.printf "linear_interpolation 1.0 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (lin_interp 1.0) ;
-   Printf.printf "linear_interpolation 1.5 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (lin_interp 1.5) ;
-   Printf.printf "linear_interpolation 2.5 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (lin_interp 2.5) ;
-   Printf.printf "linear_interpolation 3.0 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (lin_interp 3.0) ;
-   Printf.printf "linear_interpolation 3.5 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (lin_interp 3.5) ;
-   Printf.printf "linear_interpolation 3.9 [1.0; 2.0; 4.0] [1.0; 4.0; 8.0] = %f\n" (lin_interp 3.9) ;
-;;
-
 

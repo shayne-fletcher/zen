@@ -65,31 +65,3 @@ let gen_flows : gen_flows_param_pack -> (flow) list =
     in 
     gen_flows_ params day 0
 ;;
-    
-    
-(* Test *)
-
-open Dates ;;
-
-let string_of_list f l = "[" ^ String.concat ";\n" (List.map f l) ^ "]" ;;
-
-let start = CalendarLib.Date.make 2012 01 03
-and end_ = CalendarLib.Date.make 2022 01 03
-in 
-  let schedule = 
-    {
-      gfp_start=start; 
-      gfp_end=end_; 
-      gfp_period=3; 
-      gfp_unit=MONTH; 
-      gfp_accrual_shift_conv=ModifiedFollowing; 
-      gfp_accrual_basis=DC_ACT_360; 
-      gfp_accrual_hols="nyc"; 
-      gfp_payment_delay=2 ; (* 2 day lag. *)
-      gfp_payment_shift_conv=ModifiedFollowing;
-      gfp_payment_basis=DC_ACT_360;
-      gfp_payment_hols="nyc"
-    }
-  in Printf.printf "%s\n" (string_of_list string_of_flow (gen_flows schedule))
-;;
-

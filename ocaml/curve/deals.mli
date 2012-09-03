@@ -1,2 +1,2 @@
-(** Trade representation *)
+(** Deals *)
 include Deals_sig.S

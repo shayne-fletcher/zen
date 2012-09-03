@@ -13,7 +13,8 @@ flows_sig.mli flows.mli flows.ml ^
 interpolation_sig.mli interpolation.mli interpolation.ml ^
 deals_sig.mli deals.mli deals.ml ^
 curves_sig.mli curves.mli curves.ml ^
-curve_sig.mli curve.mli
+curve_sig.mli curve.mli ^
+main.ml
 
 ocamldoc -html -m A ^
 roots_sig.mli roots.mli ^
