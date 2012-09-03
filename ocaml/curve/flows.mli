@@ -1,2 +1,2 @@
 (** Flows *)
-include Flows_sig.S ;;
+include Flows_sig.S

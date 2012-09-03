@@ -13,4 +13,7 @@ module type S = sig
   module Flows: Flows_sig.S
     (** Flow representations. *)
 
+  module Deals : Deals_sig.S
+    (** Deal representations.*)
+
 end
