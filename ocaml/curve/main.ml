@@ -1,5 +1,3 @@
-(* Test *)
-
 let t = CalendarLib.Date.make 2004 08 24;;
 let tomorrow= CalendarLib.Date.add t (Flows.make_tenor Flows.DAY 1)
 in
@@ -269,10 +267,12 @@ in
 	     Curves.curve_interpolation=Interpolation.loglinear_interpolation
 	    } 
       and deposits = [overnight_deposit; tomorrow_next_deposit; one_month_deposit; two_month_deposit; three_month_deposit; six_month_deposit]
-      and swaps = [one_year_swap ; eighteen_month_swap; two_year_swap; three_year_swap; four_year_swap; five_year_swap]
-    in
-        let p:Curves.curve = List.fold_left Curves.append_deposit c deposits
-        in
-          Printf.printf "----\n";
-          Printf.printf "%s\n" (Curves.string_of_curve p)
+      and swaps = [one_year_swap; eighteen_month_swap; two_year_swap; three_year_swap; four_year_swap; five_year_swap]
+      in
+        let p = List.fold_left Curves.append_deposit c deposits 
+	in 
+	  let q = List.fold_left Curves.append_vanilla_swap p swaps
+	    in
+              Printf.printf "----\n";
+              Printf.printf "%s\n" (Curves.string_of_curve q)
 ;;
