@@ -1,5 +1,8 @@
 (** poly_var.ml
 
+#load "dynlink.cma";;
+#load "camlp4o.cma";;
+
     A type for modeling dynamically typed expressions.
 *)
 
@@ -148,31 +151,31 @@ open Genlex ;;
 (** poly_var lexer *)
 let lexer : char Stream.t -> Genlex.token Stream.t = make_lexer ["(";")";",";"nil"]
 
-(* (\** poly_var parser *\) *)
-(* let rec parse = parser *)
-(*   | [< e1 = parse_top >] -> e1 *)
-(* and parse_top = parser *)
-(*     [< 'Int i >] -> W i *)
-(*   | [< 'Float f >] -> Num f *)
-(*   | [< 'String s >] -> Str s *)
-(*   | [< 'Kwd "nil" >] -> Nil *)
-(*   | [< 'Kwd "(" ;  e1 = parse; e2 = parse_more; 'Kwd ")">] -> Array (e1::e2, 1, (List.length (e1::e2))) *)
-(* and parse_more = parser *)
-(*   |  [< 'Kwd "," ; e1 = parse; e2 = parse_more >] -> e1::e2 *)
-(*   | [< >] -> [] *)
-(*   ;; *)
+(** poly_var parser *)
+let rec parse = parser
+  | [< e1 = parse_top >] -> e1
+and parse_top = parser
+    [< 'Int i >] -> W i
+  | [< 'Float f >] -> Num f
+  | [< 'String s >] -> Str s
+  | [< 'Kwd "nil" >] -> Nil
+  | [< 'Kwd "(" ;  e1 = parse; e2 = parse_more; 'Kwd ")">] -> Array (e1::e2, 1, (List.length (e1::e2)))
+and parse_more = parser
+  | [< 'Kwd "," ; e1 = parse; e2 = parse_more >] -> e1::e2
+  | [< >] -> []
+  ;;
 
 (* poly_var parser tests *)
 
-(* let i : poly_var = parse (lexer (Stream.of_string "1")) *)
-(* let f : poly_var = parse (lexer (Stream.of_string "1.0")) *)
-(* let s : poly_var = parse (lexer (Stream.of_string "\"Hello world!\"")) *)
-(* let t : poly_var = parse (lexer (Stream.of_string "(1, 2, 3, 4)")) *)
-(* let e : poly_var = parse (lexer (Stream.of_string "nil")) *)
-(* let _ =  *)
-(*   Printf.printf "i = %s\n" (poly_var_to_string i) ; *)
-(*   Printf.printf "f = %s\n" (poly_var_to_string f) ; *)
-(*   Printf.printf "s = %s\n" (poly_var_to_string s) ; *)
-(*   Printf.printf "t = %s\n" (poly_var_to_string t) ; *)
-(*   Printf.printf "t = %s\n" (poly_var_to_string e) ; *)
-(*   ;; *)
+let i : poly_var = parse (lexer (Stream.of_string "1")) 
+and f : poly_var = parse (lexer (Stream.of_string "1.0"))
+and s : poly_var = parse (lexer (Stream.of_string "\"Hello world!\""))
+and t : poly_var = parse (lexer (Stream.of_string "(1, 2, 3, 4)")) 
+and e : poly_var = parse (lexer (Stream.of_string "nil"))
+in 
+  Printf.printf "i = %s\n" (poly_var_to_string i) ;
+  Printf.printf "f = %s\n" (poly_var_to_string f) ;
+  Printf.printf "s = %s\n" (poly_var_to_string s) ;
+  Printf.printf "t = %s\n" (poly_var_to_string t) ;
+  Printf.printf "t = %s\n" (poly_var_to_string e) ;
+  ;;
