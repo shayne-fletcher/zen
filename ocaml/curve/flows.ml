@@ -9,10 +9,50 @@ type flow =
 
 let string_of_flow : flow -> string =
   fun f ->
-    "{flow_start="^(CalendarLib.Printer.Date.to_string f.flow_start^", ")^ 
-      "flow_end="^ (CalendarLib.Printer.Date.to_string f.flow_end^", ")^ 
-      "flow_pay="^(CalendarLib.Printer.Date.to_string f.flow_pay^", ")^  
-      "flow_accrual="^(string_of_float f.flow_accrual)^"}"
+    let flow_start = CalendarLib.Printer.Date.sprint "%Y %m %d" f.flow_start
+    and flow_end =CalendarLib.Printer.Date.sprint "%Y %m %d" f.flow_end
+    and flow_pay = CalendarLib.Printer.Date.sprint "%Y %m %d" f.flow_pay
+    and flow_accrual = string_of_float f.flow_accrual
+    in "{flow_start="^flow_start^"; flow_end="^ flow_end^"; flow_pay="^flow_pay^"; flow_accrual="^flow_accrual^"}"
+;;
+
+open Genlex;;
+
+let flow_of_string : string -> flow =
+  fun s ->
+    let lexer = make_lexer 
+      [
+	"{"; 
+	";";
+	"}";
+	"=";
+	"}";
+	"flow_start";
+	"flow_end";
+	"flow_pay";
+	"flow_accrual";
+      ]
+    in
+      let rec parse_flow = parser
+	[< 'Kwd "{" ; 
+	   'Kwd "flow_start" ; 'Kwd "=" ; flow_start_year=parse_int; flow_start_month=parse_int ; flow_start_day = parse_int ; 'Kwd ";" ;
+	   'Kwd "flow_end" ; 'Kwd "=" ; flow_end_year=parse_int; flow_end_month=parse_int ; flow_end_day = parse_int ; 'Kwd ";" ;
+	   'Kwd "flow_pay" ; 'Kwd "=" ; flow_pay_year=parse_int; flow_pay_month=parse_int ; flow_pay_day = parse_int ; 'Kwd ";" ;
+	   'Kwd "flow_accrual" ; 'Kwd "=" ; flow_accrual=parse_float ;
+	   'Kwd "}" >] ->
+	{flow_start=(CalendarLib.Date.make flow_start_year flow_start_month flow_start_day);
+	 flow_end=(CalendarLib.Date.make flow_end_year flow_end_month  flow_end_day);
+	 flow_pay=(CalendarLib.Date.make flow_pay_year flow_pay_month  flow_pay_day);
+	 flow_accrual=flow_accrual
+	}
+      and parse_int = parser
+	  | [< 'Int i>] -> i
+	  | [< _ >] -> failwith "parse error"
+      and parse_float = parser
+	  | [< 'Float f>] -> f
+	  | [< _ >] -> failwith "parse error"
+      in
+        parse_flow (lexer (Stream.of_string s)) 
 ;;
 
 type resolution = DAY | WEEK | MONTH | YEAR ;;

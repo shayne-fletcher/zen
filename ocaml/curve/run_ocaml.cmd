@@ -5,7 +5,8 @@ call "C:\program files\microsoft visual studio 10.0\vc\bin\vcvars32.bat"
 ::Invoke ocamlopt
 
 ocamlopt ^
--I c:/ocamlms/lib/site-lib/calendar str.cmxa unix.cmxa calendarLib.cmx ^
+  -pp "camlp4o pa_extend.cmo" -I +camlp4 ^
+  -I c:/ocamlms/lib/site-lib/calendar str.cmxa unix.cmxa calendarLib.cmx ^
 -o curve.exe ^
 roots_sig.mli roots.mli roots.ml ^
 dates_sig.mli dates.mli dates.ml ^
