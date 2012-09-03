@@ -12,7 +12,6 @@ sig
 	flow_pay : CalendarLib.Date.t ;
 	flow_accrual : float ;
       } 
-    ;;
 
     (** Make a string of a flow *)
     val string_of_flow : flow -> string
@@ -42,7 +41,6 @@ sig
 	gfp_payment_basis : Dates.day_count ;
 	gfp_payment_hols : string
       }
-    ;;
 
     (** Roll out a set of flows *)
     val gen_flows : gen_flows_param_pack -> (flow) list

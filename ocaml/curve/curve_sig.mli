@@ -2,21 +2,22 @@
 module type S = sig
 
   module Dates: Dates_sig.S
-    (** Financial date arithemetic. *)
+    (** Dates *)
 
   module Roots: Roots_sig.S
-    (** Root finding implementations. *)
+    (** Roots *)
 
   module Interpolation: Interpolation_sig.S
-    (** Interpolation algorithms. *)
+    (** Interpolation *)
 
   module Flows: Flows_sig.S
-    (** Flow representations. *)
+    (** Flows *)
 
   module Deals : Deals_sig.S
-    (** Deal representations.*)
+    (** Deals *)
 
   module Curves : Curves_sig.S
-    (** Curve representations.*)
+    (** Curves *)
 
 end
+

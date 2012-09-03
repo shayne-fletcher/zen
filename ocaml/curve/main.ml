@@ -1,3 +1,5 @@
+(* Requires Calendar - http://calendar.forge.ocamlcore.org/ *)
+
 let t = CalendarLib.Date.make 2004 08 24 ;;
 let tomorrow = CalendarLib.Date.add t (Flows.make_tenor Flows.DAY 1) ;;
 let day_after_tomorrow = CalendarLib.Date.add tomorrow (Flows.make_tenor Flows.DAY 1) ;;
