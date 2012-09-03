@@ -69,6 +69,7 @@ let make_vanilla_swap : fixed_leg -> floating_leg -> vanilla_swap =
   fun l r -> {vanilla_swap_fixed_leg=l; vanilla_swap_floating_leg=r}
 ;;
   
+(*
 (* Test *)
 
 let t = CalendarLib.Date.make 2004 08 24;;
@@ -353,3 +354,4 @@ in
 				  [one_year_swap;eighteen_month_swap;three_year_swap;two_year_swap; four_year_swap; five_year_swap]
 	)
 ;;
+*)

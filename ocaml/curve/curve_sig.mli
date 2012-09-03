@@ -16,4 +16,7 @@ module type S = sig
   module Deals : Deals_sig.S
     (** Deal representations.*)
 
+  module Curves : Curves_sig.S
+    (** Curve representations.*)
+
 end

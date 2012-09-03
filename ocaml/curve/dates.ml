@@ -3,9 +3,6 @@
 #load "str.cma";;
 #load "calendarLib.cma";;
 *)
-(* module Dates =  *)
-
-(* struct *)
 
 (*In this version, only weekends are holidays.*)
 let is_business_day : CalendarLib.Date.t -> string -> bool = 
@@ -143,12 +140,18 @@ let year_fraction : (CalendarLib.Date.t * CalendarLib.Date.t) -> day_count -> fl
     | DC_ACT_ACT -> year_fraction_act_act dt
 ;;
 
-(* end *)
-(* ;; *)
+let day_diff : CalendarLib.Date.t -> CalendarLib.Date.t -> int =
+  fun to_ from ->
+    CalendarLib.Date.Period.safe_nb_days (CalendarLib.Date.sub to_ from)
+;;
 
+let year_diff : CalendarLib.Date.t -> CalendarLib.Date.t -> float =
+  fun to_ from ->
+    (float_of_int (day_diff to_ from))/.365.0
+;;
+
+(*
 (*Test.*)
-
-(* open Dates ;; *)
 
 let today = CalendarLib.Date.make 2012 09 01 
 and start = CalendarLib.Date.make 2012 09 01
@@ -167,5 +170,5 @@ in
   Printf.printf "start(%s), unto(%s), 30/360 = %f\n" s u (year_fraction_30_360 (start, unto)) ;
   Printf.printf "start(%s), unto(%s), act/act = %f\n" s u (year_fraction_act_act (start, unto))
 ;;
-
+*)
 
