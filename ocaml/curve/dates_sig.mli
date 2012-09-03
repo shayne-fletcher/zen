@@ -37,4 +37,9 @@ module type S =
 	day-count method.*)
     val year_fraction : (CalendarLib.Date.t * CalendarLib.Date.t) -> day_count -> float
 
+    (** The number of days between two dates *) 
+    val day_diff : CalendarLib.Date.t -> CalendarLib.Date.t -> int
+    (** The number of years between two dates computed as the number of days / 365.0 *)
+    val year_diff : CalendarLib.Date.t -> CalendarLib.Date.t -> float
+
   end
