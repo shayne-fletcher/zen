@@ -55,7 +55,24 @@ let flow_of_string : string -> flow =
         parse_flow (lexer (Stream.of_string s)) 
 ;;
 
-type resolution = DAY | WEEK | MONTH | YEAR ;;
+type resolution = | DAY | WEEK | MONTH | YEAR ;;
+
+let string_of_resolution : resolution -> string =
+  function 
+  | DAY -> "DAY"
+  | WEEK -> "WEEK"
+  | MONTH -> "MONTH"
+  | YEAR -> "YEAR"
+;;
+
+let resolution_of_string : string -> resolution =
+  function
+  | "DAY" -> DAY
+  | "WEEK" -> WEEK
+  | "MONTH" -> MONTH
+  | "YEAR" -> YEAR
+  | s -> failwith ("Convert convert \""^s^"\" to a resolution")
+;;
 
 let make_tenor u n =
   match u with
@@ -80,6 +97,72 @@ type gen_flows_param_pack =
     gfp_payment_hols : string
   }
 ;;
+
+let string_of_gen_flows_param_pack : gen_flows_param_pack -> string =
+  fun pack ->
+    "{"^
+      (CalendarLib.Printer.Date.sprint "%Y %m %d" pack.gfp_start)^";"^
+      (CalendarLib.Printer.Date.sprint "%Y %m %d" pack.gfp_end)^";"^
+      (string_of_int pack.gfp_period)^";"^
+      (string_of_resolution pack.gfp_unit)^";"^
+      (Dates.string_of_shift_convention pack.gfp_accrual_shift_conv)^";"^
+      (Dates.string_of_day_count pack.gfp_accrual_basis)^";"^
+      "\""^pack.gfp_accrual_hols^"\";"^
+      (string_of_int pack.gfp_payment_delay)^";"^
+      (Dates.string_of_shift_convention pack.gfp_payment_shift_conv)^";"^
+      (Dates.string_of_day_count pack.gfp_payment_basis)^";"^
+      "\""^pack.gfp_payment_hols^"\"}"
+;;
+
+let gen_flows_param_pack_of_string : string -> gen_flows_param_pack = 
+  fun s ->
+     let lexer = make_lexer ["{"; ";";"}"]
+     in
+     let rec parse_gen_flows_param_pack = parser 
+     [<  'Kwd "{"                                 ;
+ 	 start      = parse_date       ; 'Kwd ";" ;
+	 end_       = parse_date       ; 'Kwd ";" ;
+	 period     = parse_int        ; 'Kwd ";" ;
+	 unit       = parse_resolution ; 'Kwd ";" ;
+	 acc_shift  = parse_shift      ; 'Kwd ";" ;
+	 acc_basis  = parse_basis      ; 'Kwd ";" ;
+	 acc_hols   = parse_string     ; 'Kwd ";" ;
+	 pay_delay  = parse_int        ; 'Kwd ";" ;
+	 pay_shift  = parse_shift      ; 'Kwd ";" ;
+	 pay_basis  = parse_basis      ; 'Kwd ";" ;
+	 pay_hols   = parse_string                ;
+         'Kwd "}"
+     >] ->
+      {
+      	gfp_start=start;
+      	gfp_end=end_;
+      	gfp_period=period;
+      	gfp_unit=unit;
+      	gfp_accrual_shift_conv=acc_shift;
+      	gfp_accrual_basis=acc_basis;
+      	gfp_accrual_hols=acc_hols;
+      	gfp_payment_delay=pay_delay;
+      	gfp_payment_shift_conv=pay_shift;
+      	gfp_payment_basis=pay_basis;
+      	gfp_payment_hols=pay_hols
+      }
+    and parse_date = parser
+    	| [< y = parse_int; m = parse_int; d = parse_int >] -> 
+	    CalendarLib.Date.make y m d
+    and parse_shift = parser
+    	| [< s = parse_ident >] -> Dates.shift_convention_of_string s
+    and parse_basis = parser
+    	| [< s = parse_ident >] -> Dates.day_count_of_string s
+    and parse_resolution = parser
+    	| [< s = parse_ident >] -> resolution_of_string s
+    and parse_int = parser
+    	| [< 'Int i >] -> i
+    and parse_string = parser
+    	| [< 'String s >] -> s
+    and parse_ident = parser
+    	| [< 'Ident s >] -> s
+    in parse_gen_flows_param_pack (lexer (Stream.of_string s))
+;; 
 
 let gen_flows : gen_flows_param_pack -> (flow) list =
   fun params ->

@@ -1,5 +1,22 @@
 (* Requires Calendar - http://calendar.forge.ocamlcore.org/ *)
 
+(* Parsing*)
+
+let flo : Flows.flow = 
+  Flows.flow_of_string
+    "{flow_start=2012 01 03; flow_end=2012 04 03; flow_pay=2012 04 05; flow_accrual=0.252777777778}"
+in
+  Printf.printf "%s\n" (Flows.string_of_flow flo)
+;;
+
+let pak: Flows.gen_flows_param_pack =Flows.gen_flows_param_pack_of_string
+  "{2004 08 24;2004 08 25;1;DAY;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}"
+in
+  Printf.printf "%s\n" (Flows.string_of_gen_flows_param_pack pak)
+;;
+
+(* Bootstrapping *)
+
 let t = CalendarLib.Date.make 2004 08 24 ;;
 let tomorrow = CalendarLib.Date.add t (Flows.make_tenor Flows.DAY 1) ;;
 let day_after_tomorrow = CalendarLib.Date.add tomorrow (Flows.make_tenor Flows.DAY 1) ;;

@@ -11,12 +11,18 @@ module type S =
 
     (** Supported market shift conventions.*)
     type shift_convention =
-    | None
+    | NoShift
     | Following
     | ModifiedFollowing
     | Preceding
     | ModifiedPreceding
     ;;
+
+    (** shift convention as a string *)
+    val string_of_shift_convention : shift_convention -> string
+
+    (** Parse a shift convention from a string *)
+    val shift_convention_of_string : string -> shift_convention
 
     (** Shift a date to the next good business day using a shift
 	convention.*)
@@ -32,6 +38,12 @@ module type S =
     | DC_ACT_365
     | DC_ACT_ACT
     ;;
+
+    (** Day-count as a string *)
+    val day_count_of_string : string -> day_count
+
+    (** Parse a day-count from a string *)
+    val string_of_day_count : day_count -> string
     
     (** Compute the year fraction between two dates using a given
 	day-count method.*)

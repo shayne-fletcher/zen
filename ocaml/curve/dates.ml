@@ -15,11 +15,30 @@ let is_business_day : CalendarLib.Date.t -> string -> bool =
 ;;
 
 type shift_convention =
-| None
+| NoShift
 | Following
 | ModifiedFollowing
 | Preceding
 | ModifiedPreceding
+;;
+
+let string_of_shift_convention : shift_convention -> string = 
+  function 
+    | NoShift -> "NO_SHIFT"
+    | Following -> "FOLLOWING"
+    | ModifiedFollowing -> "MODIFIED_FOLLOWING"
+    | Preceding -> "PRECEDING"
+    | ModifiedPreceding -> "MODIFIED_PRECEDING"
+;;
+
+let shift_convention_of_string : string -> shift_convention =
+  function
+    | "NO_SHIFT" -> NoShift
+    | "FOLLOWING" -> Following
+    | "MODIFIED_FOLLOWING" -> ModifiedFollowing
+    | "PRECEDING" -> Preceding
+    | "MODIFIED_PRECEDING" -> ModifiedPreceding
+    | s -> failwith ("Couldn't convert \""^s^"\" to a shift convention")
 ;;
 
 let rec shift_following : CalendarLib.Date.t -> string -> CalendarLib.Date.t = 
@@ -69,7 +88,7 @@ let shift_modified_preceding : CalendarLib.Date.t -> string -> CalendarLib.Date.
 let shift : CalendarLib.Date.t->shift_convention->string->CalendarLib.Date.t = 
   fun t s loc ->
        match s with
-       | None -> t
+       | NoShift -> t
        | Following -> shift_following t loc
        | Preceding -> shift_preceding t loc
        | ModifiedFollowing -> shift_modified_following t loc
@@ -81,6 +100,23 @@ type day_count =
 | DC_ACT_360
 | DC_ACT_365
 | DC_ACT_ACT
+;;
+
+let string_of_day_count : day_count -> string =
+  function 
+  | DC_30_360 -> "DC_30_360"
+  | DC_ACT_360 -> "DC_ACT_360"
+  | DC_ACT_365 -> "DC_ACT_365"
+  | DC_ACT_ACT -> "DC_ACT_ACT"
+;;
+
+let day_count_of_string : string -> day_count =
+  function 
+  |  "DC_30_360" -> DC_30_360
+  |  "DC_ACT_360" -> DC_ACT_360
+  |  "DC_ACT_365" -> DC_ACT_365
+  | "DC_ACT_ACT" -> DC_ACT_ACT
+  | s -> failwith ("Couldn't convert \""^s^"\" to a day count convention")
 ;;
 
 let year_fraction_act_360 : (CalendarLib.Date.t * CalendarLib.Date.t) -> float =
