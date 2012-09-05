@@ -40,7 +40,17 @@ type fixed_leg =
 let string_of_fixed_leg : fixed_leg -> string = 
   fun leg ->
     let string_of_flow_list l = "[" ^ String.concat ";\n" (List.map Flows.string_of_flow l) ^ "]"
-    in "{fixed_leg_coupon="^(string_of_float leg.fixed_leg_coupon)^",fixed_leg_flows="^(string_of_flow_list leg.fixed_leg_flows)^"}"
+    in "{"^(string_of_float leg.fixed_leg_coupon)^";"^(string_of_flow_list leg.fixed_leg_flows)^"}"
+;;
+
+(* To parse a fixed_leg you read off a flow param pack. Generate
+   the flows from the pack. *)
+let rec parse_fixed_leg = parser
+  [< 'Genlex.Kwd "{" ; 
+     r = (parser [<'Genlex.Float f>] -> f) ; 'Genlex.Kwd ";" ;
+     args = Flows.parse_gen_flows_param_pack ; 
+     'Genlex.Kwd "}" 
+  >] -> {fixed_leg_coupon=r;fixed_leg_flows=(Flows.gen_flows args)}
 ;;
 
 let make_fixed_leg : float -> Flows.gen_flows_param_pack -> fixed_leg = 
@@ -56,8 +66,17 @@ type floating_leg =
 
 let string_of_floating_leg : floating_leg -> string = 
   fun leg ->
-    let string_of_flow_list l = "[" ^ String.concat ";\n" (List.map Flows.string_of_flow l) ^ "]"
-    in "{floating_leg_flows="^(string_of_flow_list leg.floating_leg_flows)^"}"
+    "{{"^((fun l -> "[" ^ 
+      String.concat ";" (List.map Flows.string_of_flow l) ^ "]") leg.floating_leg_flows)^"}}"
+;;
+
+(* To parse a floating_leg you read off a flow param pack. Generate
+   the flows from the pack. *)
+let rec parse_floating_leg = parser
+  [< 'Genlex.Kwd "{" ; 
+     args = Flows.parse_gen_flows_param_pack ; 
+     'Genlex.Kwd "}" 
+  >] -> {floating_leg_flows=(Flows.gen_flows args)}
 ;;
 
 let make_floating_leg : Flows.gen_flows_param_pack -> floating_leg = 
@@ -74,297 +93,20 @@ type vanilla_swap =
 
 let string_of_vanilla_swap : vanilla_swap -> string = 
   fun swap ->
-    "{vanilla_swap_fixed_leg="^(string_of_fixed_leg swap.vanilla_swap_fixed_leg)^
-      ",vanilla_swap_floating_leg="^(string_of_floating_leg swap.vanilla_swap_floating_leg)^"}"
+    "{"^(string_of_fixed_leg swap.vanilla_swap_fixed_leg)^
+      ";"^(string_of_floating_leg swap.vanilla_swap_floating_leg)^"}"
 ;;
 
 let make_vanilla_swap : fixed_leg -> floating_leg -> vanilla_swap =
   fun l r -> {vanilla_swap_fixed_leg=l; vanilla_swap_floating_leg=r}
 ;;
 
-(*
-(* Test *)
-
-let t = CalendarLib.Date.make 2004 08 24;;
-
-let tomorrow= CalendarLib.Date.add t (Flows.make_tenor Flows.DAY 1)
-in
-  let day_after_tomorrow = CalendarLib.Date.add tomorrow (Flows.make_tenor Flows.DAY 1)
-  in
-  let overnight_deposit = 
-      make_cash 0.00040
-        {Flows.gfp_start=t ; 
-	 Flows.gfp_end=tomorrow; 
-	 Flows.gfp_period=1;
-	 Flows.gfp_unit=Flows.DAY;
-	 Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	 Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	 Flows.gfp_accrual_hols="nyc";
-	 Flows.gfp_payment_delay=0;
-	 Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	 Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	 Flows.gfp_payment_hols="nyc"
-	}
-  and tomorrow_next_deposit = 
-      make_cash 0.00040
-        {Flows.gfp_start=tomorrow; 
-  	 Flows.gfp_end=day_after_tomorrow;
-	 Flows.gfp_period=1;
-	 Flows.gfp_unit=Flows.DAY;
-	 Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	 Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	 Flows.gfp_accrual_hols="nyc";
-	 Flows.gfp_payment_delay=0;
-	 Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	 Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	 Flows.gfp_payment_hols="nyc"
-	}
-  and one_month_deposit =
-    make_cash 0.00040
-      {Flows.gfp_start=day_after_tomorrow;
-       Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.MONTH 1); 
-       Flows.gfp_period=1;
-       Flows.gfp_unit=Flows.MONTH;
-       Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-       Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-       Flows.gfp_accrual_hols="nyc";
-       Flows.gfp_payment_delay=0;
-       Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-       Flows.gfp_payment_basis=Dates.DC_ACT_360;
-       Flows.gfp_payment_hols="nyc"
-      }
-  and two_month_deposit =
-    make_cash 0.00054
-      {Flows.gfp_start=day_after_tomorrow;
-       Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.MONTH 2); 
-       Flows.gfp_period=2;
-       Flows.gfp_unit=Flows.MONTH;
-       Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-       Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-       Flows.gfp_accrual_hols="nyc";
-       Flows.gfp_payment_delay=0;
-       Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-       Flows.gfp_payment_basis=Dates.DC_ACT_360;
-       Flows.gfp_payment_hols="nyc"
-      }
-  and three_month_deposit =
-    make_cash 0.00054
-      {Flows.gfp_start=day_after_tomorrow;
-       Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.MONTH 3); 
-       Flows.gfp_period=3;
-       Flows.gfp_unit=Flows.MONTH;
-       Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-       Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-       Flows.gfp_accrual_hols="nyc";
-       Flows.gfp_payment_delay=0;
-       Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-       Flows.gfp_payment_basis=Dates.DC_ACT_360;
-       Flows.gfp_payment_hols="nyc"
-      }
-    and six_month_deposit =
-      make_cash 0.00066
-	{Flows.gfp_start=day_after_tomorrow;
-	 Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.MONTH 6); 
-	 Flows.gfp_period=6;
-	 Flows.gfp_unit=Flows.MONTH;
-	 Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	 Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	 Flows.gfp_accrual_hols="nyc";
-	 Flows.gfp_payment_delay=0;
-	 Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	 Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	 Flows.gfp_payment_hols="nyc"
-	}
-    in
-      let string_of_cash_list l = "[" ^ String.concat ";\n" (List.map string_of_cash l) ^ "]" 
-      in 
-        Printf.printf "----\n";
-        Printf.printf "Deposits:\n";
-        Printf.printf "%s\n" (
-	  string_of_cash_list [overnight_deposit; tomorrow_next_deposit ; 
-			       one_month_deposit; two_month_deposit; three_month_deposit; six_month_deposit]
-	)
+(* To parse a vanilla_swap you read off a fixed_leg and a
+   floating_leg. *)
+let rec parse_vanilla_swap = parser
+  [< 'Genlex.Kwd "{" ; 
+     l = parse_fixed_leg ; 'Genlex.Kwd ";" ;
+     o = parse_floating_leg  ;
+     'Genlex.Kwd "}"
+  >] -> {vanilla_swap_fixed_leg=l;vanilla_swap_floating_leg=o}
 ;;
-
-let tomorrow= CalendarLib.Date.add t (Flows.make_tenor Flows.DAY 1)
-in
-  let day_after_tomorrow = CalendarLib.Date.add tomorrow (Flows.make_tenor Flows.DAY 1)
-  in
-  let one_year_swap = 
-    make_vanilla_swap 
-      (make_fixed_leg  0.0007600 
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 1); 
-	  Flows.gfp_period=1;
-	  Flows.gfp_unit=Flows.YEAR;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      ) 
-      (make_floating_leg 
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 1); 
-	  Flows.gfp_period=1;
-	  Flows.gfp_unit=Flows.YEAR;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      )
-  and eighteen_month_swap = 
-    make_vanilla_swap 
-      (make_fixed_leg  0.0010400 
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.MONTH 18); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      ) 
-      (make_floating_leg 
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.MONTH 18); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      )
-  and two_year_swap = 
-    make_vanilla_swap 
-      (make_fixed_leg  0.0015100
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 2); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      ) 
-      (make_floating_leg 
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 2); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      )
-  and three_year_swap = 
-    make_vanilla_swap 
-      (make_fixed_leg  0.0026400
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 3); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      ) 
-      (make_floating_leg 
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 3); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      )
-  and four_year_swap = 
-    make_vanilla_swap 
-      (make_fixed_leg  0.039800
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 4); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      ) 
-      (make_floating_leg 
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 4); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      )
-  and five_year_swap = 
-    make_vanilla_swap 
-      (make_fixed_leg  0.054900
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 5); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      ) 
-      (make_floating_leg 
-	 {Flows.gfp_start=day_after_tomorrow;
-	  Flows.gfp_end=CalendarLib.Date.add day_after_tomorrow (Flows.make_tenor Flows.YEAR 5); 
-	  Flows.gfp_period=6;
-	  Flows.gfp_unit=Flows.MONTH;
-	  Flows.gfp_accrual_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_accrual_basis=Dates.DC_ACT_360;
-	  Flows.gfp_accrual_hols="nyc";
-	  Flows.gfp_payment_delay=0;
-	  Flows.gfp_payment_shift_conv=Dates.ModifiedFollowing;
-	  Flows.gfp_payment_basis=Dates.DC_ACT_360;
-	  Flows.gfp_payment_hols="nyc"}
-      )
-      in
-        let string_of_vanilla_swap_list l = "[" ^ String.concat ";\n" (List.map string_of_vanilla_swap l) ^ "]" 
-        in 
-          Printf.printf "----\n";
-          Printf.printf "Swaps:\n";
-          Printf.printf "%s\n" (string_of_vanilla_swap_list 
-				  [one_year_swap;eighteen_month_swap;three_year_swap;two_year_swap; four_year_swap; five_year_swap]
-	)
-;;
-*)

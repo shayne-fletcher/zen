@@ -11,30 +11,49 @@ struct
 end
 ;;
 
-(** Parse deposits and bootstrap *)
+(* Bootstrap from parse*)
 
-let defs =
-"[ {0.0004 ; {2004 08 24;2004 08 25;1;DAY;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}"   ^
-" ;{0.0004 ; {2004 08 25;2004 08 26;1;DAY;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}"   ^
-" ;{0.0004 ; {2004 08 25;2004 08 26;1;DAY;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}"   ^
-" ;{0.0004 ; {2004 08 26;2004 09 27;1;MONTH;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}" ^
-" ;{0.0054 ; {2004 08 26;2004 10 26;2;MONTH;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}" ^
-" ;{0.0054 ; {2004 08 26;2004 11 26;3;MONTH;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}" ^
-" ;{0.0066 ; {2004 08 26;2005 02 28;6;MONTH;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}]" 
+let def1 = (* Cash deposits *)
+  "[
+     {0.0004 ;      {2004 08 24 ; 2004 08 25  ; 1  ; DAY    ; MODIFIED_FOLLOWING  ; DC_ACT_360  ; \"nyc\"; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360; \"nyc\" }}
+    ;{0.0004 ;      {2004 08 25 ; 2004 08 26  ; 1  ; DAY    ; MODIFIED_FOLLOWING  ; DC_ACT_360  ; \"nyc\"; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360; \"nyc\" }}
+    ;{0.0004 ;      {2004 08 26 ; 2004 09 27  ; 1  ; MONTH  ; MODIFIED_FOLLOWING  ; DC_ACT_360  ; \"nyc\"; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360; \"nyc\" }}
+    ;{0.0054 ;      {2004 08 26 ; 2004 10 26  ; 2  ; MONTH  ; MODIFIED_FOLLOWING  ; DC_ACT_360  ; \"nyc\"; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360; \"nyc\" }}
+    ;{0.0054 ;      {2004 08 26 ; 2004 11 26  ; 3  ; MONTH  ; MODIFIED_FOLLOWING  ; DC_ACT_360  ; \"nyc\"; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360; \"nyc\" }}
+    ;{0.0066 ;      {2004 08 26 ; 2005 02 28  ; 6  ; MONTH  ; MODIFIED_FOLLOWING  ; DC_ACT_360  ; \"nyc\"; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360; \"nyc\" }}
+  ]" 
+and def2 = (* Vanilla swaps *)
+  "[
+      { {0.0007600 ; {2004 08 26 ; 2005 08 25 ; 1  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}
+   ;                {{2004 08 26 ; 2005 08 25 ; 1  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}}
+   ; {  {0.0010400 ; {2004 08 26 ; 2006 02 26 ; 18 ; MONTH  ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}
+   ;                {{2004 08 26 ; 2006 02 26 ; 18 ; MONTH  ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}}
+   ; {  {0.0015100 ; {2004 08 26 ; 2006 08 26 ; 2  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}
+   ;                {{2004 08 26 ; 2006 08 26 ; 2  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}}
+   ; {  {0.0026400 ; {2004 08 26 ; 2007 08 26 ; 3  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}
+   ;                {{2004 08 26 ; 2007 08 26 ; 3  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}}
+   ; {  {0.0398000 ; {2004 08 26 ; 2008 08 26 ; 4  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}
+   ;                {{2004 08 26 ; 2008 08 26 ; 4  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}}
+   ; {  {0.0549000 ; {2004 08 26 ; 2009 08 26 ; 5  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}
+   ;                {{2004 08 26 ; 2009 08 26 ; 5  ; YEAR   ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\" ; 0 ; MODIFIED_FOLLOWING ; DC_ACT_360 ; \"nyc\"}}}
+]" 
+in let lexer = Genlex.make_lexer ["[";"]";"{";"}";";"] in
+   let deposits = (Parser.parse_list Deals.parse_cash) (lexer (Stream.of_string def1)) 
+   and swaps = (Parser.parse_list Deals.parse_vanilla_swap (lexer (Stream.of_string def2))) in
+   let t = CalendarLib.Date.make 2004 08 24 in
+   let c={Curves.curve_dates=[t];
+	  Curves.curve_abscissae=[0.0];
+	  Curves.curve_ordinates=[1.0];
+	  Curves.curve_interpolation=Interpolation.loglinear_interpolation
+	 } 
+   in let c1 = List.fold_left Curves.append_deposit c deposits in  
+      let c2 = List.fold_left Curves.append_vanilla_swap c1 swaps in  
+      Printf.printf "%s\n" (Curves.string_of_curve c2)
 ;;
 
-let t = CalendarLib.Date.make 2004 08 24 ;;
-let lexer = Genlex.make_lexer ["[";"]";"{";"}";";"] in
-let deposits = (Parser.parse_list Deals.parse_cash) (lexer (Stream.of_string defs)) in 
-let c={Curves.curve_dates=[t];
-       Curves.curve_abscissae=[0.0];
-       Curves.curve_ordinates=[1.0];
-       Curves.curve_interpolation=Interpolation.loglinear_interpolation
-      } 
-in let res = List.fold_left Curves.append_deposit c deposits in  Printf.printf "%s\n" (Curves.string_of_curve res)
-;;
+(* ---- *)
 
-(* Bootstrapping *)
+(* Build by hand. *)
 
 let t = CalendarLib.Date.make 2004 08 24 ;;
 let tomorrow = CalendarLib.Date.add t (Flows.make_tenor Flows.DAY 1) ;;
