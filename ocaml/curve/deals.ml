@@ -5,12 +5,25 @@ type cash =
   }
 ;;
 
+(* To parse a cash you read off a coupon and a flow param
+   pack. Generate the flows from the pack and pick off the head. *)
+let rec parse_cash = parser
+  [< 'Genlex.Kwd "{" ; 
+     coupon= (parser [< 'Genlex.Float f>] -> f) ; 'Genlex.Kwd ";" ; 
+     args = Flows.parse_gen_flows_param_pack ; 
+     'Genlex.Kwd "}" 
+  >] -> {cash_coupon=coupon; cash_flow=(List.hd (Flows.gen_flows args))}
+;;
+
 let string_of_cash : cash -> string =
   fun dep ->
-     "{cash_coupon="^(string_of_float dep.cash_coupon) ^
-    ", cash_flow="^(Flows.string_of_flow dep.cash_flow)^
-    "}"
-    ;;
+    "{"^(string_of_float dep.cash_coupon) ^";"^(Flows.string_of_flow dep.cash_flow)^"}"
+;;
+
+let cash_of_string : string -> cash =
+  fun dep ->
+    let lexer = Genlex.make_lexer ["{"; ";" ; "}"]in parse_cash (lexer (Stream.of_string dep))
+;;
 
 let make_cash : float -> Flows.gen_flows_param_pack -> cash =
   fun r s ->
@@ -18,10 +31,10 @@ let make_cash : float -> Flows.gen_flows_param_pack -> cash =
 ;;
 
 type fixed_leg =
-{
-  fixed_leg_coupon : float ;
-  fixed_leg_flows : Flows.flow list
-}
+  {
+    fixed_leg_coupon : float ;
+    fixed_leg_flows : Flows.flow list
+  }
 ;;
 
 let string_of_fixed_leg : fixed_leg -> string = 
@@ -36,9 +49,9 @@ let make_fixed_leg : float -> Flows.gen_flows_param_pack -> fixed_leg =
 ;;
 
 type floating_leg =
-{
-  floating_leg_flows : Flows.flow list
-}
+  {
+    floating_leg_flows : Flows.flow list
+  }
 ;;
 
 let string_of_floating_leg : floating_leg -> string = 
@@ -53,22 +66,22 @@ let make_floating_leg : Flows.gen_flows_param_pack -> floating_leg =
 ;;
 
 type vanilla_swap =
-{
-  vanilla_swap_fixed_leg : fixed_leg ;
-  vanilla_swap_floating_leg : floating_leg
-}
+  {
+    vanilla_swap_fixed_leg : fixed_leg ;
+    vanilla_swap_floating_leg : floating_leg
+  }
 ;;
 
 let string_of_vanilla_swap : vanilla_swap -> string = 
   fun swap ->
-      "{vanilla_swap_fixed_leg="^(string_of_fixed_leg swap.vanilla_swap_fixed_leg)^
+    "{vanilla_swap_fixed_leg="^(string_of_fixed_leg swap.vanilla_swap_fixed_leg)^
       ",vanilla_swap_floating_leg="^(string_of_floating_leg swap.vanilla_swap_floating_leg)^"}"
 ;;
 
 let make_vanilla_swap : fixed_leg -> floating_leg -> vanilla_swap =
   fun l r -> {vanilla_swap_fixed_leg=l; vanilla_swap_floating_leg=r}
 ;;
-  
+
 (*
 (* Test *)
 

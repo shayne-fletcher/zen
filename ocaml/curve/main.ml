@@ -1,18 +1,37 @@
 (* Requires Calendar - http://calendar.forge.ocamlcore.org/ *)
 
-(* Parsing*)
-
-let flo : Flows.flow = 
-  Flows.flow_of_string
-    "{flow_start=2012 01 03; flow_end=2012 04 03; flow_pay=2012 04 05; flow_accrual=0.252777777778}"
-in
-  Printf.printf "%s\n" (Flows.string_of_flow flo)
+module Parser = 
+struct
+  let rec parse_list : (Genlex.token Stream.t -> 'a) -> Genlex.token Stream.t -> 'a list = 
+    fun f ->
+      let rec list = parser | [< e = parse_top >] -> e
+      and parse_top = parser [< 'Genlex.Kwd "[" ; h = f ; t = parse_more ; 'Genlex.Kwd "]" >] -> h::t
+      and parse_more = parser | [< 'Genlex.Kwd ";" ; h = f ; t = parse_more >] -> h::t | [< >] -> []
+      in list
+end
 ;;
 
-let pak: Flows.gen_flows_param_pack =Flows.gen_flows_param_pack_of_string
-  "{2004 08 24;2004 08 25;1;DAY;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}"
-in
-  Printf.printf "%s\n" (Flows.string_of_gen_flows_param_pack pak)
+(** Parse deposits and bootstrap *)
+
+let defs =
+"[ {0.0004 ; {2004 08 24;2004 08 25;1;DAY;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}"   ^
+" ;{0.0004 ; {2004 08 25;2004 08 26;1;DAY;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}"   ^
+" ;{0.0004 ; {2004 08 25;2004 08 26;1;DAY;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}"   ^
+" ;{0.0004 ; {2004 08 26;2004 09 27;1;MONTH;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}" ^
+" ;{0.0054 ; {2004 08 26;2004 10 26;2;MONTH;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}" ^
+" ;{0.0054 ; {2004 08 26;2004 11 26;3;MONTH;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}" ^
+" ;{0.0066 ; {2004 08 26;2005 02 28;6;MONTH;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\";0;MODIFIED_FOLLOWING;DC_ACT_360;\"nyc\"}}]" 
+;;
+
+let t = CalendarLib.Date.make 2004 08 24 ;;
+let lexer = Genlex.make_lexer ["[";"]";"{";"}";";"] in
+let deposits = (Parser.parse_list Deals.parse_cash) (lexer (Stream.of_string defs)) in 
+let c={Curves.curve_dates=[t];
+       Curves.curve_abscissae=[0.0];
+       Curves.curve_ordinates=[1.0];
+       Curves.curve_interpolation=Interpolation.loglinear_interpolation
+      } 
+in let res = List.fold_left Curves.append_deposit c deposits in  Printf.printf "%s\n" (Curves.string_of_curve res)
 ;;
 
 (* Bootstrapping *)

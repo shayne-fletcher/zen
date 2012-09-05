@@ -11,10 +11,18 @@ sig
       cash_flow : Flows.flow ;
     }
 
-  (** Make a string representation of a cash *)
-  val string_of_cash : cash -> string
   (** Construct a cash *)
   val make_cash : float -> Flows.gen_flows_param_pack -> cash
+
+  (** Make a string representation of a cash *)
+  val string_of_cash : cash -> string
+
+  (** Parse a cash from a string *)
+  val cash_of_string : string -> cash
+
+  (** Parse a cash from a token stream *)
+
+  val parse_cash : Genlex.token Stream.t -> cash
 
   (**{2 Swaps}*)
 

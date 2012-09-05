@@ -4,8 +4,25 @@
 #load "calendarLib.cma";;
 *)
 
+type t = CalendarLib.Date.t ;;
+
+let parse_date : Genlex.token Stream.t -> t = 
+  let int = parser [<'Genlex.Int i>]->i in
+  parser [< y = int; m = int; d = int >] -> CalendarLib.Date.make y m d
+;;
+
+let string_of_date : t -> string =
+  fun d ->
+    CalendarLib.Printer.Date.sprint "%Y %m %d" d
+;;
+
+let date_of_string : string -> t =
+  fun s ->
+    parse_date ((Genlex.make_lexer []) (Stream.of_string s))
+;;
+
 (*In this version, only weekends are holidays.*)
-let is_business_day : CalendarLib.Date.t -> string -> bool = 
+let is_business_day : t -> string -> bool = 
   fun t (loc:string) ->
     let f = function 
       | CalendarLib.Date.Sat -> false 
@@ -41,7 +58,11 @@ let shift_convention_of_string : string -> shift_convention =
     | s -> failwith ("Couldn't convert \""^s^"\" to a shift convention")
 ;;
 
-let rec shift_following : CalendarLib.Date.t -> string -> CalendarLib.Date.t = 
+let parse_shift_convention = parser
+  | [< 'Genlex.Ident s >]  -> shift_convention_of_string s
+;;
+
+let rec shift_following : t -> string -> t = 
   fun t loc ->
     if is_business_day t loc then
       t
@@ -49,7 +70,7 @@ let rec shift_following : CalendarLib.Date.t -> string -> CalendarLib.Date.t =
      shift_following (CalendarLib.Date.add t (CalendarLib.Date.Period.day 1)) loc
   ;;
 
-let rec shift_preceding : CalendarLib.Date.t -> string -> CalendarLib.Date.t = 
+let rec shift_preceding : t -> string -> t = 
   fun t loc ->
     if is_business_day t loc then
       t
@@ -57,7 +78,7 @@ let rec shift_preceding : CalendarLib.Date.t -> string -> CalendarLib.Date.t =
       shift_preceding (CalendarLib.Date.add t (CalendarLib.Date.Period.day (-1))) loc
   ;;
 
-let shift_modified_following : CalendarLib.Date.t -> string -> CalendarLib.Date.t =
+let shift_modified_following : t -> string -> t =
   fun t loc ->
     let s = shift_following t loc
     in
@@ -71,7 +92,7 @@ let shift_modified_following : CalendarLib.Date.t -> string -> CalendarLib.Date.
 	  shift_preceding t loc
   ;;
   
-let shift_modified_preceding : CalendarLib.Date.t -> string -> CalendarLib.Date.t =
+let shift_modified_preceding : t -> string -> t =
   fun t loc ->
     let s = shift_preceding t loc
     in
@@ -85,7 +106,7 @@ let shift_modified_preceding : CalendarLib.Date.t -> string -> CalendarLib.Date.
 	  shift_following t loc
   ;;
   
-let shift : CalendarLib.Date.t->shift_convention->string->CalendarLib.Date.t = 
+let shift : t->shift_convention->string->t = 
   fun t s loc ->
        match s with
        | NoShift -> t
@@ -119,17 +140,21 @@ let day_count_of_string : string -> day_count =
   | s -> failwith ("Couldn't convert \""^s^"\" to a day count convention")
 ;;
 
-let year_fraction_act_360 : (CalendarLib.Date.t * CalendarLib.Date.t) -> float =
+let parse_day_count = parser
+  | [< 'Genlex.Ident s >]  -> day_count_of_string s
+;;
+
+let year_fraction_act_360 : (t * t) -> float =
   fun (s, u) ->
     (float_of_int (CalendarLib.Date.Period.safe_nb_days (CalendarLib.Date.sub u s)))/. 360.0
 ;;
 
-let year_fraction_act_365 : (CalendarLib.Date.t * CalendarLib.Date.t) -> float =   
+let year_fraction_act_365 : (t * t) -> float =   
   fun (s, u) ->
     (float_of_int (CalendarLib.Date.Period.safe_nb_days (CalendarLib.Date.sub u s)))/. 365.0
 ;;
 
-let year_fraction_30_360 : (CalendarLib.Date.t * CalendarLib.Date.t) -> float =
+let year_fraction_30_360 : (t * t) -> float =
   fun (s, u) ->
     let sy = CalendarLib.Date.year s
     and sm = CalendarLib.Date.int_of_month (CalendarLib.Date.month s)
@@ -147,7 +172,7 @@ let year_fraction_30_360 : (CalendarLib.Date.t * CalendarLib.Date.t) -> float =
         in (a +. b +. c) /. 360.0
 ;;
 
-let year_fraction_act_act : (CalendarLib.Date.t*CalendarLib.Date.t) -> float =
+let year_fraction_act_act : (t*t) -> float =
   fun (s, u) ->
     let sy = CalendarLib.Date.year s
     and uy = CalendarLib.Date.year u
@@ -167,7 +192,7 @@ let year_fraction_act_act : (CalendarLib.Date.t*CalendarLib.Date.t) -> float =
       in float_of_int (CalendarLib.Date.Period.safe_nb_days (CalendarLib.Date.sub u s)) /. (float_of_int days)
 ;;
 
-let year_fraction : (CalendarLib.Date.t * CalendarLib.Date.t) -> day_count -> float = 
+let year_fraction : (t * t) -> day_count -> float = 
   fun dt code ->
     match code with
     | DC_30_360 -> year_fraction_30_360 dt
@@ -176,12 +201,12 @@ let year_fraction : (CalendarLib.Date.t * CalendarLib.Date.t) -> day_count -> fl
     | DC_ACT_ACT -> year_fraction_act_act dt
 ;;
 
-let day_diff : CalendarLib.Date.t -> CalendarLib.Date.t -> int =
+let day_diff : t -> t -> int =
   fun to_ from ->
     CalendarLib.Date.Period.safe_nb_days (CalendarLib.Date.sub to_ from)
 ;;
 
-let year_diff : CalendarLib.Date.t -> CalendarLib.Date.t -> float =
+let year_diff : t -> t -> float =
   fun to_ from ->
     (float_of_int (day_diff to_ from))/.365.0
 ;;

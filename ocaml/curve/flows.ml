@@ -1,58 +1,35 @@
 type flow = 
   {
-    flow_start : CalendarLib.Date.t ; 
-    flow_end : CalendarLib.Date.t  ;
-    flow_pay : CalendarLib.Date.t ;
+    flow_start : Dates.t ; 
+    flow_end : Dates.t  ;
+    flow_pay : Dates.t ;
     flow_accrual : float ;
   } 
 ;;
 
-let string_of_flow : flow -> string =
-  fun f ->
-    let flow_start = CalendarLib.Printer.Date.sprint "%Y %m %d" f.flow_start
-    and flow_end =CalendarLib.Printer.Date.sprint "%Y %m %d" f.flow_end
-    and flow_pay = CalendarLib.Printer.Date.sprint "%Y %m %d" f.flow_pay
-    and flow_accrual = string_of_float f.flow_accrual
-    in "{flow_start="^flow_start^"; flow_end="^ flow_end^"; flow_pay="^flow_pay^"; flow_accrual="^flow_accrual^"}"
+let rec parse_flow = parser
+  [< 'Genlex.Kwd "{" ; 
+     s = Dates.parse_date ; 'Genlex.Kwd ";" ;
+     e = Dates.parse_date ; 'Genlex.Kwd ";" ;
+     p = Dates.parse_date ; 'Genlex.Kwd ";" ;
+     a = (parser | [< 'Genlex.Float f >] -> f); 
+    'Genlex.Kwd "}" >] ->
+  {flow_start=s; flow_end=e; flow_pay=p; flow_accrual=a}
 ;;
 
-open Genlex;;
+let string_of_flow : flow -> string =
+  fun f ->
+    let s = Dates.string_of_date f.flow_start
+    and e = Dates.string_of_date f.flow_end
+    and p = Dates.string_of_date f.flow_pay
+    and a = string_of_float f.flow_accrual
+    in "{"^s^" ; "^ e^" ; "^p^ "; "^a^"}"
+;;
 
 let flow_of_string : string -> flow =
   fun s ->
-    let lexer = make_lexer 
-      [
-	"{"; 
-	";";
-	"}";
-	"=";
-	"}";
-	"flow_start";
-	"flow_end";
-	"flow_pay";
-	"flow_accrual";
-      ]
-    in
-      let rec parse_flow = parser
-	[< 'Kwd "{" ; 
-	   'Kwd "flow_start" ; 'Kwd "=" ; flow_start_year=parse_int; flow_start_month=parse_int ; flow_start_day = parse_int ; 'Kwd ";" ;
-	   'Kwd "flow_end" ; 'Kwd "=" ; flow_end_year=parse_int; flow_end_month=parse_int ; flow_end_day = parse_int ; 'Kwd ";" ;
-	   'Kwd "flow_pay" ; 'Kwd "=" ; flow_pay_year=parse_int; flow_pay_month=parse_int ; flow_pay_day = parse_int ; 'Kwd ";" ;
-	   'Kwd "flow_accrual" ; 'Kwd "=" ; flow_accrual=parse_float ;
-	   'Kwd "}" >] ->
-	{flow_start=(CalendarLib.Date.make flow_start_year flow_start_month flow_start_day);
-	 flow_end=(CalendarLib.Date.make flow_end_year flow_end_month  flow_end_day);
-	 flow_pay=(CalendarLib.Date.make flow_pay_year flow_pay_month  flow_pay_day);
-	 flow_accrual=flow_accrual
-	}
-      and parse_int = parser
-	  | [< 'Int i>] -> i
-	  | [< _ >] -> failwith "parse error"
-      and parse_float = parser
-	  | [< 'Float f>] -> f
-	  | [< _ >] -> failwith "parse error"
-      in
-        parse_flow (lexer (Stream.of_string s)) 
+    let lexer = Genlex.make_lexer ["{"; ";"; "}"] in 
+    parse_flow (lexer (Stream.of_string s)) 
 ;;
 
 type resolution = | DAY | WEEK | MONTH | YEAR ;;
@@ -74,6 +51,10 @@ let resolution_of_string : string -> resolution =
   | s -> failwith ("Convert convert \""^s^"\" to a resolution")
 ;;
 
+let parse_resolution = parser
+  | [< 'Genlex.Ident s >]  -> resolution_of_string s
+;;
+
 let make_tenor u n =
   match u with
   | DAY -> CalendarLib.Date.Period.day n
@@ -84,8 +65,8 @@ let make_tenor u n =
 
 type gen_flows_param_pack =
   {
-    gfp_start : CalendarLib.Date.t ;
-    gfp_end : CalendarLib.Date.t ;
+    gfp_start : Dates.t ;
+    gfp_end : Dates.t ;
     gfp_period : int ;
     gfp_unit : resolution ;
     gfp_accrual_shift_conv : Dates.shift_convention ;
@@ -101,8 +82,8 @@ type gen_flows_param_pack =
 let string_of_gen_flows_param_pack : gen_flows_param_pack -> string =
   fun pack ->
     "{"^
-      (CalendarLib.Printer.Date.sprint "%Y %m %d" pack.gfp_start)^";"^
-      (CalendarLib.Printer.Date.sprint "%Y %m %d" pack.gfp_end)^";"^
+      (Dates.string_of_date pack.gfp_start)^";"^
+      (Dates.string_of_date pack.gfp_end)^";"^
       (string_of_int pack.gfp_period)^";"^
       (string_of_resolution pack.gfp_unit)^";"^
       (Dates.string_of_shift_convention pack.gfp_accrual_shift_conv)^";"^
@@ -114,53 +95,39 @@ let string_of_gen_flows_param_pack : gen_flows_param_pack -> string =
       "\""^pack.gfp_payment_hols^"\"}"
 ;;
 
+let rec parse_gen_flows_param_pack = parser
+[<  'Genlex.Kwd "{" ;
+    start      = Dates.parse_date ; 'Genlex.Kwd ";" ;
+    end_       = Dates.parse_date ; 'Genlex.Kwd ";" ;
+    period     = (parser [<'Genlex.Int i>]->i) ; 'Genlex.Kwd ";" ;
+    unit       = parse_resolution ; 'Genlex.Kwd ";" ;
+    acc_shift  = Dates.parse_shift_convention ; 'Genlex.Kwd ";" ;
+    acc_basis  = Dates.parse_day_count ; 'Genlex.Kwd ";" ;
+    acc_hols   = (parser [<'Genlex.String s>]->s) ; 'Genlex.Kwd ";" ;
+    pay_delay  = (parser [<'Genlex.Int i>]->i) ; 'Genlex.Kwd ";" ;
+    pay_shift  = Dates.parse_shift_convention ; 'Genlex.Kwd ";" ;
+    pay_basis  = Dates.parse_day_count ; 'Genlex.Kwd ";" ;
+    pay_hols   = ((parser [<'Genlex.String s>]->s)) ;
+    'Genlex.Kwd "}"
+>] ->
+  {
+    gfp_start=start;
+    gfp_end=end_;
+    gfp_period=period;
+    gfp_unit=unit;
+    gfp_accrual_shift_conv=acc_shift;
+    gfp_accrual_basis=acc_basis;
+    gfp_accrual_hols=acc_hols;
+    gfp_payment_delay=pay_delay;
+    gfp_payment_shift_conv=pay_shift;
+    gfp_payment_basis=pay_basis;
+    gfp_payment_hols=pay_hols
+  }
+;;
+
 let gen_flows_param_pack_of_string : string -> gen_flows_param_pack = 
   fun s ->
-     let lexer = make_lexer ["{"; ";";"}"]
-     in
-     let rec parse_gen_flows_param_pack = parser 
-     [<  'Kwd "{"                                 ;
- 	 start      = parse_date       ; 'Kwd ";" ;
-	 end_       = parse_date       ; 'Kwd ";" ;
-	 period     = parse_int        ; 'Kwd ";" ;
-	 unit       = parse_resolution ; 'Kwd ";" ;
-	 acc_shift  = parse_shift      ; 'Kwd ";" ;
-	 acc_basis  = parse_basis      ; 'Kwd ";" ;
-	 acc_hols   = parse_string     ; 'Kwd ";" ;
-	 pay_delay  = parse_int        ; 'Kwd ";" ;
-	 pay_shift  = parse_shift      ; 'Kwd ";" ;
-	 pay_basis  = parse_basis      ; 'Kwd ";" ;
-	 pay_hols   = parse_string                ;
-         'Kwd "}"
-     >] ->
-      {
-      	gfp_start=start;
-      	gfp_end=end_;
-      	gfp_period=period;
-      	gfp_unit=unit;
-      	gfp_accrual_shift_conv=acc_shift;
-      	gfp_accrual_basis=acc_basis;
-      	gfp_accrual_hols=acc_hols;
-      	gfp_payment_delay=pay_delay;
-      	gfp_payment_shift_conv=pay_shift;
-      	gfp_payment_basis=pay_basis;
-      	gfp_payment_hols=pay_hols
-      }
-    and parse_date = parser
-    	| [< y = parse_int; m = parse_int; d = parse_int >] -> 
-	    CalendarLib.Date.make y m d
-    and parse_shift = parser
-    	| [< s = parse_ident >] -> Dates.shift_convention_of_string s
-    and parse_basis = parser
-    	| [< s = parse_ident >] -> Dates.day_count_of_string s
-    and parse_resolution = parser
-    	| [< s = parse_ident >] -> resolution_of_string s
-    and parse_int = parser
-    	| [< 'Int i >] -> i
-    and parse_string = parser
-    	| [< 'String s >] -> s
-    and parse_ident = parser
-    	| [< 'Ident s >] -> s
+     let lexer = Genlex.make_lexer ["{"; ";";"}"]
     in parse_gen_flows_param_pack (lexer (Stream.of_string s))
 ;; 
 

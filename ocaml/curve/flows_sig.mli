@@ -13,6 +13,9 @@ sig
 	flow_accrual : float ;
       } 
 
+    (** Parse a flow from a token stream *)
+    val parse_flow : Genlex.token Stream.t -> flow
+
     (** Make a string of a flow *)
     val string_of_flow : flow -> string
 
@@ -22,7 +25,10 @@ sig
     (** {2 Flow duration } *)
 
     (** Flow period units *)
-    type resolution = DAY | WEEK | MONTH | YEAR ;;
+    type resolution = DAY | WEEK | MONTH | YEAR
+
+    (** Parse a resolution from a token stream *)
+    val parse_resolution : Genlex.token Stream.t -> resolution
 
     (** Make a string of a resolution *)
     val string_of_resolution : resolution -> string
@@ -53,6 +59,9 @@ sig
 
     (** Write a parameter pack to a string *)
     val string_of_gen_flows_param_pack : gen_flows_param_pack -> string
+
+    (** Parse a flow from a token stream *)
+    val parse_gen_flows_param_pack : Genlex.token Stream.t -> gen_flows_param_pack
 
     (** Parse a parameter pack from a string *)
     val gen_flows_param_pack_of_string : string -> gen_flows_param_pack
