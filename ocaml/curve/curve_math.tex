@@ -1,0 +1,355 @@
+\documentclass[a4paper]{article}
+\usepackage[pdftex,
+        colorlinks=true,
+        urlcolor=rltblue,       % \href{...}{...} external (URL)
+        filecolor=rltgreen,     % \href{...} local file
+        linkcolor=rltred,       % \ref{...} and \pageref{...}
+        pdftitle={Building Discount Factor Curves},
+        pdfauthor={Shayne Fletcher},
+        pdfsubject={Curve Construction},
+        pdfkeywords={curve, maths, C++},
+        pdfproducer={pdfLaTeX},
+        pagebackref,
+        pdfpagemode=None,
+        bookmarksopen=true]{hyperref}
+\usepackage{color}
+\definecolor{rltred}{rgb}{0.75,0,0}
+\definecolor{rltgreen}{rgb}{0,0.5,0}
+\definecolor{rltblue}{rgb}{0,0,0.75}
+
+\newcommand{\yi}{\ensuremath{\{y_i\}}}
+
+\bibliographystyle{plain}
+
+\begin{document}
+\title{Building Discount Factor Curves}
+\author{Shayne Fletcher}
+\maketitle
+\clearpage
+\begin{abstract}
+It is of course obvious that the value of a \pounds1 paid today is --- \pounds1. The same amount to be paid at some time $T$ in the future however must have a value today less than \pounds1. This follows from the fact that \pounds1 received today can be invested and therefore be `worth' more tomorrow. The discount factor function $P(t, T)$ describes the factor by which a cash amount paid at $T$ is `discounted' in order to obtain the value of the future payment at the time $t$ ($t \leq T $). Thus in terms of $P(t, T)$, the opening argument can be summarised by the statement $P(t, t) \equiv 1$.
+
+How though can we obtain values for the discount factor function for other choices of $T$? The short answer is that discount factors can be derived from market quoted prices for financial products. This process of turning market quoted rates and prices for financial products into values of the discount factor function, commonly referred to as the `bootstrapping' of a discount factor curve, is what we will be concerning ourselves with in the sections ahead.
+\end{abstract}
+
+%\tableofcontents 
+
+\section{Cash Instruments}
+
+The simplest market quoted product from which a discount factor can be inferred is the cash deposit.
+
+\subsection{Overnight deposits}
+
+The `overnight' deposit is a deposit at the market quoted rate $r_{O/N}$ starting today (denoted $t$) and ending one good business day later -- time $T_{O/N}$ say. Since at $T_{O/N}$ the holder of the deposit can expect to receive $\left(1 + r_{O/N}\langle T_{O/N}-t \rangle \right)$\marginpar{Here $\langle T-t \rangle$ means the day-count fraction from $t$ to $T$ using the appropriate basis.} of the principal invested, the discount factor corresponding to the overnight instrument is
+\begin{equation}
+  P(t, T_{O/N}) = 1 / \left(1 + r_{O/N} \langle T_{O/N}-t \rangle\right).
+\end{equation}
+
+\subsection{Tomorrow-next deposits}
+
+The `tomorrow-next' deposit is a deposit starting on the maturity of the `overnight' deposit and maturiting one good business day later -- time $T_{T/N}$ say. If $r_{T/N}$ denotes the market quoted rate for this instrument, then the tomorrow-next discount factor can be inferred to be
+\begin{equation}
+  P(t, T_{T/N}) = P(t, T_{O/N}) / \left(1 + r_{T/N} \langle T_{T/N} - T_{O/N}\rangle \right).
+\end{equation}
+
+\subsection{Deposits of longer terms} \label{sec:deposits-of-longer-terms}
+
+The remaining commonly traded short term deposits typically begin on the tomorrow-next end date --- usually referred to as the `spot' date denoted here by $T_{SPOT}$. If $r$ is the market quoted rate of a deposit starting at time $T_{SPOT}$ and paying at some time $T$ ($T_{SPOT} < T$) then:
+\begin{equation}
+  P(t, T) = P(t, T_{SPOT}) / \left(1 + r\langle T - T_{SPOT}\rangle \right).
+\end{equation}
+
+\section{Future instruments}
+
+Beyond the cash instruments that make up the very short end of the curve, a popular choice of curve building instrument are the three month IMM futures. We treat these as forward deposits and in determining the value of the discount factor function corresponding to the price of such a forward deposit, we take one of two approaches, depending on how much of the discount factor curve is already known.
+
+\subsection{Analytic}
+Let $T_{N}$ denote the last $T$ (last known epoch) for which $P(t, T)$ is known. Let $T_{S}$ and $T_{E}$ denote the start and maturity dates of the forward deposit respectively. If $T_{N} >= T_{S}$ we may solve for$P(t, T_{E})$ analytically:
+  \begin{equation}
+    P(t, T_{E}) = P(t, T_{S}) / \left(1 + F\langle T_{E} - T_{S}\rangle \right) \label{eq:analytic-future}
+  \end{equation} with $F$ the convexity adjusted forward rate. Note that $P(t, T_{S})$ is unlikely to be known exactly except in the coincidence that we have encountered a cash instrument maturing at precisely that date and it is typically therefore estimated by our interpolation function $f(T_{S}; P(t, T_{N - 1}), P(t, T_{N}))$ (see Appendix \ref{app:interpolation}).
+
+\subsection{Numeric}
+In the event $T_{N} < T_{S}$ we resort to a `root-solving' technique to find $P(t, T_{E})$. Rearranging equation \ref{eq:analytic-future} we see that $F$ is related to $P(t, T_{E})$ by
+\[
+  F = (P(t, T_{S}) / P(t, T_{E}) - 1)\left(1 / \langle T_{E} - T_{S}\rangle \right).
+\] The idea is to refine guesses of $P(t, T_{E})$ until we find the $P(t, T_{E})$ such that
+\[
+  F^{implied} = \left(P(t, T_{S}) / P(t, T_{E}) - 1\right)\left(1 / \langle T_{E} - T_{S}\rangle\right) = (1 - Q)
+\] where in this procedure, we estimate $P(t, T_{S})$ via our interpolation function \[f\left(T_{S}; P(t, T_{N}), P(t, T_{E})\right).\] Putting this another way, we seek the $P(t, T_{E})$ such that 
+\begin{equation}
+  w\left(P(t, T_{S}), P(t, T_{E})\right) = F^{implied} - (1 - Q) = 0.
+\end{equation}
+Our preferred algorithm for the root-solving procedure is the `Newton-Raphson' method for its efficiency. In order to apply this method, we will require the value of $w$ at the point $(P(t, T_{S}), P(t, T_{E}))$ and its derivative there. The derivative follows easily from the chain-rule (see Appendix \ref{app:the-chain-rule}):
+\begin{eqnarray}
+  \frac{dw}{dP(t, T_{E})} 
+  & = &\frac{\partial{w}}{\partial{P(t, T_{S})}}\frac{dP(t, T_{S})}{dP(t, T_{E})} + \frac{\partial{w}}{\partial{P(t, T_{E})}} \nonumber \\
+  & = & \left(1/P(t,T_{E})\langle T_{E}-T_{S}\rangle\right)\frac{\partial{P(t,T_{S})}}{\partial{P(t,T_{E})}} \nonumber \\
+  &   & \mbox{} - P(t,T_{S})/\left(P(t,T_{E}\right)^{2}\langle T_{E}-T_{S}\rangle).
+\end{eqnarray} Note that the partial derivative 
+\[
+ \frac{\partial{P(t,T_{S})}}{\partial{P(t,T_{E})}} = \frac{\partial{f(T_{S}; P(t, T_{N}), P(t, T_{E}))}}{\partial{P(t,T_{E})}}
+\] that is, is determined by the interpolation function $f$ (see Appendix \ref{app:interpolation}).
+
+\section{Swap Instruments} \label{sec:swap-instruments}
+
+The futures strip described previously typically makes up the `mid-section' of the discount factor curve. For the values of $P(t, T)$ for values of $T$ a year or greater, swap instruments are typically chosen over futures. Suppose a swap starting at $T^{S}_{0} = T_{SPOT}$. If the fixed side of the swap has $N_{fixed}$ payments at times $T^{S}_{i}$, $1 < i < N_{fixed}$ with final payment date $T^{S}_{end} = T^{S}_{N_{fixed}}$ and the market quoted swap rate is $r$, then at $t$, the value of the fixed side is
+\begin{equation}
+  \sum_{i=1}^{N_{fixed}}r\langle T^{S}_{i}-T^{S}_{i-1}\rangle P(t, T^{S}_{i}). \label{eq:swap-fixed-side-value} 
+\end{equation}
+
+Suppose the float side also starting at $T^{S}_{0}$ and with final payment at $T^{S}_{end}$ has $N_{float}$ payments. Let $T^{S^{\prime}}_{i-1}$ and $T^{S^{\prime}}_{i}$ be the index reset dates of the $i$th payment period ($i = 1, \ldots, N_{float}$) and $T^{S}_{i-1}$, $T^{S}_{i}$ denote in this case, the float payment dates. Then the value of the floating side of the swap is
+\begin{equation}
+  \sum_{i=1}^{N_{float}}\left(\frac{P(t, T^{S^{\prime}}_{i-1})}{P(t, T^{S^{\prime}}_{i})}-1\right)\left(\frac{1}{\langle T^{S^{\prime}}_{i}-T^{S^{\prime}}_{i-1}\rangle}\right)\langle T^{S}_{i}-T^{S}_{i-1} \rangle P(t, T^{S}_{i}).
+\end{equation}
+A common simplification made when building discount factor curves is that the index reset dates and float payment dates are aligned. That is, $T^{S^{\prime}}_{i} = T^{S}_{i}$ for all $i$. This is the so-called `swap' convention. In this case the value of the float side becomes
+\[
+  \sum_{i=1}^{N_{float}}P(t, T^{S}_{i-1})-P(t, T^{S}_{i})
+\] and after expansion of the sum, further reduces to the very simple notional exchange:
+\begin{equation}
+  P(t, T^{S}_{0}) - P(t, T^{S}_{end}).  \label{eq:swap-float-side-value}
+\end{equation}
+
+To find $P(t, T) = P(t, T^{S}_{end})$ we utilise the fact that the net value of the swap at the beginning of it's lifetime must be $0$. That is from equations \ref{eq:swap-fixed-side-value} and \ref{eq:swap-float-side-value}
+\[
+  \left(\sum_{i=1}^{N_{fixed}}r\langle T^{S}_{i}-T^{S}_{i-1}\rangle P(t, T^{S}_{i})\right) - \left(P(t, T^{S}_{0}) - P(t, T^{S}_{end})\right) = 0
+\] where in this equation, the $T^{S}_{i}$ are the payment dates of the fixed side of the swap. To do this, we find by a root-solving technique, the $P(t, T^{S}_{end})$ such that
+\begin{equation}
+  r^{implied} = \frac{P(t, T^{S}_{0})-P(t, T^{S}_{end})}{\sum_{i=1}^{N_{fixed}}P(t, T^{S}_{i})\langle T^{S}_{i}-T^{S}_{i-1} \rangle} = r \label{eq:implied-swap-rate-par}
+\end{equation} or putting this another way, we seek the $P(t, T^{S}_{end})$ such that
+\begin{equation}
+  w(P(t, T^{S}_{0}), P(t, T^{S}_{1}), \ldots, P(t, T^{S}_{end})) = r^{implied} - r = 0. \label{eq:implied-swap-rate-par-target-function}
+\end{equation}
+As always, we prefer the Newton-Raphson method for it's efficiency. As well as the value of $w$ at the point $(P(t, T^{S}_{0}), \ldots\, P(t, T^{S}_{end}))$ we will be required to compute it's derivative there with respect to the final curve epoch $P(t, T^{C}_{N})$ ($T^{C}_{N} = T^{S}_{end}$). Note that in equation \ref{eq:implied-swap-rate-par-target-function}, the $P(t, T^{S}_{i})$ are \emph{dependant} variables because they are related to the \emph{indepedent} variables $P(t, T^{C}_{0}),\ldots, P(t, T^{C}_{N})$ through the interpolation function $f$:
+\begin{equation}
+  P(t, T^{S}_{i}) = f(T^{S}_{i}; P(t, T^{C}_{0}), \ldots, P(t, T^{C}_{N}))).
+\end{equation}
+Now, by the chain rule (see Appendix \ref{app:the-chain-rule}) we have
+\begin{equation}
+  \frac{\partial{w}}{\partial{P(t, T^{C}_{N})}} 
+  = \frac{\partial{w}}{\partial{P(t, T^{S}_0)}}\left(\frac{\partial{P(t, T^{S}_{0})}}{\partial{P(t, T^{C}_{N})}}\right) +
+  \sum_{k=1}^{N_{fixed}}\frac{\partial{w}}{\partial{P(t, T^{S}_{k})}}\left(\frac{\partial{P(t, T^{S}_{k})}}{\partial{P(t, T^{C}_{N})}}\right)
+\end{equation} where the factors in brackets can be obtained from the interpolation function $f$ (see Appendix \ref{app:interpolation}) and the remaining factors are given by
+\begin{equation}
+  \frac{\partial{w}}{\partial{P(t, T^{S}_{0})}}  = \frac{1}{\sum_{i=1}^{N_{fixed}}P(t, T^{S}_{i})\langle T^{S}_{i}-T^{S}_{i-1}\rangle}
+\end{equation}
+\begin{equation}
+  \frac{\partial{w}}{\partial{P(t, T^{S}_{k})}} = -\frac{1}{\sum_{i=1}^{N_{fixed}}P(t, T^{S}_{i})\langle T^{S}_{i}-T^{S}_{i-1}\rangle}\left(\delta_{k, N_{fixed}}+ r^{implied}\langle T^S_{k}-T^{S}_{k-1}\rangle\right).
+\end{equation}
+
+\section{Cutovers}
+
+\subsection{Futures over cash - Preservation of the 3M cash rate}
+
+Let the next IMM future deposit starting beyond the curve build date $t$, be denoted $IMM_{1}$. Suppose $T_{S}$ to be the start date of this forward deposit and $T_{E}$ to be the deposit payment date. If $F$ is the convexity adjusted forward rate and $P(t, T_{S})$ and $P(t, T_{E})$ the values of the discount factor function at $T_{S}$ and $T_{E}$ respectively then,
+  \begin{equation}
+    P(t, T_{E}) = \frac{P(t, T_{S})}{1 + F\langle T_{E} - T_{S}\rangle}. \label{eq:future-end-discount-factor}
+  \end{equation}
+
+Consider now the $3M$ cash deposit. This is a deposit at the market quoted rate $r_{3M}$ (say), starting at $T_{SPOT}$ and ending at $T_{3M}$. Note that $T_{SPOT}\leq T_{S}$ and if $T_{SPOT}\ne T_{S}$ then, $T_{S} < T_{3M} < T_{E}$. If follows that if $P(t, T_{SPOT})$ and $P(t, T_{S})$ were known, $P(t, T_{E})$ would be fixed by the formula above and we could predict a value for $P(t, T_{3M})$ from our interpolation function $f(t; T_{3M}, P(T_{S}), P(T_{E}))$. Of course,
+\[P(t, T_{3M}) = \frac{P(t, T_{SPOT})}{1 + r_{3M}\langle T_{3M}-T_{SPOT}\rangle}\] and so the idea is to `vary' $P(t, T_{S})$ until 
+  \begin{equation}
+    r^{implied}_{3M} = \left(\frac{P(t, T_{SPOT})}{f(T_{3M}; P(t, T_{S}), P(t, T_{E}))} - 1\right)\left(\frac{1}{\langle T_{3M}-T_{SPOT}\rangle}\right) = r_{3M} \label{eq:preserve-3m-off-market}
+  \end{equation}
+or putting this another way, we seek the $P(t, T_{S})$ such that 
+\begin{equation}
+  w\left(P(t, T_{SPOT}), P(t, T_{S})\right) = r^{implied}_{3M} - r_{3M} = 0. \label{eq:preserve-3m-off-market-target-function}
+\end{equation}
+
+An abundance of root solving techniques exist that could be applied to this problem; we prefer the Newton-Raphson method for its efficiency. In order to apply this method, aside from the value of $w$ at the point $(P(t, T_{SPOT}), P(t, T_{S}))$ which can be found by equation \ref{eq:preserve-3m-off-market}, we will be required to compute the partial derivative $\frac{\partial{w}}{\partial{P(t, T_{S})}}$.
+
+From the definition of $w$ and application of the chain-rule (see Appendix \ref{app:the-chain-rule}) we find:
+\[
+\frac{\partial{w}}{\partial{P(t, T_{S})}}
+  = \frac{\partial{w}}{\partial{P(t, T_{SPOT})}}\frac{\partial{P(t, T_{SPOT})}}{\partial{P(t, T_{S})}} 
+  +\frac{\partial{w}}{\partial{P(t, T_{3M})}}\frac{\partial{P(t, T_{3M})}}{\partial{P(t, T_{S})}}.
+\] Carrying out differentiations we get:
+\begin{equation}
+  \frac{\partial{w}}{\partial{P(t, T_{S})}} = 
+  \left(\frac{-P(t, T_{SPOT})}{P(t, T_{3M})^{2}\langle T_{3M}-T_{SPOT}\rangle}\right)
+  \frac{\partial{P(t, T_{3M})}}{\partial{P(t, T_{S})}} \label{eq:derivative-w-wrt-future-start-df}
+\end{equation} and so it remains to compute the value of $\frac{\partial{P(t, T_{3M})}}{\partial{P(t, T_{S})}}$.
+
+To compute $\frac{\partial{P(t, T_{3M})}}{\partial{P(t, T_{S})}}$, recall $P(t, T_{E}) = \frac{P(t, T_{S})}{1+F\langle T_{E}-T_{S}\rangle}$ by equation \ref{eq:future-end-discount-factor}. That is, $P(t, T_{E})$ is a single variabled function: $P(t, T_{E}) = y\left(P(t, T_{S})\right)$. If we define $u = P(t, T_{S})$, $x(u) = u$ then for the interpolation scheme $f$, we may write \
+\[
+  P(t, T_{3M}) = f\left(T_{3M}; P(t, T_{S}), P(t, T_{E}))\right) = f(x(u), y(u))
+\] so that,
+\begin{eqnarray}
+\frac{\partial{P(t, T_{3M})}}{\partial{P(t, T_{S})}} 
+   & = & \frac{dP(t, T_{3M})}{dP(t, T_{S})}  \nonumber \\
+   & = & \frac{df(x(u),y(u))}{du} \nonumber \\
+   & = & \frac{\partial{f}}{\partial{x}}\frac{dx}{du}+\frac{\partial{f}}{\partial{y}}\frac{dy}{du} \nonumber \\
+   & = & \frac{\partial{f}}{\partial{x}}\times{1} + \frac{\partial{f}}{\partial{y}}\left(\frac{1}{1+F\langle T_{E}-T_{S}\rangle}\right) \nonumber \\
+   & = & \frac{\partial{f}}{\partial{P(t, T_{S})}}+\frac{\partial{f}}{\partial{P(t, T_{E})}}\left(\frac{1}{1+F\langle T_{E}-T_{S}\rangle}\right) 
+   \label{eq:derivative-3m-df-wrt-future-start-df}
+\end{eqnarray} and finally by combining equations \ref{eq:derivative-w-wrt-future-start-df} and \ref{eq:derivative-3m-df-wrt-future-start-df} we get:
+\begin{eqnarray}
+\frac{\partial{w}}{\partial{P(t, T_{S})}} & = & \nonumber \\
+& & \left(\frac{-P(t, T_{SPOT})}{P(t, T_{3M})^{2}\langle T_{3M}-T_{SPOT}\rangle}\right) \nonumber \\
+& & \times{\left(\frac{\partial{f}}{\partial{P(t, T_{S})}}+\frac{\partial{f}}{\partial{P(t, T_{E})}}(\frac{1}{1+F\langle T_{E}-T_{S}\rangle})\right)}
+\end{eqnarray} (see Appendix \ref{app:interpolation} for the partial derivatives of $f$).
+
+\appendix
+
+\section{Interpolation} \label{app:interpolation}
+Interpolation is the process of estimating the values of a function $y(x)$ for arguments between $x_{0},\ldots,x_{n}$ at which the values $y_{0},\ldots,y_{n}$ are known.
+
+\subsection{Linear interpolation}
+In this scheme, if $x_{i-1} \leq x < x_{i}$ we estimate $y(x)$ by
+\[
+  y = \left(\frac{x-x_{i-1}}{x_{i}-x_{i-1}}\right)(y_{i}-y_{i-1}) + y_{i-1}.
+\]\marginpar{Note that it is easily shown that \[1-\left(\frac{x_{i}-x}{x_{i}-x_{i-1}}\right) \equiv R\]}If we define the quantity $R$ by $R = \frac{x-x_{i-1}}{x_{i}-x_{i-1}}$, then in terms of R we find
+\begin{equation}
+ y = R\label{eq:linear-interpolation}\left(y_{i}-y_{i-1}\right) + y_{i-1}.
+\end{equation}
+In addition to estimating $y(x)$ by equation \ref{eq:linear-interpolation} we also have that if $x = x_{i}$ for some $i$ then $y = y(x_{i})$ and $\frac{\partial{y}}{\partial{y_{i}}} = 1$. Otherwise, if $x_{i-1} < x < x_{i}$ then 
+\begin{eqnarray}
+  \frac{\partial{y}}{\partial{y_{i-1}}} & = & 1 - R \\
+  \frac{\partial{y}}{\partial{y_{i}}}   & = & R.
+\end{eqnarray}
+
+\subsection{Log-linear interpolation}
+In this scheme, we estimate $y(x)$ by
+\begin{equation}
+  y = e^{ln(y_{i-1})+\left(ln(y_{i})-ln(y_{i-1})\right)R}. \label{eq:log-linear-interpolation}
+\end{equation}
+In addition to estimating $y(x)$ by equation \ref{eq:log-linear-interpolation} we also have that if $x = x_{i}$ for some $i$ then $y = y(x_{i})$ and $\frac{\partial{y}}{\partial{y_{i}}} = 1$. Otherwise, if $x_{i-1} < x < x_{i}$ then 
+\begin{eqnarray}
+  \frac{\partial{y}}{\partial{y_{i-1}}} & = & \frac{y}{y_{i-1}}(1 - R) \\
+  \frac{\partial{y}}{\partial{y_{i}}}   & = & \frac{y}{y_{i}}R.
+\end{eqnarray}
+
+\subsection{Linear on zero interpolation}
+In this scheme, we estimate $y(x)$ in the following way. First, if $i-1 = 0$ then
+\begin{equation}
+  y = y^{\left(\frac{x-x_{0}}{x_{i}-x_{i-1}}\right)}_{i}.
+\end{equation}In this case it follows that
+\begin{eqnarray}
+  \frac{\partial{y}}{y_{i-1}} & = & 0 \\
+  \frac{\partial{y}}{y_{i}}   & = & \frac{x-x_{0}}{x_{i}-x_{i-1}}y_{i}^{\left(\frac{x-x_{0}}{x_{i}-x_{i-1}}\right)-1}.
+\end{eqnarray}Else define
+\begin{eqnarray*}
+  z_{i} = \frac{-ln(y_{i})}{x_{i}-x_{0}} \\
+ z_{i-1} = \frac{-ln(y_{i-1})}{x_{i-1}-x_{0}}.
+\end{eqnarray*} Then,
+\begin{equation}
+  y = e^{-\left(z_{i-1} +R\left(z_{i}-z_{i-1}\right)\right)\left(x-x_{0}\right)}. \label{eq:loz-linear-interpolation}
+\end{equation} In addition to estimating $y(x)$ by equation \ref{eq:loz-linear-interpolation} we also have that if $x = x_{i}$ for some $i$ then $y = y(x_{i})$ and $\frac{\partial{y}}{\partial{y_{i}}} = 1$. Otherwise, if $x_{i-1} < x < x_{i}$ then 
+\begin{eqnarray}
+  \frac{\partial{y}}{\partial{y_{i-1}}} & = & \frac{y}{y_{i-1}}\left(\frac{x-x_{0}}{x_{i-1}-x_{0}}\right)\left(1 - R\right) \\ 
+  \frac{\partial{y}}{\partial{y_{i}}}   & = & \frac{y}{y_{i}}\left(\frac{x-x_{0}}{x_{i}-x_{0}}\right)R.
+\end{eqnarray}
+
+\subsection{Cubic spline interpolation}
+Another popular interpolation method, popular because the curves it produces are particularly smooth,  is to let the fitting function be a piecewise union of cubic polynomials. That is we define a polynomial $P_i$ on each interval $[a_{i-1},a_i]$ such that the endpoints of the polynomial pass through the ordinates \yi and that the first and second derivatives of the cubic match with the next cubic along - i.e.:
+
+\begin{eqnarray}
+P_i(x_i) &=& y_i \\
+P_{i-1}(x_i) &=& y_i \\
+\frac{d}{dx}P_i(x_{i-1}) &=& \frac{d}{dx}P_{i-1}(x_i) \\
+\frac{d^2}{dx^2}P_i(x_{i-1}) &=& \frac{d^2}{dx^2}P_{i-1}(x_i) 
+\end{eqnarray}
+
+for all $i$. By imposing conditions on the values of the derivative at the very endpoints of the function $x_0$ and $x_{N-1}$ there are sufficiently many conditions for the coefficients of all the cubics to be determined uniquely by solving a linear system of equations. The exact form of this linear system varies from one source to another. In this note, we use the form found in \cite{book:SONA}.
+
+Given $x$, let $i$ be such that $a_{i-1} < x < a_i$.
+Then our formulation says that our cubic for this i-th segment is
+
+\begin{eqnarray}
+p(x) &=& \frac{c_{i-1}*(a_i-x)^3}{6h_i} \nonumber\\
+&+& \frac{c_i(x-a_{i-1})^3}{6h_i(a_i-a_{i-1})} \nonumber\\
+&+& (y_{i-1} - \frac{c_{i-1}h_i^2}{6})(\frac{a_i-x}{h_i}) \nonumber\\
+&+& (y_i - \frac{c_{i}h^2}{6})(\frac{x-a_{i-1}}{h_i})
+\end{eqnarray}
+
+where $c$ is a set of vectors linearly dependent on the ordinates \yi that we will determine and $h_i$ is the width of the segment $(=a_i-a_{i-1})$
+
+Because c is a linear function of the \yi  and p is a linear function of the $c$s, it follows that the p is a linear function of the \yi also. Thus once we have found all the partial derivatives $\frac{\partial{c_i}}{\partial{y_j}}$, we may easily find $\frac{\partial{p} }{\partial{y_j}}$.
+
+$c$ is determined by the linear system of equations $Ac=b$ where A is square tridiagonal matrix whose values are dependent only on the segment widths $h_i$ and each $b$ is a linear combination of the $y_i$. More specifically 
+
+\begin{eqnarray}
+b_0 &=& d_{left} \nonumber\\
+b_i &=& \frac{6}{h_i+h_{i+1}}(\frac{y_{i+1}-y_i}{h_{i+1}} - \frac{y_i - y_{i-1}}{h_{i}}) \nonumber\\
+b_n &=& d_{right}
+\end{eqnarray}
+
+where $d_{left}$ and $d_{right}$ are constants dependent only on the choice of the value of the derivatives at the endpoints of the curve \footnote{In the case of the so-called \emph{natural spline}, we set the derivatives at the end-points to be zero, and have $d_{left}=d_{right}=0.0$}. A is invertible, let $F = A^{-1}$. Then we have
+
+\begin{eqnarray}
+c_i &=& F_{i,0}d_{left} + F_{i,N-1}d_{right} +  6\frac{F_{i,1}}{h_1(H_1+h_1)}F_{i,1}y_0 \nonumber\\
+&+& 6\left( -\frac{F_{i,1}}{H_1(H_1+h_1)} - \frac{F_{i,1}}{h_1(H_1+h_1)} + \frac{F_{i,2}}{h_2(H_2+H_2)}\right)y_1 \nonumber\\
+&+& 6\left(\Sigma_{j=2}^{N-3}\left(\frac{F_{i,j-1}}{H_{j-1}(H_{j-1}+h_{j-1})} - \frac{F_{i,j}}{H_j(H_j+h_j)} - \frac{F_{i,j}}{h_j(H_j+h_j)} + \frac{F_{i,j+1}}{h_{j+1}(H_{j+1}+h_{j+1}}\right)\right)y_j \nonumber\\
+&+& 6\left( -\frac{F_{i,N-2}}{H_{N-2}(H_{N-2}+h_{N-2})}-\frac{F_{i,N-1}}{h_{N-2}(H_{N-2}+h_{N-2})} + \frac{F_{i,N-3}}{H_{N-3}(H_{N-3}+h_{N-3})}\right)y_{N-2} \nonumber\\
+&+& 6\frac{F_{i,N-2}}{H_{N-2}(H_{N-2}+h_{N-2})}y_{N-1} 
+\end{eqnarray}
+where $h_i=a_i-a_{i-1}$ as before and $H_i = h_{i+1}$. Thus the $c_i$ are of the form:
+
+\begin{equation}
+c_i = l_i + \Sigma_{j} k_{i,j}y_j
+\end{equation}
+
+for some known constants $k_{i,j}$ and $l_i$. This means we have
+
+\begin{equation}
+\frac{\partial c_i}{\partial y_j} = k_{i,j}
+\end{equation}
+
+Plugging this into our original formula for $p$ we have
+
+\begin{eqnarray}
+\frac{\partial p}{\partial y_j}(x) &=& \frac{(a_i-x)^3}{6h_i}k_{i-1,j} \nonumber\\
+&+& (\frac{x-a_{i-1})^3}{6h_i}k_{i,j} \nonumber\\
+&+& (\delta_{i-1,j} - \frac{k_{i-1,j}h_i^2}{6})\frac{x_i - x}{a_i-a_{i-1}} \nonumber\\
+&+& (\delta_{i,j} - \frac{k_{i,j}h_i^2}{6})\frac{x_i-x}{a_i-a_{i-1}}
+\end{eqnarray}
+
+\section{The general chain rule} \label{app:the-chain-rule}
+
+\subsection{The most general case}
+Suppose that $w$ is a function of the variables $x_{1},x_{2},x_{3},\ldots,x_{m}$, and that each of these is a function of the variables $t_{1},t_{2},\ldots,t_{n}$. If all of these functions have continuous first order partial derivatives, then
+  \begin{equation}
+    \frac{\partial{w}}{\partial{t_{i}}} = \frac{\partial{w}}{\partial{x_{1}}}\frac{\partial{x_{1}}}{\partial{t_{i}}}
+    + \frac{\partial{w}}{\partial{x_{2}}}\frac{\partial{x_{2}}}{\partial{t_{i}}}
+    + \cdots
+    + \frac{\partial{w}}{\partial{x_{m}}}\frac{\partial{x_{m}}}{\partial{t_{i}}}.
+  \end{equation}
+
+In the situation of the above theorem, we refer to $w$ as the \emph{dependent} variable, the $x_{1},\ldots,x_{m}$ as \emph{intermediate} variables and the $t_{1},\ldots,t_{n}$ as the \emph{independent} variables.
+
+\subsection{The simplest multivariable case}
+The simplest multivariable chain rule situtation involves a function $w = f(x, y)$ where $x$ and $y$ are functions of the same single variable $t:x=g(t)$ and $y=h(t)$. The composite function $f(g(t), h(t))$ is then a single-variable function of $t$, and the following theorem expresses its derivative in terms of the partial derivatives of $f$ and the ordinary derivatives of $g$ and $h$
+  \begin{equation}
+    \frac{dw}{dt} = \frac{\partial{w}}{\partial{x}}\frac{dx}{dt}+\frac{\partial{w}}{\partial{y}}\frac{dy}{dt}.
+  \end{equation}
+
+\section{Solving on price vs.solving on rates} \label{app:solve-on-price}
+What is a `fair' cash deposit rate? A fair cash rate is the interest rate at which the value today of a deposit at that rate has no value. In the notation of section \ref{sec:deposits-of-longer-terms} that is:
+\begin{equation}
+    V(t, T) = \left(1 + r\left<T - T_{SPOT}\right>\right)P(t, T) - P(t, T_{s}) = 0. \label{eq:fair-deposit-at-time-zero}
+\end{equation}
+The partial derivatives of $V$ with respect to the discount factors at the curve epochs are:
+\begin{eqnarray}
+  \frac{\partial{V(t, T)}}{\partial{P(t, T^{C}_{i})}} & = &\frac{\partial{V(t, T)}}{\partial{P(t, T_{SPOT})}}\frac{\partial{P(t, T_{SPOT})}}{\partial{P(t, T^{C}_{i})}}
+    + \frac{\partial{V(t, T)}}{\partial{P(t, T)}}\frac{\partial{P(t, T)}}{\partial{P(t, T^{C}_{i})}} \nonumber\\
+  & = & -\frac{\partial{P(t, T_{SPOT})}}{\partial{P(t, T^{C}_{i})}} 
+          + \left(1 + r\left<T - T_{SPOT}\right> \right)\frac{\partial{P(t, T)}}{\partial{P(t, T^{C}_{i})}}. \label{eq:fair-deposit-partials}
+\end{eqnarray}
+
+What is a `fair' swap rate? A fair swap rate is the rate at which the value today of a swap at that rate has no value. In the notation of section \ref{sec:swap-instruments} that is:
+\begin{eqnarray}
+    V(t, T) = P(t, T^{S}_{0}) - P(t, T^{S}_{N}) - r\sum_{i=1}^{N}P(t, T^{S}_{i})\left<T_{i} - T_{i-1}\right> = 0. \label{eq:fair-swap-at-time-zero}
+\end{eqnarray}
+The partial derivatives of $V$ with respect to the discount factors at the curve epochs are:
+\begin{eqnarray}
+  \frac{\partial{V(t, T)}}{\partial{P(t, T^{C}_{i})}} & = 
+    & \frac{\partial{V(t, T)}}{\partial{P(t, T^{S}_{0})}}\frac{\partial{P(t, T^{S}_{0})}}{\partial{P(t, T^{C}_{i})}} 
+       + \sum_{k=1}^{N}\frac{\partial{V(t, T)}}{\partial{P(t, T^{S}_{k})}}\frac{\partial{P(t, T^{S}_{k})}}{\partial{P(t, T^{C}_{i})}} \nonumber \\
+    & = & \frac{\partial{P(t, T^{S}_{0})}}{\partial{P(t, T^{C}_{i})}}
+       - \sum_{k = 1}^{N}\left(\delta_{k, N} 
+          + r\left<T_{k}-T_{k-1}\right>\right)\frac{\partial{P(t, T^{S}_{k})}}{\partial{P(t, T^{C}_{i})}}. \label{eq:fair-swap-partials}
+\end{eqnarray}
+
+\bibliography{curve_math_bib}
+\end{document}
+
