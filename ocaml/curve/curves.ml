@@ -94,19 +94,19 @@ let value_swap : curve -> Deals.vanilla_swap -> float =
     in
        let fixed_leg_coupon = fixed_leg.Deals.fixed_leg_coupon
        in 
+         (* Assumes swap convention *)
          let value_flow : Flows.flow -> float = 
    	   fun flo ->
 	      let s = flo.Flows.flow_start
 	      and e = flo.Flows.flow_end
 	      and pay = flo.Flows.flow_pay
-	      and acc = flo.Flows.flow_accrual
 	      in
   	        let ps = evaluate crv (Dates.year_diff s t)
 	        and pe = evaluate crv (Dates.year_diff e t)
 	        and disc = evaluate crv (Dates.year_diff pay t)
 	        in 
-     	          let libor = (ps/.pe -. 1.0)/.acc
-		  in  disc*.libor*.acc
+     	          let libor = (ps/.pe -. 1.0)
+		  in  disc*.libor
 	 in 
   	   let floating_leg_value = List.fold_left (+.) 0.0 (List.map value_flow floating_leg.Deals.floating_leg_flows)
   	   in
