@@ -137,7 +137,6 @@ and (eval: (string * value) list -> expr -> value) env = function
   | EBinOp (op, e1, e2) -> eval_binop env (op, e1, e2)
   | EIf (p, t, f) -> eval env (if bool (eval env p) then t else f)
   | EInt i -> VInt i
-  (* | EBool b -> VBool v *)
   | ETuple t -> VTuple (List.map (eval env) t)
   | ELet (x, e1, e2) -> eval ((x, (eval env e1))::env) e2
   | ELetRec (f, e1, e2) ->  
