@@ -167,6 +167,7 @@ and (eval: (string * value) list -> expr -> value) env = function
   | ELetEx (vars, e1, e2) -> 
     (match e1 with
     | ETuple t -> eval ((zip vars (List.map (eval env) t))@env) e2
+    | EVar s -> eval ((zip vars (tuple (List.assoc s env)))@env) e2
     | _ -> failwith "Not a list"
     )
   | ELetRec (f, e1, e2) ->  
@@ -215,3 +216,5 @@ repr "let (x, y, z) = (3, 4, 5) in x*x + y*y + z*z" ;;
 repr "(fun (x, y) -> x + y) (1, 2)" ;;
 repr "(fun (x, y, z) -> x + y+ z) (1, 2, 3)" ;;
 repr "let rec gcd = (fun (x, y) -> if y = 0 then x else gcd (y, (x mod y))) in gcd (27, 9)" ;;
+repr "(fun (x, t) -> let (y, z) = t in (x + y + z))(1, (2, 3))";;
+repr "let (x, y) = (1, (2, 3)) in let a = x in let (b, c) = y in a + b + c";;
