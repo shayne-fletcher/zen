@@ -197,7 +197,8 @@ and (eval: (string * value) list -> expr -> value) env = function
       let bindings = List.fold_left2 tuple_match [] vars args in eval (bindings@env) e2
     | EVar s -> (* The value associated with s has already been computed. 
                    Retrieve that value and expect a tuple in it*)
-      let bindings = List.fold_left2 tuple_match [] vars (tuple (eval env e1)) in eval (bindings@env) e2
+      let args = tuple (eval env e1) in
+      let bindings = List.fold_left2 tuple_match [] vars args in eval (bindings@env) e2
     | _ -> failwith "invalid types"
     )
   | ELetRec (f, e1, e2) ->  
@@ -269,11 +270,10 @@ repr "let (x, y, z) = (3, 4, 5) in x*x + y*y + z*z" ;;
 repr "(fun (x, y) -> x + y) (1, 2)" ;;
 repr "(fun (x, y, z) -> x + y+ z) (1, 2, 3)" ;;
 repr "let rec gcd = (fun (x, y) -> if y = 0 then x else gcd (y, (x mod y))) in gcd (27, 9)" ;;
-repr "let (x, (y, z)) = (1, (2, 3)) in z" ;;
-repr "let ((a, (b, (c, d))), e) = ((1, (2, (1, 2))), 4) in a + b + c + d + e" ;;
 repr "let (x, y) = (1, (2, 3)) in let a = x in let (b, c) = y in a + b + c";;
 repr "(fun (x, t) -> let (y, z) = t in (x + y + z))(1, (2, 3))";;
 repr "let x = (1, 2) in let (a, b) = x in a + b";;
-repr "let (a, (b, t)) = (1, (2, (3, 4))) in t!!0" ;;
 repr "let (x, t) = (1, (2, 3)) in let (b, c) = t in b";;
-
+repr "let (x, (y, z)) = (1, (2, 3)) in z" ;;
+repr "let (a, (b, t)) = (1, (2, (3, 4))) in t!!0" ;;
+repr "let ((a, (b, (c, d))), e) = ((1, (2, (1, 2))), 4) in a + b + c + d + e" ;;
