@@ -17,7 +17,7 @@ type expr =
   | EApply of expr * expr
   | EIf of expr * expr * expr (* if p then t else f *)
   | ELet of string * expr * expr (* let x = e in rest *)
-  | ELetEx of string list * expr * expr (* let (x1, x2, x3...) = e in rest *)
+  | ELetEx of expr list * expr * expr (* let (x1, (x2, x3), ...) = e in rest *)
   | ELetRec of string * expr * expr (*let rec f = (fun x -> ...) in e *)
 ;;
 
@@ -104,7 +104,7 @@ and parse_let  : Genlex.token Stream.t -> expr = parser
   | [< 'Genlex.Kwd "rec" ; 'Genlex.Ident f ; 'Genlex.Kwd "=" ; e1 = parse_expr; 'Genlex.Kwd "in" ; e2 = parse_expr >] -> ELetRec (f, e1, e2)
   | [< x = parse_list ; 'Genlex.Kwd "=" ; body = parse_expr;  'Genlex.Kwd "in" ; rest = parse_expr >] ->  
     ( match x with
-    | ETuple args -> ELetEx ((List.map (function EVar s -> s | _ -> failwith "not a variable") args), body, rest)
+    | ETuple args -> ELetEx (args, body, rest)
     | EVar s ->ELet (s, body, rest)
     | _ -> failwith "Not valid after let"
     )
@@ -113,7 +113,17 @@ and parse_expr : Genlex.token Stream.t -> expr = parser
   | [< 'Genlex.Kwd "let"  ; e = parse_let >] -> e
   | [< 'Genlex.Kwd "fun" ; x = parse_list ; 'Genlex.Kwd "->" ; body=parse_expr >] -> 
     ( match x with
-    | ETuple args -> EFunEx ((List.map (function EVar s -> s | _ -> failwith "not a variable") args), body)
+    | ETuple args -> 
+      (* let rec harvest acc term = *)
+      (*   acc; *)
+      (*   match term with *)
+      (*   | EVar s -> s::acc *)
+      (*   | ETuple [] -> acc  *)
+      (*   | ETuple (h::t) -> harvest (harvest acc (ETuple t)) h  *)
+      (*   | _ -> failwith "Error parsing tuple argument" *)
+      (* in let l = (List.fold_left harvest [] args) *)
+      (* in l EFunEx (l , body) *)
+      EFunEx ((List.map (function EVar s -> s | _ -> failwith "not a variable") args), body)
     | EVar s ->EFun (s, body)
     | _ -> failwith "Not valid after let"
     )
@@ -132,6 +142,18 @@ let rec zip lst1 lst2 = match lst1,lst2 with
   | (x::xs),(y::ys) -> (x,y) :: (zip xs ys)
 ;;
 
+let rec harvest acc x y =
+  match x with
+  | EVar s -> (s, y)::acc
+  | ETuple [] -> acc
+  | ETuple (h::t) -> 
+    (match y with 
+    | VTuple l -> harvest (harvest acc (ETuple t) (VTuple (List.tl l))) h (List.hd l)
+    | _ -> failwith "tuple expected"
+    )
+  | _ -> failwith "variable (or tuple) expected"
+;;
+
 (* Evaluator *)
 let rec (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = function
   | (op, l, r) ->
@@ -148,15 +170,17 @@ let rec (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = fu
     )
 and (eval: (string * value) list -> expr -> value) env = function
   | EApply (e1, e2) ->
-      begin match (eval env e1, eval env e2) with
-      | (VClosure (env', EFun(x, e)), v) -> eval ((x, v)::env') e
-      | (VClosure (env', EFunEx(vars, e)), v) -> 
-	let vals = tuple v in 
-	if List.length vars <> List.length vals 
-	then failwith "wrong number of parameters"
-	else eval ((zip vars vals)@env') e
-      | _ -> invalid_arg "Attempt to apply non-function value"
-      end
+    begin match (eval env e1, eval env e2) with
+    | (VClosure (env', EFun(x, e)), v) -> eval ((x, v)::env') e
+    | (VClosure (env', EFunEx(vars, e)), v) -> 
+      (*Need to do some work on this to get nested tuple matching
+	working.*)
+      let vals = tuple v in 
+      if List.length vars <> List.length vals 
+      then failwith "wrong number of parameters"
+      else eval ((zip vars vals)@env') e
+    | _ -> invalid_arg "Attempt to apply non-function value"
+    end
   | EFun (x, e) as f -> VClosure (env, f)
   | EFunEx (x, e) as f -> VClosure (env, f)
   | EBinOp (op, e1, e2) -> eval_binop env (op, e1, e2)
@@ -166,35 +190,56 @@ and (eval: (string * value) list -> expr -> value) env = function
   | ELet (x, e1, e2) ->  eval ((x, (eval env e1))::env) e2
   | ELetEx (vars, e1, e2) -> 
     (match e1 with
-    | ETuple t -> eval ((zip vars (List.map (eval env) t))@env) e2
-    | EVar s -> eval ((zip vars (tuple (List.assoc s env)))@env) e2
-    | _ -> failwith "Not a list"
+    | ETuple t -> 
+      let args = List.map (eval env) t in 
+      let bindings = List.fold_left2 harvest [] vars args in eval (bindings@env) e2
+    | EVar s -> (* The value associated with s has already been computed. 
+                   Retrieve that value and expect a tuple in it*)
+      let bindings = List.fold_left2 harvest [] vars (tuple (eval env e1)) in eval (bindings@env) e2
+    | _ -> failwith "invalid types"
     )
   | ELetRec (f, e1, e2) ->  
-      (match e1 with 
-      | EFunEx _->  let rec env' = (f, VClosure(env', e1))::env in eval env' e2
-      | EFun _ ->  let rec env' = (f, VClosure(env', e1))::env in eval env' e2
-      | _ -> failwith "invalid types")
+    (match e1 with 
+    | EFunEx _->  let rec env' = (f, VClosure(env', e1))::env in eval env' e2
+    | EFun _ ->  let rec env' = (f, VClosure(env', e1))::env in eval env' e2
+    | _ -> failwith "invalid types"
+    )
   | EVar s -> List.assoc s env
 ;;
 
 (* Tests *)
+
 let repr s = 
   let e = (exp_of_string s) in 
   Printf.printf "%s : %d\n" s (int (eval [] e)) 
 ;;
+
 (*Functions over scalars*)
+
 repr "2 * 3 + 4" ;;
 repr "(fun s -> s*s) 2" ;;
 repr "let x = 4 in x*x -2" ;;
 repr "let sq = fun x -> x * x in (sq 2)";;
+repr "((fun x -> (fun y -> x + y)) 2) 2" ;;
+
+(* fact *)
+repr "let rec fact = fun n -> 
+        if n = 0 then 1 
+        else n * fact (n-1) in 
+      fact 5";;
+ (* fib *)
 repr "let rec fib = fun n -> 
         (if n = 0 then 0
         else if n = 1 then 1
         else fib (n - 1) + fib (n - 2)) in
       fib 30";;
-repr "((fun x -> (fun y -> x + y)) 2) 2" ;;
-repr "let twice = (fun f -> fun x -> (f (f x))) in (twice (fun x->x*x)) 3" ;;
+(* hanoi *)
+repr "let rec hanoi = fun n ->
+        if n = 1 then 1
+        else 2 * hanoi(n - 1) + 1
+      in hanoi 4
+      ";; (* 15 *)
+(* ackermann's function *)
 repr "let rec ack = 
   (fun m -> 
     (fun n -> 
@@ -205,8 +250,14 @@ repr "let rec ack =
       )
     )
   ) 
-in ((ack 3) 1)" ;;
+in ((ack 3) 1)" ;; (* 13 *)
+
+(* Higher order functions *)
+
+repr "let twice = (fun f -> fun x -> (f (f x))) in (twice (fun x->x*x)) 3" ;;
+
 (*Tuples*)
+
 repr "(1, 2)!!0" ;;
 repr "let x = (1, 2) in x!!0" ;;
 repr "let x = (1, 2) in let a  = x!!0 in let b = x!!1 in a + b" ;;
@@ -216,5 +267,11 @@ repr "let (x, y, z) = (3, 4, 5) in x*x + y*y + z*z" ;;
 repr "(fun (x, y) -> x + y) (1, 2)" ;;
 repr "(fun (x, y, z) -> x + y+ z) (1, 2, 3)" ;;
 repr "let rec gcd = (fun (x, y) -> if y = 0 then x else gcd (y, (x mod y))) in gcd (27, 9)" ;;
-repr "(fun (x, t) -> let (y, z) = t in (x + y + z))(1, (2, 3))";;
+repr "let (x, (y, z)) = (1, (2, 3)) in z" ;;
+repr "let ((a, (b, (c, d))), e) = ((1, (2, (1, 2))), 4) in a + b + c + d + e" ;;
 repr "let (x, y) = (1, (2, 3)) in let a = x in let (b, c) = y in a + b + c";;
+repr "(fun (x, t) -> let (y, z) = t in (x + y + z))(1, (2, 3))";;
+repr "let x = (1, 2) in let (a, b) = x in a + b";;
+repr "let (a, (b, t)) = (1, (2, (3, 4))) in t!!0" ;;
+repr "let (x, t) = (1, (2, 3)) in let (b, c) = t in b";;
+
