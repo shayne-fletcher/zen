@@ -114,14 +114,14 @@ and parse_expr : Genlex.token Stream.t -> expr = parser
   | [< 'Genlex.Kwd "fun" ; x = parse_list ; 'Genlex.Kwd "->" ; body=parse_expr >] -> 
     ( match x with
     | ETuple args -> 
-      (* let rec harvest acc term = *)
+      (* let rec tuple_match acc term = *)
       (*   acc; *)
       (*   match term with *)
       (*   | EVar s -> s::acc *)
       (*   | ETuple [] -> acc  *)
-      (*   | ETuple (h::t) -> harvest (harvest acc (ETuple t)) h  *)
+      (*   | ETuple (h::t) -> tuple_match (tuple_match acc (ETuple t)) h  *)
       (*   | _ -> failwith "Error parsing tuple argument" *)
-      (* in let l = (List.fold_left harvest [] args) *)
+      (* in let l = (List.fold_left tuple_match [] args) *)
       (* in l EFunEx (l , body) *)
       EFunEx ((List.map (function EVar s -> s | _ -> failwith "not a variable") args), body)
     | EVar s ->EFun (s, body)
@@ -142,16 +142,18 @@ let rec zip lst1 lst2 = match lst1,lst2 with
   | (x::xs),(y::ys) -> (x,y) :: (zip xs ys)
 ;;
 
-let rec harvest acc x y =
-  match x with
-  | EVar s -> (s, y)::acc
-  | ETuple [] -> acc
-  | ETuple (h::t) -> 
-    (match y with 
-    | VTuple l -> harvest (harvest acc (ETuple t) (VTuple (List.tl l))) h (List.hd l)
-    | _ -> failwith "tuple expected"
-    )
-  | _ -> failwith "variable (or tuple) expected"
+(* Tuple pattern matching *)
+let rec (tuple_match:(string * value) list -> expr -> value -> (string * value) list)  = 
+  fun acc x y ->
+    match x with
+    | EVar s -> (s, y)::acc
+    | ETuple (h::t) -> 
+      (match y with 
+      | VTuple l -> tuple_match (tuple_match acc (ETuple t) (VTuple (List.tl l))) h (List.hd l)
+      | _ -> failwith "tuple expected"
+      )
+    | ETuple [] -> acc
+    | _ -> failwith "variable (or tuple) expected"
 ;;
 
 (* Evaluator *)
@@ -192,10 +194,10 @@ and (eval: (string * value) list -> expr -> value) env = function
     (match e1 with
     | ETuple t -> 
       let args = List.map (eval env) t in 
-      let bindings = List.fold_left2 harvest [] vars args in eval (bindings@env) e2
+      let bindings = List.fold_left2 tuple_match [] vars args in eval (bindings@env) e2
     | EVar s -> (* The value associated with s has already been computed. 
                    Retrieve that value and expect a tuple in it*)
-      let bindings = List.fold_left2 harvest [] vars (tuple (eval env e1)) in eval (bindings@env) e2
+      let bindings = List.fold_left2 tuple_match [] vars (tuple (eval env e1)) in eval (bindings@env) e2
     | _ -> failwith "invalid types"
     )
   | ELetRec (f, e1, e2) ->  
