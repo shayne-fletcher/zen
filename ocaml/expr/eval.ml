@@ -1,3 +1,5 @@
+
+
 (*
 #load "dynlink.cma";;
 #load "camlp4o.cma";;
@@ -10,6 +12,7 @@ type binop =
 type expr =
   | EBinOp of binop * expr * expr
   | EVar of string
+  | EBool of bool
   | EInt of int
   | ETuple of expr list
   | EFun of string * expr (* fun s -> e *)
@@ -42,7 +45,8 @@ let lex stream =
       "let" ; "rec" ; "in" ; 
       "fun" ; "->" ;
       "=" ; "<" ; 
-       "(" ; ")" ; "+" ; "-" ; "*" ; "/" ; "mod" ; "," ; "!!"
+       "(" ; ")" ; "+" ; "-" ; "*" ; "/" ; "mod" ; "," ; "!!" ;
+      "true" ; "false"
      ] stream)
 ;;
 
@@ -51,6 +55,8 @@ let lex stream =
 let rec parse_atom : Genlex.token Stream.t -> expr = parser
   | [< 'Genlex.Int n >] -> EInt n
   | [< 'Genlex.Ident v >] -> EVar v
+  | [< 'Genlex.Kwd "true" >] -> EBool true
+  | [< 'Genlex.Kwd "false" >] -> EBool false
   | [< 'Genlex.Kwd "(" ; e = parse_expr ; 'Genlex.Kwd ")" >] -> e
 and parse_list = parser
     | [< e = parse_top >] -> 
@@ -161,7 +167,7 @@ let rec (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = fu
   | (op, l, r) ->
     (
       match op with
-      | ENth ->	List.nth (tuple (eval env l)) (int (eval env r))
+      | ENth ->    List.nth (tuple (eval env l)) (int (eval env r))
       | EMul -> VInt (int (eval env l) * int (eval env r))
       | EDiv -> VInt (int (eval env l) / int (eval env r))
       | EMod -> VInt ((int (eval env l)) mod (int (eval env r)))
@@ -176,7 +182,7 @@ and (eval: (string * value) list -> expr -> value) env = function
     | (VClosure (env', EFun(x, e)), v) -> eval ((x, v)::env') e
     | (VClosure (env', EFunEx(vars, e)), v) -> 
       (*Need to do some work on this to get nested tuple matching
-	working.*)
+    working.*)
       let vals = tuple v in 
       if List.length vars <> List.length vals 
       then failwith "wrong number of parameters"
@@ -188,6 +194,7 @@ and (eval: (string * value) list -> expr -> value) env = function
   | EBinOp (op, e1, e2) -> eval_binop env (op, e1, e2)
   | EIf (p, t, f) -> eval env (if bool (eval env p) then t else f)
   | EInt i -> VInt i
+  | EBool b -> VBool b
   | ETuple t -> VTuple (List.map (eval env) t)
   | ELet (x, e1, e2) ->  eval ((x, (eval env e1))::env) e2
   | ELetEx (vars, e1, e2) -> 
@@ -276,4 +283,5 @@ repr "let x = (1, 2) in let (a, b) = x in a + b";;
 repr "let (x, t) = (1, (2, 3)) in let (b, c) = t in b";;
 repr "let (x, (y, z)) = (1, (2, 3)) in z" ;;
 repr "let (a, (b, t)) = (1, (2, (3, 4))) in t!!0" ;;
-repr "let ((a, (b, (c, d))), e) = ((1, (2, (1, 2))), 4) in a + b + c + d + e" ;;
+repr "let ((a, (b, (c, d))), e) = ((1, (2, (3, 4))), 5) in a + b + c + d + e" ;;
+
