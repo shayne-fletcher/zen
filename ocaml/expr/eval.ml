@@ -4,7 +4,7 @@
 *)
 
 type unaryop = 
-  | EExp | ELog | ESqrt
+  | EExp | ELog | ESqrt | EAbs
 ;;
 
 type binop =
@@ -63,7 +63,7 @@ let lex stream =
       "fun" ; "->" ;
       "=" ; "<" ; ">"; 
        "(" ; ")" ; "+" ; "-" ; "*" ; "/" ; "mod" ; "," ; "!!" ;
-       "exp" ; "log" ; "sqrt" ;
+       "exp" ; "log" ; "sqrt" ; "abs" ;
       "true" ; "false"
      ] stream)
 ;;
@@ -113,6 +113,9 @@ and parse_unary_op : Genlex.token Stream.t -> expr = parser
       ) stream
     | [< 'Genlex.Kwd "sqrt" ; stream>] -> 
       (parser [<e1 = parse_apply >]-> EUnaryOp (ESqrt, e1)
+      ) stream
+    | [< 'Genlex.Kwd "abs" ; stream>] -> 
+      (parser [<e1 = parse_apply >]-> EUnaryOp (EAbs, e1)
       ) stream
     | [< e1 = parse_apply >] -> e1
 and parse_factor : Genlex.token Stream.t -> expr = parser
@@ -179,6 +182,7 @@ let tuple = function VTuple t -> t | _ -> invalid_arg "tuple" ;;
 let exp_of_string s = parse_expr(lex (Stream.of_string s)) ;;
 
 (* Zip two lists (possibly unequal lengths) into a tuple *)
+
 let rec zip lst1 lst2 = match lst1,lst2 with
   | [],_ -> []
   | _, []-> []
@@ -186,6 +190,7 @@ let rec zip lst1 lst2 = match lst1,lst2 with
 ;;
 
 (* Tuple pattern matching *)
+
 let rec (tuple_match:(string * value) list -> expr -> value -> (string * value) list)  = 
   fun acc x y ->
     match x with
@@ -208,6 +213,7 @@ let rec (eval_unaryop: (string*value) list -> (unaryop*expr) -> value) env = fun
       | EExp -> VFloat (exp (float (eval env e)))
       | ELog -> VFloat (log (float (eval env e)))
       | ESqrt -> VFloat (sqrt (float (eval env e)))
+      | EAbs -> VFloat (abs_float (float (eval env e)))
     )
 and (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = function
   | (op, l, r) ->
@@ -401,7 +407,7 @@ repr "exp 1.0" ;;
 
 (*Black & Scholes price for a european call/put*)
 
-repr "let N = 
+repr  "let N = 
        (fun x ->
         let (a,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10)=
             (0.3535533905933, 
@@ -450,10 +456,14 @@ repr "let N =
       in 
       let black_scholes =
       (fun (S, K, r, sig, T, CP) -> 
-       let d1 = ((log (S/K)) + (r + 0.5*(sig*sig))*T)/(sig*(sqrt T)) in 
-       let d2 = d1 - sig * (sqrt T)
-       in CP*S*(N (CP*d1)) - CP*K*(exp (-1.0*r*T))*(N (CP*d2))
+       let sigsqrtT=sig*(sqrt T) in
+       let d1 = ((log (S/K))+(r+0.5*(sig*sig)*T)/sigsqrtT) in 
+       let d2 = d1-sigsqrtT in 
+       CP*S*(N (CP*d1))-CP*K*(exp (-1.0*r*T))*(N (CP*d2))
       )
       in
-        black_scholes (42.0, 40.0, 0.1, 0.2, 0.5, 1.0)"
+        let S, K, r, sig, T, CP = 
+          (42.0, 40.0, 0.1, 0.2, 0.5, 1.0)
+
+        in black_scholes (S, K, r, sig, T, CP)"
 ;;
