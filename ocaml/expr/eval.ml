@@ -3,19 +3,22 @@
 #load "camlp4o.cma";;
 *)
 
-type unaryop = 
-  | EExp | ELog | ESqrt | EAbs
+type unop = 
+  | OpExp | OpLog | OpSqrt | OpAbs | OpExpm1 | OpLog10 | OpLog1p
+  | OpSin | OpCos | OpTan
+  | OpACos | OpASin | OpATan
+  | OpModf
 ;;
 
 type binop =
- | EAdd | ESub | EMul | EDiv | EMod | EEq | ELess | EGt | ENth
+ | OpAdd | OpSub | OpMul | OpDiv | OpMod | OpEq | OpLess | OpGt |OpGe | OpNth
   ;;
 
 type num =
-  EInt of int | EFloat of float
+  | EInt of int | EFloat of float
 
 type expr =
-  | EUnaryOp of unaryop * expr
+  | EUnop of unop * expr
   | EBinOp of binop * expr * expr
   | EVar of string
   | EBool of bool
@@ -39,13 +42,24 @@ type value =
   | VClosure of (string * value) list * expr
 ;;
 
+let int = function VInt n -> n | _ -> invalid_arg "int" ;;
+let float = function VFloat n -> n | _ -> invalid_arg "float" ;;
+let bool = function VBool b -> b | _ -> invalid_arg "bool" ;;
+let tuple = function VTuple t -> t | _ -> invalid_arg "tuple" ;;
+
 let rec string_of_value : value -> string =
   fun v ->
     match v with
     | VInt n -> string_of_int n
     | VFloat f -> string_of_float f
     | VBool b -> string_of_bool b
-    | VTuple l -> "(" ^ (List.fold_left (^) "" (List.map string_of_value l)) ^ ")"
+    | VTuple l -> 
+      (
+	let (app:string->value->string) s a =  ","^(string_of_value a) in
+	match l with
+	| (h::t) -> "("^(string_of_value h)^(List.fold_left app "" t)^")"
+	| _ -> failwith "empty list encountered unexpectedly"
+      )
     | VClosure (((_:(string*value) list) , (_:expr))) -> "<closure>"
 ;;
 
@@ -61,9 +75,11 @@ let lex stream =
       "if" ; "then" ; "else" ; 
       "let" ; "rec" ; "in" ; 
       "fun" ; "->" ;
-      "=" ; "<" ; ">"; 
+      ">=" ; "=" ; "<" ; ">" ; ">"; 
        "(" ; ")" ; "+" ; "-" ; "*" ; "/" ; "mod" ; "," ; "!!" ;
-       "exp" ; "log" ; "sqrt" ; "abs" ;
+       "expm1" ; "exp" ; "log1p" ; "log10" ; "log" ; "sqrt" ; "abs" ;
+       "sin" ; "cos" ; "tan" ;
+       "acos" ; "asin" ; "atan" ; "modf" ;
       "true" ; "false"
      ] stream)
 ;;
@@ -105,40 +121,43 @@ and parse_apply : Genlex.token Stream.t -> expr = parser
            end
        | [< >] -> e1) stream
 and parse_unary_op : Genlex.token Stream.t -> expr = parser
-    | [< 'Genlex.Kwd "exp" ; stream>] -> 
-      (parser [<e1 = parse_apply >]-> EUnaryOp (EExp, e1)
-      ) stream
-    | [< 'Genlex.Kwd "log" ; stream>] -> 
-      (parser [<e1 = parse_apply >]-> EUnaryOp (ELog, e1)
-      ) stream
-    | [< 'Genlex.Kwd "sqrt" ; stream>] -> 
-      (parser [<e1 = parse_apply >]-> EUnaryOp (ESqrt, e1)
-      ) stream
-    | [< 'Genlex.Kwd "abs" ; stream>] -> 
-      (parser [<e1 = parse_apply >]-> EUnaryOp (EAbs, e1)
-      ) stream
+    | [< 'Genlex.Kwd "expm1" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpExpm1, e1)) stream
+    | [< 'Genlex.Kwd "exp" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpExp, e1)) stream
+    | [< 'Genlex.Kwd "log10" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpLog10, e1)) stream
+    | [< 'Genlex.Kwd "log1p" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpLog1p, e1)) stream
+    | [< 'Genlex.Kwd "log" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpLog, e1)) stream
+    | [< 'Genlex.Kwd "sqrt" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpSqrt, e1)) stream
+    | [< 'Genlex.Kwd "abs" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpAbs, e1)) stream
+    | [< 'Genlex.Kwd "sin" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpSin, e1)) stream
+    | [< 'Genlex.Kwd "cos" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpCos, e1)) stream
+    | [< 'Genlex.Kwd "tan" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpTan, e1)) stream
+    | [< 'Genlex.Kwd "acos" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpCos, e1)) stream
+    | [< 'Genlex.Kwd "asin" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpSin, e1)) stream
+    | [< 'Genlex.Kwd "atan" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpTan, e1)) stream
+    | [< 'Genlex.Kwd "modf" ; stream>] -> (parser [<e1 = parse_apply >]-> EUnop (OpModf, e1)) stream
     | [< e1 = parse_apply >] -> e1
 and parse_factor : Genlex.token Stream.t -> expr = parser
     | [<e1 = parse_unary_op ; stream>] ->
       (parser
-      | [< 'Genlex.Kwd "*"; e2 = parse_factor >] -> EBinOp (EMul, e1, e2)
-      | [< 'Genlex.Kwd "/"; e2 = parse_factor >] -> EBinOp (EDiv, e1, e2)
-      | [< 'Genlex.Kwd "mod"; e2 = parse_factor >] -> EBinOp (EMod, e1, e2)
+      | [< 'Genlex.Kwd "*"; e2 = parse_factor >] -> EBinOp (OpMul, e1, e2)
+      | [< 'Genlex.Kwd "/"; e2 = parse_factor >] -> EBinOp (OpDiv, e1, e2)
+      | [< 'Genlex.Kwd "mod"; e2 = parse_factor >] -> EBinOp (OpMod, e1, e2)
       | [< >] -> e1
       ) stream
 and parse_term : Genlex.token Stream.t -> expr = parser
   | [< e1=parse_factor; stream >]->
     (parser 
-    | [< 'Genlex.Kwd "+" ; e2 = parse_term  >] -> EBinOp (EAdd, e1, e2)
-    | [< 'Genlex.Kwd "-" ; e2 = parse_term  >] -> EBinOp (ESub, e1, e2)
+    | [< 'Genlex.Kwd "+" ; e2 = parse_term  >] -> EBinOp (OpAdd, e1, e2)
+    | [< 'Genlex.Kwd "-" ; e2 = parse_term  >] -> EBinOp (OpSub, e1, e2)
     | [< >] -> e1) stream
 and parse_relation : Genlex.token Stream.t -> expr = parser
   | [< e1 = parse_term ; stream >] ->
     (parser
-    | [<'Genlex.Kwd "=" ; e2 = parse_expr >] -> EBinOp (EEq, e1, e2)
-    | [<'Genlex.Kwd ">" ; e2 = parse_expr >] -> EBinOp (EGt, e1, e2)
-    | [<'Genlex.Kwd "<" ; e2 = parse_expr >] -> EBinOp (ELess, e1, e2)
-    | [<'Genlex.Kwd "!!" ; e2 = parse_expr >] -> EBinOp (ENth, e1, e2)
+    | [<'Genlex.Kwd ">=" ; e2 = parse_expr >] -> EBinOp (OpGe, e1, e2)
+    | [<'Genlex.Kwd "=" ; e2 = parse_expr >] -> EBinOp (OpEq, e1, e2)
+    | [<'Genlex.Kwd ">" ; e2 = parse_expr >] -> EBinOp (OpGt, e1, e2)
+    | [<'Genlex.Kwd "<" ; e2 = parse_expr >] -> EBinOp (OpLess, e1, e2)
+    | [<'Genlex.Kwd "!!" ; e2 = parse_expr >] -> EBinOp (OpNth, e1, e2)
     | [<>] -> e1) stream
 and parse_let  : Genlex.token Stream.t -> expr = parser
   | [< 'Genlex.Kwd "rec" ; 'Genlex.Ident f ; 'Genlex.Kwd "=" ; e1 = parse_expr; 'Genlex.Kwd "in" ; e2 = parse_expr >] -> ELetRec (f, e1, e2)
@@ -175,10 +194,6 @@ and parse_expr : Genlex.token Stream.t -> expr = parser
   | [< 'Genlex.Kwd "if" ; p = parse_expr ; 'Genlex.Kwd "then" ; t = parse_expr ; 'Genlex.Kwd "else" ; f = parse_expr >] -> EIf (p, t, f)
 ;;
 
-let int = function VInt n -> n | _ -> invalid_arg "int" ;;
-let float = function VFloat n -> n | _ -> invalid_arg "float" ;;
-let bool = function VBool b -> b | _ -> invalid_arg "bool" ;;
-let tuple = function VTuple t -> t | _ -> invalid_arg "tuple" ;;
 let exp_of_string s = parse_expr(lex (Stream.of_string s)) ;;
 
 (* Zip two lists (possibly unequal lengths) into a tuple *)
@@ -206,21 +221,33 @@ let rec (tuple_match:(string * value) list -> expr -> value -> (string * value) 
 
 (* Evaluator *)
 
-let rec (eval_unaryop: (string*value) list -> (unaryop*expr) -> value) env = function
+let rec (eval_unop: (string*value) list -> (unop*expr) -> value) env = function
   | (op, e) ->
     (
       match op with
-      | EExp -> VFloat (exp (float (eval env e)))
-      | ELog -> VFloat (log (float (eval env e)))
-      | ESqrt -> VFloat (sqrt (float (eval env e)))
-      | EAbs -> VFloat (abs_float (float (eval env e)))
+      | OpExp -> VFloat (exp (float (eval env e)))
+      | OpExpm1 -> VFloat (expm1 (float (eval env e)))
+      | OpLog -> VFloat (log (float (eval env e)))
+      | OpLog10 -> VFloat (log10 (float (eval env e)))
+      | OpLog1p -> VFloat (log1p (float (eval env e)))
+      | OpSqrt -> VFloat (sqrt (float (eval env e)))
+      | OpAbs -> VFloat (abs_float (float (eval env e)))
+      | OpSin -> VFloat (sin (float (eval env e)))
+      | OpCos -> VFloat (cos (float (eval env e)))
+      | OpTan -> VFloat (tan (float (eval env e)))
+      | OpACos -> VFloat (acos (float (eval env e)))
+      | OpASin -> VFloat (asin (float (eval env e)))
+      | OpATan -> VFloat (asin (float (eval env e)))
+      | OpModf -> let (p, q)=
+		    modf (float (eval env e)) in 
+		  VTuple [(VFloat p); (VFloat q)]
     )
 and (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = function
   | (op, l, r) ->
     (
       match op with
-      | ENth ->    List.nth (tuple (eval env l)) (int (eval env r))
-      | EMul -> 
+      | OpNth ->    List.nth (tuple (eval env l)) (int (eval env r))
+      | OpMul -> 
 	let x = eval env l and y  = eval env r
 	in
 	(
@@ -229,7 +256,7 @@ and (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = functi
 	| VFloat _,  VFloat _ -> VFloat ((float x) *. (float y))
 	| _ -> failwith "number expected"
 	)
-      | EDiv -> 
+      | OpDiv -> 
 	let x = eval env l and y  = eval env r
 	in
 	(
@@ -238,7 +265,7 @@ and (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = functi
 	| (VFloat _), (VFloat _) -> VFloat ((float x) /. (float y))
 	| _ -> failwith "number expected"
 	)
-      | EAdd ->
+      | OpAdd ->
 	let x = eval env l and y  = eval env r
 	in
 	(
@@ -247,7 +274,7 @@ and (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = functi
 	|  (VFloat _),  (VFloat _) -> VFloat ((float x) +. (float y))
 	| _ -> failwith "number expected"
 	)
-      | ESub -> 
+      | OpSub -> 
 	let x = eval env l and y  = eval env r
 	in
 	(
@@ -256,9 +283,9 @@ and (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = functi
 	|  (VFloat _),  (VFloat _) -> VFloat ((float x) -. (float y))
 	| _ -> failwith "number expected"
 	)
-      | EMod -> VInt ((int (eval env l)) mod (int (eval env r)))
-      | EEq ->  VBool (eval env l = eval env r)
-      | ELess ->  
+      | OpMod -> VInt ((int (eval env l)) mod (int (eval env r)))
+      | OpEq ->  VBool (eval env l = eval env r)
+      | OpLess ->  
 	let x = eval env l and y  = eval env r
 	in
 	(
@@ -267,13 +294,22 @@ and (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = functi
 	|  (VFloat _),  (VFloat _) -> VBool ((float x) < (float y))
 	| _ -> failwith "number expected"
 	)
-      | EGt ->  
+      | OpGt ->  
 	let x = eval env l and y  = eval env r
 	in
 	(
 	match (x, y) with
 	|  (VInt _),  (VInt _) -> VBool((int x) > (int y))
 	|  (VFloat _),  (VFloat _) -> VBool ((float x) > (float y))
+	| _ -> failwith "number expected"
+	)
+      | OpGe ->  
+	let x = eval env l and y  = eval env r
+	in
+	(
+	match (x, y) with
+	|  (VInt _),  (VInt _) -> VBool((int x) >= (int y))
+	|  (VFloat _),  (VFloat _) -> VBool ((float x) >= (float y))
 	| _ -> failwith "number expected"
 	)
     )
@@ -292,7 +328,7 @@ and (eval: (string * value) list -> expr -> value) env = function
     end
   | EFun (x, e) as f -> VClosure (env, f)
   | EFunEx (x, e) as f -> VClosure (env, f)
-  | EUnaryOp (op, e) -> eval_unaryop env (op, e)
+  | EUnop (op, e) -> eval_unop env (op, e)
   | EBinOp (op, e1, e2) -> eval_binop env (op, e1, e2)
   | EIf (p, t, f) -> eval env (if bool (eval env p) then t else f)
   | ENum n ->
@@ -407,7 +443,7 @@ repr "exp 1.0" ;;
 
 (*Black & Scholes price for a european call/put*)
 
-repr  "let N = 
+repr  "let N = (* N(.) *)
        (fun x ->
         let (a,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10)=
             (0.3535533905933, 
@@ -454,7 +490,7 @@ repr  "let N =
              in 0.5*t*(exp term)
       )
       in 
-      let black_scholes =
+      let black_scholes = (*Black & Scholes*)
       (fun (S, K, r, sig, T, CP) -> 
        let sigsqrtT=sig*(sqrt T) in
        let d1 = ((log (S/K))+(r+0.5*(sig*sig)*T)/sigsqrtT) in 
@@ -466,4 +502,38 @@ repr  "let N =
           (42.0, 40.0, 0.1, 0.2, 0.5, 1.0)
 
         in black_scholes (S, K, r, sig, T, CP)"
+;;
+
+repr "modf 1.34" ;; (*Check on tuple printing.*)
+
+repr "let newton =  
+      fun (f, deriv, bounds, tol, max_its) -> 
+        let (a, b) = bounds in
+        let fa = (f a) in
+        if fa = 0. then a
+        else
+          let fb = (f b) in
+          if fb = 0. then b
+          else if fa*fb > 0. then -1.0 
+            else let rec loop = fun (i, a, b, fa) ->
+              if i = max_its then -1.0 else
+                let x = 0.5*(a + b) in
+                let fx = (f x) in
+                let dfx = (deriv x) in
+                let fafx = fa*fx in
+                let b = if fafx < 0.0 then x else b in
+                let a = if fafx >= 0.0 then x else a in
+                let fa = if fafx >= 0.0 then fx else fa in
+                let dx = (-1.0)*fx/dfx in
+                let x = x + dx in
+                let test = (b- x)*(x-a) < 0.0 in
+                let dx = if test then 0.5*(b-a) else dx in 
+                let x = if test then a + dx else x in
+                if (abs dx) < (tol*(abs b)) then x
+                else loop ((i+1), a, b, fa)
+        in loop (0, a, b, fa)
+     in 
+      let f = (fun x -> x*x - 2.0) in 
+      let deriv = (fun x -> 2.0*x) in
+      newton (f, deriv, (1.0, 3.0), 0.001, 10)" 
 ;;
