@@ -3,14 +3,19 @@
 #load "camlp4o.cma";;
 *)
 
+type unaryop = 
+  | EExp | ELog | ESqrt
+;;
+
 type binop =
-  EAdd | ESub | EMul | EDiv | EMod | EEq | ELess | ENth
+ | EAdd | ESub | EMul | EDiv | EMod | EEq | ELess | EGt | ENth
   ;;
 
 type num =
   EInt of int | EFloat of float
 
 type expr =
+  | EUnaryOp of unaryop * expr
   | EBinOp of binop * expr * expr
   | EVar of string
   | EBool of bool
@@ -45,7 +50,7 @@ let rec string_of_value : value -> string =
 ;;
 
 (* A lexer. Replace negative numbers in the input stream with a "-"
-   sign followed by a positive integer.*)
+   sgn followed by a positive integer.*)
 let lex stream =
     let rec aux = parser
       | [< 'Genlex.Int n when n < 0; t = aux >] -> [< 'Genlex.Kwd "-" ; 'Genlex.Int (-n) ; t >]
@@ -56,8 +61,9 @@ let lex stream =
       "if" ; "then" ; "else" ; 
       "let" ; "rec" ; "in" ; 
       "fun" ; "->" ;
-      "=" ; "<" ; 
+      "=" ; "<" ; ">"; 
        "(" ; ")" ; "+" ; "-" ; "*" ; "/" ; "mod" ; "," ; "!!" ;
+       "exp" ; "log" ; "sqrt" ;
       "true" ; "false"
      ] stream)
 ;;
@@ -98,8 +104,19 @@ and parse_apply : Genlex.token Stream.t -> expr = parser
            | e2 -> EApply (e1, e2)
            end
        | [< >] -> e1) stream
+and parse_unary_op : Genlex.token Stream.t -> expr = parser
+    | [< 'Genlex.Kwd "exp" ; stream>] -> 
+      (parser [<e1 = parse_apply >]-> EUnaryOp (EExp, e1)
+      ) stream
+    | [< 'Genlex.Kwd "log" ; stream>] -> 
+      (parser [<e1 = parse_apply >]-> EUnaryOp (ELog, e1)
+      ) stream
+    | [< 'Genlex.Kwd "sqrt" ; stream>] -> 
+      (parser [<e1 = parse_apply >]-> EUnaryOp (ESqrt, e1)
+      ) stream
+    | [< e1 = parse_apply >] -> e1
 and parse_factor : Genlex.token Stream.t -> expr = parser
-    | [<e1 = parse_apply ; stream>] ->
+    | [<e1 = parse_unary_op ; stream>] ->
       (parser
       | [< 'Genlex.Kwd "*"; e2 = parse_factor >] -> EBinOp (EMul, e1, e2)
       | [< 'Genlex.Kwd "/"; e2 = parse_factor >] -> EBinOp (EDiv, e1, e2)
@@ -116,6 +133,7 @@ and parse_relation : Genlex.token Stream.t -> expr = parser
   | [< e1 = parse_term ; stream >] ->
     (parser
     | [<'Genlex.Kwd "=" ; e2 = parse_expr >] -> EBinOp (EEq, e1, e2)
+    | [<'Genlex.Kwd ">" ; e2 = parse_expr >] -> EBinOp (EGt, e1, e2)
     | [<'Genlex.Kwd "<" ; e2 = parse_expr >] -> EBinOp (ELess, e1, e2)
     | [<'Genlex.Kwd "!!" ; e2 = parse_expr >] -> EBinOp (ENth, e1, e2)
     | [<>] -> e1) stream
@@ -182,7 +200,16 @@ let rec (tuple_match:(string * value) list -> expr -> value -> (string * value) 
 ;;
 
 (* Evaluator *)
-let rec (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = function
+
+let rec (eval_unaryop: (string*value) list -> (unaryop*expr) -> value) env = function
+  | (op, e) ->
+    (
+      match op with
+      | EExp -> VFloat (exp (float (eval env e)))
+      | ELog -> VFloat (log (float (eval env e)))
+      | ESqrt -> VFloat (sqrt (float (eval env e)))
+    )
+and (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = function
   | (op, l, r) ->
     (
       match op with
@@ -234,6 +261,15 @@ let rec (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = fu
 	|  (VFloat _),  (VFloat _) -> VBool ((float x) < (float y))
 	| _ -> failwith "number expected"
 	)
+      | EGt ->  
+	let x = eval env l and y  = eval env r
+	in
+	(
+	match (x, y) with
+	|  (VInt _),  (VInt _) -> VBool((int x) > (int y))
+	|  (VFloat _),  (VFloat _) -> VBool ((float x) > (float y))
+	| _ -> failwith "number expected"
+	)
     )
 and (eval: (string * value) list -> expr -> value) env = function
   | EApply (e1, e2) ->
@@ -250,6 +286,7 @@ and (eval: (string * value) list -> expr -> value) env = function
     end
   | EFun (x, e) as f -> VClosure (env, f)
   | EFunEx (x, e) as f -> VClosure (env, f)
+  | EUnaryOp (op, e) -> eval_unaryop env (op, e)
   | EBinOp (op, e1, e2) -> eval_binop env (op, e1, e2)
   | EIf (p, t, f) -> eval env (if bool (eval env p) then t else f)
   | ENum n ->
@@ -354,6 +391,69 @@ repr "let ((a, (b, (c, d))), e) = ((1, (2, (3, 4))), 5) in a + b + c + d + e" ;;
 
 (*Floating point arithmetic*)
 
-repr "let libor = (fun (Ps, Pe, t, t') -> 
-      ((Ps/Pe - 1.0)/t)*t') 
-      in (libor (0.84374309, 0.74179769, 1.0, 1.0))";;
+repr "let libor = (fun (Ps, Pe, t)->(Ps/Pe - 1.0)/t) 
+           in (libor (0.84374309, 0.74179769, 1.0)))";;
+repr "let sgn = fun x -> 
+      if x < 0. then -1. 
+      else if x = 0. then 0. 
+      else 1. in sgn -327678." ;;
+repr "exp 1.0" ;;
+
+(*Black & Scholes price for a european call/put*)
+
+repr "let N = 
+       (fun x ->
+        let (a,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10)=
+            (0.3535533905933, 
+            -1.2655122300000, 
+             1.0000236800000, 
+             0.3740919600000,
+             0.0967841800000, 
+            -0.1862880600000, 
+             0.2788680700000,
+            -1.1352039800000,
+             1.4885158700000, 
+            -0.8221522300000,
+             0.1708727700000)
+        in
+        if x > 0.0 then
+          if x > 10.0 then 1.0
+          else
+            let t = 1./(1. + a*x) in
+            let term  = b9 + t*b10 in
+            let term  = b8 + t*term in
+            let term  = b7 + t*term in
+            let term  = b6 + t*term in
+            let term  = b5 + t*term in 
+            let term  = b4 + t*term in
+            let term  = b3 + t*term in
+            let term  = b2 + t*term in
+            let term  = b1 + t*term in
+            let term  = term  - 0.5*(x*x)
+            in 1.0 - 0.5*t*(exp term)
+         else
+           if x < -10.0 then 0.0
+           else
+             let t = 1./(1. - a*x) in 
+             let term = b9 * t*b10 in
+             let term = b8 * t*b10 in
+             let term = b7 * t*b10 in
+             let term = b6 * t*b10 in
+             let term = b5 * t*b10 in
+             let term = b4 * t*b10 in
+             let term = b3 * t*b10 in
+             let term = b2 * t*b10 in
+             let term = b1 * t*b10 in
+             let term = term - 0.5*(x*x)
+             in 0.5*t*(exp term)
+      )
+      in 
+      let black_scholes =
+      (fun (S, K, r, sig, T, CP) -> 
+       let d1 = ((log (S/K)) + (r + 0.5*(sig*sig))*T)/(sig*(sqrt T)) in 
+       let d2 = d1 - sig * (sqrt T)
+       in CP*S*(N (CP*d1)) - CP*K*(exp (-1.0*r*T))*(N (CP*d2))
+      )
+      in
+        black_scholes (42.0, 40.0, 0.1, 0.2, 0.5, 1.0)"
+;;
