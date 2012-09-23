@@ -1,5 +1,3 @@
-
-
 (*
 #load "dynlink.cma";;
 #load "camlp4o.cma";;
@@ -9,11 +7,14 @@ type binop =
   EAdd | ESub | EMul | EDiv | EMod | EEq | ELess | ENth
   ;;
 
+type num =
+  EInt of int | EFloat of float
+
 type expr =
   | EBinOp of binop * expr * expr
   | EVar of string
   | EBool of bool
-  | EInt of int
+  | ENum of num
   | ETuple of expr list
   | EFun of string * expr (* fun s -> e *)
   | EFunEx of string list * expr 
@@ -27,9 +28,20 @@ type expr =
 (*A type for values in the target language *)
 type value =
   | VInt of int 
+  | VFloat of float
   | VBool of bool
   | VTuple of value list
   | VClosure of (string * value) list * expr
+;;
+
+let rec string_of_value : value -> string =
+  fun v ->
+    match v with
+    | VInt n -> string_of_int n
+    | VFloat f -> string_of_float f
+    | VBool b -> string_of_bool b
+    | VTuple l -> "(" ^ (List.fold_left (^) "" (List.map string_of_value l)) ^ ")"
+    | VClosure (((_:(string*value) list) , (_:expr))) -> "<closure>"
 ;;
 
 (* A lexer. Replace negative numbers in the input stream with a "-"
@@ -53,7 +65,8 @@ let lex stream =
 (* Parser *)
 
 let rec parse_atom : Genlex.token Stream.t -> expr = parser
-  | [< 'Genlex.Int n >] -> EInt n
+  | [< 'Genlex.Float n >] -> ENum (EFloat n)
+  | [< 'Genlex.Int n >] -> ENum (EInt n)
   | [< 'Genlex.Ident v >] -> EVar v
   | [< 'Genlex.Kwd "true" >] -> EBool true
   | [< 'Genlex.Kwd "false" >] -> EBool false
@@ -97,8 +110,8 @@ and parse_term : Genlex.token Stream.t -> expr = parser
   | [< e1=parse_factor; stream >]->
     (parser 
     | [< 'Genlex.Kwd "+" ; e2 = parse_term  >] -> EBinOp (EAdd, e1, e2)
-        | [< 'Genlex.Kwd "-" ; e2 = parse_term  >] -> EBinOp (ESub, e1, e2)
-        | [< >] -> e1) stream
+    | [< 'Genlex.Kwd "-" ; e2 = parse_term  >] -> EBinOp (ESub, e1, e2)
+    | [< >] -> e1) stream
 and parse_relation : Genlex.token Stream.t -> expr = parser
   | [< e1 = parse_term ; stream >] ->
     (parser
@@ -120,6 +133,11 @@ and parse_expr : Genlex.token Stream.t -> expr = parser
   | [< 'Genlex.Kwd "fun" ; x = parse_list ; 'Genlex.Kwd "->" ; body=parse_expr >] -> 
     ( match x with
     | ETuple args -> 
+
+      (*As we've learned, don't try to decode this here. EFunEx needs
+	to become a constructor over expr list and destructured in
+	evaluate.*)
+
       (* let rec tuple_match acc term = *)
       (*   acc; *)
       (*   match term with *)
@@ -137,6 +155,7 @@ and parse_expr : Genlex.token Stream.t -> expr = parser
 ;;
 
 let int = function VInt n -> n | _ -> invalid_arg "int" ;;
+let float = function VFloat n -> n | _ -> invalid_arg "float" ;;
 let bool = function VBool b -> b | _ -> invalid_arg "bool" ;;
 let tuple = function VTuple t -> t | _ -> invalid_arg "tuple" ;;
 let exp_of_string s = parse_expr(lex (Stream.of_string s)) ;;
@@ -168,13 +187,53 @@ let rec (eval_binop: (string*value) list -> (binop*expr*expr) -> value) env = fu
     (
       match op with
       | ENth ->    List.nth (tuple (eval env l)) (int (eval env r))
-      | EMul -> VInt (int (eval env l) * int (eval env r))
-      | EDiv -> VInt (int (eval env l) / int (eval env r))
+      | EMul -> 
+	let x = eval env l and y  = eval env r
+	in
+	(
+	match (x, y) with
+	| VInt _, VInt _ -> VInt((int x) * (int y))
+	| VFloat _,  VFloat _ -> VFloat ((float x) *. (float y))
+	| _ -> failwith "number expected"
+	)
+      | EDiv -> 
+	let x = eval env l and y  = eval env r
+	in
+	(
+	match (x, y) with
+	| (VInt _), (VInt _) -> VInt((int x) / (int y))
+	| (VFloat _), (VFloat _) -> VFloat ((float x) /. (float y))
+	| _ -> failwith "number expected"
+	)
+      | EAdd ->
+	let x = eval env l and y  = eval env r
+	in
+	(
+	match (x, y) with
+	|  (VInt _),  (VInt _) -> VInt((int x) + (int y))
+	|  (VFloat _),  (VFloat _) -> VFloat ((float x) +. (float y))
+	| _ -> failwith "number expected"
+	)
+      | ESub -> 
+	let x = eval env l and y  = eval env r
+	in
+	(
+	match (x, y) with
+	|  (VInt _),  (VInt _) -> VInt((int x) - (int y))
+	|  (VFloat _),  (VFloat _) -> VFloat ((float x) -. (float y))
+	| _ -> failwith "number expected"
+	)
       | EMod -> VInt ((int (eval env l)) mod (int (eval env r)))
-      | EAdd -> VInt (int (eval env l) + int (eval env r))
-      | ESub -> VInt (int (eval env l) - int (eval env r))
       | EEq ->  VBool (eval env l = eval env r)
-      | ELess ->  VBool (int (eval env l) < int (eval env r))
+      | ELess ->  
+	let x = eval env l and y  = eval env r
+	in
+	(
+	match (x, y) with
+	|  (VInt _),  (VInt _) -> VBool((int x) < (int y))
+	|  (VFloat _),  (VFloat _) -> VBool ((float x) < (float y))
+	| _ -> failwith "number expected"
+	)
     )
 and (eval: (string * value) list -> expr -> value) env = function
   | EApply (e1, e2) ->
@@ -193,7 +252,12 @@ and (eval: (string * value) list -> expr -> value) env = function
   | EFunEx (x, e) as f -> VClosure (env, f)
   | EBinOp (op, e1, e2) -> eval_binop env (op, e1, e2)
   | EIf (p, t, f) -> eval env (if bool (eval env p) then t else f)
-  | EInt i -> VInt i
+  | ENum n ->
+    (
+      match n with 
+      | EInt i -> VInt i
+      | EFloat f -> VFloat f
+    )
   | EBool b -> VBool b
   | ETuple t -> VTuple (List.map (eval env) t)
   | ELet (x, e1, e2) ->  eval ((x, (eval env e1))::env) e2
@@ -221,10 +285,13 @@ and (eval: (string * value) list -> expr -> value) env = function
 
 let repr s = 
   let e = (exp_of_string s) in 
-  Printf.printf "%s : %d\n" s (int (eval [] e)) 
+  Printf.printf "%s : %s\n" s (string_of_value (eval [] e)) 
 ;;
 
 (*Functions over scalars*)
+
+let e = exp_of_string "2 * 3 + 4" ;;
+e;;
 
 repr "2 * 3 + 4" ;;
 repr "(fun s -> s*s) 2" ;;
@@ -233,12 +300,12 @@ repr "let sq = fun x -> x * x in (sq 2)";;
 repr "((fun x -> (fun y -> x + y)) 2) 2" ;;
 
 (* fact *)
-repr "let rec fact = fun n -> 
-        if n = 0 then 1 
-        else n * fact (n-1) in 
+repr "let rec fact = fun n ->
+        if n = 0 then 1
+        else n * fact (n-1) in
       fact 5";;
  (* fib *)
-repr "let rec fib = fun n -> 
+repr "let rec fib = fun n ->
         (if n = 0 then 0
         else if n = 1 then 1
         else fib (n - 1) + fib (n - 2)) in
@@ -250,16 +317,16 @@ repr "let rec hanoi = fun n ->
       in hanoi 4
       ";; (* 15 *)
 (* ackermann's function *)
-repr "let rec ack = 
-  (fun m -> 
-    (fun n -> 
+repr "let rec ack =
+  (fun m ->
+    (fun n ->
       (
-         if m = 0 then (n + 1) 
+         if m = 0 then (n + 1)
          else if n = 0 then ((ack (m-1)) 1)
          else ((ack (m-1)) ((ack m) (n-1)))
       )
     )
-  ) 
+  )
 in ((ack 3) 1)" ;; (* 13 *)
 
 (* Higher order functions *)
@@ -285,3 +352,8 @@ repr "let (x, (y, z)) = (1, (2, 3)) in z" ;;
 repr "let (a, (b, t)) = (1, (2, (3, 4))) in t!!0" ;;
 repr "let ((a, (b, (c, d))), e) = ((1, (2, (3, 4))), 5) in a + b + c + d + e" ;;
 
+(*Floating point arithmetic*)
+
+repr "let libor = (fun (Ps, Pe, t, t') -> 
+      ((Ps/Pe - 1.0)/t)*t') 
+      in (libor (0.84374309, 0.74179769, 1.0, 1.0))";;
