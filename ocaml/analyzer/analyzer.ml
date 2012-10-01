@@ -1,4 +1,4 @@
-(* From, "The Funcational Approach to Programming - Cosineau,
+(* From, "The Funcational Approach to Programming" - Cosineau,
    Mauny. *)
 
 type ('a, 'b) parsed = 
@@ -195,4 +195,6 @@ Returns ([Constant 0.; Constant 1.; Constant 2.], [])
 Returns ([Constant 0.; Constant 1.; Constant 2.], [])
 
 *)
+
+let _ = Printf.printf "Hello" ;;
 
