@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 
   printf("fib(10) = %s\n", s=format_result(result));
 
-  free(s);
+  /*free(s);*/
 
   return 0;
 }

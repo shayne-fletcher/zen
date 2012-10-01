@@ -22,4 +22,5 @@ include("${CMAKE_CURRENT_LIST_DIR}/cmake/install_libraries.cmake")
 add_definitions(-DBOOST_ALL_NO_LIB=1 -D_CRT_SECURE_NO_WARNINGS=1)
 add_definitions(-DBOOST_ALL_NO_LIB=1 -D_SCL_SECURE_NO_WARNINGS=1)
 
-add_subdirectory(cpp/poly_var)
+add_subdirectory(cpp)
+add_subdirectory(ocaml)
