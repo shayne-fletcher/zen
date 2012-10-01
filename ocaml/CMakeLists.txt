@@ -1,2 +1,6 @@
+add_subdirectory(expr)
 add_subdirectory(curve)
 add_subdirectory(embed)
+add_subdirectory(state)
+add_subdirectory(recognizer)
+add_subdirectory(fortune)
