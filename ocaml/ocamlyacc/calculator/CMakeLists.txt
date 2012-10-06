@@ -1,0 +1,14 @@
+add_custom_command(
+
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/main.exe
+
+  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/main.ml ${CMAKE_CURRENT_BINARY_DIR}/main.ml
+  COMMAND ocamlopt -o main.exe main.ml
+  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/main.exe ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/main.exe
+
+  DEPENDS main.ml
+
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+add_custom_target(main_exe ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/main.exe)
