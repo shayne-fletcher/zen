@@ -21,8 +21,8 @@ rule token = parse
   | "Array"                                                            { ARRAY }
   | '('                                                               { LPAREN }
   | ')'                                                               { RPAREN }
-  | '['                                                           { LSQBRACKET }
-  | ']'                                                           { RSQBRACKET }
+  | '['                                                                  { LSB }
+  | ']'                                                                  { RSB }
   | ';'                                                            { SEMICOLON }
   | ','                                                                { COMMA }
   | digit+ as i                                        { INT (int_of_string i) }

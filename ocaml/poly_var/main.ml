@@ -1,4 +1,7 @@
-(* poly_var parse tests *)
+(* main.ml
+
+  poly_var parse tests 
+*)
 
 let string_of_poly_var=Poly_var.string_of_poly_var
 

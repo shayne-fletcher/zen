@@ -1,4 +1,4 @@
-message("Build dir is ${CMAKE_BINARY_DIR}")
+#CMakeLists.txt
 
 add_custom_command(
 

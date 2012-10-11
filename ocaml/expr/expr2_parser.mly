@@ -1,4 +1,4 @@
-/* File parser.mly */
+/*expr2_parser.mly */
 %{
   (*Header*)
 %}
@@ -16,20 +16,20 @@
 %%
 /*Rules*/
 main:
-expr EOI                                                                  { $1 }
+  expr EOI                                                                { $1 }
   ;
 expr:
    INT                                                        { Expr2.Const $1 }
  | VAR                                                          { Expr2.Var $1 }
  | arithmetic_expr                                                        { $1 }
  | LPAREN expr RPAREN                                                     { $2 }
- | MINUS expr %prec UMINUS                           { Expr2.UnaryOp ("-", $2) }
-;
+ | MINUS expr %prec UMINUS                              { Expr2.UnOp ("-", $2) }
+ ;
 arithmetic_expr:
    expr PLUS expr                                  { Expr2.BinOp ("+", $1, $3) }
  | expr MINUS expr                                 { Expr2.BinOp ("-", $1, $3) }
  | expr TIMES expr                                 { Expr2.BinOp ("*", $1, $3) }
  | expr DIV expr                                   { Expr2.BinOp ("/", $1, $3) }
-;
+ ;
 %%
 (*Trailer*)
