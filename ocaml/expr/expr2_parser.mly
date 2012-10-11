@@ -5,6 +5,7 @@
 /*Declarations*/
 %token <int> INT
 %token <string> VAR
+%token <float> FLOAT
 %token PLUS MINUS TIMES DIV
 %token LPAREN RPAREN
 %token EOI              /*End of input.*/
@@ -19,7 +20,8 @@ main:
   expr EOI                                                                { $1 }
  ;
 expr:
-   INT                                                        { Expr2.Const $1 }
+   INT                                                     { Expr2.IntConst $1 }
+ | FLOAT                                                 { Expr2.FloatConst $1 }
  | VAR                                                          { Expr2.Var $1 }
  | arithmetic_expr                                                        { $1 }
  | LPAREN expr RPAREN                                                     { $2 }
