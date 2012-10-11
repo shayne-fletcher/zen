@@ -17,7 +17,7 @@
 /*Rules*/
 main:
   expr EOI                                                                { $1 }
-  ;
+ ;
 expr:
    INT                                                        { Expr2.Const $1 }
  | VAR                                                          { Expr2.Var $1 }
