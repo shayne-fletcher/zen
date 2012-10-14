@@ -25,7 +25,7 @@ let eval_print buf env = print_string ((Buffer.contents buf)^"\n")
 
 (*The  top-level.*)
 let main =
-  let _ = Printf.printf "Hi! You're in the loop! To exit, type ^z.\n" in
+  let _ = Printf.printf "Hi! You're in the loop! To exit, type ^Z.\n" in
   let initial_capacity = 4*1024 in 
   let buf = Buffer.create initial_capacity in
   let env(*:((string*value) list) ref*) = [] (*The top level environment is 
