@@ -41,4 +41,3 @@ rule token = parse
   | '('                                                               { LPAREN }
   | ')'                                                               { RPAREN }
   | eof                                                                  { EOI }
-
