@@ -59,9 +59,9 @@ let main =
 
   C:\expr2>.\expr2_repl
   Hi! You're in the loop! To exit, type ^Z.
-  >>> (L-K)\
-  ... *T
-  BinOp ('*', BinOp ('-', Var ('L'), Var ('K')), Var ('T'))
+  >>> max(L - K, 0.0) \
+  ... * T
+  BinOp ('*', BinOp ('max', BinOp ('-', Var ('L'), Var ('K')), FloatConst (0.)), Var ('T'))
   >>> 
   K, thx bye!
 
