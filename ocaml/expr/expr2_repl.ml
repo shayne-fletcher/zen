@@ -1,6 +1,7 @@
 (*expr2_repl.ml
 
-  First attempt at a read-eval-print-loop.
+  First attempt at a read-eval-print loop
+  (http://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop).
 
   The program makes use of the Buffer module for string buffers that
   automatically expand as necessary. It's an iterative program relying
