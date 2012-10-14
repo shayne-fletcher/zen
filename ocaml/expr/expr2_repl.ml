@@ -54,7 +54,7 @@ let main =
   >>> (max(L - K,\
   ... 0.0)*T)
   (max(L - K, 0.0)*T)
-  >>> \
+  >>> 
   K, thx bye!
 
 *)
