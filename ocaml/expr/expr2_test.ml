@@ -13,5 +13,6 @@ let _ =
   Printf.printf "%s\n" (string_of_expr2 (expr2_of_string "-pi/2"));
   Printf.printf "%s\n" (string_of_expr2 (expr2_of_string "2.178"));
   Printf.printf "%s\n" (string_of_expr2 (expr2_of_string "1.25e-008"));
-
+  Printf.printf "%s\n" (string_of_expr2 (expr2_of_string "max(1, 2)"))
+;
 

@@ -6,8 +6,8 @@
 %token <int> INT
 %token <string> VAR
 %token <float> FLOAT
-%token PLUS MINUS TIMES DIV
-%token LPAREN RPAREN
+%token PLUS MINUS TIMES DIV MAX MIN
+%token LPAREN RPAREN COMMA
 %token EOI              /*End of input.*/
 %left PLUS MINUS        /*Lowest precedence.*/
 %left TIMES DIV         /*Medium precedence.*/
@@ -28,10 +28,12 @@ expr:
  | MINUS expr %prec UMINUS                              { Expr2.UnOp ("-", $2) }
  ;
 arithmetic_expr:
-   expr PLUS expr                                  { Expr2.BinOp ("+", $1, $3) }
+ | expr PLUS expr                                  { Expr2.BinOp ("+", $1, $3) }
  | expr MINUS expr                                 { Expr2.BinOp ("-", $1, $3) }
  | expr TIMES expr                                 { Expr2.BinOp ("*", $1, $3) }
  | expr DIV expr                                   { Expr2.BinOp ("/", $1, $3) }
+ | MAX LPAREN expr COMMA expr RPAREN             { Expr2.BinOp ("max", $3, $5) }          
+ | MIN LPAREN expr COMMA expr RPAREN             { Expr2.BinOp ("min", $3, $5) }          
  ;
 %%
 (*Trailer*)

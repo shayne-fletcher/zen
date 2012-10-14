@@ -18,10 +18,19 @@ let read (continuing:bool)=prompt continuing; input_line stdin
 let buf_reset (buf:Buffer.t)=flush stdout;Buffer.clear buf
 let buf_append (buf:Buffer.t) (s:string) = Buffer.add_string buf s
 
-(*Proxy for real evaluation - for now, just echo the phrase.*)
-let eval_print buf env = print_string ((Buffer.contents buf)^"\n")
-(*Note that env is ignored for now. It's type will be ((string*value)
-  list) ref *)
+let string_of_expr2 =
+  fun e -> Expr2.string_of_expr2 e
+
+let expr2_of_string =
+  fun s ->
+    let lexbuf = Lexing.from_string s
+    in Expr2_parser.main Expr2_lexer.token lexbuf
+
+(*Proxy for real evaluation*)
+let eval_print buf env = 
+  let e=expr2_of_string (Buffer.contents buf)
+  in let s = string_of_expr2 e in
+     print_string (s^"\n")
 
 (*The  top-level.*)
 let main =
@@ -49,12 +58,10 @@ let main =
   date:
 
   C:\expr2>.\expr2_repl
-  Hi! You're in the loop! To exit type ^Z.
-  >>> (max(L - K, 0.0)*T
-  (max(L - K, 0.0)*T
-  >>> (max(L - K,\
-  ... 0.0)*T)
-  (max(L - K, 0.0)*T)
+  Hi! You're in the loop! To exit, type ^Z.
+  >>> (L-K)\
+  ... *T
+  BinOp ('*', BinOp ('-', Var ('L'), Var ('K')), Var ('T'))
   >>> 
   K, thx bye!
 

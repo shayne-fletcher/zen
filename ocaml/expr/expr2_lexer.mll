@@ -33,6 +33,8 @@ rule token = parse
     [' ' '\t' '\n']                                             { token lexbuf }
   | digit+ as i                                        { INT (int_of_string i) }
   | float_ as f                                    { FLOAT (float_of_string f) }
+  | "max"                                                                { MAX }
+  | "min"                                                                { MIN }
   | identifier as s                                                    { VAR s }
   | '+'                                                                 { PLUS }
   | '-'                                                                { MINUS }
@@ -40,4 +42,5 @@ rule token = parse
   | '/'                                                                  { DIV }
   | '('                                                               { LPAREN }
   | ')'                                                               { RPAREN }
+  | ','                                                                { COMMA }
   | eof                                                                  { EOI }
