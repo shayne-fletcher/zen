@@ -34,20 +34,23 @@ let eval_print buf env =
 
 (*The  top-level.*)
 let main =
-  let _ = Printf.printf "Hi! You're in the loop! To exit, type ^Z.\n" in
   let initial_capacity = 4*1024 in 
   let buf = Buffer.create initial_capacity in
   let env(*:((string*value) list) ref*) = [] (*The top level environment is 
                                                necessarily mutable.*)
   in try
+       let _ = Printf.printf "Hi! You're in the loop! To exit, type ^Z.\n" in
        while true do
-	 let l = read ((Buffer.length buf)!=0) in
-	 let len = String.length l in
-	 if len > 0 then
-	   if (l.[len - 1] == '\\') then
-	     (buf_append buf ((String.sub l 0 (len-1))^" "))
-	   else 
-             let _ = buf_append buf l in (eval_print buf env; (buf_reset buf))
+	 try
+	   let l = read ((Buffer.length buf)!=0) in
+	   let len = String.length l in
+	   if len > 0 then
+	     if (l.[len - 1] == '\\') then
+	       (buf_append buf ((String.sub l 0 (len-1))^" "))
+	     else 
+               let _ = buf_append buf l in (eval_print buf env; (buf_reset buf))
+	 with
+	 | Parsing.Parse_error -> print_string "Syntax error\n"; (buf_reset buf)
        done
     with 
     | End_of_file -> print_string "K, thx bye!" (*We're out of here.*)
