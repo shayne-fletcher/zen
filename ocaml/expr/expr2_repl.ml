@@ -4,15 +4,13 @@
   (http://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop).
 
   The program makes use of the Buffer module for string buffers that
-  automatically expand as necessary. It's an iterative program relying
-  heavily on side-effects (mentioning that so's that you might keep it
-  in mind as you read).
-
+  automatically expand as necessary. It's iterative program and
+  exploits mutability.
 *)
 
 let prompt (continuing:bool)=
   (print_string (if (not continuing) 
-    then ">>> " else "... ");(flush stdout))  
+    then "? " else "... ");(flush stdout))  
 let read (continuing:bool)=prompt continuing; input_line stdin
 (*These next two functions modify the provided buffer in-place.*)
 let buf_reset (buf:Buffer.t)=flush stdout;Buffer.clear buf
@@ -39,33 +37,28 @@ let main =
   let env(*:((string*value) list) ref*) = [] (*The top level environment is 
                                                necessarily mutable.*)
   in try
-       let _ = Printf.printf "Hi! You're in the loop! To exit, type ^Z.\n" in
+       let _ = Printf.printf "Hi! You're in the loop yo! To exit, type ^Z.\n" in
        while true do
 	 try
+	   (*Read*)
 	   let l = read ((Buffer.length buf)!=0) in
 	   let len = String.length l in
 	   if len > 0 then
 	     if (l.[len - 1] == '\\') then
+	       (*Line continuation; append and keep reading*)
 	       (buf_append buf ((String.sub l 0 (len-1))^" "))
 	     else 
-               let _ = buf_append buf l in (eval_print buf env; (buf_reset buf))
+	       (*Discard partial statements with ^G*)
+	       if l.[len - 1] = (char_of_int 7) then buf_reset buf
+	       else
+		 (*Maybe the user doesn't know how to terminate?*)
+		 if l = "exit" or l = "quit" or l.[0] = (char_of_int 3(*^C*)) then 
+		   print_string "Type ^Z to finish\n"
+		 else
+		   (*We think we got a phrase. Evaluate and print.*)
+		   let _ = buf_append buf l in (eval_print buf env; (buf_reset buf))
 	 with
 	 | Parsing.Parse_error -> print_string "Syntax error\n"; (buf_reset buf)
        done
     with 
-    | End_of_file -> print_string "K, thx bye!" (*We're out of here.*)
-
-(* That's all... We're done.
-
-  Here's an example session illustrating what this program does to
-  date:
-
-  C:\expr2>.\expr2_repl
-  Hi! You're in the loop! To exit, type ^Z.
-  >>> max(L - K, 0.0) \
-  ... * T
-  BinOp ('*', BinOp ('max', BinOp ('-', Var ('L'), Var ('K')), FloatConst (0.)), Var ('T'))
-  >>> 
-  K, thx bye!
-
-*)
+    | End_of_file -> print_string "K, thx bye!"
