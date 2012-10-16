@@ -4,7 +4,7 @@
   (http://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop).
 
   The program makes use of the Buffer module for string buffers that
-  automatically expand as necessary. It's iterative program and
+  automatically expand as necessary. It's an iterative program that
   exploits mutability.
 *)
 
