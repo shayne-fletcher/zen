@@ -12,17 +12,11 @@ let prompt (continuing:bool)=
   (print_string (if (not continuing) 
     then "? " else "... ");(flush stdout))  
 let read (continuing:bool)=prompt continuing; input_line stdin
-(*These next two functions modify the provided buffer in-place.*)
-let buf_reset (buf:Buffer.t)=flush stdout;Buffer.clear buf
-let buf_append (buf:Buffer.t) (s:string) = Buffer.add_string buf s
 
-let string_of_expr2 =
-  fun e -> Expr2.string_of_expr2 e
-
-let expr2_of_string =
-  fun s ->
-    let lexbuf = Lexing.from_string s
-    in Expr2_parser.main Expr2_lexer.token lexbuf
+let string_of_expr2 = fun e -> Expr2.string_of_expr2 e
+let expr2_of_string = fun s ->
+  let lexbuf = Lexing.from_string s
+  in Expr2_parser.main Expr2_lexer.token lexbuf
 
 (*Proxy for real evaluation*)
 let eval_print buf env = 
@@ -31,7 +25,7 @@ let eval_print buf env =
      print_string (s^"\n")
 
 (*The  top-level.*)
-let main =
+let toplevel process =
   let initial_capacity = 4*1024 in 
   let buf = Buffer.create initial_capacity in
   let env(*:((string*value) list) ref*) = [] (*The top level environment is 
@@ -46,19 +40,22 @@ let main =
 	   if len > 0 then
 	     if (l.[len - 1] == '\\') then
 	       (*Line continuation; append and keep reading*)
-	       (buf_append buf ((String.sub l 0 (len-1))^" "))
+	       Buffer.add_string buf ((String.sub l 0 (len-1))^" ")
 	     else 
 	       (*Discard partial statements with ^G*)
-	       if l.[len - 1] = (char_of_int 7) then buf_reset buf
+	       if l.[len - 1] = (char_of_int 7) then Buffer.clear buf
 	       else
 		 (*Maybe the user doesn't know how to terminate?*)
 		 if l = "exit" or l = "quit" or l.[0] = (char_of_int 3(*^C*)) then 
 		   print_string "Type ^Z to finish\n"
 		 else
-		   (*We think we got a phrase. Evaluate and print.*)
-		   let _ = buf_append buf l in (eval_print buf env; (buf_reset buf))
+		   (*We think we got a phrase.*)
+		   let _ = Buffer.add_string buf l in 
+		   (process buf env; (Buffer.clear buf))
 	 with
-	 | Parsing.Parse_error -> print_string "Syntax error\n"; (buf_reset buf)
+	 | Parsing.Parse_error -> print_string "Syntax error\n"; (Buffer.clear buf)
        done
     with 
     | End_of_file -> print_string "K, thx bye!"
+
+let main : unit = toplevel eval_print
