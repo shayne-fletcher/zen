@@ -1,4 +1,4 @@
-/*paser.mly
+/*parser.mly
 
   ocamlyacc poly_var parser for use with ocamllex poly_var lexer (lexer.mll)
 */
