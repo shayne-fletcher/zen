@@ -1,0 +1,13 @@
+VCPATH="`cygpath -p 'c:\Program Files\Microsoft Visual Studio 10.0\Common7\IDE\;c:\Program Files\Microsoft Visual Studio 10.0\VC\BIN;c:\Program Files\Microsoft Visual Studio 10.0\Common7\Tools;C:\WINDOWS\Microsoft.NET\Framework\v4.0.30319;C:\WINDOWS\Microsoft.NET\Framework\v3.5;c:\Program Files\Microsoft Visual Studio 10.0\VC\VCPackages;C:\Program Files\Microsoft SDKs\Windows\v7.0A\bin\NETFX 4.0 Tools;C:\Program Files\Microsoft SDKs\Windows\v7.0A\bin;C:\Python31;C:\Program Files\flexdll;lC:\Tcl\bin;C:\Program Files\OCaml\emacs-23.3\bin;C:\ocamlms\bin;C:\Program Files\PHP\;C:\gp426win32\gnuplot\bin;C:\usr\locall\bin;C:\Program Files\MathML4WebCT;C:\MPICH2\bin;C:\Program Files\MiKTeX 2.7\miktex\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;c:\mingw\bin;c:\program files\common files\ispell;C:\Program Files\TortoiseSVN\bin;C:\Program Files\Common Files\Roxio Shared\DLLShared\;C:\Program Files\Common Files\Intuit\QBPOSSDKRuntime;C:\Program Files\Haskell Platform\2009.2.0.2\bin;C:\Program Files\Haskell Platform\2009.2.0.2\extralibs\bin;C:\Program Files\Haskell\bin;C:\Program Files\Subversion\bin;C:\Program Files\QuickTime\QTSystem\;C:\Program Files\Git\cmd;C:\Program Files\Git\bin;c:\Program Files\Microsoft SQL Server\100\Tools\Binn\;c:\Program Files\Microsoft SQL Server\100\DTS\Binn\;%APPDATA%\Python\Scripts'`" 
+LIB="c:\Program Files\Microsoft Visual Studio 10.0\VC\LIB;C:\Program Files\Microsoft SDKs\Windows\v7.0A\lib;;C:\Tcl\lib" 
+LIBPATH="C:\WINDOWS\Microsoft.NET\Framework\v4.0.30319;C:\WINDOWS\Microsoft.NET\Framework\v3.5;c:\Program Files\Microsoft Visual Studio 10.0\VC\LIB;" 
+INCLUDE="c:\Program Files\Microsoft Visual Studio 10.0\VC\INCLUDE;C:\Program Files\Microsoft SDKs\Windows\v7.0A\include;;C:\Tcl\include;C:\Program Files\flexdll" 
+FLPATH="`cygpath 'C:\Program Files\flexdll'`" 
+MY_PYTHON_BIN_PATH="`cygpath 'C:\Python31'`" 
+MY_OCAML_BIN_PATH="`cygpath 'C:\ocamlms\bin'`" 
+
+GITPATH="/cygdrive/c/Program\ Files/Git/bin"
+
+PATH="${GITPATH}:${VCPATH}:${FLPATH}:${MY_PYTHON_BIN_PATH}:${MY_OCAML_BIN_PATH}:${PATH}" 
+export PATH LIB LIBPATH INCLUDE 
+export OCAMLBUILD_FIND=/usr/bin/find 
