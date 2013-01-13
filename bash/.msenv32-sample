@@ -5,9 +5,18 @@ INCLUDE="c:\Program Files\Microsoft Visual Studio 10.0\VC\INCLUDE;C:\Program Fil
 FLPATH="`cygpath 'C:\Program Files\flexdll'`" 
 MY_PYTHON_BIN_PATH="`cygpath 'C:\Python31'`" 
 MY_OCAML_BIN_PATH="`cygpath 'C:\ocamlms\bin'`" 
+MY_OMAKE_PATH="`cygpath 'C:\omake-0.9.8.6\boot'`"
 
-GITPATH="/cygdrive/c/Program\ Files/Git/bin"
+#GITPATH="/cygdrive/c/Program\ Files/Git/bin"
+#PATH="${GITPATH}:${VCPATH}:${FLPATH}:${MY_PYTHON_BIN_PATH}:${MY_OCAML_BIN_PATH}:${PATH}" 
 
-PATH="${GITPATH}:${VCPATH}:${FLPATH}:${MY_PYTHON_BIN_PATH}:${MY_OCAML_BIN_PATH}:${PATH}" 
+PATH="\
+${MY_OMAKE_PATH}:\
+${VCPATH}:\
+${FLPATH}:\
+${MY_PYTHON_BIN_PATH}:\
+${MY_OCAML_BIN_PATH}:\
+${PATH}" 
+
 export PATH LIB LIBPATH INCLUDE 
 export OCAMLBUILD_FIND=/usr/bin/find 
