@@ -1,0 +1,52 @@
+#OMakefile
+#
+#Date   : 11/10/2012
+#Author : Shayne Fletcher
+#Desc   : Root omake file for the qfd/mlfi project.
+
+println (***)
+println (*** QFD.OMake (qfd/mlfi project) build system starting up.)
+println (***)
+
+WITH_MLFI=true #Set to false for "regular" OCaml.
+#The reason for keeping this around is that in the absence of MlFi,
+#we can still test the build-system since it should fall back on
+#whatever OCaml is floating around.
+
+WITH_MENHIR = $(defined-env QFD_WITH_MENHIR)
+
+ROOT_DIR = $(dir .)
+LIBS_DIR = $(dir $(ROOT_DIR)/libs)
+BUILD_DIR= $(dir $(ROOT_DIR)/build)
+BIN_DIR = $(dir $(BUILD_DIR)/bin)
+DOCS_DIR = $(dir $(BUILD_DIR)/docs)
+
+CREATE_SUBDIRS=true
+BYTE_ENABLED = false
+NATIVE_ENABLED = true
+
+open config/Common
+
+#Configure LaTeX to use pdflatex.
+
+if $(equal $(OSTYPE), Win32)
+  FORCE_WIN32_LATEX=true
+  export
+LATEXFLAGS='-interaction=nonstopmode' $(LATEXFLAGS_BASE)
+
+#OUnit.
+
+section
+  vmount (-l, $(dir $(ROOT_DIR)/third_party), $(BUILD_DIR))
+  .PHONY: install
+  .SUBDIRS: $(BUILD_DIR)/ounit-1.1.2/src
+    OCamlLibraryInstall(install, $(BIN_DIR), oUnit$(ARTIFACT_INFIX), oUnit oUnitDiff)
+    .DEFAULT: install
+
+OUNIT_BUILD_DIR = $(dir $(BUILD_DIR)/ounit-1.1.2/src)
+
+#qfd/mlfi targets.
+
+vmount (-l, $(LIBS_DIR), $(BUILD_DIR))
+
+.SUBDIRS : $(BUILD_DIR)

@@ -1,0 +1,229 @@
+LINUX_OCAML_ROOT = /bb/bigstorq3/qfdlibci/qfd/Linux-x86_64-64/ocaml
+export
+
+#Artifact infix.
+
+if $(not $(defined-env QFD_ARTIFACT_INFIX))
+  ARTIFACT_INFIX = #-el5-mlfi_401-x86_64
+  export
+else
+  ARTIFACT_INFIX = $(getenv QFD_ARTIFACT_INFIX)
+  export
+
+#Latex 
+
+if $(defined-env QFD_WITH_LATEX)
+    WITH_LATEX = true
+    export
+else
+    WITH_LATEX = false
+    export
+
+#ocamldoc
+
+OCAMLDOC=ocamldoc.opt$(EXE) #See more about this below.
+
+#Setup for MlFi tools.
+
+if $(WITH_MLFI)
+
+  #If provided, QFD_MLFI_BIN should use '/' for path separators and
+  #should not end with a trailing '/'.
+
+  if $(defined-env QFD_MLFI_BIN)
+     MLFI_BIN=$(getenv QFD_MLFI_BIN)
+     export
+  else
+    if $(equal $(OSTYPE), Win32)
+      MLFI_BIN=C:/mlfi-ins/bin  #Guess a Windows default.
+      export
+    else #Guess a Unix default.
+      MLFI_BIN=$(LINUX_OCAML_ROOT)/mlfi-ins/bin
+      export
+    export
+
+  if $(not $(file-exists $(MLFI_BIN)))
+    eprintln (*** MLFI_BIN=$(MLFI_BIN) does not exist)
+    exit (1)
+  else
+    eprintln (*** MLFI_BIN=$(MLFI_BIN))
+
+  if $(defined-env QFD_IBOX_BIN)
+     IBOX_BIN=$(getenv QFD_IBOX_BIN)
+     export
+  else
+    if $(equal $(OSTYPE), Win32)
+      IBOX_BIN=C:/ibox_current/mlfi/bin #Guess a Windows default.
+      export
+    else #Guess a Unix default.
+      IBOX_BIN=$(LINUX_OCAML_ROOT)/ibox-current/mlfi/bin
+      export
+    export
+
+  if $(not $(file-exists $(IBOX_BIN)))
+    eprintln (*** IBOX_BIN=$(IBOX_BIN) does not exist)
+    exit (1)
+  else
+    eprintln (*** IBOX_BIN=$(IBOX_BIN))
+
+  #Bind MlFi executables to their OMake names.
+
+  CAMLP4=
+  OCAMLC=$(MLFI_BIN)/mlfic.opt$(EXE)
+  OCAMLOPT=$(IBOX_BIN)/mlfiopt.opt$(EXE)
+  OCAMLLEX=$(MLFI_BIN)/mlfilex.opt$(EXE)
+  OCAMLYACC=$(MLFI_BIN)/mlfiyacc$(EXE)
+  OCAMLDEP=$(MLFI_BIN)/mlfidep.opt$(EXE)
+  OCAMLMKTOP=$(MLFI_BIN)/mlfimktop$(EXE)
+  OCAMLLINK=$(MLFI_BIN)/mlfic.opt$(EXE)
+  OCAMLDOC=$(MLFI_BIN)/mlfidoc.opt$(EXE)
+
+  export
+
+#Maybe swap out the default parser generator with menhir.
+
+WITH_MENHIR = $(defined-env QFD_WITH_MENHIR)
+
+if $(WITH_MENHIR)
+
+  if $(defined-env QFD_MENHIR_BIN)
+     MENHIR_BIN=$(getenv QFD_MENHIR_BIN)
+     export
+  else
+    if $(equal $(OSTYPE), Win32)
+      MENHIR_BIN=C:/menhir/bin  #Guess a Windows default.
+      export
+    else #Guess a Unix default.
+      MENHIR_BIN=$(LINUX_OCAML_ROOT)/menhir/bin
+      export
+    export
+
+  if $(not $(file-exists $(MENHIR_BIN)))
+    eprintln (*** MENHIR_BIN=$(MENHIR_BIN) does not exist)
+    exit (1)
+  else
+    eprintln (*** MENHIR_BIN=$(MENHIR_BIN))
+
+  OCAMLYACC=$(MENHIR_BIN)/menhir$(EXE)
+  export
+
+#Validate compiler tools existence.
+
+if $(not $(file-exists $(OCAMLC)))
+    eprintln (*** OCAMLC=$(OCAMLC) does not exist)
+    exit (1)
+if $(not $(file-exists $(OCAMLOPT)))
+    eprintln (*** OCAMLOPT=$(OCAMLOPT) does not exist)
+    exit (1)
+if $(not $(file-exists $(OCAMLLEX)))
+    eprintln (*** OCAMLLEX=$(OCAMLLEX) does not exist)
+    exit (1)
+if $(not $(file-exists $(OCAMLYACC)))
+    eprintln (*** OCAMLYACC=$(OCAMLYACC) does not exist)
+    exit (1)
+if $(not $(file-exists $(OCAMLDEP)))
+    eprintln (*** OCAMLDEP=$(OCAMLDEP) does not exist)
+    exit (1)
+if $(not $(file-exists $(OCAMLMKTOP)))
+    eprintln (*** OCAMLMKTOP=$(OCAMLMKTOP) does not exist)
+    exit (1)
+if $(not $(file-exists $(OCAMLLINK)))
+    eprintln (*** OCAMLLINK=$(OCAMLLINK) does not exist)
+    exit (1)
+if $(not $(file-exists $(OCAMLDOC)))
+    eprintln (*** OCAMLLINK=$(OCAMLDOC) does not exist)
+    exit (1)
+
+# Setup the instrument-box library path
+
+if  $(equal $(OSTYPE), Win32)
+  IBOX_LIB_DIR = C:/ibox-current/mlfi/lib
+  export
+else
+  IBOX_LIB_DIR = $(LINUX_OCAML_ROOT)/ibox-current/mlfi/lib
+  export
+
+# Validate the instrument-box library path
+if $(not $(equal $(OSTYPE), Win32))
+    if $(not $(file-exists $(IBOX_LIB_DIR)))
+        eprintln (*** IBOX_LIB_DIR=$(IBOX_LIB_DIR) does not exist)
+        exit (1)
+
+#Some general OMake builtin variables.
+
+if $(VERBOSE)
+  #Possible values are Unix (for all Unix versions, including Linux
+  #and Mac OS X), Win32 (for MS-Windows, OMake compiled with MSVC++ or
+  #Mingw), and Cygwin (for MS-Windows, OMake compiled with Cygwin).
+  println (*** OSTYPE=$(OSTYPE))
+  println (*** OS_VERSION=$(OS_VERSION))
+  println (*** MACHINE=$(MACHINE))
+  println (*** TARGETS=$(TARGETS))
+  println (*** OMAKE_VERSION=$(OMAKE_VERSION))
+  println (*** OMAKEPATH=$(string $(OMAKEPATH)))
+  println (*** VERBOSE=$(VERBOSE))
+  #The directory where the OMake
+  #standard library files reside. At startup, the default value is
+  #determined as follows.  The value of the OMAKELIB environment
+  #variable, if set (must contain an absolute path, if set), otherwise
+  #On Windows, the registry keys
+  #HKEY_CURRENT_USER\SOFTWARE\MetaPRL\OMake\OMAKELIB and
+  #HKEY_LOCAL_MACHINE\SOFTWARE\MetaPRL\OMake\OMAKELIB are looked up and
+  #the value is used, if exist.  Otherwise a compile-time default it
+  #used. The current default value may be accessed by running omake
+  #--version
+  println (*** STDLIB=$(STDLIB))
+
+  #OCaml configuration variables.
+
+  println (*** OCAMLC=$(OCAMLC))
+  println (*** OCAMLOPT=$(OCAMLOPT))
+  println (*** CAMLP4=$(CAMLP4))
+  println (*** OCAMLLEX=$(OCAMLLEX))
+  println (*** OCAMLLEXFLAGS=$(OCAMLLEXFLAGS))
+  println (*** OCAMLYACC=$(OCAMLYACC))
+  println (*** OCAMLYACCFLAGS=$(OCAMLYACCFLAGS))
+  println (*** OCAMLDEP=$(OCAMLDEP))
+  #Instead of using OCAMLDEP in a traditional make-style fashion, run
+  #$(OCAMLDEP) -modules and then postprocess the output internally to
+  #discover all the relevant generated .ml and .mli files. See Section
+  #13.6.5 for more information on interactions between OMake, OCAMLDEP
+  #and generated files. Set to $(OCAMLDEP_MODULES_AVAILABLE) by default.
+  #OCAMLDEP_MODULES_ENABLED = 0
+  println (*** OCAMLDEP_MODULES_ENABLED=$(OCAMLDEP_MODULES_ENABLED))
+  println (*** OCAMLMKTOP=$(OCAMLMKTOP)) #Top-level compiler
+  println (*** OCAMLLINK=$(OCAMLLINK)) #The OCaml bytecode linker (default $(OCAMLC))
+  println (*** OCAMLINCLUDES=$(OCAMLINCLUDES)) #Search path to pass to the OCaml compilers (default .)
+  println (*** OCAMLFIND=$(OCAMLFIND)) #Default ocamlfind if USE_OCAMLFIND is set, otherwise empty.
+  println (*** OCAMLFINDFLAGS=$(OCAMLFINDFLAGS))
+  println (*** OCAMLPACKS=$(OCAMLPACKS)) #Package names to pass to ocamlfind
+  println (*** OCAMLPACKS=$(OCAMLPACKS)) #Package names to pass to ocamlfind
+
+  #C/C++ configuration variables.
+
+  println  (*** CC=$(CC))
+  println  (*** CXX=$(CXX))
+  println  (*** CPP=$(CPP))
+  println  (*** CFLAGS=$(CFLAGS))
+  println  (*** CXXFLAGS=$(CXXFLAGS))
+  println  (*** INCLUDES=$(INCLUDES))
+  println  (*** LIBS=$(LIBS))
+  println  (*** AS=$(AS))
+  println  (*** ASFLAGS=$(ASFLAGS))
+  println  (*** AR=$(AR))
+  println  (*** LD=$(LD))
+  println  (*** LDFLAGS=$(LDFLAGS))
+  println  (*** LDFLAGS_DLL=$(LDFLAGS_DLL))
+  println  (*** YACC=$(YACC))
+  println  (*** LEX=$(LEX))
+
+  #QFD.OMake internal variables.
+
+  println (*** ROOT_DIR = $(ROOT_DIR))
+  println (*** LIBS_DIR = $(LIBS_DIR))
+  println (*** BUILD_DIR = $(BUILD_DIR))
+  println (*** BIN_DIR = $(BIN_DIR))
+  println (*** IBOX_LIB_DIR = $(IBOX_LIB_DIR))
+  println (*** WITH_MENHIR = $(WITH_MENHIR))
+  println (*** WITH_LATEX = $(WITH_LATEX))
+  println (*** ARTIFACT_INFIX = $(ARTIFACT_INFIX))
