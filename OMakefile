@@ -16,10 +16,9 @@ WITH_MLFI=true #Set to false for "regular" OCaml.
 WITH_MENHIR = $(defined-env QFD_WITH_MENHIR)
 
 ROOT_DIR = $(dir .)
-LIBS_DIR = $(dir $(ROOT_DIR)/libs)
-BUILD_DIR= $(dir $(ROOT_DIR)/build)
+BUILD_DIR= $(dir $(ROOT_DIR)/../build/zen)
 BIN_DIR = $(dir $(BUILD_DIR)/bin)
-DOCS_DIR = $(dir $(BUILD_DIR)/docs)
+LIBS_DIR = $(dir $(ROOT_DIR)/ocaml)
 
 CREATE_SUBDIRS=true
 BYTE_ENABLED = false

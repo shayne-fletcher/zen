@@ -7,3 +7,5 @@
 *.exe
 html
 *.out
+*.lock
+*.omc
