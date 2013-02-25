@@ -1,0 +1,3 @@
+EXPORTS
+  caml_startup
+  c_echo
