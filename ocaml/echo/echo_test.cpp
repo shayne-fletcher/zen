@@ -20,7 +20,7 @@ int main()
   double_array[1] = NULL;
   caml_startup(double_array);
 
-  std::string s= mk_string(100);
+  std::string s= mk_string(1);
   char* p;
   c_echo (s.c_str(), &p);
 
