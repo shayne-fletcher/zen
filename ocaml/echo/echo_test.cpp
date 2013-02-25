@@ -24,7 +24,7 @@ int main()
   char* p;
   c_echo (s.c_str(), &p);
 
-  free ((char*)p);
+  free(p);
 
   return 0;
 }
