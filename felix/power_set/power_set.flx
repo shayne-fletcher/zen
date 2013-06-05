@@ -1,0 +1,36 @@
+fun find_seq[T] (k:size) (l:list[T]) : list[list[T]] =
+  {
+    return
+      if k > len l
+      then
+        list[list[T]] () //There are no subsets of length k.
+      elif k == 0uz
+      then
+        list[list[T]] (list[T] ()) //The empty set (the one subset of length zero).
+      else
+        match l with
+          | Cons(?x, ?xs) =>
+             join
+              (map (fun (l:list[T]):list[T]=>
+                           (join (list[T] x) l)) (find_seq (k - 1) xs))
+              (find_seq k xs)
+        endmatch
+      endif
+    ;
+  }
+
+  fun power_set[T] (lst:list[T]):list[list[T]] =
+  {
+    fun loop[T] (k:size) (lst:list[T]) (acc:list[list[T]]):list[list[T]] =
+    {
+      return
+        if k == size(-1) then acc
+        else loop (k - 1) lst (join acc (find_seq k lst))
+        endif
+      ;
+    }
+
+   return loop (len lst) lst (list[list[T]] ());
+  }
+
+  println$ str (power_set (list (1, 2, 3)));
