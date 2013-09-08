@@ -36,8 +36,6 @@ def take(k, lst):
        return []
    res = [lst[0]]+take(k-1, lst[1:])
 
-   print ("res="+str(res))
-
    return res
   
 def drop(k, lst):
@@ -75,13 +73,8 @@ def find_all_permutations(lst):
     '''
     x = lst[k]
     listp=take(k, lst)+drop(k+1, lst)
-    print ("listp="+str(listp))
-  
     ps=find_all_permutations(listp)
-    print ("ps="+str(ps))
-
     s = list (map (lambda perm : [x] + perm, ps))
-    print ("s="+str(s))
 
     return s
   
