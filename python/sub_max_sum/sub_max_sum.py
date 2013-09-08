@@ -13,7 +13,7 @@
 import functools
 
 #Compute all the intervals of the sequence t per the definition above.
-#e.g. for [1, 2, e] compute {[1], [1, 2], [1, 2, 3], [2], [2, 3],
+#e.g. for [1, 2, 3] compute {[1], [1, 2], [1, 2, 3], [2], [2, 3],
 #[3]}. Decorate the intervals with their start and end indices and the
 #interval sum.
 def intervals (t):
