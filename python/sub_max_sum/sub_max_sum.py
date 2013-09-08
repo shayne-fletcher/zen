@@ -33,10 +33,14 @@ x=[1, 3, -8, 2, -1, 10, -2, 1]
 
 #Print the intervals of x with maximal sum.
 res = intervals (x)
-def f (m, t): 
-  (_,_,n)=t ; return max (m, n)
-maxsum = functools.reduce (f, res, 0)
-for t in res:
-  (indices, interval, total)=t
-  if (total == maxsum):
-    print (str(t)) #An interval of maximal sum.
+for r in res:
+    (_,i,_) = r
+    print (str(i))
+
+# def f (m, t): 
+#   (_,_,n)=t ; return max (m, n)
+# maxsum = functools.reduce (f, res, 0)
+# for t in res:
+#   (indices, interval, total)=t
+#   if (total == maxsum):
+#     print (str(t)) #An interval of maximal sum.
