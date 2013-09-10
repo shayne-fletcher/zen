@@ -103,8 +103,10 @@ ics_set_t ics (ics_t s)
 
   //Extend ts with any new subsequences that can be formed by
   //prepending s[0] to t for t in ts.
+  ics_set_t t=std::accumulate (ts.begin (), ts.end(), ts, f(s[0]));
+  t.push_back (ics_t(1, s[0]));
 
-  return std::accumulate (ts.begin (), ts.end(), ts, f(s[0]));
+  return t;
 }
 
 int main ()

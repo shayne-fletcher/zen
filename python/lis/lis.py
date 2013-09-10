@@ -22,7 +22,7 @@ def ics (s):  #s is s sequence
        return acc + [nt]
     else:
         return acc
-  res = functools.reduce (f, ts, ts)
+  res = functools.reduce (f, ts, ts) + [[s[0]]]
 
   return res
 
