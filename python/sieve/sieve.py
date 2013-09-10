@@ -17,7 +17,7 @@ def sieve (k):
     if len (r) == 0:
         return s
     else:
-        return kk (r[0], s)
+        return f (r[0], s)
 
   return f (2, range (2, k + 1))
 
