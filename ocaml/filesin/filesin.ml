@@ -32,7 +32,7 @@ let (read_and_close:Unix.file_descr -> string)  = fun fdr ->
   let bytes_to_read = ref true in
   while !bytes_to_read do
     let s  = String.create 1024 in
-    let num_bytes_read = Unix.read fdr s 0 124 in
+    let num_bytes_read = Unix.read fdr s 0 1024 in
     Buffer.add_string buf (String.sub s 0 num_bytes_read) ;
     if num_bytes_read < 1024 then bytes_to_read := false ;
     ()
