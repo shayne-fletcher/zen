@@ -28,7 +28,7 @@ exp_list:
 exp_list_more:
  | /*nothing*/ {[]}
  | COMMA exp exp_list_more { $2::$3 }
-;
+ ;
 tag:
  | STRING { $1 }
  ;

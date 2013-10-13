@@ -44,11 +44,30 @@ let print_term (t:(string, string) term) : unit =
   Printf.printf "%s" (string_of_term t)
 ;;
 
-(*
-  {[
-  val term_trav : ('a * 'b -> 'c) ->
-  ('c -> 'b -> 'b) -> 'b -> ('d -> 'c) -> ('a, 'd) term -> 'c = <fun>
-  ]}
+(* [term_trav] is a generalization of all functions defined by
+   recusion on the structure of an [('a, 'b) term] - a homomorphism.
+
+   The definition of [term_trav] below gives the following signature.
+
+   {[
+   val term_trav : ('a * 'b -> 'c) ->
+   ('c -> 'b -> 'b) -> 'b -> ('d -> 'c) -> ('a, 'd) term -> 'c
+   ]}
+
+   Proof:
+
+   Assume [term_trav] to operate on arguments of type [('a, 'd)
+   term]. It "returns" either via [f] or [v], and so [f], [v] and
+   [term_trav] must share the same return type, ['c] say.
+
+   Since the intermediate list results from recursive calls to
+   [term_trav] then it must have type ['c list]. This means [g] must
+   be of type ['c -> 'b -> 'b] for some type ['b] which fixes [x] to
+   ['b] whilst completing [f] as ['a * 'b -> 'c].
+
+   Lastly [v] takes arguments of type ['d] meaning it types to ['d ->
+   'c].
+
 *)
 let rec term_trav f g x v = function
   | Term (a, tl) -> 
@@ -60,7 +79,7 @@ let rec term_trav f g x v = function
 
 let term_size (t:('a, 'b) term) : int = 
   (term_trav (fun (_, s) -> s + 1) (fun x y -> x + y) 0 (fun _ -> 1))
-  t
+    t
 ;;
 
 (*[val vars : ('a, 'b) term -> 'b list = <fun>]*)

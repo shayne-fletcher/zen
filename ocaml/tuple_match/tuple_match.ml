@@ -44,9 +44,9 @@ struct
     let string_of_list (f:'a -> string) (l:'a list) : string = 
       "(" ^ String.concat "," (List.map f l) ^ ")"  in
     function
-    | E_var (s) -> s
-    | E_const (i) -> string_of_int i
-    | E_tuple (l) -> string_of_list string_of_expression l
+    | E_var s -> s
+    | E_const i -> string_of_int i
+    | E_tuple l -> string_of_list string_of_expression l
 
 end
 ;;
