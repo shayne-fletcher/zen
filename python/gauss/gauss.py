@@ -43,9 +43,9 @@ def back_substitution_phase (t):
 
 #Solve Ax=b with 
 #
-#  A=[ 6   -4     1
-#     -4    6    -1
-#      1   -4     6]
+#        6   -4     1
+#  A =  -4    6    -1
+#        1   -4     6
 #
 #and b = (-14, 36, 6)^T.
 
@@ -53,6 +53,7 @@ A = (
     ( 6.,  -4.,  1.,  -14.)
   , (-4.,   6., -4.,   36.)
   , ( 1.,  -4.,  6.,    6.))
-print (str(back_substitution_phase (elimination_phase (A))))
+
+print (str (back_substitution_phase (elimination_phase (A))))
 
 #Should give (10, 22, 14)^T.
