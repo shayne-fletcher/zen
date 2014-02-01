@@ -1,0 +1,10 @@
+{1 Bdate} 
+
+The [Bdate] package. A set of date-time libraries based on generic
+programming concepts. See
+{{:http://www.boost.org/doc/libs/1_55_0/doc/html/date_time.html}
+Boost.Date_time}
+{2 Index}
+{!indexlist}
+{2 Modules}
+{!modules:Bdate_sig}
