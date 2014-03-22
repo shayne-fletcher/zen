@@ -1,0 +1,845 @@
+\chapter{Extending Python from C++}\label{ch:extending-python-from-c++}
+
+It is usual in financial institutions that make use of quantitative
+analysis programs to have a considerable investment in C++.  Thus it
+can be important then to foster interoperability between C++ and
+Python. This chapter studies how Python modules can be implemented in
+C++ by means of the Boost.Python\footnote{Boost provides free
+peer-reviewed portable C++ source libraries. See http://www.boost.org
+for details.}  library (see also appendix \ref{appendix:boost-python}
+for a primer on the Boost.Python library).
+
+\section{Boost.Date\_Time types} \label{sec:boost-date-time}
+
+It is common in quantitative analysis programming to require
+manipulation of and computations involving dates.  The `Python
+Library' contains excellent functionality for such activities.
+Pricing systems written in C++ however will be implemented using C++
+datatypes for the representation of dates and times. For pricing
+frameworks implemented in a hybrid of Python and C++, it would be
+convenient to settle on a common representation of these fundamental
+types. Accordingly, in this section we demonstrate the `reflection' of
+functionality from the C++ Boost.Date\_Time library to Python.
+
+Our reflection of the C++ date types into Python will be housed in the
+Python module `ppf\_date\_time.pyd', implemented in C++.  We declare
+this intention in the entry point to our Python module in the file
+`module.cpp':
+\begin{verbatim}
+#include <boost/python/module.hpp>
+
+namespace ppf
+{
+  namespace date_time
+  {
+    void register_date();
+    void register_date_more();
+    
+  } // namespace date_time
+
+} // namespace ppf
+
+BOOST_PYTHON_MODULE(ppf_date_time)
+{
+  using namespace ppf::date_time;
+
+  register_date();
+  register_date_more();
+}
+
+\end{verbatim}
+In `register\_date.cpp' we instantiate Boost.Python
+\verb|class_| objects describing the C++ types and functions we intend
+to use from Python:
+\begin{verbatim}
+void register_date()
+{
+  using namespace boost::python;
+  namespace bg = boost::gregorian;
+  namespace bd = boost::date_time;
+
+  // types and functions ...
+
+  class_<bg::date>(
+      "date"
+     ,"A date type based on the gregorian calendar"
+     , init<>("Default construct not_a_date_time"))
+    .def(init<bg::date const&>())
+    .def(init
+         <
+           bg::greg_year
+         , bg::greg_month
+         , bg::greg_day
+         >((arg("y"), arg("m"), arg("d"))
+       , "Main constructor with year, month, day "))
+    .def("year", &bg::date::year)
+    .def("month", &bg::date::month)
+    .def("day", &bg::date::day)
+
+    // ...
+
+    ;
+
+  class_<std::vector<bg::date> >(
+      "date_vec"
+    , "vector (C++ std::vector<date> ) of date")
+    .def(vector_indexing_suite<std::vector<bg::date> >())
+    ;
+
+  // more types and functions ...
+}
+\end{verbatim}
+Once exposed in this fashion, the types so defined in the
+\verb|ppf_date_time| module are imported into the \verb|ppf| subpackage
+\verb|ppf.date_time| by means of import statements in the module's
+`\_\_init\_\_.py':
+\begin{verbatim}
+from ppf_date_time import *
+\end{verbatim}
+
+\subsection{Examples}
+\subsubsection{IMM dates}\label{ssec:imm-dates}
+As an example of what we have achieved, let's see how in Python, we
+can compute so called IMM (international money market) dates for a
+given year i.e. the 3rd Wednesday of March, June, September, and
+December in the year. The \verb|ppf.date_time| package provides the
+module \verb|nth_imm_of_year| in which is defined \verb|class nth_imm_of_year|. 
+The workhorse of the class implementation is the
+Boost.Date\_Time function \verb|nth_kday_of_month|:
+\begin{verbatim}
+from ppf_date_time import  \
+     weekdays              \
+   , months_of_year        \
+   , nth_kday_of_month     \
+   , year_based_generator
+
+class nth_imm_of_year(year_based_generator):
+  '''Calculate the nth IMM date for a given year
+
+  '''
+  first = months_of_year.Mar
+  second = months_of_year.Jun
+  third = months_of_year.Sep
+  fourth = months_of_year.Dec
+
+  def __init__(self, which):
+    year_based_generator.__init__(self)
+    self._month = which
+
+  def get_date(self, year):
+    return nth_kday_of_month(
+          nth_kday_of_month.third
+        , weekdays.Wednesday
+        , self._month).get_date(year)
+
+  def to_string(self):
+    pass
+\end{verbatim}
+Exercising the \verb|class nth_imm_of_year| functionality in an
+interactive Python session goes like this:
+\begin{verbatim}
+>>> from ppf.date_time import *
+>>> imm = nth_imm_of_year
+>>> imm_dates = []
+>>> imm_dates.append(imm(imm.first).get_date(2005))
+>>> imm_dates.append(imm(imm.second).get_date(2005))
+>>> imm_dates.append(imm(imm.third).get_date(2005))
+>>> imm_dates.append(imm(imm.fourth).get_date(2005))
+>>> for t in imm_dates:
+...   print t
+2005-Mar-16
+2005-Jun-15
+2005-Sep-21
+2005-Dec-21
+\end{verbatim}
+
+With \verb|class nth_imm_of_year| some useful questions regarding IMM
+dates can now be answered elegantly and easily. For example, what is
+the IMM date immediately preceding a given date? This is answered in
+the \\ \verb|ppf.date_time.first_imm_before| module:
+\begin{verbatim}
+from ppf_date_time import  \
+     weekdays              \
+   , months_of_year        \
+   , nth_kday_of_month     \
+   , year_based_generator
+from nth_imm_of_year import *
+
+def first_imm_before(start):
+  '''Find the IMM date immediately preceding the given date.
+  '''
+  imm = nth_imm_of_year
+  first_imm_of_year = imm(imm.first).get_date(start.year())
+  imm_date = None
+  if start <= first_imm_of_year:
+    imm_date = imm(imm.fourth).get_date(start.year() - 1)
+  else:
+    for imm_no in reversed([imm.first, imm.second, imm.third, imm.fourth]):
+      imm_date = imm(imm_no).get_date(start.year())
+      if imm_date < start:
+        break
+
+  return imm_date
+\end{verbatim}
+In an interactive Python session:
+\begin{verbatim}
+>>> from ppf.date_time import *
+>>> print first_imm_before(date(2007, Jun, 27))
+2007-Jun-20
+\end{verbatim}
+The \verb|ppf.date_time| package also contains the symmetric \verb|first_imm_after| function.
+\subsubsection{Holidays, Rolls and Year Fractions}
+Other common activities in financial modelling include determining if a
+date is a business day, `rolling' a date to a business day and the
+computation of elapsed time between two dates according to common
+market conventions.
+
+The \verb|ppf.date_time.shift_convention| module shows an easy way to
+emulate C++ enum types:
+\begin{verbatim}
+class shift_convention:
+    none                 \
+  , following            \
+  , modified_following   \
+  , preceding            \
+  , modified_preceding = range(5)
+\end{verbatim}
+This idiom is employed again in the
+\verb|ppf.date_time.day_count_basis| module:
+\begin{verbatim}
+class day_count_basis:
+    basis_30360   \
+  , basis_act_360 \
+  , basis_act_365 \
+  , basis_act_act = range(4)
+\end{verbatim}
+The \verb|ppf.date_time.is_business_day| module provides the means to
+answer the question of whether or not a given date is a business day
+\begin{verbatim}
+from ppf_date_time import weekdays
+
+def is_business_day(t, financial_centers=None):
+  ''' Test whether the given date is a business day.
+      In this version, only weekends are considered
+      holidays.
+  '''
+  Saturday, Sunday = weekdays.Saturday, weekdays.Sunday
+
+  return t.day_of_week().as_number() != Saturday \
+       and t.day_of_week().as_number() != Sunday
+
+\end{verbatim}
+The \verb|ppf.date_time.shift| module provides functionality to
+`shift' a date according to the common market shift conventions:
+\begin{verbatim}
+from ppf_date_time import *
+from is_business_day import *
+from shift_convention import *
+
+def shift(t, method, holiday_centers=None):
+  d = date(t)
+  if not is_business_day(d):
+    if method == shift_convention.following:
+      while not is_business_day(d, holiday_centers):
+        d = d + days(1)
+    elif method == shift_convention.modified_following:
+      while not is_business_day(d, holiday_centers):
+        d = d + days(1)
+      if d.month().as_number() != t.month().as_number():
+          d = date(t)
+          while not is_business_day(d, holiday_centers):
+            d = d - days(1)
+    elif method == shift_convention.preceding:
+      while not is_business_day(d, holiday_centers):
+        d = d - days(1)
+    elif method == shift_convention.modified_preceding:
+      while not is_business_day(d, holiday_centers):
+        d = d - days(1)
+      if d.month().as_number() != t.month().as_number():
+        while not is_business_day(d, holiday_centers):
+          d = d + days(1)
+    else: raise RuntimeError, "Unsupported method"
+
+  return d
+\end{verbatim}
+The \verb|ppf.date_time.year_fraction| module provides functionality
+to compute year fractions:
+\begin{verbatim}
+from ppf_date_time \
+     import date, gregorian_calendar_base
+from day_count_basis import *
+
+is_leap_year = gregorian_calendar_base.is_leap_year
+
+def year_fraction(start, until, basis):
+  '''Compute accruals
+  '''
+  result = 0
+  if basis == day_count_basis.basis_act_360:
+    result = (until - start).days()/360.0
+  elif basis == day_count_basis.basis_act_365:
+    result = (until - start).days()/365.0
+  elif basis == day_count_basis.basis_act_act:
+    if start.year() != until.year():
+      start_of_to_year = date(until.year(), 1, 1)
+      end_of_start_year = date(start.year(), 12, 31)
+      result = (end_of_start_year - start).days()/ \
+          (365.0, 366.0)[is_leap_year(start.year())] \
+        +  (int(until.year()) - int(start.year()) - 1) + \
+           (until - start_of_to_year).days()/ \
+              (365.0, 366.0)[is_leap_year(until.year())]
+    else:
+      result = (until - start).days()/ \
+               (365.0, 366.0)[is_leap_year(util.year())]
+  elif basis == day_count_basis.basis_30360:
+    d1, d2 = start.day(), until.day()
+    if d1 == 31:
+        d1 -= 1
+    if d2 == 31:
+        d2 -= 1
+    result = (int(d2) - int(d1)) + \
+             30.0*(int(until.month()) - int(start.month())) + \
+                      360.0*(int(until.year()) - int(start.year()))
+    result = result / 360.0
+  else:
+    raise RuntimeError, "Unsupported basis"
+
+  return result
+\end{verbatim}
+In the following interactive session, the year fraction between
+two dates is computed under a variety of different day count basis
+conventions:
+\begin{verbatim}
+>>> from ppf.date_time import *
+>>> add_months = month_functor
+>>> Nov = months_of_year.Nov
+>>> begin = date(2004, Nov, 21)
+>>> until = begin + add_months(6).get_offset(begin)
+>>> year_fraction(begin, until, day_count_basis.basis_30360)
+0.5
+>>> year_fraction(begin, until, day_count_basis.basis_act_365)
+0.49589041095890413
+>>> year_fraction(begin, until, day_count_basis.basis_act_act)
+0.49285126132195523
+\end{verbatim}
+
+\section{Boost.MultiArray and Special Functions}
+
+The use of multi-dimensional arrays in quantitative analysis programs
+is ubiquitous. Python, or rather the Python libraries provide a
+variety of types that serve for their representation. Like the date
+types of the previous section however, we prefer to emphasize
+interoperability with C++ and so, to this end, might favour reflection
+of C++ array types into Python. The \verb|ppf| package exposes the
+Boost.MultiArray multi-dimensional array types \\
+\verb|boost::multi_array<double,N>| for \verb|N|$ = 1, 2, 3$ to
+Python. To achieve this, advantage was taken of a C++ template
+meta-program that facilitates reflection of the arrays, the code for
+which is present in the source code accompanying this book (see
+`ext/boost/multi\_array/multi\_array.hpp').
+
+The array types are housed in the \verb|ppf_math| module implemented
+in the C++ Python extension `ppf\_math.pyd' and imported into
+the namespace of the \verb|ppf.math| sub-package. Usage of the array
+types is natural and intuitive. Here is an example taken from the
+\verb|ppf.math| unit-tests:
+\begin{verbatim}
+class solve_upper_diagonal_system_tests(unittest.TestCase):
+  def test(self):
+    
+  # Solve upper diagonal system of linear equations ax = b
+  # where
+  #
+  # a = 3x3
+  #     [  1.75    1.5    -2.5
+  #         0     -0.5    0.65
+  #         0        0    0.25 ]
+  #
+  # and b = [0.5, -1.0, 3.5].
+  
+  a = ppf.math.array2d([3,3])
+  a[0, 0], a[0, 1], a[0, 2] = (1.75, 1.5, -2.5)
+  a[1, 0], a[1, 1], a[1, 2] = (0.0, -0.5,  0.65)
+  a[2, 0], a[2, 1], a[2, 2] = (0.0,  0.0,  0.25)
+
+  b = ppf.math.array1d([3])
+  b[0] =  0.5
+  b[1] = -1.0
+  b[2] =  3.5
+  
+  # Expected solution vector is x = [2.97142857  20.2  14.0].
+  
+  x = ppf.math.solve_upper_diagonal_system(a, b)
+  assert len(x) == 3 and math.fabs(x[0] - 2.971428571) < 1.0e-6 \
+         and math.fabs(x[1] - 20.2) < 1.0e-6 and math.fabs(x[2] - 14.0) < 1.0e-6
+\end{verbatim}
+
+In addition to the multi-array types, the module \verb|ppf_math|
+also exposes some useful utility functions implemented in C++. In
+the file `ppf/math/limits.hpp' are the following template
+function definitions:
+\begin{verbatim}
+#if !defined(LIMITS_5DDE828B_9989_44F5_9728_47AA72323D96_INCLUDED)
+#  define LIMITS_5DDE828B_9989_44F5_9728_47AA72323D96_INCLUDED
+
+#  if defined(_MSC_VER) && (_MSC_VER >= 1020)
+#    pragma once
+#  endif // defined(_MSC_VER) && (_MSC_VER >= 1020)
+
+#  include <boost/config.hpp>
+
+#  include <limits>
+
+namespace ppf { namespace math {
+
+template <class T>
+T epsilon()
+{
+  return std::numeric_limits<T>::epsilon();
+}
+
+template <class T>
+T min BOOST_PREVENT_MACRO_SUBSTITUTION ()
+{
+  return (std::numeric_limits<T>::min)();
+}
+
+template <class T>
+T max BOOST_PREVENT_MACRO_SUBSTITUTION ()
+{
+  return (std::numeric_limits<T>::max)();
+}
+
+}} // namespace ppf::math
+
+#endif // !defined(LIMITS_5DDE828B_9989_44F5_9728_47AA72323D96_INCLUDED)
+\end{verbatim}
+In `ext/lib/math/src/register\_special\_functions.cpp', instantiations
+of these templates are exposed to Python:
+\begin{verbatim}
+#include <boost/python/def.hpp>
+
+#include <ppf/math/limits.hpp>
+
+namespace ppf { namespace math {
+
+void register_special_functions()
+{
+  using namespace boost::python;
+
+  def("epsilon", epsilon<double>);
+  def("min_flt", min BOOST_PREVENT_MACRO_SUBSTITUTION <double>);
+  def("max_flt", max BOOST_PREVENT_MACRO_SUBSTITUTION <double>);
+}
+
+}} // namespace ppf::math
+\end{verbatim}
+An example of the use of the \verb|epsilon| function is again provided by
+a \verb|ppf.math| unit-test:
+\begin{verbatim}
+class bisect_tests(unittest.TestCase):
+  def test1(self):
+    tol = 5*ppf.math.epsilon()
+    left, right, num_its = \
+          ppf.math.bisect(lambda x: x*x + 2.0*x - 1.0
+                         , -3, -2
+                         , lambda x, y: math.fabs(x-y) < tol, 100)
+\end{verbatim}
+Further examples of the use of these special functions can be found in
+the next chapter.
+
+\section{NumPy arrays}
+
+Despite the efforts of the preceding section regarding reflection of \\
+C++ Boost.MultiArray types into Python, in practice, when working in
+Python, the authors have found the facilities of NumPy arrays to be
+far more convenient (NumPy was mentioned briefly in section
+\ref{sec:common-misconceptions-about-python}). Specifically, their
+notational conveniences and the large body of functionality provided
+by the NumPy library motivates their use in Python beyond the argument
+of C++ interoperability. Indeed, when working in C++, a library
+dedicated to scientific manipulation of arrays such as
+Blitz++\footnote{Blitz++ is a C++ class library for scientific
+computing which provides performance on par with Fortran 77/90. See
+http://www.oonumerics.org/blitz for details.} wins the authors' favour
+for such work over `lower-level' container types like native C arrays
+or Boost.MultiArray types. But now the crux of the matter. If we
+haven't made this point earlier then we'll make it for the first time
+now. One of the great strengths of Python is the ability to drop into
+C or C++ code `when performance counts'. That is, the ability to
+factor out that characteristic operation that must be done as
+efficiently as possible and pull it down into a compiled component is
+key. Now, in the field of numerical programming doesn't that characteristic
+operation almost always involve operating on arrays of data?
+
+So, can we have it all? Can we have the convenience of NumPy in Python
+combined with the convenience and efficiency of Blitz++ in C++ where
+the data is shared between these array types? The short answer is yes
+we can, as we will demonstrate in next subsection.
+
+\subsection{Accessing array data in C++}
+
+This subsection is concerned with the topic of accessing a NumPy
+array's data in C++. To do this, we need to work with the Python C API
+and we'll also take advantage of Boost.Python where we can. The
+approach is fairly idiomatic and can be more or less wrapped up in a
+set of reasonably small utility functions. Let's begin with this most
+simple of functions from `ppf/util/python/detail/decref.hpp':
+\begin{verbatim}
+#if !defined(DECREF_4A1F1D9D_CE18_4CA1_AF52_DA1C51847FB4_INCLUDED)
+#  define DECREF_4A1F1D9D_CE18_4CA1_AF52_DA1C51847FB4_INCLUDED
+
+#  if defined(_MSC_VER) && (_MSC_VER >= 1020)
+#    pragma once
+#  endif // defined(_MSC_VER) && (_MSC_VER >= 1020)
+
+#  include <boost/python/detail/wrap_python.hpp>
+
+namespace ppf { namespace util { namespace python {
+
+namespace detail
+{
+  //Py_DECREF() is a macro which makes it unsuitable
+  //for use with bind constructs in scope guards.
+  template <class T>
+  inline void decref(T* obj)
+  {
+    Py_DECREF(obj);
+  }
+}
+
+}}} // namespace ppf::util::python
+
+#endif // !defined(DECREF_4A1F1D9D_CE18_4CA1_AF52_DA1C51847FB4_INCLUDED)
+\end{verbatim}
+The motivation for this function will become apparent in a moment, but
+briefly, Python objects in the Python C-API are reference counted and
+the manipulation of the reference counts (although automatic in
+Python) must be carried out manually in C++. As the comment in the
+code above indicates, the facilitity for decrementing the reference
+count of a Python object is actually a macro and so we need a wrapper
+for it should we wish to take advantage of `scope guard'\footnote{See
+``Generic: Change the way you write exception safe code - forever'' by
+Andrei Alexandrescu and Petru Marginean, available online at
+http://www.ddj.com/cpp/184403758} techniques.
+
+Here is the code from `ppf/util/python/detail/object\_as\_array.hpp'
+that wraps up the business of getting us from a Python C API
+\verb|PyObject*| to a NumPy \verb|PyArrayObject*|:
+\begin{verbatim}
+#if !defined(OBJECT_AS_ARRAY_0067910E_F5F1_4BD6_9565_3BF98B4A12C1_INCLUDED)
+#  define OBJECT_AS_ARRAY_0067910E_F5F1_4BD6_9565_3BF98B4A12C1_INCLUDED
+
+#  if defined(_MSC_VER) && (_MSC_VER >= 1020)
+#    pragma once
+#  endif // defined(_MSC_VER) && (_MSC_VER >= 1020)
+
+#include <ppf/util/python/detail/decref.hpp>
+
+#include <boost/python/errors.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/bind.hpp>
+
+namespace ppf { namespace util { namespace python {
+
+namespace detail
+{
+
+template <int = 0>
+struct object_as_array_impl_
+{
+  static boost::shared_ptr<PyArrayObject> get(
+    PyObject* input, int type, int min_dim, int max_dim)
+  {
+    if(PyArray_Check(input))
+    {
+      if(!PyArray_ISCARRAY(reinterpret_cast<PyArrayObject*>(input)))
+      {
+        PyErr_SetString(PyExc_TypeError, "not a C array");
+  
+        boost::python::throw_error_already_set();
+      }
+  
+      return boost::shared_ptr<PyArrayObject>(
+               reinterpret_cast<PyArrayObject*>(
+                        boost::python::expect_non_null(
+                             PyArray_ContiguousFromObject(
+                                     input, type, min_dim, max_dim))
+              )
+            , boost::bind(
+               ::ppf::util::python::detail::decref<PyArrayObject>, _1)
+        );
+    }
+    else
+    {
+      PyErr_SetString(PyExc_TypeError, "not an array");
+  
+      boost::python::throw_error_already_set();
+    }
+  
+    return boost::shared_ptr<PyArrayObject>();
+  }
+};
+
+typedef object_as_array_impl_<> object_as_array_impl;
+
+inline boost::shared_ptr<PyArrayObject>
+object_as_array(
+  PyObject* input, int type, int min_dim, int max_dim)
+{
+  return object_as_array_impl::get(input, type, min_dim, max_dim);
+}
+
+}}}} // namespace ppf::util::python::detail
+
+#endif // !defined(OBJECT_AS_ARRAY_0067910E_F5F1_4BD6_9565_3BF98B4A12C1_INCLUDED)
+\end{verbatim}
+Note that this code lives in the \verb|ppf::util::python::detail|
+namespace and is not tied to any particular \verb|ppf| C++ Python
+extension module.
+
+To explain this code, let's work top down rather than bottom up and
+look to the last function of the file first.
+\begin{verbatim}
+inline boost::shared_ptr<PyArrayObject>
+object_as_array(
+  PyObject* input, int type, int min_dim, int max_dim)
+{
+  return object_as_array_impl::get(input, type, min_dim, max_dim);
+}
+\end{verbatim}
+The first thing to note is the return type, that is a \\
+\verb|boost::shared_ptr<PyArrayObject>|. The reason to return one of
+these over a raw \verb|PyArrayObject*| is to do with the use of
+\verb|Py_DECREF| as alluded to above. The long and the short of it is
+that should the attempt to get an array from a \verb|PyObject*|
+succeed, by the time the resultant array is going out of scope it must
+have \verb|Py_DECREF| called on it to avoid a resource leak. This
+should happen even in the event of a C++ exception. As we will see,
+the wrapping of the array up in the \verb|shared_ptr| means this will
+be automated for us.
+
+A quick explanation of the arguments: \verb|input| is the incoming
+\verb|PyObject*| which we hope is an array; the \verb|type| is the
+expected element type, for \verb|ppf| purposes this is always the
+constant \verb|PyArray_DOUBLE|; the arguments \verb|min_dim| and
+\verb|max_dim| are the expected minimum dimension (guarantee no smaller than) and maximum
+dimension of the array (guarantee no larger than -- if \verb|max_dim|
+is set to zero, the check on the array will have no upper bound with
+respect to dimensions).
+
+The body of this inline function delegates to a static function
+\verb|get| of class type \verb|object_as_array_impl|. The type
+\verb|object_as_array_impl| is
+in fact a typedef for a specific instantiation of a template class\\
+\verb|template <int> class object_as_array_impl_|. That is nothing to
+really stop and concern ourselves too much with; it's a fairly often 
+observed C++ `trick' that enables us to present this functionality from
+a C++ header file without the need to provide clients of the
+functionality compiled library code as well.
+
+So, with the interface function covered, a quick review of the
+implementation details of the \verb|get| function.
+\begin{verbatim}
+  static boost::shared_ptr<PyArrayObject> get(
+    PyObject* input, int type, int min_dim, int max_dim)
+  {
+    if(PyArray_Check(input))
+    {
+      if(!PyArray_ISCARRAY(reinterpret_cast<PyArrayObject*>(input)))
+      {
+        PyErr_SetString(PyExc_TypeError, "not a C array");
+  
+        boost::python::throw_error_already_set();
+      }
+  
+      return boost::shared_ptr<PyArrayObject>(
+               reinterpret_cast<PyArrayObject*>(
+                        boost::python::expect_non_null(
+                             PyArray_ContiguousFromObject(
+                                     input, type, min_dim, max_dim))
+              )
+            , boost::bind(
+               ::ppf::util::python::detail::decref<PyArrayObject>, _1)
+        );
+    }
+    else
+    {
+      PyErr_SetString(PyExc_TypeError, "not an array");
+  
+      boost::python::throw_error_already_set();
+    }
+  
+    return boost::shared_ptr<PyArrayObject>();
+  }
+
+\end{verbatim}
+Well, it's fairly easy to see that bar a few wrinkles that we'll
+discuss in a moment, it's for the most part fairly standard Python C
+API style programming. In short, the incoming \verb|input| is checked
+to ensure it's an array and that if it is that it be a standard C
+style array (row major). In the event that it fails to meet these
+conditions, the error is indicated to Python and a quick exit is made
+by calling the Boost.Python function
+\verb|throw_error_already_set()|. If the object has been determined to
+be an array, the crucical call is made to the NumPy API function
+\verb|PyArray_ContiguousFromObject| which for our intent checks that
+the array has the requested element data type and dimensionality. The
+use of the Boost.Python \verb|expect_non_null| is the means by which we
+detect if those conditions have been met (the result of
+\verb|PyArray_ContiguousFromObject| will be non-null or 0 if they have
+not); the Python error indicator is set and an implicit call to
+\verb|boost::python::throw_error_already_set()| will occur on failure.
+The non-null array object is cast to the required type and
+installed into a boost shared pointer with a custom deleter built from
+a \verb|boost::bind| to the \verb|ppf::util::python::detail::decref|
+function.
+
+\subsection{Examples}
+
+The `ppf\_math.pyd' C++ Python extension module exports some
+(trivial) examples of manipulating NumPy arrays from C++. The code for
+these examples can be found in the source file
+`lib/math/src/register\_numpy.cpp'. The examples all live in the C++
+namespace \verb|ppf::math::numpy::examples|. They are available
+through the \verb|ppf.math.numpy_examples| module by the names
+\verb|sum_array|, \verb|trace|, \verb|assign_zero| and
+\verb|make_array|.  The code to register the functions in the
+`ppf\_math.py' module reads
+\begin{verbatim}
+void register_numpy()
+{
+  using namespace boost::python;
+
+  def("numpy_sum_array", numpy::examples::sum_array);
+  def("numpy_trace", numpy::examples::trace);
+  def("numpy_assign_zero", numpy::examples::assign_zero);
+  def("numpy_make_array", numpy::examples::make_array);
+
+  import_array();//this is a required NumPy API function call
+}
+\end{verbatim}
+
+\subsubsection{Sum the elements of an array}
+
+The first example simply sums the elements of the incoming array.
+\begin{verbatim}
+double sum_array(PyObject* input)
+{
+  boost::shared_ptr<PyArrayObject> obj = ::ppf::util::python
+        ::detail::object_as_array(input, PyArray_DOUBLE, 0, 0);
+
+  // compute size of array 
+  int n = 1;
+  if(obj->nd > 0)
+    for(int i = 0; i < obj->nd; ++i) 
+      n *= obj->dimensions[i];
+
+  double* array = reinterpret_cast<double*>(obj->data);
+
+  return std::accumulate(array, array + n, 0.);
+}
+\end{verbatim}
+In Python:
+\begin{verbatim}
+>>> import numpy
+>>> from ppf.math.numpy_examples import *
+>>> a = numpy.array([1., 2., 3., 4.])
+>>> print sum_array(a)
+10.0
+\end{verbatim}
+
+\subsubsection{Compute the trace of an array}
+
+The next function computes the trace of a two dimensional array
+(sum of the main diagonal elements).
+\begin{verbatim}
+double trace(PyObject* input)
+{
+  boost::shared_ptr<PyArrayObject> obj = ::ppf::util::python
+         ::detail::object_as_array(input, PyArray_DOUBLE, 2, 2);
+
+  int n = obj->dimensions[0];
+  if(n > obj->dimensions[1]) n = obj->dimensions[1];
+
+  double sum = 0.;
+  for(int i = 0; i < n; ++i)
+    sum += *reinterpret_cast<double*>(
+      obj->data + i*obj->strides[0] + i*obj->strides[1]);
+
+  return sum;
+}
+\end{verbatim}
+Continuing the above example interpreter session:
+\begin{verbatim}
+>>> a = numpy.zeros((3, 4))
+>>> for i in range(3):
+...   a[i, i] = 1
+... 
+>>> a[2, 3] = 1
+>>> print a
+[[ 1.  0.  0.  0.]
+ [ 0.  1.  0.  0.]
+ [ 0.  0.  1.  1.]]
+>>> print trace(a)
+3.0
+\end{verbatim}
+
+\subsubsection{Assign an array's contents to zero}
+
+This function does more than just compute something from an array
+defined in Python. It shares the underlying data with a Blitz++ array
+in C++ and affects the source array by setting all of its elements to
+zero.
+\begin{verbatim}
+void assign_zero(PyObject* input)
+{
+  boost::shared_ptr<PyArrayObject> obj = ::ppf::util::python
+         ::detail::object_as_array(input, PyArray_DOUBLE, 2, 2);
+
+  blitz::Array<double, 2> array(
+      reinterpret_cast<double*>(obj->data)
+    , blitz::shape(obj->dimensions[0], obj->dimensions[1])
+    , blitz::neverDeleteData);
+
+  array = 0;
+}
+\end{verbatim}
+Continuing on in the interpreter:
+\begin{verbatim}
+>>> print a
+[[ 1.  0.  0.  0.]
+ [ 0.  1.  0.  0.]
+ [ 0.  0.  1.  1.]]
+>>> assign_zero(a)
+>>> print a
+[[ 0.  0.  0.  0.]
+ [ 0.  0.  0.  0.]
+ [ 0.  0.  0.  0.]]
+\end{verbatim}
+
+\subsubsection{Create a new NumPy array in C++ and return it to Python}
+
+This code creates a new one dimensional array of extent \verb|n| where
+\verb|n| is provided by the caller and assigns it the values $0, ..., n - 1$.
+\begin{verbatim}
+PyObject* make_array(int n)
+{
+  int dimensions[1]; dimensions[0] = n;
+  PyArrayObject* result =
+    reinterpret_cast<PyArrayObject*>(
+        boost::python::expect_non_null(
+          PyArray_FromDims(1, dimensions, PyArray_DOUBLE)));
+  double* buffer = reinterpret_cast<double*>(result->data);
+  for(int i = 1; i < n; ++i) buffer[i] = i;
+
+  return PyArray_Return(result);
+}
+\end{verbatim}
+Back to the interpreter for one last time:
+\begin{verbatim}
+>>> a = make_array(6)
+>>> print a
+[ 0.  1.  2.  3.  4.  5.]
+
+\end{verbatim}

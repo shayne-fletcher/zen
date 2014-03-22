@@ -1,0 +1,2 @@
+# configure the boost-build location
+boost-build ./build ;

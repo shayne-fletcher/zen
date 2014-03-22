@@ -1,0 +1,223 @@
+\chapter{Hybrid Python/C++ Pricing Systems}\label{ch:hybrid-pricing-systems}
+
+In Chapter \ref{ch:extending-python-from-c++}, we saw how we may
+extend Python with modules written in C++. Specifically, we studied
+case examples of reflecting types from the Boost.Date\_Time library
+into Python. Further, in section \ref{ssec:imm-dates} we developed
+functionality in Python making use of those reflected types to compute
+IMM dates. In this chapter we aim to show how we can exercise that
+functionality from C++. What is the relevance of this? Well, it
+demonstrates the possibility of `hybrid pricing systems'. That is,
+systems formed from a mix of both C++ and Python. Such potential will
+likely be of no small interest to those institutions that already have
+a considerable investment in C++. By using the techniques about to be
+presented, organisations with pricing frameworks in C++ can enjoy the
+many benefits Python offers whilst seamlessly integrating these
+efforts with their existing C++ frameworks.
+\section{nth\_imm\_of\_year revisited}
+Our goal will be to exercise the Python code for IMM date computation
+functionality, presented in section \ref{ssec:imm-dates} from C++. As
+the first step in seeing how to achieve that, it is necessary for us to
+review the implementation of the Python class \verb|nth_imm_of_year|
+and examine in closer detail its relationship with the C++ code on
+which it rests.
+\begin{verbatim}
+from ppf_date_time import  \
+     weekdays              \
+   , months_of_year        \
+   , nth_kday_of_month     \
+   , year_based_generator
+
+class nth_imm_of_year(year_based_generator):
+  '''Calculate the nth IMM date for a given year
+
+  '''
+  # ...
+\end{verbatim}
+We see that this class inherits from the \verb|ppf.date_time| type \\
+\verb|class year_based_generator|. The \verb|class year_based_generator|
+ is served up to Python in the C++ Python extension module
+\verb|ppf_date_time.pyd| and is in fact a
+Boost.Date\_Time defined base type for year based generators, or in other 
+words, a base class for polymorphic function objects that take a year 
+and produce a concrete date. In synopsis:
+\begin{verbatim}
+template<typename date_type> 
+class year_based_generator {
+public:
+  // types
+  typedef date_type::calendar_type calendar_type;
+  typedef calendar_type::year_type year_type;    
+
+  // construct/copy/destruct
+  year_based_generator();
+  ~year_based_generator();
+
+  // public member functions
+  virtual date_type get_date(year_type) const;
+  virtual std::string to_string() const;
+};
+\end{verbatim}
+In the \verb|ppf_date_time.pyd| source file
+`register\_date\_more.cpp', can be found the following code
+describing the instantiation of this class template over \\
+\verb|class boost::gregorian::date| to Python:
+\begin{verbatim}
+namespace ppf { namespace date_time {
+
+struct year_based_generator_wrap
+  : boost::date_time::
+      year_based_generator<boost::gregorian::date>
+  , boost::python::wrapper<
+     boost::date_time::
+      year_based_generator<boost::gregorian::date> >
+{
+  boost::gregorian::date
+    get_date(boost::gregorian::date::year_type y) const
+  {
+    return this->get_override("get_date")(y);
+  }
+
+  std::string to_string() const
+  {
+    return this->get_override("to_string")();
+  }
+};
+
+void register_date_more()
+{
+  using namespace boost::python;
+  namespace bg = boost::gregorian;
+  namespace bd = boost::date_time;
+
+  // ...
+
+  class_<year_based_generator_wrap
+       , boost::noncopyable>("year_based_generator")
+    .def("get_date", pure_virtual(&bd::year_based_generator<bg::date>::get_date))
+    .def("to_string", pure_virtual(&bd::year_based_generator<bg::date>::to_string))
+    ;
+
+  // ...
+}
+
+}} // namespace ppf::date_time
+\end{verbatim}
+
+\section{Exercising nth\_imm\_of\_year from C++}
+
+We turn our attention now to `embedding' a Python interpreter in a
+C++ program. We have seen how to call C++ code from Python. Here we
+aim to do the reverse: call Python code from C++. To do this we use a
+mix of Python C API routines together with helper types and functions
+in the Boost.Python \index{Boost!Python} library:
+\begin{verbatim}
+#include <boost/detail/lightweight_test.hpp>
+#include <boost/python.hpp>
+#include <boost/date_time/gregorian/gregorian.hpp>
+
+int main()
+{
+  namespace bd = boost::date_time;
+  namespace bg = boost::gregorian;
+  namespace python = boost::python;
+  typedef bd::year_based_generator<bg::date> ybd_t;
+
+  Py_Initialize();
+
+  try
+  {
+    //extract the ppf.date_time.nth_imm_of_year class
+    //object
+    python::object main_module = python::import("__main__");
+    python::object global(main_module.attr("__dict__"));
+    python::object result =
+      python::exec("from ppf.date_time import *\n", global, global);
+    python::object nth_imm_of_year_class = global["nth_imm_of_year"];
+
+    //use the class object to create instances of
+    //nth_imm_of_year
+    python::object first_imm_ = nth_imm_of_year_class(bg::Mar);
+    python::object second_imm_ = nth_imm_of_year_class(bg::Jun);
+    python::object third_imm_ = nth_imm_of_year_class(bg::Sep);
+    python::object fourth_imm_ = nth_imm_of_year_class(bg::Dec);
+
+    //get references to boost date_time year_based_generators
+    //from the newly created objects
+    ybd_t& first_imm =  python::extract<ybd_t&>(first_imm_);
+    ybd_t& second_imm = python::extract<ybd_t&>(second_imm_);
+    ybd_t& third_imm =  python::extract<ybd_t&>(third_imm_);
+    ybd_t& fourth_imm = python::extract<ybd_t&>(fourth_imm_);
+
+    //check imm dates for 2005
+    BOOST_TEST(first_imm.get_date  (2005) == bg::date(2005, bg::Mar, 16));
+    BOOST_TEST(second_imm.get_date (2005) == bg::date(2005, bg::Jun, 15));
+    BOOST_TEST(third_imm.get_date  (2005) == bg::date(2005, bg::Sep, 21));
+    BOOST_TEST(fourth_imm.get_date (2005) == bg::date(2005, bg::Dec, 21));
+  }
+  catch(python::error_already_set const&)
+  {
+    PyErr_Print();
+  }
+  catch(std::runtime_error const& e)
+  {
+    std::cerr << e.what() << std::endl;
+  }
+  catch(...)
+  {
+    std::cerr << "unexpected exception" << std::endl;
+  }
+
+  return boost::report_errors();
+}
+\end{verbatim}
+
+The significant steps in the above program are as follows: first, the
+Python interpreter is initialized with the call to the Python C API
+function \verb|Py_Initialize()|. Amongst other things, this has the
+effect of creating the fundamental \verb|''__main__''| module. The
+following statements
+\begin{verbatim}
+    python::object main_module = python::import("__main__");
+    python::object global(main_module.attr("__dict__"));
+\end{verbatim}
+import the \_\_main\_\_ module and obtain a reference to its
+namespace. With these the context for executing Python code has been
+obtained and we execute
+\begin{verbatim}
+    python::object result =
+      python::exec("from ppf.date_time import *\n", global, global);
+\end{verbatim}
+to cause Python to import all types and functions in the
+\verb|ppf.date_time| module into the global namespace . In particular,
+we are interested in the \verb|nth_imm_of_year| class object which we
+retrieve with
+\begin{verbatim}
+    python::object nth_imm_of_year_class = global["nth_imm_of_year"];
+\end{verbatim} With the class object at our disposal, we use it to
+produce \verb|nth_imm_of_year| class instances
+\begin{verbatim}
+    python::object first_imm_ = nth_imm_of_year_class(bg::Mar);
+    python::object second_imm_ = nth_imm_of_year_class(bg::Jun);
+    python::object third_imm_ = nth_imm_of_year_class(bg::Sep);
+    python::object fourth_imm_ = nth_imm_of_year_class(bg::Dec);
+\end{verbatim} This is the point at which things get
+interesting. Since \verb|nth_imm_of_year| IS\_A
+\verb|year_based_generator<date>| we can manipulate them through a
+\verb|year_based_generator<date>| reference or pointer
+\begin{verbatim}
+    ybd_t& first_imm =  python::extract<ybd_t&>(first_imm_);
+    ybd_t& second_imm = python::extract<ybd_t&>(second_imm_);
+    ybd_t& third_imm =  python::extract<ybd_t&>(third_imm_);
+    ybd_t& fourth_imm = python::extract<ybd_t&>(fourth_imm_);
+\end{verbatim} Finally, invoking the virtual function \verb|get_date|
+on these references calls out to Python for the implementation
+\begin{verbatim}
+    BOOST_TEST(first_imm.get_date  (2005) == bg::date(2005, bg::Mar, 16));
+    BOOST_TEST(second_imm.get_date (2005) == bg::date(2005, bg::Jun, 15));
+    BOOST_TEST(third_imm.get_date  (2005) == bg::date(2005, bg::Sep, 21));
+    BOOST_TEST(fourth_imm.get_date (2005) == bg::date(2005, bg::Dec, 21));
+\end{verbatim} The net effect is that this shows how we can implement
+classes in Python and have them behave as first class C++ types in
+C++, a very powerful technique indeed!
+

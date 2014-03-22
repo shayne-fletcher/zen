@@ -1,0 +1,1230 @@
+\chapter{The Hull-White model}\label{ch:the-hull-white-model}
+
+The purpose of this chapter is to develop a fully functional
+Hull-White model in Python. We will separate the characteristic
+features of the Hull-White model into functionally orthogonal
+components, thereby fostering code re-use and facilitating rapid model
+development. The Hull-White model has been chosen because it is both
+simple and rich enough to illustrate the power of component based
+programming in Python.
+
+In finance there are broadly speaking two approaches to pricing
+financial instruments: (a) deriving analytic or semi-analytic
+formulae; or (b) applying numerical techniques. Which approach is
+chosen depends upon the complexity of the financial instrument. For
+example, for many so called `vanilla' financial instruments there
+exist commonly accepted pricing formulae. However, exotic or hybrid
+financial instruments generally require the application of numerical
+techniques in their valuation. Both `vanilla' and `exotic' financial
+instruments can be split into two categories: (a) non-path dependent -
+the payoff only depends of the asset price(s) at the present moment in
+time; and (b) path dependent - the payoff depends on some property of
+the asset price(s) history as well as the asset price(s) at the present
+moment in time.  Path dependent financial instruments can be further
+categorised into `weakly' and `strongly' path dependent. An example of
+a `weakly' path dependent financial instrument is a barrier option
+where the option is triggered if the asset price(s) hits a prescribed
+barrier level at any time prior to option expiry. An Asian option
+provides us with an example of a `strongly' path dependent financial
+instrument. In this contract, the payoff depends on the average asset
+price(s) over the period from inception to expiry. To price `strongly'
+path dependent financial instruments one is forced to introduce one
+extra state variable for every property of the asset price path
+influencing the payoff. Obviously adding extra state variables
+increases the overall dimensionality of the pricing problem, leaving
+the model developer having to decide between pricing the problem on a
+tree, or equivalently lattice, or pricing the problem using Monte
+Carlo.
+
+The component based design discussed in this chapter has been developed 
+to faciliate the writing and implementation of models for pricing financial 
+instuments using numerical techniques. For models with analytic or semi- 
+analytic pricing formulae the core components are still applicable but the  
+numerical components would need to be replaced. An all encompassing design 
+for both analytic and numerical based models is beyond the scope of this 
+book.      
+\section{A component based design} 
+
+In this section we introduce the components (or building blocks) that
+together form the Hull-White model. We dedicate a subsection to each
+of the identified components with the emphasis on the implementation
+rather than the mathematics. Details of the mathematics can be found
+in the appendices.
+
+\subsection{Requestor} 
+
+Every model is dependent on market information, for example market
+rates or asset spot prices.  This primary information is normally fed
+into the calibration routine for the model. The purpose of the
+calibration is to ensure that the model prices back the liquid market
+instruments that the trader would buy or sell on a regular basis to
+mitigate the risks of being long or short a more complex financial
+instrument. By saying pricing back, we simply mean that the model price 
+of a market instrument matches the market price within an acceptable 
+tolerance, usually a small fraction of the market bid-offer spread. 
+The output of the calibration is a set of model parameters
+or variables, termed secondary information, that normally completely
+specifies the model. Furnished with these model parameters we can then
+go on to price the complex financial instrument in question. As we
+have already mentioned in the section introduction, there are
+typically a number of approaches to pricing; however they all have one
+thing in common in that they will require certain transformations of
+the model parameters during the process of pricing. The
+\emph{requestor} component encapsulates the need for a model pricer to
+gain access to both primary and secondary information: in essence a
+model pricer makes `requests' of the model for this information.
+
+In the case of the Hull-White model there are only a few pieces of information required: a discount factor, a local volatility and a term 
+volatility. In the language of appendix \ref{appendix:hw}, the term volatility is simply $\sqrt{\int_0^t C^2(s) ds}$ and the local volatility is 
+$\phi(t)-\phi(T)$. Note that taken together with the relevant discount factors, any zero coupon bond can be written in terms of the local 
+volatility and the term volatility. What we actually store in the environment for the term volatility is the following
+\begin{equation}
+\sqrt{\frac{\int_0^t C^2(s) ds}{\int_0^t \exp(2 \lambda s) ds}}.
+\end{equation}
+The reason for this is that the above variable is more natural to use when calibrating the model to market prices. The requestor for the Hull-White can be found in the \verb|ppf.model.hull_white.requestor| module as detailed below: 
+
+\begin{verbatim}
+class requestor:
+  def discount_factor(self, t, ccy, env):
+     key = "zc.disc."+ccy
+     curve = env.retrieve_curve(key)
+     return curve(t)
+
+  def term_vol(self, t, ccy, env):
+     key = "ve.term."+ccy+".hw"
+     surf = env.retrieve_surface(key)
+     term_var = surf(t, 0)
+     key = "cv.mr."+ccy+".hw"
+     mr = env.retrieve_constant(key)
+     if mr <> 0:
+       term_var *= (math.exp(2.0*mr*t)-1.0)/(2.0*mr)
+     else:
+       term_var *= t
+     return math.sqrt(term_var)
+
+  def local_vol(self, t, T, ccy, env):
+     assert t <= T
+     key = "cv.mr."+ccy+".hw"
+     mr = env.retrieve_constant(key)
+     return math.exp(-mr*t)-math.exp(-mr*T)
+
+\end{verbatim} 
+
+The requestor class uses the \verb|class environment| implemented in
+the \\
+\verb|ppf.market.environment| module. The purpose of this class is
+to provide access to market data objects such as yield curves,
+volatility surfaces, correlation surfaces etc. Refer to section
+\ref{sec:market} for the details. The following code snippets illustrate
+how to construct a requestor and make a request for a discount factor
+and a term volatility:
+
+\begin{verbatim}
+   >>> import math
+   >>> import ppf.market
+   >>> from ppf.math.interpolation import loglinear
+   >>> times = [0.0, 0.5, 1.0, 1.5, 2.0]
+   >>> factors = [math.exp(-0.05*t) for t in times]
+   >>> c = ppf.market.curve(times, factors, loglinear)
+   >>> env = ppf.market.environment()
+   >>> key = "zc.disc.eur"
+   >>> env.add_curve(key, c)
+   >>> r = requestor()
+   >>> t = 1.5
+   >>> print r.discount_factor(t, "eur", env)
+   0.927743486329
+\end{verbatim}
+
+\begin{verbatim}
+   >>> import math
+   >>> import ppf.market
+   >>> from numpy import zeros
+   >>> expiries = [0.1, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
+   >>> tenors = [0, 90]
+   >>> values = zeros((8, 2))
+   >>> values.fill(0.04)
+   >>> surf = ppf.market.surface(expiries, tenors, values)
+   >>> env = ppf.market.environment()
+   >>> key = "ve.term.eur.hw"
+   >>> env.add_surface(key, surf)
+   >>> key = "cv.mr.eur.hw"
+   >>> env.add_constant(key, 0.0)
+   >>> r = requestor()
+   >>> t = 0.25
+   >>> print r.term_vol(t, "eur", env)
+   0.1
+\end{verbatim}
+
+
+\subsection{State} 
+
+When pricing a financial instrument we frequently need to know about
+the state of the world - the world being both defined and modelled by
+the chosen model. For example, when pricing a target redemption note in
+a Monte-Carlo framework under the Hull-White model in the spot measure,
+we need to know at every simulation time $t$ the current state of the
+short rate $r(t)$. A similar requirement arises when pricing a
+Bermudan on a lattice in the terminal measure: in this case we need to
+know at every exercise time the current state of the stochastic
+variable $\int_0^t C(s) dW(s)$. The \emph{state} component encapsulates
+the need for both Monte-Carlo and Lattice pricers to have knowledge of
+the state of the world at various points in time. An implementation of
+a state component suitable for lattice pricing in the Hull-White can
+be found in the \verb|ppf.model.hull_white.lattice.state| module and
+the details are shown below.
+
+\begin{verbatim}
+class state:
+  def __init__(self, ccy, n = 31, stddev = 5.5):
+     self.__ccy = ccy
+     self.__n = n
+     self.__stddev = stddev
+
+  def fill(self, t, req, env):
+     term_vol = req.term_vol(t, self.__ccy, env)
+     f = normal_distribution(0, term_vol)
+
+     return f.state(self.__stddev, self.__n)
+
+  def __incremental_vol(self, t, T, req, env):
+     term_volt = req.term_vol(t, self.__ccy, env)
+     term_volT = req.term_vol(T, self.__ccy, env)
+     term_vartT = term_volT*term_volT-term_volt*term_volt
+     if term_vartT < 0:
+       raise RuntimeError,\
+         "incremental variance is negative"+" t = "+str(t)+" T = "+str(T)
+     term_voltT = math.sqrt(term_vartT)
+     return term_voltT      
+
+  def incremental_fill(self, t, T, req, env):
+     term_voltT = self.__incremental_vol(t, T, req, env)
+     f = normal_distribution(0, term_voltT)     
+     return f.state(self.__stddev, self.__n)
+
+  def incremental_distribution(self, t, T, req, env):
+     term_voltT = self.__incremental_vol(t, T, req, env)
+     return normal_distribution(0, term_voltT)
+
+  def create_variable(self):
+     var = numpy.zeros(self.__n)
+     return var  
+\end{verbatim}
+
+Note that we also use the state component for both the creation of
+variables and the construction of the underlying distribution of the
+current state of the world. An example invocation of the state
+component is given below.
+
+\begin{verbatim}
+  >>> import math
+  >>> import numpy
+  >>> import ppf.market
+  >>> from ppf.math.normal_distribution import *
+  >>> expiries = [0.1, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
+  >>> tenors = [0, 90]
+  >>> from numpy import zeros
+  >>> values = zeros((8, 2))
+  >>> values.fill(0.04)
+  >>> surf = ppf.market.surface(expiries, tenors, values)
+  >>> env = ppf.market.environment()
+  >>> key = "ve.term.eur.hw"
+  >>> env.add_surface(key, surf)
+  >>> key = "cv.mr.eur.hw"
+  >>> env.add_constant(key, 0.01)
+  >>> r = ppf.model.hull_white.requestor()
+  >>> s = state("eur", 11, 3.5)
+  >>> x = s.fill(1.25, r, env)
+  >>> for i in range(11): print x[i]
+  -0.787540762658
+  -0.630032610127
+  -0.472524457595
+  -0.315016305063
+  -0.157508152532
+  0.0
+  0.157508152532
+  0.315016305063
+  0.472524457595
+  0.630032610127
+  0.787540762658
+\end{verbatim}
+
+Although it is common amongst practitioners to write the Monte-Carlo version of their Hull-White model in the spot measure, for the sake of 
+brevity our implementation is in the terminal measure. The implementation of a state componont suitable for Monte-Carlo pricing shown below  
+has been taken from the module \verb|ppf.model.hull_white.monte_carlo.state|.
+
+\begin{verbatim}
+class state:
+  def __init__(self, num_sims):
+     self.__num_sims = num_sims
+     self.__variates = numpy.zeros((num_sims))
+
+  def num_sims(self):
+     return self.__num_sims
+
+  def fill(self, t, req, env):
+     return self.__variates
+
+  def set_variates(self, variates):
+     if len(variates.shape) <> 1:
+       raise RuntimeError, 'expected a 1d array of variates'
+     if variates.shape[0] <> self.__num_sims:
+       raise RuntimeError, 'mismatched numbber of simulations'
+     self.__variates = variates
+  
+  def get_variates(self):
+     return self.__variates
+
+  def create_variable(self):
+     var = numpy.zeros(self.__num_sims)
+     return var  
+\end{verbatim}
+
+Note that both the lattice state class and the Monte-Carlo state class have an implementation of the \verb|fill| method. The reason for this is so that we can use the same payoff classes 
+in both the lattice pricers and Monte-Carlo pricers.
+
+%\subsection{The filler} 
+\subsection{Filler} 
+
+Another important requirement of any model is to provide values for
+market indices such as LIBOR rates, swap rates, equity forwards,
+inflation rates, etc. In other words values for the variables we
+usually choose to directly model. It is the job of the \emph{filler}
+component to perform this function. Obviously to be able to carry out
+this function the filler component needs to have knowledge of both the
+market and the state of world. Therefore, although it is our stated
+aim to provide functionally orthogonal components, certain components
+have to depend on more fundamental or core components. Both authors
+firmly believe that this isn't a limitation of the design, instead it
+is a natural consequence of any attempt to break up what we mean by a
+model into separate functional components. Indeed, both authors have
+extensive experience of applying the design to a broad spectrum of
+pricing problems and have generally found the framework to be
+extremely flexible and conducive to fast model implementation. An
+implementation of a fill component suitable for lattice pricing in the
+Hull-White can be found in the \verb|ppf.model.hull_white.fill| module
+and the details are shown below.
+
+\begin{verbatim}
+class fill:
+  def __init__(self, terminal_T):
+     self.__terminal_T = terminal_T
+
+  def numeraire_rebased_bond(self, t, T, ccy, env, requestor, state):
+     if t > T:
+       raise RuntimeError, 'time beyond maturity of bond'
+     if T > self.__terminal_T:
+       raise RuntimeError, 'bond maturity after terminal measure bond maturity'
+     if len(state.shape) <>1:
+       raise RuntimeError, 'expected one dimensional arrays'
+     dfTN = 1.0
+     dfT = requestor.discount_factor(T, ccy, env)
+     gt = requestor.term_vol(t, ccy, env)
+     phiTTN = requestor.local_vol(T, self.__terminal_T, ccy, env)
+     scale = dfT/dfTN*math.exp(-0.5*gt*gt*phiTTN*phiTTN) 
+     n = state.shape[0]
+     ret = numpy.zeros(n)
+     for i in range(n):
+        x = state[i]
+        ret[i] = scale*math.exp(phiTTN*x)
+     return ret
+
+  def numeraire(self, t, ccy, env, requestor, state):
+     if t > self.__terminal_T:
+       raise RuntimeError, 'time beyond terminal measure bond maturity'
+     ptt = self.numeraire_rebased_bond(t, t, ccy, env, requestor, state)
+     n = state.shape[0]
+     ret = numpy.zeros(n)
+     ret.fill(1.0)
+     ret = ret/ptt
+     return ret
+
+  def libor(self, t, libor_obs, env, requestor, state):
+     if len(state.shape) <>1:
+       raise RuntimeError, 'expected one dimensional array'
+     n = state.shape[0]
+     fix = libor_obs.fix()
+     if fix.is_fixed():
+       ret = numpy.zeros(n)
+       for i in range(n):
+          ret[i] = fix.value()
+       return ret
+
+     proj_start_date = libor_obs.proj_start_date()
+     proj_end_date = libor_obs.proj_end_date()
+     dcf = year_fraction(proj_start_date, proj_end_date, libor_obs.proj_basis())
+     dfs = self.numeraire_rebased_bond(t, \
+           env.relative_date(proj_start_date)/365.0,\
+           libor_obs.reset_currency(),\
+             env, requestor, state)
+     dfe = self.numeraire_rebased_bond(t, \
+           env.relative_date(proj_end_date)/365.0,\
+           libor_obs.reset_currency(),\
+           env, requestor, state)
+     ret = numpy.zeros(n)
+     for i in range(n):
+        ret[i] = (dfs[i]/dfe[i]-1.0)/dcf
+     return ret
+
+  def swap(self, t, swap_obs, env, requestor, state):
+     if len(state.shape) <> 1:
+       raise RuntimeError, 'expected one dimensional array'
+     n = state.shape[0]
+     fix = swap_obs.fix()
+     if fix.is_fixed():
+       ret = numpy.zeros(n)
+       for i in range(n):
+          ret[i] = fix.value()
+       return ret
+
+     fixed_flows = swap_obs.fixed_flows()
+     fixed_pv = numpy.zeros(n)
+     for f in fixed_flows:
+        pay_date, dcf = \
+          (f.pay_date(), f.year_fraction())
+        dfp = self.numeraire_rebased_bond(t, pay_date,\
+               swap_obs.reset_currency(), env,\
+               requestor, state)
+        for i in range(n):
+           fixed_pv[i] += dcf*dfp[i]
+     float_flows = swap_obs.float_flows()
+     float_pv = numpy.zeros(n)
+     for f in float_flows:
+        obs = f.observables()[0]
+        proj_start, proj_end, reset_dcf = \
+                   (obs.proj_start_date(), obs.proj_end_date(), obs.year_fraction())
+        dfs = self.numeraire_rebased_bond(t, proj_start,\
+              swap_obs.reset_currency(), env,\
+              requestor, state)
+        dfe = self.numeraire_rebased_bond(t, proj_end,\
+              swap_obs.reset_currency(), env,\
+              requestor, state)
+        pay_date, dcf = \
+          (f.pay_date(), f.year_fraction())
+        dfp = self.numeraire_rebased_bond(t, pay_date,\
+               swap_obs.reset_currency(), env,\
+               requestor, state)
+        for i in range(n):
+           float_pv[i] += (dfs[i]/dfe[i]-1.0)/reset_dcf*dcf*dfp[i]
+     ret = numpy.zeros(n)
+     for i in range(n):
+        ret[i] = float_pv[i]/fixed_pv[i]
+     return ret
+\end{verbatim}
+
+For completeness we also provide sample snippets for using the filler
+component to get a numeraire rebased bond (i.e. $P(t,T)/P(t,T_N)$) and
+a libor rate.
+
+\begin{verbatim} 
+   >>> from ppf.math.interpolation import loglinear
+   >>> times = [0.0, 0.5, 1.0, 1.5, 2.0]
+   >>> factors = [math.exp(-0.05*t) for t in times]
+   >>> c = ppf.market.curve(times, factors, loglinear)
+   >>> expiries = [0.1, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
+   >>> tenors = [0, 90]
+   >>> values = numpy.zeros((8, 2))
+   >>> surf = ppf.market.surface(expiries, tenors, values)
+   >>> env = ppf.market.environment()
+   >>> key = "zc.disc.eur"
+   >>> env.add_curve(key, c)
+   >>> key = "ve.term.eur.hw"
+   >>> env.add_surface(key, surf)
+   >>> key = "cv.mr.eur.hw"
+   >>> env.add_constant(key, 0.0)
+   >>> r = ppf.model.hull_white.requestor()
+   >>> s = ppf.model.hull_white.state("eur", 11, 3.5)
+   >>> sx = s.fill(0.25, r, env)
+   >>> f = fill(2.0)
+   >>> PtT = f.numeraire_rebased_bond(0.25, 1.5, "eur", env, r, sx)
+   >>> for i in range(11): print PtT[i]
+   1.02531512052
+   1.02531512052
+   1.02531512052
+   1.02531512052
+   1.02531512052
+   1.02531512052
+   1.02531512052
+   1.02531512052
+   1.02531512052
+   1.02531512052
+   1.02531512052
+\end{verbatim}
+
+\begin{verbatim} 
+   >>> from ppf.math.interpolation import loglinear
+   >>> times = [0.0, 0.5, 1.0, 1.5, 2.0]
+   >>> factors = [math.exp(-0.05*t) for t in times]
+   >>> c = ppf.market.curve(times, factors, loglinear)
+   >>> expiries = [0.1, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
+   >>> tenors = [0, 90]
+   >>> values = numpy.zeros((8, 2))
+   >>> surf = ppf.market.surface(expiries, tenors, values)
+   >>> from ppf.date_time import *
+   >>> pd = date(2008, 01, 01)
+   >>> env = ppf.market.environment(pd)
+   >>> key = "zc.disc.eur"
+   >>> env.add_curve(key, c)
+   >>> key = "ve.term.eur.hw"
+   >>> env.add_surface(key, surf)
+   >>> key = "cv.mr.eur.hw"
+   >>> env.add_constant(key, 0.0)
+   >>> rd = date(2008, 07, 01)
+   >>> libor_obs = ppf.core.libor_rate(None, 0, 0, rd, "eur",\
+       rd, shift(rd+months(6), modified_following),\
+       basis_act_360, ppf.core.fixing(False))
+   >>> r = ppf.model.hull_white.requestor()
+   >>> s = ppf.model.hull_white.state("eur", 11, 3.5)
+   >>> sx = s.fill(0.25, r, env)
+   >>> f = fill(2.0)
+   >>> libortT = f.libor(0.25, libor_obs, env, r, sx)
+   >>> for i in range(11): print libortT[i]
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+   0.0499418283138
+\end{verbatim}
+
+\subsection{Rollback} 
+
+As discussed at the beginning of this section, there are two main
+numerical techniques commonly used in the pricing of financial
+instruments: namely lattice methods and Monte-Carlo methods. In this
+section we concentrate on the component required for pricing financial
+instruments using a lattice method. In any lattice method we
+constantly need to perform expectations of the form $\mathbb
+E^{\mathbb P}[N_t^{-1}V_t | \mathcal F_s]$ where $V_t$ is the price of
+the financial instrument at $t$, $N_t$ is the numeriare in the measure
+$\mathbb P$ and $\mathcal F_s$ is the filtration at $s<t$. In laymen's
+terms the expectation is just saying find the expected value of the
+discounted value of the financial instrument at time $t$ given the
+information about the market at an earlier term $s$. It is common
+amongst practitioners to call this operation either a `rollback' or
+`drag'. We also need to calculate expectations of the form $\mathbb
+E^{\mathbb P}[max\left(N_t^{-1}V_t,0\right) | \mathcal F_s]$ and this
+type of operation is commonly called a `rollback max' or `drag
+max'. So the purpose of the \emph{rollback} component is to
+enscapsulate the calculation of these expectations. The rollback
+component for the Hull-White model is implemented in the
+\verb|ppf.model.hull_white.lattice.rollback| module as shown below.
+\begin{verbatim}
+class rollback:
+  def __init__(self, ccy):
+     self.__ccy = ccy
+     self.__integrator = semi_analytic_domain_integrator() 
+
+  def rollback(self, t, T, state, req, env, yT):
+     xt = state.fill(t, req, env)
+     xT = state.fill(T, req, env)
+     xtT = state.incremental_fill(t, T, req, env)
+     ftT = state.incremental_distribution(t, T, req, env)
+     return self.__integrator.rollback(t, T, xt, xT, xtT, ftT, yT)
+
+  def rollback_max(self, t, T, state, req, env, yT):
+     xt = state.fill(t, req, env)
+     xT = state.fill(T, req, env)
+     xtT = state.incremental_fill(t, T, req, env)
+     ftT = state.incremental_distribution(t, T, req, env)
+     return self.__integrator.rollback_max(t, T, xt, xT, xtT, ftT, yT)
+
+\end{verbatim}
+To perform the actual expectation, the rollback component delegates to
+the semi-analytic domain space integrator implemented in the \\
+\verb|ppf.math.semi_analytic_domain_integrator| module. The following
+snippet illustrates a sample usage of the rollback component.
+\begin{verbatim}
+   >>> import math
+   >>> from ppf.math import semi_analytic_domain_integrator
+   >>> from ppf.math.interpolation import loglinear
+   >>> times = [0.0, 0.5, 1.0, 1.5, 2.0]
+   >>> factors = [math.exp(-0.05*t) for t in times]
+   >>> import ppf.market
+   >>> c = ppf.market.curve(times, factors, loglinear)
+   >>> from numpy import zeros
+   >>> expiries = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
+   >>> tenors = [0, 90]
+   >>> values = zeros((8, 2))
+   >>> values.fill(0.04)
+   >>> surf = ppf.market.surface(expiries, tenors, values)
+   >>> env = ppf.market.environment()
+   >>> key = "zc.disc.eur"
+   >>> env.add_curve(key, c)
+   >>> key = "ve.term.eur.hw"
+   >>> env.add_surface(key, surf)
+   >>> key = "cv.mr.eur.hw"
+   >>> env.add_constant(key, 0.01)
+   >>> r = ppf.model.hull_white.requestor()
+   >>> s = ppf.model.hull_white.lattice.state(21, 3.5)
+   >>> sx = s.fill("eur", 1.0, r, env)
+   >>> f = ppf.model.hull_white.fill(2.0)
+   >>> PtT = f.numeraire_rebased_bond(1.0, 1.5, "eur", env, r, sx)
+   >>> roll = rollback("eur")
+   >>> yt = roll.rollback(0.5, 1.0, s, r, env, PtT)
+   >>> y0 = roll.rollback(0.0, 0.5, s, r, env, yt)
+   >>> for i in range(21): print y0[i]
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+   0.922022844448
+\end{verbatim}
+Further unit tests are provided in the module \verb|ppf.test.test_hull_white|. Each separate test is represented by a method on the 
+class \verb|rollback_tests|. For example the first method on the class is \verb|test_discounted_libor_rollback| and checks that the discounted 
+value of the libor at some future date is equal to the forward value today as calculated off the discount curve. Note that the libor rates in the Hull-White 
+model are only martingales if the pay date for the libor rate matches the projection end date.
+\begin{verbatim}
+  def test_discounted_libor_rollback(self):
+    from ppf.date_time \
+         import date, shift, modified_following, basis_act_360, months
+    pd = date(2008, 01, 01)
+    env = ppf.market.environment(pd)
+    times = numpy.linspace(0, 6, 10)
+    factors = numpy.array([math.exp(-0.05*t) for t in times])
+    env.add_curve("zc.disc.eur"
+        , ppf.market.curve(times, factors, ppf.math.interpolation.loglinear))
+    expiries, tenors = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0], [0, 90]
+    values = numpy.zeros((9, 2))
+    values.fill(0.001)
+    env.add_surface("ve.term.eur.hw"
+                 , ppf.market.surface(expiries, tenors, values))
+    env.add_constant("cv.mr.eur.hw", 0.01)
+    r = ppf.model.hull_white.requestor()
+    s = ppf.model.hull_white.lattice.state("eur", 41, 4.5)
+    f = ppf.model.hull_white.fill(5.0)
+    rd = date(2011, 01, 01)
+    libor_obs = \
+      ppf.core.libor_rate( \
+           None #attributes
+         , 0    #flow-id
+         , 0    #reset-id
+         , rd   #reset-date
+         , "eur"#reset-currency
+         , rd   #projection-start-date
+         , shift(rd + months(6), modified_following)#projection-end-date
+         , basis_act_360#projection-basis
+         , ppf.core.fixing(False))# fixing (and no spread)
+    t = env.relative_date(libor_obs.proj_start_date())/365.0
+    T = env.relative_date(libor_obs.proj_end_date())/365.0
+    sx = s.fill(t, r, env)
+    libort = f.libor(t, libor_obs, env, r, sx)
+    ptT = f.numeraire_rebased_bond(t, T, "eur", env, r, sx)
+    pv = libort*ptT*libor_obs.year_fraction()
+    roll = ppf.model.hull_white.lattice.rollback("eur")
+    intermediate_pv = roll.rollback(0.5*t, t, s, r, env, pv)
+    actual = roll.rollback(0.0, 0.5*t, s, r, env, intermediate_pv).mean() 
+    expected = r.discount_factor(t, "eur", env)-r.discount_factor(T, "eur", env)
+    _assert_seq_close([expected],[actual],1.0e-6)
+\end{verbatim}
+The next method on the class \verb|test_bond_option| verifies that the price for a bond option computed numerically matches the analytic price. Note that because the 
+numeraire rebased zero coupon bond is a lognormal martingale, the price of a bond option is simply given by the famous Black-Scholes option pricing formula.
+
+\begin{verbatim}
+  def test_bond_option(self):    
+    from ppf.date_time \
+         import date, shift, modified_following, basis_act_360, months
+    pd = date(2008, 01, 01)
+    env = ppf.market.environment(pd)
+    times = numpy.linspace(0, 6, 10)
+    factors = numpy.array([math.exp(-0.05*t) for t in times])
+    env.add_curve("zc.disc.eur"
+        , ppf.market.curve(times, factors, ppf.math.interpolation.loglinear))
+    expiries, tenors = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0], [0, 90]
+    values = numpy.zeros((9, 2))
+    values.fill(0.001)
+    env.add_surface("ve.term.eur.hw"
+                 , ppf.market.surface(expiries, tenors, values))
+    env.add_constant("cv.mr.eur.hw", 0.01)
+    r = ppf.model.hull_white.requestor()
+    s = ppf.model.hull_white.lattice.state("eur", 41, 4.5)
+    f = ppf.model.hull_white.fill(5.0)
+    t = 3.0
+    T = 4.0
+    terminal_T = 5.0
+    sx = s.fill(t, r, env)
+    ptT = f.numeraire_rebased_bond(t, T, "eur", env, r, sx)
+    k = 0.9
+    pv = ptT-k
+    roll = ppf.model.hull_white.lattice.rollback("eur")    
+    actual = roll.rollback_max(0.0, t, s, r, env, pv).mean()
+    volt = r.term_vol(t, "eur", env)*r.local_vol(T, terminal_T, "eur", env)
+    F = r.discount_factor(T, "eur", env)
+    d1 = math.log(F/k)/volt+0.5*volt
+    d2 = d1-volt
+    expected = F*ppf.math.N(d1)-k*ppf.math.N(d2)
+    _assert_seq_close([expected],[actual],1.0e-5)
+\end{verbatim}
+The last method \verb|test_constant| checks that the conditional expectation of a constant is equal to the constant.
+\begin{verbatim}
+  def test_constant(self):
+    from ppf.date_time \
+         import date, shift, modified_following, basis_act_360, months
+    pd = date(2008, 01, 01)
+    env = ppf.market.environment(pd)
+    times = numpy.linspace(0, 6, 10)
+    factors = numpy.array([math.exp(-0.05*t) for t in times])
+    env.add_curve("zc.disc.eur"
+        , ppf.market.curve(times, factors, ppf.math.interpolation.loglinear))
+    expiries, tenors = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0], [0, 90]
+    values = numpy.zeros((9, 2))
+    values.fill(0.001)
+    env.add_surface("ve.term.eur.hw"
+                 , ppf.market.surface(expiries, tenors, values))
+    env.add_constant("cv.mr.eur.hw", 0.01)
+    r = ppf.model.hull_white.requestor()
+    s = ppf.model.hull_white.lattice.state("eur", 41, 5.5)
+    f = ppf.model.hull_white.fill(5.0)
+    t = 3.0
+    T = 4.0
+    terminal_T = 5.0
+    sx = s.fill(t, r, env)
+    yT = numpy.zeros(41)
+    yT.fill(1)
+    roll = ppf.model.hull_white.lattice.rollback("eur")    
+    yt = roll.rollback(t, T, s, r, env, yT)
+    _assert_seq_close(yt, yT, 1.0e-5)
+\end{verbatim}
+
+\subsection{Evolve} 
+In this subsection we discuss the component required for pricing
+financial instruments using Monte-Carlo methods. We call this
+component the \emph{evolve}.  Essentially the evolve component has the
+responsibility of evolving forwards in time any stochastic variables
+needed by the model to carry out the functionality provided by the
+fill component. As already mentioned, in the interest of brevity we
+stay in the terminal measure. In particular this means we can reuse
+the fill component already discussed for the Monte-Carlo model. 
+
+In the terminal measure there is only one state variable that
+needs to be evolved: namely $\int_0^t C(s) dW(s)$.  In a typical application, 
+the evolve step will be peformed on a discrete set of contiguous times. In other 
+words, suppose we have the discrete times $\{T_1, T_2, ..., T_i\}$ with the time 
+today denoted by $T_0$, then the simulation of $\int_0^{T_i} C(s) dW(s)$ is carried out
+as the discrete sum shown below
+\begin{equation}
+\int_0^{T_i} C(s) dW(s) = \sum_{k=0}^{i} \sqrt{\int_{T_k}^{T_{k+1}} C^2(s) ds} Z_K
+\end{equation}
+with $Z_1, Z_2, ...$ independent, identical distributed normal
+variates with distribution $N(0,1)$.
+
+The evolve component of the Hull-White model is implemented in the \\
+\verb|ppf.model.hull_white.monte_carlo.evolve| module as shown
+below. 
+\begin{verbatim}
+class evolve:
+  def __init__(self, ccy, seed = 1234, antithetic = True):
+     self.__ccy = ccy
+     self.__seed = seed
+     self.__antithetic = antithetic
+
+  def evolve(self, t, T, state, req, env):
+     if t > T:
+       raise RuntimeError, 'attempting to evolve backwards'
+     if t == T:
+       return
+     variates = state.get_variates()
+     num_sims = variates.shape[0]
+     if self.__antithetic:
+         raise RuntimeError, \
+           'expected number of simulations to be even with antithetic'
+       num_sims /= 2
+     volt = req.term_vol(t, self.__ccy, env)
+     volT = req.term_vol(T, self.__ccy, env)
+     vartT = volT*volT-volt*volt
+     if vartT < 0:
+       raise RuntimeError, 'negative incremental variance'
+     voltT = math.sqrt(vartT)
+     generator = random.Random(self.__seed)
+     for i in range(num_sims):
+       z = generator.gauss(0, 1.0)
+       variates[i] = variates[i]+voltT*z
+       if self.__antithetic:
+         variates[num_sims+i] = variates[num_sims+i]-voltT*z
+     state.set_variates(variates)
+     self.__seed = self.__seed+1
+\end{verbatim}
+
+The evolve component is constructed by passing in the currency, the
+start seed for the random generator and a boolean to control whether
+we wish to have antithetic variates. We delegate to a random number
+generator in the Python \verb|random| module to generate the normal
+variates. The generated variates are then pushed into the state
+component. The \verb|evolve| method provides the functionality necessary to carry 
+out the evolve step. Provided \verb|t| is not equal to \verb|T|, then every time 
+the \verb|evolve| method is called, the underlying seed for the random generator 
+is incremented by one. This ensures the variates for each evolve step are as 
+independent as possible.
+
+In more complicated models it is normal to fix the discretisation of the time
+axis over which the model is evolved and then use a combination of
+interpolation and or a Brownian bridge to fill in the gaps when we
+come to request the state of the world at times other than the
+discretisation times. There are many reasons for wanting to fix the 
+discretisation of the time axis but the main reason is that many stochastic
+differential equations don't have analytic solutions which means the equations
+have to be discretised (e.g. using the Euler's scheme) in order to solve them. 
+Naturally any discretisation scheme is approximate and the writer of the model 
+will want to control the discretisation error by fixing the size of the evolution step. 
+The authors have found that the aforementioned abstractions of the model into core
+components works extremely well, even for sophisticated models like the
+Libor Market Model with stochastic volatility, which requires a 
+non-trivial discretisation scheme in order to evolve the state variables of the model 
+forwards in time. The following snippet illustrates a typical application of the evolve 
+component.
+
+\begin{verbatim}
+>>> import ppf.market
+>>> from numpy import zeros
+>>> expiries = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
+>>> tenors = [0, 90]
+>>> values = zeros((8, 2))
+>>> values.fill(0.001)
+>>> surf = ppf.market.surface(expiries, tenors, values)
+>>> env = ppf.market.environment()
+>>> key = "ve.term.eur.hw"
+>>> env.add_surface(key, surf)
+>>> key = "cv.mr.eur.hw"
+>>> env.add_constant(key, 0.01)
+>>> r = ppf.model.hull_white.requestor()
+>>> s = ppf.model.hull_white.monte_carlo.state(10000)
+>>> e = evolve("eur")
+>>> e.evolve(0.0,0.5,s,r,env)
+\end{verbatim}
+
+Once again unit tests are provided in the module
+\verb|ppf.test.test_hull_white|. The first method
+\verb|test_mean_and_variance| on the class \verb|evolve_tests|
+verifies that the state of the world after two evolve steps each of
+half a year has the expected distribution.
+\begin{verbatim}
+  def test_mean_and_variance(self):
+    from ppf.date_time \
+         import date, shift, modified_following, basis_act_360, months
+    pd = date(2008, 01, 01)
+    env = ppf.market.environment(pd)
+    times = numpy.linspace(0, 6, 10)
+    factors = numpy.array([math.exp(-0.05*t) for t in times])
+    env.add_curve("zc.disc.eur"
+        , ppf.market.curve(times, factors, ppf.math.interpolation.loglinear))
+    expiries, tenors = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0], [0, 90]
+    values = numpy.zeros((9, 2))
+    values.fill(0.01)
+    env.add_surface("ve.term.eur.hw"
+                 , ppf.market.surface(expiries, tenors, values))
+    env.add_constant("cv.mr.eur.hw", 0.01)
+    r = ppf.model.hull_white.requestor()
+    s = ppf.model.hull_white.monte_carlo.state(10000)
+    e = ppf.model.hull_white.monte_carlo.evolve("eur")
+    e.evolve(0.0,0.5,s,r,env)
+    e.evolve(0.5,1.0,s,r,env)
+    variates = s.get_variates()
+    mean = variates.sum()/10000
+    assert(math.fabs(mean) < 1.0e-4)
+    tmp = variates*variates
+    variance = tmp.sum()/10000
+    vol = r.term_vol(1.0,"eur",env)
+    assert(math.fabs(variance-vol*vol) < 1.0e-4)
+\end{verbatim}
+The second method \verb|test_bond| confirms that the expected value of
+a numeriare rebased zero coupon bond after a single evolve step
+matches the value today.
+\begin{verbatim}
+  def test_bond(self):
+    from ppf.date_time \
+         import date, shift, modified_following, basis_act_360, months
+    pd = date(2008, 01, 01)
+    env = ppf.market.environment(pd)
+    times = numpy.linspace(0, 6, 10)
+    factors = numpy.array([math.exp(-0.05*t) for t in times])
+    env.add_curve("zc.disc.eur"
+        , ppf.market.curve(times, factors, ppf.math.interpolation.loglinear))
+    expiries, tenors = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0], [0, 90]
+    values = numpy.zeros((9, 2))
+    values.fill(0.001)
+    env.add_surface("ve.term.eur.hw"
+                 , ppf.market.surface(expiries, tenors, values))
+    env.add_constant("cv.mr.eur.hw", 0.01)
+    r = ppf.model.hull_white.requestor()
+    s = ppf.model.hull_white.monte_carlo.state(10000)
+    e = ppf.model.hull_white.monte_carlo.evolve("eur")
+    e.evolve(0.0,3.0,s,r,env)
+    f = ppf.model.hull_white.fill(5.0)
+    t = 3.0
+    T = 4.0
+    sx = s.fill(t, r, env)
+    ptT = f.numeraire_rebased_bond(t, T, "eur", env, r, sx)
+    actual = ptT.mean()
+    expected = r.discount_factor(T, "eur", env)
+    assert(math.fabs(actual-expected) < 1.0e-3)
+\end{verbatim} 
+
+\subsection{Exercise}
+To price callable structures using Monte-Carlo methods we need to be
+able to estimate the exercise boundary, or equivalently, the
+probability of exercise. The exercise boundary is expressed as a
+function (to be estimated) of variables, such as a libor rate or a
+swap rate; the variables are usually referred to as explanatory
+variables. The exercise component encapsulates the need to be able to
+calculate explanatory variables as part of any algorithm for
+estimating the exercise boundary. We have implemented an exercise
+component suitable for single currency callable libor exotics such as
+bermudans, inverse floaters and cap floaters. The exercise component
+of the Hull-White model can be found in the
+\verb|ppf.model.hull_white.monte_carlo.cle_exercise| module and is
+illustrated below. The constructor of the exercise component takes in
+a leg and the component supplies two methods: the
+\verb|num_explanatory_variables| method for determining the number of
+explanatory variables; and the function call operator whose job it is
+to calculate the explanatory variables at a particular point in
+time. In the body of the function call operator we first harvest the
+remaining active flows and subsequently use them to build both the
+libor rate and the swap rate. The explanatory variables are then
+returned to the client.
+\begin{verbatim}
+class cle_exercise:
+  def __init__(self, l):
+    self.__leg = l
+  def num_explanatory_variables(self):
+    return 2
+  def __call__(self, t, fill, state, requestor, env):
+    # harvest active flows
+    all_flows = self.__leg.flows()
+    flows = []
+    for flow in all_flows:
+      accrual_start_days = env.relative_date(flow.accrual_start_date())
+      if accrual_start_days >= t*365.0:
+        flows.append(flow)
+    if len(flows) < 1:
+      raise RuntimeError, "no active flows remainning"
+
+    # explanatory variables
+    num_sims = state.shape[0]
+    evs = numpy.zeros((num_sims, self.num_explanatory_variables()))
+    pv01 = numpy.zeros(num_sims)
+    notl_exchange = numpy.zeros(num_sims)
+    cnt = 0 
+    for flow in flows:
+      Ts = env.relative_date(flow.accrual_start_date())/365.0        
+      Te = env.relative_date(flow.accrual_end_date())/365.0        
+      Tp = env.relative_date(flow.pay_date())/365.0
+      dfp = fill.numeraire_rebased_bond(t, Tp, flow.pay_currency()\
+                                        , env, requestor, state)
+      pv01 += flow.year_fraction()*dfp
+      if cnt == 0:
+        dfs = fill.numeraire_rebased_bond(t, Ts, flow.pay_currency()\
+                                          , env, requestor, state)
+        notl_exchange = dfs
+        dfe = fill.numeraire_rebased_bond(t, Te, flow.pay_currency()\
+                                          , env, requestor, state)
+        evs[:, 0] = (dfs/dfe-1.0)/flow.year_fraction()
+      elif cnt == len(flows)-1:
+        notl_exchange -= fill.numeraire_rebased_bond(t, Te, flow.pay_currency()\
+                                                     , env, requestor, state)
+      cnt = cnt+1 
+      
+    evs[:, 1] = notl_exchange/pv01
+
+    return evs
+\end{verbatim}
+Note that the above component is model independent and therefore could
+be re-used for other models.
+
+Unit tests for the exercise component are provided in the module
+\verb|ppf.test.test_hull_white|. The method
+\verb|test_explanatory_variables| on the class \verb|exercise_tests|
+checks that the computed explanatory variables, the libor and swap
+rates, match the corresponding rates taken from the yield curve for
+the case when the Hull-White volatilities are all zero.
+\begin{verbatim}
+  def test_explanatory_variables(self):
+    from ppf.math.interpolation import loglinear
+    times = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+    factors = [math.exp(-0.05*t) for t in times]
+    c = ppf.market.curve(times, factors, loglinear)
+    expiries = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
+    tenors = [0, 90]
+    values = numpy.zeros((8, 2))
+    surf = ppf.market.surface(expiries, tenors, values)
+    from ppf.date_time \
+         import date, shift_convention, modified_following, basis_act_360, months
+    pd = date(2008, 01, 01)
+    env = ppf.market.environment(pd)
+    key = "zc.disc.eur"
+    env.add_curve(key, c)
+    key = "ve.term.eur.hw"
+    env.add_surface(key, surf)
+    key = "cv.mr.eur.hw"
+    env.add_constant(key, 0.0)
+    r = ppf.model.hull_white.requestor()
+    s = ppf.model.hull_white.monte_carlo.state(10)
+    sx = s.fill(0.25, r, env)
+    f = ppf.model.hull_white.fill(3.0)
+    flows = ppf.core.generate_flows(
+             start  = date(2008, 01, 01)
+            , end  = date(2010, 01, 01)
+            , duration = months
+            , period = 6
+            , shift_method = shift_convention.modified_following
+            , basis = "ACT/360"
+            , pay_currency = "EUR")
+    lg = ppf.core.leg(flows, ppf.core.PAY)
+    ex = ppf.model.hull_white.monte_carlo.cle_exercise(lg)
+    t = env.relative_date(flows[1].accrual_start_date())/365.0
+    T = env.relative_date(flows[1].accrual_end_date())/365.0
+    ret = ex(t, f, sx, r, env)
+    dft = c(t)
+    dfT = c(T)
+    expected_libor = (dft/dfT-1.0)/flows[1].year_fraction()
+    pv01 = 0.0
+    for fl in flows[1:]:
+      T = env.relative_date(fl.pay_date())/365.0
+      dfT = c(T)
+      pv01 += fl.year_fraction()*dfT
+    T = env.relative_date(flows[-1].accrual_end_date())/365.0
+    dfT = c(T)
+    expected_swap = (dft-dfT)/pv01
+    expected_libors = numpy.zeros(10)
+    expected_libors.fill(expected_libor)
+    expected_swaps = numpy.zeros(10)
+    expected_swaps.fill(expected_swap)
+    actual_libors = ret[:, 0]
+    actual_swaps = ret[:, 1]
+
+    _assert_seq_close(actual_libors, expected_libors)
+    _assert_seq_close(actual_swaps, expected_swaps)
+\end{verbatim}
+ 
+\section{The model and model factories}
+The model class brings all the components from the preceding sections
+together into one place. The module \verb|ppf.model.model| is
+illustrated below. A model is constructed by passing the components
+into the constructor. An exception is thrown if both the evolve
+component and the rollback component is null or both the evolve and
+rollback components are non-null. Accessor methods to the contained
+components are also provided.
+\begin{verbatim}
+class model:
+  def __init__(self, requestor, state, fill, rollback = None, evolve = None\
+               , exercise = None):
+    self.__requestor = requestor
+    self.__state = state
+    self.__fill = fill
+    self.__rollback = rollback
+    self.__evolve = evolve
+    self.__exercise = exercise
+    # check that either the evolve or rollback policy isn't None
+    if self.__rollback == None and self.__evolve == None:
+      raise RuntimeError, "either the 'rollback' or 'evolve' must be defined"
+    if self.__rollback <> None and self.__evolve <> None:
+      raise RuntimeError, "either the 'rollback' or 'evolve' must be defined"
+    # check that the exercise policy can only be bound with the evolve
+    if self.__exercise <> None and self.__rollback <> None:
+      raise RuntimeError, "the 'exercise' cannot be bound to the 'rollback'"
+
+  def requestor(self):
+    return self.__requestor
+
+  def state(self):
+    return self.__state
+
+  def fill(self):
+    return self.__fill
+
+  def rollback(self):
+    if self.__rollback == None:
+      raise RuntimeError, "'rollback' component is undefined"
+    return self.__rollback
+
+  def evolve(self):
+    if self.__evolve == None:
+      raise RuntimeError, "'evolve' component is undefined"
+    return self.__evolve
+
+  def exercise(self):
+    if self.__exercise == None:
+      raise RuntimeError, "'exercise' component is undefined"
+    return self.__exercise
+\end{verbatim}
+
+The final missing components in the model framework are classes for
+managing the construction of all the model components. Such classes
+are commonly referred to as factory classes. An example of a factory
+class for the Hull-White lattice model can be found in the module
+\verb|ppf.model.model_factories| as shown below. The factory supports
+the function call operator with a signature consisting of the trade,
+the environment and optional model arguments. The model arguments is
+simply a Python dictionary. Stepping through the implementation we see
+that we first of all ensure that the financial instrument is single
+currency. The next step is to determine the last important date of the
+trade: this will typically be either the final payment date or the
+final important date of the last observable. This date will
+be interpreted as the terminal measure bond maturity in the
+constructor of the fill component. If the model arguments are
+non-null, then the \verb|num states| and the \verb|num std dev| are
+retrieved from the dictionary, otherwise default values are
+provided. Finally all the components for a Hull-White lattice model
+are constructed and passed into the constructor of the model, which is
+then returned to the client.
+\begin{verbatim}
+class hull_white_lattice_model_factory:
+  def __call__(self, trd, env, model_args = None):
+    ccy = ppf.core.enforce_single_currency(trd)
+    terminal_T = env.relative_date(ppf.core.final_important_date(trd))/365.0
+    n = 31
+    if model_args <> None and model_args.has_key("num states"):
+      n = model_args["num states"]
+    std_dev = 4.5
+    if model_args <> None and model_args.has_key("num std dev"):
+      std_dev = model_args["num std dev"]
+    s = lattice.state(ccy, n, std_dev)
+    rb = lattice.rollback(ccy)
+    f = fill(terminal_T)
+    r = requestor()
+    return model(r, s, f, rb)
+\end{verbatim}
+
+From the Python command line, a hull white model can be created using
+the above factory as follows:
+\begin{verbatim}
+    >>> pd = date(2008, 05,  01)
+    >>> from ppf.market import environment
+    >>> env = environment(pd)
+    >>> from ppf.date_time import *
+    >>> from pay_receive import *
+    >>> from generate_flows import *
+    >>> from generate_observables import *
+    >>> from generate_exercise_table import *
+    >>> from exercise_type import *
+    >>> from leg import *
+    >>> from trade import *
+    >>> libor_observables = generate_libor_observables(
+    ...     start  = date(2007, Jun, 29)
+    ...   , end  = date(2009, Jun, 29)
+    ...   , roll_period = 6
+    ...   , roll_duration = ppf.date_time.months
+    ...   , reset_period = 3
+    ...   , reset_duration = ppf.date_time.months
+    ...   , reset_currency = "JPY"
+    ...   , reset_basis = basis_act_360
+    ...   , reset_shift_method = shift_convention.modified_following)
+    >>> coupon_observables = generate_fixed_coupon_observables(
+    ...     start  = date(2007, Jun, 29)
+    ...   , end  = date(2009, Jun, 29)
+    ...   , roll_period = 6
+    ...   , reset_currency = "JPY"
+    ...   , coupon_shift_method = shift_convention.modified_following
+    ...   , coupon_rate = 0.045)
+    >>> #semi-annual flows
+    >>> pay_flows = generate_flows(
+    ...   start  = date(2007, Jun, 29)
+    ...   , end  = date(2009, Jun, 29)
+    ...   , duration = ppf.date_time.months
+    ...   , period = 6
+    ...   , shift_method = shift_convention.modified_following
+    ...   , basis = "30/360"
+    ...   , pay_currency = "JPY"
+    ...   , observables = coupon_observables)
+    >>> rcv_flows = generate_flows(
+    ...   start  = date(2007, Jun, 29)
+    ...   , end  = date(2009, Jun, 29)
+    ...   , duration = ppf.date_time.months
+    ...   , period = 6
+    ...   , shift_method = shift_convention.modified_following
+    ...   , basis = "A/360"
+    ...   , pay_currency = "JPY"
+    ...   , observables = libor_observables)
+    >>> pay_leg = leg(pay_flows, PAY)
+    >>> receive_leg = leg(rcv_flows, RECEIVE)
+    >>> #1y nc
+    >>> ex_sched = generate_exercise_table(
+    ...   start = date(2008, Jun, 29)
+    ... , end  = date(2009, Jun, 29)
+    ... , period = 1
+    ... , duration = ppf.date_time.years
+    ... , shift_method = shift_convention.modified_following)
+    >>> structure = trade((pay_leg, receive_leg), (ex_sched, exercise_type.callable))
+    >>> factory = hull_white_lattice_model_factory()
+    >>> hwmodel = factory(structure, env)
+\end{verbatim}
+
+The corresponding factory for the Hull-White Monte-Carlo model is
+shown below. The details are almost identical to the factory for the
+Hull-White lattice model. The main differences are that the model
+argument dictionary is used to control the values of the number of
+simulations and start seed, and instead of a rollback component being
+constructed we construct an evolve component. We finish off by
+constructing an exercise component for the case when the trade is
+callable.
+\begin{verbatim}
+class hull_white_monte_carlo_model_factory:
+  def __call__(self, trd, env, model_args = None):
+    ccy = ppf.core.enforce_single_currency(trd)
+    terminal_T = env.relative_date(ppf.core.final_important_date(trd))/365.0
+    num_sims = 1000
+    if model_args <> None and model_args.has_key("num sims"):
+      num_sims = model_args["num sims"]
+    seed = 1234
+    if model_args <> None and model_args.has_key("seed"):
+      seed = model_args["seed"]
+    s = monte_carlo.state(num_sims)
+    ev = monte_carlo.evolve(ccy, seed)
+    f = fill(terminal_T)
+    r = requestor()
+    ex = None
+    id = 0
+    if model_args <> None and model_args.has_key("explanatory variables leg id")
+      id = model_args["explanatory variables leg id"]
+    if trd.has_exercise_schedule():
+      ex = monte_carlo.cle_exercise(trd.legs()[id])
+    return model(r, s, f, None, ev, ex)
+\end{verbatim}
+
+\section{Concluding Remarks}
+By splitting the concept of a model into functionally orthogonal
+pieces we have been able to design an extremely flexible framework
+within which it is easy to develop new models. In particular the
+design promotes code reuse. The idea of breaking complex concepts into
+simpler more fundamental orthogonal pieces is not a new one in
+programming. What we have done is nothing more than composition in the
+language of C++. More recently a number of authors have developed the
+idea further. One example, from \cite{book:ALEXANDRESCU}, is the
+concept of policies. A policy defines a class interface or class
+template interface with the emphasis firmly on behaviour or
+functionality. The core theme of \cite{book:ALEXANDRESCU} is the idea
+of bringing together many different policies to produce a functionally
+richer interface. The inspiration for the design developed in this
+chapter has come from the idea of policy based programming.
+
+The design pattern for the model can be transferred over to C++ and
+indeed in any business application the bulk of the core code would be
+in C++ for reasons of efficiency. At this point, the developer has two
+choices: either to use a mix of composition and class inheritance
+hierarchies or a policy based design. Both authors have found the
+latter to be a better choice because the advantage of compile-time
+checking easily outweighs the marginal increase in compile-time
+overhead. As this book is about the application of Python to
+financial programming, the emphasis has been on Python rather than
+C++. However the techniques required to carry out the migration are
+discussed in chapter \ref{ch:hybrid-pricing-systems}.
+

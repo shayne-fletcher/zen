@@ -27,7 +27,7 @@ cl /Febdate_test.exe \
   c:/ocamlms64/lib/libasmrun.lib \
   ws2_32.lib
 
-# bdate_test.exe : libbdate_c.lib bdate_ocaml.obj driver.obj
+# bdate_test.exe : libbdate_c.lib bdate_ocaml.obj driver.c
 #   cl /Febdet_test$(ARTIFACT_INFIX).exe \
 #     /EHsc /MD /nologo driver.c bdate_ocaml.obj \
 #     libbdate_c.lib \
