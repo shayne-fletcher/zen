@@ -1,0 +1,723 @@
+\chapter {Python} \label{appendix:python-tutorial}
+
+In this appendix, we provide a whirlwind tour of the Python
+programming language. It will in no way be exhaustive and is not
+intended to negate the need for learning the language more
+comprehensively using the many excellent resources available teaching
+Python\footnote{A good place to start is the "Python
+tutorial" available online at http://docs.python.org/tutorial/}. 
+Nonetheless, it should be enough for a newcomer to the language to get
+started.
+
+\section{Python interpreter modes}
+
+The Python interpreter can be executed in one of two modes,
+`interactive' or `batch'. When run interactively in a shell or on
+Windows, at a command prompt, the interpreter will wait for input from
+the user and when sufficient input has been made for a statement to be
+executed will execute that statement immediately and go back to
+waiting for the next. In batch mode, a complete Python script stored
+in a file is given to the interpreter and executed all in one go.
+
+\subsection{Interactive mode}
+
+To launch an interactive session with the interpreter, from your shell
+or command prompt, issue the command \verb|python -i|. All being well,
+the interpreter should then indicate its willingness to begin
+processing statements by displaying its \emph{primary} prompt which
+looks like a sideways chevron `\verb|>>>|'. On Windows, starting a
+session might look something like this:
+\begin{verbatim}
+c:\Documents and Settings\PythonUser>python -i
+python -i
+ActivePython 2.5.1.1 (ActiveState Software Inc.) based on
+Python 2.5.1 (r251:54863, May  1 2007, 17:47:05) [MSC v.1310 32 bit (Intel)] on win32
+Type "help", "copyright", "credits" or "license" for more information.
+>>> 
+\end{verbatim}
+When the interpreter has seen some part of a statement, but not
+sufficiently enough to execute anything, the Python interpreter will
+indicate that situation by displaying its \emph{secondary} prompt
+which looks like `\verb|...|'.
+
+\subsection{Batch mode}
+
+To have the interpreter execute a complete Python script stored in a
+file on disk, simply run the Python executable passing the name of the
+script to be executed. For example, assuming the existence of a file
+`hello\_world.py' (files containing Python script by convention have
+a `.py' suffix), we might execute it like so:
+\begin{verbatim}
+c:\Documents and Settings\PythonUser>python hello_world.py
+\end{verbatim}
+
+\section{Basic Python}
+
+\subsection{Simple expressions}
+
+The Python interpreter can be used like a calculator to evaluate
+numerical expressions:
+\begin{verbatim}
+>>> 1 + 2 + 3
+6
+\end{verbatim}
+Number valued expressions in Python are of integer or floating point
+type:
+\begin{verbatim}
+>>> 22/7
+3
+>>> 22/7.0
+3.1428571428571428
+>>> 
+\end{verbatim}
+String literal expressions are values too:
+\begin{verbatim}
+>>> "Hello world!"
+'Hello world!'
+>>> "Goodbye cruel " + "world."
+'Goodbye cruel world.'
+>>> 
+\end{verbatim}
+In the last example, we made use of the string concatenation operator
+`\verb|+|' to concatenate two string literal expressions into one.
+
+The value of an expression can be associated with a variable using the
+\emph{assignment operator} denoted `\verb|=|':
+\begin{verbatim}
+>>> x = 1 + 2 + 3
+\end{verbatim}
+Doing so means the evaluation of the named expression can be referred
+to again later:
+\begin{verbatim}
+>>> print x - 6
+0
+\end{verbatim}
+Assigning a new expression to an existing variable causes the
+expression the variable was associated with to be discarded and the
+variable to become associated with the new expression instead:
+\begin{verbatim}
+>>> bar = "baz"
+>>> print bar
+baz
+>>> bar = 42
+>>> print bar
+42
+>>> 
+\end{verbatim}
+Comments are indicated by a `\verb|#|' and are ignored by the
+interpreter:
+\begin{verbatim}
+>>> #this is a comment!
+... 
+>>> 
+\end{verbatim}
+
+\subsection{Built-in data types}
+
+We have seen that natively Python supports integers, floating point
+values and character strings. Python also natively provides incredibly
+useful heterogeneous container types. The first of these is the
+\emph{tuple}. A tuple is a fixed collection of values and can be
+constructed using parentheses like so:
+\begin{verbatim}
+>>> t = (1, 2, "foo")
+>>> print t
+(1, 2, 'foo')
+>>> \end{verbatim}
+Naturally, tuples can contain values of any type including tuples:
+\begin{verbatim}
+>>> s = (t, t, (t,))
+>>> print s
+((1, 2, 'foo'), (1, 2, 'foo'), ((1, 2, 'foo'),))
+>>> 
+\end{verbatim}
+The value at the $i$-th position of a tuple can be retrieved like this:
+\begin{verbatim}
+>>> print t[0]
+1
+>>> print t[1]
+2
+>>> print t[2]
+foo
+>>> print t[3] #uh-oh...
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+IndexError: tuple index out of range
+>>> 
+\end{verbatim}
+Tuples can be used to assign to multiple values very concisely:
+\begin{verbatim}
+>>> x,y,z=t
+>>> print "%d,%d,%s" % (x, y, z)
+1,2,foo
+\end{verbatim}
+Tuples are immutable which means a tuple value may not be modified:
+\begin{verbatim}
+>>> t[0]=10
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+TypeError: 'tuple' object does not support item assignment
+>>> 
+\end{verbatim}
+In fact, integers, floats, strings and tuples are all immutable types.
+
+When a mutable sequence is needed, Python steps in with its
+\emph{list} type. Lists are created using square brackets like this:
+\begin{verbatim}
+>>> l = [1, 1.0, "one"]
+>>> print l
+[1, 1.0, 'one']
+>>> 
+\end{verbatim}
+Lists contain values of any type (built-in or user-defined) including
+of course, tuples and lists.
+\begin{verbatim}
+>>> m = [l, t]
+>>> print m
+[[1, 1.0, 'one'], (1, 2, 'foo')]
+>>> 
+\end{verbatim}
+Lists as mentioned are a mutable type:
+\begin{verbatim}
+>>> l[0], l[1], l[2] = (2, 2.0, 'two')
+>>> print l
+[2, 2.0, 'two']
+>>> 
+\end{verbatim}
+Be careful! Because lists are not immutable one needs to be mindful of
+side-effects resulting from aliasing:
+\begin{verbatim}
+>>> ll = l
+>>> ll[0] = 3
+>>> print l
+[3, 2.0, 'two']
+>>> 
+\end{verbatim}
+Do you see what's happened there? The value referred to by \verb|l|
+was modified through an alias \verb|ll|. 
+
+Now, Python has very powerful constructs for creating lists termed
+\emph{list comprehensions}:
+\begin{verbatim}
+>>> u = [i for i in range(10)]
+>>> print u
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+>>> v = [i*i for i in u]
+>>> print v
+[0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+>>> print [x for x in v if x > 25]
+[36, 49, 64, 81]
+\end{verbatim}
+List comprehensions are very much worth finding out about as early as
+possible.
+
+Data structures commonly known as \emph{associated arrays} in other
+programming languages are termed \emph{dictionaries} in Python. They
+are arrays accessed by \emph{keys} where each key is associated with a
+value. An empty dictionary is denoted `\verb|{}|':
+\begin{verbatim}
+>>> d = {}
+>>> print d
+{}
+\end{verbatim}
+A non-empty dictionary can be created by passing a sequence of
+key-value pairs like so:
+\begin{verbatim}
+>>> d = {"1":1, "2":2, "3":3}
+>>> print d
+{'1': 1, '3': 3, '2': 2}
+\end{verbatim}
+Naturally, dictionary values may be of any type including lists and
+tuples:
+\begin{verbatim}
+>>> d["list"] = l
+>>> d["tuple"] = t
+>>> print d
+{'1': 1, '3': 3, '2': 2, 'list': [1, 1.0, 'one'], 'tuple': (1, 2, 'foo')}
+\end{verbatim}
+Any immutable type will serve for a dictionary key including tuples
+(as long as the values of the tuple are themselves all immutable):
+\begin{verbatim}
+>>> m = {(1, 2, 3):"a tuple"}
+>>> print m
+{(1, 2, 3): 'a tuple'}
+>>> 
+\end{verbatim}
+As previously noted, lists are not immutable:
+\begin{verbatim}
+>>> m = {[1, 2, 3]:"a list"}
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+TypeError: list objects are unhashable
+>>> 
+\end{verbatim}
+
+\subsection{Control flow statements}
+
+Let's start with simple iteration using the Python \verb|for|
+statement:
+\begin{verbatim}
+>>> for i in range(10):
+...   print i
+... 
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+>>> 
+\end{verbatim}
+Encountered earlier in this piece but not described is the function
+\verb|range|. Maybe it's better to delegate explanation to the
+doc-string for \verb|range| like this:
+\begin{verbatim}
+>>> help(range)
+Help on built-in function range in module __builtin__:
+
+range(...)
+    range([start,] stop[, step]) -> list of integers
+    
+    Return a list containing an arithmetic progression of integers.
+    range(i, j) returns [i, i+1, i+2, ..., j-1]; start (!) defaults to 0.
+    When step is given, it specifies the increment (or decrement).
+    For example, range(4) returns [0, 1, 2, 3].  The end point is omitted!
+    These are exactly the valid indices for a list of 4 elements.
+
+>>> 
+\end{verbatim}
+Now returning to our understanding of the \verb|for| statement example
+above:
+\begin{verbatim}
+>>> for i in range(10):
+...   print i
+... 
+\end{verbatim}
+Note how the \verb|print i| is indented relative to the preceding line
+(\verb|for i in ...|). This is significant. That is, white space is
+significant in Python and its use indicates where different parts of
+statements begin and end much like the use of `\verb|{|' and
+`\verb|}|' in C/C++. To illustrate further, here's a more involved
+snippet:
+\begin{verbatim}
+>>> for i in range(0, 2):
+...   print i
+...   for j in range(0, 10):
+...     print "  %d" % (j)
+...   print
+... 
+0
+  0
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+
+1
+  0
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+>>>
+\end{verbatim}
+Dropping back a level of indentation in line 5 of the above indicated
+that the \verb|print| statement written there was not part of the inner
+loop body (the inner \verb|for| statement had reached its conclusion).
+
+\verb|for| statements are more general than just the ability to iterate
+through a sequence of integers:
+\begin{verbatim}
+>>> print l
+[3, 2.0, 'two']
+>>> for obj in l:
+...   print obj
+... 
+3
+2.0
+two
+>>> 
+\end{verbatim}
+
+More general iterations can be performed with the \verb|while|
+statement:
+\begin{verbatim}
+>>> i = 0
+>>> while i < 10:
+...   print i
+...   i += 1
+... 
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+>>> 
+\end{verbatim}
+
+Conditional statements are used to choose one branch of code or
+another depending on the value of an expression:
+\begin{verbatim}
+>>> i = 0
+>>> while(i < 10):
+...   i += 1
+...   if i % 2:
+...     print "%d is odd" % i
+...   else:
+...     print "%d is even" % i
+... 
+1 is odd
+2 is even
+3 is odd
+4 is even
+5 is odd
+6 is even
+7 is odd
+8 is even
+9 is odd
+10 is even
+>>> 
+\end{verbatim}
+
+\subsection{Functions}
+
+The most basic unit of software in Python is the function. A function
+is a portion of code within a larger program which performs a specific
+task or computation relatively independently of the rest of the
+program.
+
+Functions in Python are defined using the \verb|def| statement and as
+seen earlier, indentation determines where they begin and end:
+\begin{verbatim}
+>>> def square(x):
+...   return x*x
+... 
+>>> def cube(x):
+...   return x*square(x)
+... 
+>>> print square(4)
+16
+>>> print cube(4)
+64
+>>>
+\end{verbatim}
+When a function by its nature has multiple return values, a tuple can
+be used to aggregate them:
+\begin{verbatim}
+>>> def square_and_cube(x):
+...   return (square(x), cube(x))
+... 
+>>> print square_and_cube(4)
+(16, 64)
+>>> 
+\end{verbatim}
+Where mutable data-types are involved, beware the potential for
+side-effects:
+\begin{verbatim}
+>>> def foo(l):
+...   l[0] = 12
+... 
+>>> l = [1, 2, 3]
+>>> foo(l)
+>>> print l
+[12, 2, 3]
+>>> 
+\end{verbatim}
+In general, it's probably good advice to avoid programming in this
+fashion. Explicit is better than implicit:
+\begin{verbatim}
+>>> def foo(l):
+...   m = l[:] # use slicing to make a (deep) copy of l
+...   m[0] = 12
+...   return m
+... 
+>>> l = [1, 2, 3]
+>>> m = foo(l)
+>>> print l
+[1, 2, 3]
+>>> print m
+[12, 2, 3]
+>>> 
+\end{verbatim}
+
+\subsection{Classes}
+
+There's not much you can't do with the built-in Python types
+(primitives, tuples, lists and dictionaries). Programs though are
+typically written once and read again many, many times. The programmer
+should strive hard to convey the meaning of the program to the human
+reader as much as he/she possibly can. Tuples, lists and dictionaries by
+themselves do little to aid semantic comprehension of the data
+elements of a program and that realisation has inspired grouping of
+related data elements into user-definable aggregate structures from
+at least as far back in time as Pascal's user defined \verb|record|
+data-type. Python permits the programmer to define his/her own types
+together with operations (in Python terminology -- \emph{methods},)
+that operate on \emph{instances} of these \emph{class} types.
+
+The most simple \verb|class| in Python can be written like this:
+\begin{verbatim}
+>>> class empty(object):
+...   pass
+... 
+>>> e=empty()
+\end{verbatim}
+This isn't a very rich type but it is a type nonetheless. Here's
+another user defined \verb|class| that is a bit more interesting:
+\begin{verbatim}
+>>> class person(object):
+...   def __init__(self, age, name):
+...     self.age = age
+...     self.name = name
+...
+>>> p = person(25, "John Doe")
+>>> print p.age
+25
+>>> print p.name
+John Doe
+>>> 
+>>> print type(p)
+<class '__main__.person'>
+\end{verbatim}
+The benefits of improved semantic comprehensibility via the
+abstraction of the above person \verb|p| over the representation
+\verb|(25, "John Doe")| can be augmented even further with class
+methods:
+\begin{verbatim}
+>>> class person(object):
+...   def __init__(self, age, name):
+...     self.age = age
+...     self.name = name
+...   def birth_year(self, current_year):
+...     return current_year - (self.age + 1)
+... 
+>>> p = person(25, "John Doe")
+>>> print p.birth_year(2008)
+1982
+\end{verbatim}
+
+Classes can be used to model IS\_A relationships (inheritance):
+\begin{verbatim}
+>>> class employee(person):
+...   def __init__(self, age, name, salary):
+...     person.__init__(self, age, name)
+...     self.salary = salary
+...   def earns(self):
+...     return self.salary
+... 
+>>> e = employee(25, "John Doe", 15000)
+>>> print e.birth_year(2008)
+1982
+>>> print e.earns()
+15000
+>>> 
+\end{verbatim}
+Notice how the methods of the \verb|person| class are inherited by the
+\verb|employee| class. That is, an \verb|employee| can be substituted
+for wherever the context calls for a \verb|person|. Note that any
+method in a base class can be overriden in a derived class:
+\begin{verbatim}
+>>> class manager(employee):
+...   def __init__(self, name, age, salary):
+...     employee.__init__(self, name, age, salary)
+...   def earns(self):
+...     raise RuntimeError, "This operation is restricted"
+... 
+>>> m = manager(25, "John Doe", 20000)
+>>> print m.age
+25
+>>> print m.name
+John Doe
+>>> print m.birth_year(2008)
+1982
+>>> print m.earns()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<stdin>", line 5, in earns
+RuntimeError: This information is restricted
+>>> 
+\end{verbatim}
+Unlike C++ with its notion of \verb|private|, \verb|protected| and
+\verb|public| access mechanisms, everything in a class is publicly
+accessible and due to Python's dynamic nature the definition of a
+class can even be changed during execution of the script(!):
+\begin{verbatim}
+>>> def salary(mgr):
+...   return mgr.salary
+... 
+>>> print salary(m)
+20000
+>>> manager.earns = salary
+>>> print m.earns()
+20000
+>>> 
+\end{verbatim}
+
+Programming with classes is ubiquitous in Python and this section just
+covers the basics. The newcomer to Python is recommened to take the
+time to become more familiar with them early on.
+
+\subsection{Modules and Packages}
+
+A module is a lexical unit of Python code stored in a file on
+disk. Let us suppose the existence of a file `complex.py' with
+contents something like the following:
+\begin{verbatim}
+class complex(object):
+  def __init__(self, re, im):
+    self.re, self.im = (re, im)
+
+  def real_part(self):
+    return self.re
+
+  def imag_part(self):
+    return self.im
+
+  def __str__(self):
+    return "%f + %fi" % (self.re, self.im)
+
+  def __add__(self, other):
+    return complex(self.re + other.re, self.im + other.im)
+
+  # ...
+
+def conjugate(x):
+  return complex(x.real_part(), -x.imag_part())
+
+# ...
+\end{verbatim}
+We can use the Python \verb|import| directive to bring in all of the
+type declarations and function definitions defined in `complex.py'
+into the current scope like this:
+\begin{verbatim}
+>>> from complex import *
+>>> i = complex(0, 1)
+>>> print i
+0.000000 + 1.000000i
+>>> print conjugate(i)
+0.000000 + -1.000000i
+>>> print i + conjugate(i)
+0.000000 + 0.000000i
+>>>
+\end{verbatim}
+We can \verb|import| symbols into the current scope more selectively using
+different syntactic forms of the \verb|import| directive:
+\begin{verbatim}
+>>> from sys import path # sys is a built-in module
+>>> import pprint # so is pprint
+>>> pprint.pprint(path)
+['',
+ 'C:\\WINDOWS\\system32\\python25.zip',
+ 'C:\\Python25\\DLLs',
+ 'C:\\Python25\\lib',
+ 'C:\\Python25\\lib\\plat-win',
+ 'C:\\Python25\\lib\\lib-tk',
+ 'C:\\Python25',
+ 'C:\\Python25\\lib\\site-packages',
+ 'C:\\Python25\\lib\\site-packages\\win32',
+ 'C:\\Python25\\lib\\site-packages\\win32\\lib',
+ 'C:\\Python25\\lib\\site-packages\\Pythonwin']
+>>> \end{verbatim}
+Notice that the last form of the \verb|import| directive required that
+we prefix our invocation of the \verb|pprint| function with the name
+of the module in which it resides (i.e module \verb|pprint|).
+
+A more extensive library for complex numbers would offer different
+representations. Imagine now a directory called `complex' with two
+files, `cartesian.py' and `polar.py'. The contents of `cartesian.py'
+defines the \verb|class complex| as before:
+\begin{verbatim}
+class complex(object):
+  def __init__(self, re, im):
+    self.re, self.im = (re, im)
+
+  def real_part(self):
+    return self.re
+
+  def imag_part(self):
+    return self.im
+
+  def __str__(self):
+    return "%f + %fi" % (self.re, self.im)
+
+  def __add__(self, other):
+    return complex(self.re + other.re, self.im + other.im)
+
+  # ...
+
+def conjugate(x):
+  return complex(x.real_part(), -x.imag_part())
+
+# ...
+\end{verbatim}
+The contents of `polar.py' defines a different representation for
+\verb|class complex|:
+\begin{verbatim}
+class complex(object):
+    def __init__(self, a, theta):
+        self.a = a
+        self.theta = theta
+    def __str__(self):
+        return "%fe^i(%f)" % (self.a, self.theta)
+    # ...
+\end{verbatim}
+We create a third file in the `complex' directory, `\_\_init\_\_.py':
+\begin{verbatim}
+import cartesian
+import polar
+
+def polar_to_cartesian(z):
+  import math
+  x = z.a*math.cos(z.theta)
+  y = z.a*math.sin(z.theta)
+  return cartesian.complex(x, y)
+\end{verbatim}
+Complex is now a Python \emph{package}. The following snippet
+exercises the package and demonstrates yet another form of the
+\verb|import| directive:
+\begin{verbatim}
+C:\Documents and Settings\PythonUser>python -i
+>>> import math # math is a built-in module
+>>> import complex
+>>> from complex import cartesian as rectangular
+>>> from complex import polar as polar
+>>> i = rectangular.complex(0, 1)
+>>> print i
+0.000000 + 1.000000i
+>>> i = polar.complex(1, math.pi/2)
+>>> print i
+1.000000e^i(1.570796)
+>>> print complex.polar_to_cartesian(i)
+0.000000 + 1.000000i
+>>>
+\end{verbatim}
+Naturally, packages can contain modules and sub-packages which in turn
+can contain further modules and sub-packages.
+
+\section{Conclusion}
+
+This has been a whistle-stop tour of the Python language. The basics
+have been presented and much detail overlooked. It is very much hoped
+that this has been enough to whet the reader's appetite for Python
+programming and we strongly encourage the reader to seek out more
+detailed references for Python programming.
+

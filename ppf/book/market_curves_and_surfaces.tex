@@ -1,0 +1,262 @@
+\chapter{Market -- Curves and
+Surfaces}\label{ch:market-curves-surfaces}
+
+A financial market is made up out of lots of pieces of information. For example, 
+foreign exchange rates, equity spot prices, yield curves, volatility surfaces
+and correlation surfaces, to name a few. In this chapter we discuss simple classes 
+for representing curves and surfaces provided in the \verb|ppf.market|
+sub-package. The chapter is concluded with a discussion of the market
+environment which is designed to represent a financial market.
+
+
+\section{Curves}
+Fundamentally, without regard to the specific market variable being modelled
+(e.g. discount factors, forward rates, volatilities at a fixed strike
+and expiry for a range of tenors), a curve is the association between a set
+of points at which the function is known (abscissae) and the known
+function values at those points (ordinates) and an interpolation
+algorithm for estimating the value of the function between the known
+abscissae. Utilisation of the interpolation algorithms presented in
+section \ref{sec:interpolation} deals with the `heavy lifting' of
+curve representation. From the \verb|ppf.market.curve| module we have
+the simple curve
+\begin{verbatim}
+class curve:
+  def __init__(self, times, factors, interp):
+    self.__impl = interp(times, factors)
+  def __call__(self, t): return self.__impl(t)
+\end{verbatim}
+The following interpreter transcript (simulating a discount factor
+curve) shows how easily a curve can be modelled by these components:
+\begin{verbatim}
+  >>> import math
+  >>> from ppf.math.interpolation import loglinear
+  >>> times = range(0, 22)
+  >>> factors = [math.exp(-0.05*T) for T in times]
+  >>> P = curve(times, factors, loglinear)
+  >>> for t in times: print P(t)
+  1.0
+  0.951229424501
+  0.904837418036
+  0.860707976425
+  0.818730753078
+  0.778800783071
+  0.740818220682
+  0.704688089719
+  0.670320046036
+  0.637628151622
+  0.606530659713
+  0.57694981038
+  0.548811636094
+  0.522045776761
+  0.496585303791
+  0.472366552741
+  0.449328964117
+  0.427414931949
+  0.406569659741
+  0.386741023455
+  0.367879441171
+  0.349937749111
+\end{verbatim}
+
+\section{Surfaces}
+A surface is the common name ascribed to a model of a multi-variabled
+function. In the interest of brevity, we restrict our attention to
+modelling functions in just two variables $f = f(x, y)$. The
+\verb|ppf.market.surface| module offers the \verb|class surface| for
+their representation which is associated with the commonly encountered
+bilinear-interpolation scheme that relies on the
+\verb|ppf.utility.bound| function (refer to section
+\ref{sec:interpolation}):
+\begin{verbatim}
+import ppf.utility
+
+class surface:
+  def __init__(self, first_axis, second_axis, values):
+    self.__first_axis = first_axis
+    self.__second_axis = second_axis
+    self.__values = values
+
+  def __call__(self, x, y):
+    i1, i2 = ppf.utility.bound(x, self.__first_axis)
+    j1, j2 = ppf.utility.bound(y, self.__second_axis)
+    f = self.__values
+    x1 = self.__first_axis[i1]
+    x2 = self.__first_axis[i2]
+    y1 = self.__second_axis[j1]
+    y2 = self.__second_axis[j2]
+    r = (x2 - x1)*(y2 - y1)
+    return (f[i1, j1]/r)*(x2 - x)*(y2 - y) + \
+           (f[i2, j1]/r)*(x - x1)*(y2 - y) + \
+           (f[i1, j2]/r)*(x2 - x)*(y - y1) + \
+           (f[i2, j2]/r)*(x - x1)*(y - y1)
+\end{verbatim}
+The \verb|ppf.test.test_market| module provides us with an example of
+using instances of this type for surface representation, in this case
+an expiry-tenor volatility surface:
+\begin{verbatim}
+class surface_tests(unittest.TestCase):
+  def test(self):
+    from ppf.date_time import date
+    from ppf.date_time import months
+    from ppf.date_time import Feb, Apr, Jul, Oct, Jan
+    from numpy import zeros
+
+    expiries = [
+       date(2006, Feb, 11)
+     , date(2006, Apr, 11)
+     , date(2006, Jul, 11)
+     , date(2006, Oct, 11)
+     , date(2007, Jan, 11)
+     , date(2008, Jan, 11)
+     , date(2009, Jan, 11)
+     , date(2010, Jan, 11)
+     , date(2011, Jan, 11)
+     , date(2012, Jan, 11)
+     , date(2013, Jan, 11) ]
+
+    tenors = [ months(12), months(24), months(36) ]
+
+    vols = zeros((len(expiries), len(tenors)))
+    # expiry, tenor surface                    1y    2y     3y                                
+    vols[ 0, 0], vols[ 0, 1], vols[ 0, 2] = 200.00, 76.25, 64.00 # 1m
+    vols[ 1, 0], vols[ 1, 1], vols[ 1, 2] =  98.50, 84.75, 69.00 # 3m
+    vols[ 2, 0], vols[ 2, 1], vols[ 2, 2] =  98.00, 81.75, 68.00 # 6m
+    vols[ 3, 0], vols[ 3, 1], vols[ 3, 2] = 101.25, 82.25, 69.25 # 9m
+    vols[ 4, 0], vols[ 4, 1], vols[ 4, 2] = 106.00, 82.00, 69.25 # 1y
+    vols[ 5, 0], vols[ 5, 1], vols[ 5, 2] =  78.75, 73.25, 61.25 # 2y
+    vols[ 6, 0], vols[ 6, 1], vols[ 6, 2] =  66.25, 59.00, 50.00 # 3y
+    vols[ 7, 0], vols[ 7, 1], vols[ 7, 2] =  55.25, 47.75, 41.75 # 4y
+    vols[ 8, 0], vols[ 8, 1], vols[ 8, 2] =  44.75, 40.25, 35.50 # 5y
+    vols[ 9, 0], vols[ 9, 1], vols[ 9, 2] =  32.00, 30.50, 28.25 # 6y
+    vols[10, 0], vols[10, 1], vols[10, 2] =  26.50, 24.25, 24.25 # 7y
+
+    base = date(2006, Jan, 11);
+    sig = ppf.market.surface(
+         [int(t - base)/365.0 for t in expiries]
+       , [m.number_of_months().as_number() for m in tenors]
+       , vols)
+
+    tol=1.0e-8
+    for i in range(len(expiries)):
+      expiry = expiries[i]
+      t = int(expiry - base)/365.0
+      for j in range(len(tenors)):
+        tenor = tenors[j]
+        T = tenor.number_of_months().as_number()
+        assert math.fabs(sig(t, T) - vols[i, j]) <= tol 
+\end{verbatim}
+
+\section{Environment} \label{sec:market}
+
+For the purposes of pricing it is often convenient to aggregrate all
+the different pieces of market data (e.g. curves and surfaces) into a
+single container. The class \verb|environment| from
+\verb|ppf.market.environment| provides us with a simple container for
+all the bits of market data. In addition the class is also the single
+point of access to the market data for the pricing models. As well as
+containing surfaces and curves, the environment also contains
+constants. An example of a constant could be the speed of mean
+reversion used in the Hull White model to control terminal
+correlation.
+
+An environment is constructed with a pricing date and pieces of market data are 
+added to it using the \verb|add| methods. Each piece of data is stored against a unique 
+key which is later used to retrieve the data via the \verb|retrieve| methods. Typically in 
+a fully productionized pricing framework, there would be another level of indirection 
+to insulate clients of the libraries from the internal representation of the market data keys. 
+Or more specifically, one would write environment factories taking in a dictionary of market data 
+against the physical names and map the physical names to the market data keys.   
+\begin{verbatim}
+import ppf.date_time
+
+class environment:
+  def __init__(self, pd = ppf.date_time.date(2008, 01, 01)):
+    self.pd = pd
+    self.curves = {}
+    self.surfaces = {}
+    self.constants = {}
+
+  def pricing_date(self):
+    return self.pd
+
+  def relative_date(self, d):
+    ret = ppf.date_time.days.days(d-self.pd)
+    if ret < 0:
+      raise RuntimeError, 'date before pricing date'
+    return ret
+    
+  def add_curve(self, key, curve):
+    if self.curves.has_key(key):
+      del self.curves[key]
+    self.curves[key] = curve 
+
+  def add_surface(self, key, surface):
+    if self.surfaces.has_key(key):
+      del self.surfaces[key]
+    self.surfaces[key] = surface
+
+  def add_constant(self, key, constant):
+    if self.constants.has_key(key):
+      del self.constants[key]
+    self.constants[key] = constant 
+
+  def has_curve(self, key):
+    return self.curves.has_key(key)
+
+  def has_surface(self, key):
+    return self.surfaces.has_key(key)
+
+  def has_constant(self, key):
+    return self.constants.has_key(key)
+
+  def retrieve_curve(self, key):
+    if not self.has_curve(key):
+      raise RuntimeError, 'unable to find curve'
+    return self.curves[key]
+
+  def retrieve_surface(self, key):
+    if not self.has_surface(key):
+      raise RuntimeError, 'unable to find surface'
+    return self.surfaces[key]
+
+  def retrieve_constant(self, key):
+    if not self.has_constant(key):
+      raise RuntimeError, 'unable to find constant'
+    return self.constants[key]
+\end{verbatim}
+Later chapters will make use of instances of \verb|class environment|
+constantly. An example from the \verb|ppf.test.test_hull_white| module
+should suffice to give an idea of its usage for now:
+\begin{verbatim}
+class fill_tests(unittest.TestCase):
+  def test_numeraire_rebased_bond(self):
+    env = ppf.market.environment()
+    times = numpy.linspace(0, 2, 5)
+    factors = numpy.array([math.exp(-0.05*t) for t in times])
+    env.add_curve("zc.disc.eur"
+        , ppf.market.curve(times, factors, ppf.math.interpolation.loglinear))
+    expiries, tenors =      [0.1, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0], [0, 90]
+    env.add_surface("ve.term.eur.hw"
+                 , ppf.market.surface(expiries, tenors, numpy.zeros((8, 2))))
+    env.add_constant("cv.mr.eur.hw", 0.0)
+    r = ppf.model.hull_white.requestor()
+    s = ppf.model.hull_white.lattice.state(11, 3.5)
+    sx = s.fill("eur", 0.25, r, env)
+    f = ppf.model.hull_white.fill(2.0)
+    PtT = f.numeraire_rebased_bond(0.25, 1.5, "eur", env, r, sx)
+    exp = \
+        [1.02531512052
+        ,1.02531512052
+        ,1.02531512052
+        ,1.02531512052
+        ,1.02531512052
+        ,1.02531512052
+        ,1.02531512052
+        ,1.02531512052
+        ,1.02531512052
+        ,1.02531512052
+        ,1.02531512052]
+
+    _assert_seq_close(exp, PtT)
+\end{verbatim}

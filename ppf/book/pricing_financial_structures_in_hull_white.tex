@@ -1,0 +1,535 @@
+\chapter{Pricing Financial Structures in Hull-White}\label{ch:pricing-berms-and-tarns}
+
+In this chapter we bring everything we have developed in the preceding chapters together and apply it to the pricing of 
+a number financial structures: namely Bermudans and target redemption notes. The structures have been chosen for two reasons: 
+firstly they are fairly straightforward; and secondly they demonstrate the need for both lattice and Monte-Carlo pricing algorithms. 
+For each trade type we begin by defining the structure before moving on to the actual pricing. Test cases have been written for both trade types 
+and are discussed in detail in the following sections.  
+
+\section{Pricing a Bermudan} 
+
+In this section we illustrate how we can use the model components described in the preceding chapters to price a
+Bermudan swaption. First of all we need to understand what is a Bermudan swaption. A Bermudan swaption gives the holder 
+the right to exercise into an underlying vanilla swap at regular intervals. The underlying vanilla swap of a Bermudan receiver 
+swaption is structured so that the holder, upon exercise, pays libor plus a spread in exchange for a fixed coupon at regular 
+intervals until the end of the swap. For a Bermudan payer swaption the legs of the underlying vanilla swap are the other way around. 
+
+The payoff class from module \verb|ppf.pricer.payoffs.fixed_leg_payoff| encapsulates 
+the fixed leg of the underlying swap. In mathematical terms the discounted value at time \verb|t| of the fixed coupon payment at time \verb|T| is given by (per unit notional)
+\begin{equation}
+\frac{V_t}{P_{tT_{N}}} = \mathbb E^{T_N} [ c \times \delta \times  \frac{1}{P_{TT_N}} | \mathcal F_t]
+\end{equation}
+where $T_N$ denotes the maturity of the terminal bond, $\mathbb E^{T_N}$ the expectation in the terminal measure, $P_{tT_N}$ the price of the terminal 
+bond at time $t$, $c$ the fixed coupon rate, $\delta$ the accrual period year fraction and $\mathcal F_t$ the filtration at time $t$. Since 
+$\frac{1}{P_{TT_N}}$ is a martingale in the terminal measure the above conditional expectation reduces to the equation given below
+\begin{equation}
+\frac{V_t}{P_{tT_{N}}} = c \times \delta \times  \frac{P_{tT}}{P_{tT_N}}.
+\end{equation}
+Let us step through line by line the body of the function call operator of the \verb|fixed_leg_payoff| class. We begin by 
+querying the event for its flow and reset identifier. Armed with these two pieces of information we can then retrieve the 
+observable from the flow. In this instance the observable will be a fixed coupon observable. Such an observable has the 
+method \verb|fixed_rate| for gaining access to the fixed coupon. Next we query the model for the requestor and state components. 
+The current state of the world is then calculated by calling the \verb|fill| method on the state component. Finally we are in a position to compute 
+the value of the fixed coupon payment. The second from last line of the implementation is the code representation of the above formula.
+
+\begin{verbatim}
+class fixed_leg_payoff:
+  def __call__(self, t, controller):    
+    event = controller.get_event() 
+    flow = event.flow()
+    id = event.reset_id()
+    obs = flow.observables()[id]
+    model = controller.get_model()
+    env = controller.get_environment()
+    fixed_rate = obs.coupon_rate()
+    requestor = model.requestor()
+    state = model.state().fill(t, requestor, env)
+    cpn = fixed_rate*flow.notional()*flow.year_fraction()\
+      *controller.pay_df(t, state)
+    return cpn
+\end{verbatim}
+
+Note that we delegate to the controller for the actual calculation of the zero coupon bond. The implementation of the \verb|pay_df| method on the controller class is given below:
+
+\begin{verbatim}
+  def pay_df(self, t, state):
+    if t < 0:
+      historical_df = self.__model.state().create_variable()
+      historical_df = self.__historical_df
+      return historical_df
+    else:
+      flow = self.__event.flow()
+      fill = self.__model.fill()
+      requestor = self.__model.requestor()
+      T = self.__env.relative_date(flow.pay_date())/365.0
+      return fill.numeraire_rebased_bond(t, T, flow.pay_currency()\
+        , self.__env, requestor, state)
+    endif
+\end{verbatim}
+In a pattern that should be familiar, the fill component of the model is called upon to perform the calculation of the numeraire rebased zero coupon bond. 
+It should also be noted that the implementation returns a value for discount factors in the past; the value being determined by the \verb|historical_df| argument 
+passed in at construction time of the controller. For most applications the historical discount factor will be set to zero but in the next section we give an example 
+where its value is unit.  
+
+
+In a similar fashion the payoff class contained in the module \\
+\verb|ppf.pricer.payoffs.float_leg_payoff| encapsulate the funding leg coupon. 
+Let \verb|t| denote the setting time of the libor rate, then using no-arbitrage arguments one can show that the value of the libor 
+rate at time $t$ with projection period $(T_s, T_e)$ is given by 
+\begin{equation}
+L_{t T_s T_e} = \left(\frac{P_{tT_s}}{P_{tT_e}}-1\right)/\delta^{'}
+\end{equation}
+where $\delta^{'}$ denotes the projection period year fraction. The discounted value of the funding coupon payment is then 
+\begin{equation}
+\frac{V_t}{P_{tT_{N}}} = \mathbb E^{T_N} [ L_{t T_s T_e} \times \delta \times  \frac{1}{P_{TT_N}} | \mathcal F_t]
+\end{equation} 
+with the same interpretation for the symbols as before. Once again, because $L_{t T_s T_e}$ is known at time $t$, the 
+conditional expectation reduces to the following equation
+\begin{equation}
+\frac{V_t}{P_{tT_{N}}} = L_{t T_s T_e} \times \delta \times  \frac{P_{tT}}{P_{tT_N}}.
+\end{equation} 
+
+The details of the implementation are essentially the same as for the fixed leg coupon. The second from last line of the implementation represents 
+the above formula in code form. Note that we use the adjuvant table to store the spread - an exception will be raised if the symbol is not 
+found in the symbol table. 
+
+\begin{verbatim}
+class float_leg_payoff:
+  def __call__(self, t, controller):
+    event = controller.get_event() 
+    flow = event.flow()
+    id = event.reset_id()
+    obs = flow.observables()[id]
+    model = controller.get_model()
+    env = controller.get_environment()
+    adjuvant_table = controller.get_adjuvant_table()
+    # lookup 'spread' in adjuvant table at flow pay date
+    spread = adjuvant_table("spread"+str(id), flow.pay_date())
+    requestor = model.requestor()
+    state = model.state().fill(t, requestor, env)
+    cpn = flow.notional()*flow.year_fraction()*(controller.libor(t, state) \
+          +spread)*controller.pay_df(t, state)
+    return cpn
+\end{verbatim}
+
+We delegate to the controller to determine both the libor rate and the zero coupon bond. The code excerpt below details the implementation 
+of the \verb|libor| method on the controller. Most of the implementation should be self-explanatory but one point to highlight is the treatment 
+of libor fixings in the past: if there is no fixing an exception will be raised, otherwise the value of the fixing is returned.
+
+\begin{verbatim}
+  def libor(self, t, state):
+    flow = self.__event.flow()
+    id = self.__event.reset_id()
+    obs = flow.observables()[id]
+    if t < 0:
+      fix = obs.fix()
+      if fix.is_fixed():
+        fixing = self.__model.state().create_variable()
+        fixing = fix.value()
+        return fixing
+      else:
+        raise RuntimeError, 'libor in the past with no fixing'
+      endif      
+    else:
+      fill = self.__model.fill()
+      requestor = self.__model.requestor()
+      return fill.libor(t, obs, self.__env, requestor, state)
+    endif
+\end{verbatim}
+For completeness we also provide the implementation of the \verb|get_adjuvant_table| method on the controller which is invoked in 
+the script for the floating leg payoff.
+\begin{verbatim}
+  def get_adjuvant_table(self):
+    leg = self.__trade.legs()[self.__event.leg_id()]
+    adjuvant_table = None
+    if leg.has_adjuvant_table():
+      adjuvant_table = leg.adjuvant_table()
+    return adjuvant_table
+\end{verbatim}
+
+Before proceeding on to the actual pricing of the Bermudan swaption we need to once again emphasise that the above payoffs are completely 
+generic. By generic we mean they are not model specific. The only constraints imposed on the model are that it understands how to interpret zero coupon 
+bonds and libor rates. The actual dimensionality of the model is completely irrevelant from the perspective of the payoffs - provided the numerical 
+containers returned by the methods on the fill component have overloaded arithmetic operations, everything will flow through.
+
+With the definition of the underlying coupon payments making up the swap out of the way, we now turn our attention to the pricing of 
+the Bermudan swaption. In section \ref{DomainSpaceIntegration} we discussed a generic framework for pricing 'vanilla' callable libor exotics. Since a 
+Bermudan swaption belongs to this class of financial instruments, we can employ the framework to compute the price. In the module \verb|ppf.test.test_lattice_pricer| we have 
+written a number of unit tests to verify both the pricing framework and all the model components. The first test class verifies that the pricing framework prices back the 
+underlying swap to market, where by market we mean the market as defined by the curve in the market environment. The two functions below calculate the market price of 
+both the fixed coupon leg and the funding leg, and should be self-explanatory.
+
+\begin{verbatim}
+def _fixed_leg_pv(leg, env):
+  pv = 0.0
+  for f in leg.flows():
+    obs = f.observables()[0]
+    key = "zc.disc."+f.pay_currency()
+    curve = env.retrieve_curve(key)
+    T = env.relative_date(f.pay_date())/365.0
+    dfT = curve(T)
+    pv += obs.coupon_rate()*f.notional()*f.year_fraction()*dfT
+  return pv*leg.pay_receive()
+
+def _funding_leg_pv(leg, env):
+  pv = 0.0
+  for f in leg.flows():
+    obs = f.observables()[0]
+    key = "zc.disc."+f.pay_currency()
+    curve = env.retrieve_curve(key)
+    T = env.relative_date(f.pay_date())/365.0
+    dfT = curve(T)
+    pv += obs.forward(env.pricing_date(), curve)\
+      *f.notional()*f.year_fraction()*dfT
+  return pv*leg.pay_receive()
+\end{verbatim}
+
+The actual unit test for the underlying swap is detailed below. The functions \verb|_create_fixed_leg| and \verb|_create_funding_leg| create the fixed and funding legs respectively. \verb|_create_environment| creates a test market environment suitable for the Hull-White model. The lattice pricer is created in the function \verb|_create_pricer|. The price from the lattice pricer is compared with the market price and an assert is made to ensure that the prices (divided by the notional) are within a basis point (i.e. $10^{-4}$).
+
+\begin{verbatim}
+class swap_tests(unittest.TestCase):
+  def test_value(self):
+    fixed_leg = _create_fixed_leg()
+    funding_leg = _create_funding_leg()
+    env = _create_environment() 
+    swap = ppf.core.trade((fixed_leg, funding_leg))   
+    pricer = _create_pricer(swap, env)
+    actual = pricer()
+    expected = _fixed_leg_pv(fixed_leg, env)+_funding_leg_pv(funding_leg, env)
+    _assert_seq_close([actual/10000000], [expected/10000000], 1.0e-4)
+\end{verbatim}
+
+In the \verb|_create_pricer| function we use the Hull-White lattice model factory to create the Hull-White pricer. Note that the model arguments dictionary is set so that the number of states equals 
+$41$ and the number of standard deviations equals $5.5$. 
+
+\begin{verbatim}
+def _create_pricer(trade, env, listener = None):
+  model_args = {"num states": 41, "num std dev": 5.5} 
+  factory = ppf.model.hull_white_lattice_model_factory()
+  model = factory(trade, env, model_args)
+  pricer = ppf.pricer.rollback_pricer(trade, model, env, listener)
+  return pricer
+\end{verbatim}
+
+There are two unit tests for the Bermudan swaption. The first unit test checks that the value of the Bermudan swaption is at least as large in magnitude as the most valuable European swaption. 
+To perform this test we use a symbol table listener to store the European swaption prices. The code for the unit test is shown below. Again we use functions defined in the module to 
+create both the legs and the exercise schedule. The values of the European swaption prices are retrieved by invoking the \verb|retrieve_symbol| method on the listener after the pricing of 
+the berm has been completed.
+
+\begin{verbatim}
+class bermudan_tests(unittest.TestCase):
+  def test_value(self):
+    fixed_leg = _create_fixed_leg()
+    funding_leg = _create_funding_leg()
+    ex_sch = _create_exercise_schedule()
+    env = _create_environment() 
+    berm = ppf.core.trade((fixed_leg, funding_leg)\
+      , (ex_sch, ppf.core.exercise_type.callable))   
+    listener = european_symbol_table_listener()
+    pricer = _create_pricer(berm, env, listener)
+    actual = pricer()
+    europeans = listener.retrieve_symbols()
+    for european in europeans:
+      assert(actual >= european)  
+\end{verbatim}
+
+The second unit test verifies that both deeply out of the money Bermudans price back to zero and deeply in the money Bermudans have the same value as the underlying swap. The code excerpt for 
+the moneyness tests is given below. The moneyness of the underlying swap is controlled by changing the coupon on the fixed leg from large positive (deeply out of the money) to large negative 
+(deeply in the money).
+
+\begin{verbatim}
+class moneyness_tests(unittest.TestCase):
+  def deep_in_the_money_test(self):
+    fixed_leg = _create_fixed_leg(-1.0)
+    funding_leg = _create_funding_leg()
+    ex_sch = _create_exercise_schedule()
+    env = _create_environment() 
+    berm = ppf.core.trade((fixed_leg, funding_leg)\
+      , (ex_sch, ppf.core.exercise_type.callable))   
+    pricer = _create_pricer(berm, env)
+    actual = pricer()
+    expected = _fixed_leg_pv(fixed_leg, env)+_funding_leg_pv(funding_leg, env)
+    _assert_seq_close([actual/10000000], [expected/10000000], 1.0e-4)
+  def deep_out_the_money_test(self):
+    fixed_leg = _create_fixed_leg(1.0)
+    funding_leg = _create_funding_leg()
+    ex_sch = _create_exercise_schedule()
+    env = _create_environment() 
+    berm = ppf.core.trade((fixed_leg, funding_leg)\
+      , (ex_sch, ppf.core.exercise_type.callable))   
+    pricer = _create_pricer(berm, env)
+    actual = pricer()
+    expected = 0.0
+    _assert_seq_close([actual/10000000], [expected/10000000], 1.0e-4)
+\end{verbatim}
+
+For completeness we also provide test cases for the Bermudan pricing using the Monte-Carlo pricing framework developed in section \ref{MonteCarlo}. The test cases are to be found in the \verb|ppf.test.test_monte_carlo_pricer| module. In the \verb|_create_callable_pricer| function two models are created using the Hull-White Monte-Carlo factory. One model is used for the regression and the other for the actual pricing. Note that the seeds are different and we have to provide an extra model argument, \verb|explanatory variables leg id|, so that the exercise component of the model knows which leg to use in the calculation of the explanatory variables. 
+
+\begin{verbatim}
+def _create_callable_pricer(trade, env, listener = None):
+  regression_model_args = {"num sims": 3000, "seed": 12345, "explanatory variables leg id": 0} 
+  factory = ppf.model.hull_white_monte_carlo_model_factory()
+  regression_model = factory(trade, env, regression_model_args)
+  model_args = {"num sims": 6000, "seed": 1234, "explanatory variables leg id": 0} 
+  model = factory(trade, env, model_args)
+  pricer = ppf.pricer.monte_carlo_pricer(trade, model, env, listener, regression_model)
+  return pricer
+\end{verbatim}
+
+Three unit tests are provided. The two moneyness tests are identical to those for the lattice pricer and will not be mentioned further. The remaining test shown below checks that the value of the Bermudan swaption is bounded below by the most valuable European swaption price. The values of the European swaptions are calculated in the for loop from trades with only a single exercise date.
+
+\begin{verbatim}
+class bermudan_tests(unittest.TestCase):
+  def test_value(self):
+    fixed_leg = _create_fixed_leg()
+    funding_leg = _create_funding_leg()
+    ex_sch = _create_exercise_schedule()
+    env = _create_environment() 
+    berm = ppf.core.trade((fixed_leg, funding_leg)\
+           , (ex_sch, ppf.core.exercise_type.callable))   
+    pricer = _create_callable_pricer(berm, env)
+    actual = pricer()
+    europeans = []
+    for exercise in ex_sch:
+      european_ex_sch = _create_exercise_schedule(\
+        exercise.exercise_date(), exercise.exercise_date())
+      european = ppf.core.trade((fixed_leg, funding_leg)\
+                 , (european_ex_sch, ppf.core.exercise_type.callable))   
+      pricer = _create_callable_pricer(european, env)
+      europeans.append(pricer())
+    for european in europeans:
+      print actual, european
+      assert(actual >= european)  
+\end{verbatim}
+
+Note that the number of exercises created in the exercise schedule is controlled by passing in both the start and end dates as can be seen in the code snippet below.
+
+\begin{verbatim}
+def _create_exercise_schedule(sd = ppf.date_time.date(2007, 06, 29)\
+                              , ed = ppf.date_time.date(2009, 06, 29)):
+  from ppf.date_time \
+       import date, shift_convention, modified_following, basis_act_360, months
+  sched = ppf.core.generate_exercise_table(
+    start  = sd
+    , end  = ed
+    , period = 1
+    , duration = ppf.date_time.years
+    , shift_method = shift_convention.modified_following
+    , fee_currency = "USD")
+  return sched
+\end{verbatim}
+
+\section{Pricing a TARN} 
+
+In this section we illustrate how we can use the components to price a Target Redemption Note, commonly referred to as a TARN. We will use the code developed in section \ref{MonteCarlo} to 
+do the actual pricing. So what is a TARN? A TARN is a swap consisting of a funding leg paying libor plus a spread in exchange for an exotic coupon leg receiving a coupon of the form 
+\begin{equation}
+c_t = max\left(f, c+g \times L_{tT_sT_e}\right)
+\end{equation}
+with $f$ the floor, $c$ a fixed coupon amount, $g$ the leverage and $L_{tT_sT_e}$ the libor rate for the period $(T_s,T_e)$ observed at $t \in \left\{T_1, T_2, ..., T_n\right\}$, a discrete set of times. The whole contract knocks out if the total accrued coupon reaches a predefined target. Typically if the swap hasn't triggered by the end of the swap, then the holder of the TARN receives a guaranteed accrued amount called the redemption floor. In addition if the swap triggers, then the holder receives an accrued amount no greater than the redemption cap. In most TARN structures both the redemption floor and redemption cap are equal to the target. 
+
+Before moving on to discussing the payoff classes for the TARN, it is helpful to first look at the mathematical form of the exotic coupon in more detail. The exotic coupon, denoted by $C_t$ in the formulae below, can be split into two parts. The first part can be expressed as follows
+\begin{eqnarray}
+C_t &=& \left(1-\mathbbm{1}_{\Sigma_{t-1} \ge \mbox{target}}\right) \left\{ \mathbbm{1}_{\Sigma_t \ge \mbox{target}} \right. \nonumber \\
+ & &\times \left(\delta c_t - max\left(\Sigma_t-\mbox{redemption cap},0\right)\right) \nonumber \\
+ & &\left. +\left(1-\mathbbm{1}_{\Sigma_t \ge \mbox{target}} \right) \delta c_t \right\}
+\end{eqnarray}
+with $\mathbbm{1}_{A}$ representing the probability of an event $A$; the accrued coupon, denoted by $\Sigma_t$, is computed via the relation
+\begin{equation}
+\Sigma_t = \Sigma_{t-1}+\delta ~c_t.
+\end{equation}
+with $\Sigma_t = 0$ for $t=0$; and $\delta$ represents the accrual year fraction for the coupon period. The second part of the exotic coupon payoff represents what is paid in the event the target is never reached and in mathematical terms is equal to the following
+\begin{eqnarray}
+C_{t_n} &=& C_{t_n}+\left(1-\mathbbm{1}_{C_{t_n} \ge \mbox{target}} \right) \nonumber \\
+                          & & \times max\left(\mbox{redemption floor}-\Sigma_{t_n},0\right)
+\end{eqnarray}
+with $t_n$ denoting the reset date on the final flow.
+
+The \verb|tarn_coupon_leg_payoff| class from the module \\
+\verb|ppf.pricer.payoffs.tarn_coupon_leg_payoff| represents the exotic coupon leg of the TARN. At the beginning of the module 
+we have implemented a simple pointwise min and max operator for NumPy arrays, denoted by \verb|min_| and \verb|max_| respectively, using the lambda statement of Python. The \verb|max_| 
+operator is used in the calculation of the coupon, whereas we invoke the \verb|min_| when updating the variable representing whether the contract has been triggered. 
+\begin{verbatim}
+# max for numpy arrays
+max_ = numpy.vectorize(lambda x, y: (x, y)[x < y])
+# min for numpy arrays
+min_ = numpy.vectorize(lambda x, y: (x, y)[x > y])
+\end{verbatim}
+Stepping through the implementation of the function call operator we see that a number of variables used in the computation of the coupon payoff are retrieved from the adjuvant table associated with the leg: the state of the \verb|target_indicator|, i.e. whether the target has been reached or not, and the \verb|accrued_coupon|. If the writer of the TARN pricer has not populated the symbol tables with these symbols, then a runtime exception will be raised. It should be easy to see that the actual implementation of the exotic coupon in the code excerpt below follows the above equations faithfully and consequently requires only a few comments. Firstly, the \verb|is_last_flow| function from the module \verb|ppf.core.trade_utils| is used to determine if we have reached the last flow of the trade; and secondly we note that both the state of the \verb|target_indicator| and the \verb|accrued_coupon| are updated prior to returning control back to the client.
+
+\begin{verbatim}
+class tarn_coupon_leg_payoff:
+  def __call__(self, t, controller):    
+    event = controller.get_event() 
+    flow = event.flow()
+    id = event.reset_id()
+    obs = flow.observables()[id]
+    model = controller.get_model()
+    env = controller.get_environment()
+    adjuvant_table = controller.get_adjuvant_table()
+    # lookup 'floor', 'fixed_rate', 'leverage', 'target', 'redemption_floor'
+    # and 'redemption_cap'
+    floor = adjuvant_table("floor"+str(id), flow.pay_date())
+    fixed_rate = adjuvant_table("fixed_rate"+str(id), flow.pay_date())
+    leverage = adjuvant_table("leverage"+str(id), flow.pay_date())
+    target = adjuvant_table("target"+str(id), flow.pay_date())
+    redemption_floor = adjuvant_table("redemption_floor"+str(id), flow.pay_date())
+    redemption_cap = adjuvant_table("redemption_cap"+str(id), flow.pay_date())
+    requestor = model.requestor()
+    state = model.state().fill(t, requestor, env)
+    cpn = flow.year_fraction()*max_(floor \
+      , fixed_rate+leverage*controller.libor(t, state))
+    # retrieve symbol representing target indicator 
+    indicator = controller.retrieve_symbol("target_indicator")
+    # retrieve symbol representing accrued coupon 
+    accrued_cpn = controller.retrieve_symbol("accrued_coupon")
+    accrued_cpn += cpn
+    # actual coupon assuming a redemption cap and a redemption floor 
+    # potentially different from the target
+    actual_cpn = model.state().create_variable()
+    local_indicator = accrued_cpn >= target
+    actual_cpn = (1-indicator)*local_indicator\
+      *(cpn-max_(accrued_cpn-redemption_cap,0.0)) \
+      +(1-indicator)*(1-local_indicator)*cpn
+    leg_id = event.leg_id()
+    if is_last_flow(controller.get_trade().legs()[leg_id], flow): 
+      actual_cpn += (1-local_indicator)*max_(redemption_floor-accrued_cpn, 0.0)
+    actual_cpn *= flow.notional()*controller.pay_df(t, state)
+
+    # update indicator - probability of triggering
+    # addition of logicals is equivalent of 'or'
+    indicator = min_(indicator+local_indicator, 1)  
+    # update symbols
+    at = env.relative_date(flow.pay_date())/365.0
+    controller.update_symbol("accrued_coupon", accrued_cpn, at)
+    controller.update_symbol("target_indicator", indicator, at)
+
+    return actual_cpn
+\end{verbatim}
+
+Similarly the payoff class from module \verb|ppf.pricer.payoffs.tarn_funding_leg_payoff| illustrated below encapsulates the funding leg of the TARN. The only complication is that the funding payment is still due immediately after the trigger is breached. The simplest way to ensure this happens is to put the funding leg before the exotic coupon leg when defining the trade representing the TARN. We will see shortly that this is the case for all the test cases written for the TARN. 
+
+\begin{verbatim}
+class tarn_funding_leg_payoff:
+  def __call__(self, t, controller):
+    event = controller.get_event() 
+    flow = event.flow()
+    id = event.reset_id()
+    obs = flow.observables()[id]
+    model = controller.get_model()
+    env = controller.get_environment()
+    adjuvant_table = controller.get_adjuvant_table()
+    # lookup 'spread' in adjuvant table at flow pay date
+    spread = adjuvant_table("spread"+str(id), flow.pay_date())
+    requestor = model.requestor()
+    state = model.state().fill(t, requestor, env)
+    cpn = flow.notional()*flow.year_fraction()*(controller.libor(t, state) \
+          +spread)*controller.pay_df(t, state)
+    # retrieve symbol representing target indicator 
+    indicator = controller.retrieve_symbol("target_indicator")
+    return cpn*(1-indicator)
+\end{verbatim}
+
+Once again it cannot be overstated that the above two payoffs are generic and would work for any model provided the required components have been implemented.
+
+In the module \verb|ppf.test.test_monte_carlo_pricer| we have written a number of tests for the pricing of the TARN. The first test verifies that the two legs cancel each other out if the target is never reached and the exotic coupon just pays libor. The functions \verb|_create_tarn_coupon_leg| and \verb|_create_tarn_funding_leg| create the exotic coupon and funding legs respectively of the TARN. The function \verb|_create_environment| creates a test market environment suitable for the Hull-White model. The Monte-Carlo pricer is created in the function \verb|_create_pricer|. A list of symbol value pairs is built for the symbols \verb|accrued_coupon| and \verb|target_indicator| and then passed through to the function call operator of the pricer. The price from the Monte-Carlo pricer is compared with the market price and an assert is made to ensure that the prices (divided by the notional) are within a basis point (i.e. $10^{-4}$).
+
+\begin{verbatim}
+class tarn_tests(unittest.TestCase):
+  def no_trigger_limit_test(self):
+    floor = -100
+    fixed_rate = 0.0
+    leverage = 1.0
+    target = 10000
+    redemption_floor = -100
+    redemption_cap = -100
+    coupon_leg = _create_tarn_coupon_leg(floor, fixed_rate, leverage\
+     , target, redemption_floor, redemption_cap)
+    funding_leg = _create_tarn_funding_leg()
+    env = _create_environment()
+    tarn = ppf.core.trade((funding_leg, coupon_leg)) # note the ordering
+    pricer = _create_pricer(tarn, env)
+    symbol_value_pairs_to_add = []
+    symbol_value_pairs_to_add.append(("accrued_coupon", numpy.zeros(5000)))
+    symbol_value_pairs_to_add.append(("target_indicator", numpy.zeros(5000)))
+    actual = pricer(symbol_value_pairs_to_add)
+    _assert_seq_close([actual/10000000], [0.0], 1.0e-4)
+\end{verbatim}
+
+In the \verb|_create_pricer| function we use the Hull-White Monte-Carlo model factory to create the Hull-White pricer. Note that the model arguments dictionary is set so that the number of simulation equals $5000$ and the seed for the variate generator equals $1234$. 
+
+\begin{verbatim}
+def _create_pricer(trade, env, listener = None):
+  model_args = {"num sims": 5000, "seed": 1234} 
+  factory = ppf.model.hull_white_monte_carlo_model_factory()
+  model = factory(trade, env, model_args)
+  pricer = ppf.pricer.monte_carlo_pricer(trade, model, env, listener)
+  return pricer
+\end{verbatim}
+
+
+The next test checks that if the \verb|target| is set so that the target will be reached after the first flow, then the result should be equal to a simple swaplet. 
+The code snippet below details the test case. To guarantee the target being reached after the first flow, the \verb|target| is set to zero, and, unlike in the previous test case, the 
+exotic coupon leg now pays a fixed coupon rate of 5\%.
+
+\begin{verbatim}
+class tarn_tests(unittest.TestCase):
+  def trigger_after_first_flow_test(self):
+    floor = -100
+    fixed_rate = 0.05
+    leverage = 0.0
+    target = 0.0
+    redemption_floor = -100
+    redemption_cap = 100
+    coupon_leg = _create_tarn_coupon_leg(floor, fixed_rate, leverage\
+     , target, redemption_floor, redemption_cap)
+    funding_leg = _create_tarn_funding_leg()
+    env = _create_environment()
+    tarn = ppf.core.trade((funding_leg, coupon_leg)) # note the ordering
+    pricer = _create_pricer(tarn, env)
+    symbol_value_pairs_to_add = []
+    symbol_value_pairs_to_add.append(("accrued_coupon", numpy.zeros(5000)))
+    symbol_value_pairs_to_add.append(("target_indicator", numpy.zeros(5000)))
+    actual = pricer(symbol_value_pairs_to_add)
+    expected = _exotic_first_flow_pv(coupon_leg, env)\
+      +_funding_first_flow_pv(funding_leg, env)
+    _assert_seq_close([actual/10000000], [expected/10000000], 1.0e-4)
+\end{verbatim}
+Note that we have used the functions \verb|_exotic_first_flow_pv| and \verb|_funding_first_flow_pv| from the same module to compute the present value of the swaplet.
+
+The last test case shown below, checks that an out-of-the-money TARN swap becomes more out-of-the-money as the \verb|target| is increased.
+
+\begin{verbatim}
+class tarn_tests(unittest.TestCase):
+  def monotonic_with_target_test(self):
+    floor = -100
+    fixed_rate = 0.025
+    leverage = 2.0
+    redemption_floor = -100
+    redemption_cap = 100
+    prev = 1 # out-of-the-money
+    targets = [0.075, 0.1, 0.125, 0.15, 0.175, 0.2]
+    for target in targets:
+      coupon_leg = _create_tarn_coupon_leg(floor, fixed_rate, leverage\
+       , target, redemption_floor, redemption_cap)
+      funding_leg = _create_tarn_funding_leg()
+      env = _create_environment()
+      tarn = ppf.core.trade((funding_leg, coupon_leg)) # note the ordering
+      pricer = _create_pricer(tarn, env)
+      symbol_value_pairs_to_add = []
+      symbol_value_pairs_to_add.append(("accrued_coupon", numpy.zeros(5000)))
+      symbol_value_pairs_to_add.append(("target_indicator", numpy.zeros(5000)))
+      curr = pricer(symbol_value_pairs_to_add)
+      assert(curr < prev)
+      prev = curr
+\end{verbatim}
+
+Before finishing this section one final point needs to be made. Some path dependent trades may involve path variables dependent on the pay discount factor and, for seasoned trades, the 
+path variables still need to be calculated even though they are in the past. For this reason, the instances of the \verb|controller| classes in the Monte-Carlo pricing framework set the \verb|historical_df| to unit. 
+
+\section{Concluding Remarks}
+
+We have successfully applied the pricing frameworks developed in chapter \ref{ch:pricing-using-numerical-methods} to the pricing of both Bermudan swaptions and target redemption notes. In any real business application the main body of code would be in C++ which would then call out to Python to perform the evaluation of the payoff. For efficiency reasons, you would not wish to do this for every Monte-Carlo path because the cost of crossing the C++/Python boundary is too punitive - indeed you would have to cross the boundary for every simulation (or equivalently path). If instead you pass the current state of the world at a particular time, then you only cross the boundary as many times as there are flows (for each leg). Moreover, by passing the state of the world through gives the writer of the python payoff the opportunity to employ parallelisation techniques when performing arithmetic operations within the payoff class. The authors have found, even in a system entirely implemented in C++, it is approximately 40\% faster to pass the state of the world through to the payoff functionals than calling the functionals once for each simulation - in this case the cost of the function call alone becomes punitive. The remaining question then is should the memory be allocated on the C++ or Python side. There is no clear answer to this question but in any case chapters \ref{ch:extending-python-from-c++} and \ref{ch:hybrid-pricing-systems} cover the necessary techniques for doing either approach. 
+
+During our treatment of the TARN payoff we were forced to carry out tricky indicator logic to handle the if else clauses. It would be much better if the python if statement understood NumPy arrays, i.e. if we could write \verb|if m_array > 0 ...|. Indeed, if we were to write everything in C++, including our own payoff language interpreter, then this is almost certainly the approach we would adopt. To get this to work in Python would require hacking into the Python interpreter which is well beyond the scope of this book. 
+

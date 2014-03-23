@@ -1,0 +1,9 @@
+"exe\imm_dates\src\imm_dates.cpp" -Fo"exe\imm_dates\src\bin\msvc-10.0\release\address-model-64\threading-multi\imm_dates.obj"   -TP /O2 /Ob2 /W3 /GR /MD /Zc:forScope /Zc:wchar_t /favor:blend /wd4675 /EHs -c 
+-DBOOST_ALL_NO_LIB 
+-DBOOST_PYTHON_DYNAMIC_LIB 
+-DNDEBUG 
+"-I." 
+"-Ic:\Python27\Lib\site-packages\numpy\core\include" 
+"-Ic:\project\blitz-0.10" 
+"-Ic:\project\boost_1_55_0" 
+"-Ic:\python27\include"

@@ -1,0 +1,47 @@
+\chapter{Pickup Value Regression} \label{appendix:mc_regressions}
+
+The seminal paper by Longstaff and Schwartz \cite{ARTICLE:LS} on estimating the early exercise premium uses regressions of the holding value, i.e. the value of holding on 
+to the option. In this short appendix we develop a simple alternative regression scheme for determining the early exercise premium of a callable structure when pricing using Monte-Carlo.
+
+Consider times $T_1 < T_2 < ... < T_{N}$ and denote $B_t$ as the numeriare at time $t$. The holding value $H_{n-1}(T_{n-1})$ at time $T_{n-1}$ is given by the relation below
+\begin{eqnarray}
+HV_{n-1}(T_{n-1}) &=& B_{T_{n-1}}\mathbb E \left[ B_{T_n}^{-1}max(IEV_n(T_n), HV_n(T_n)) ~|~ \mathcal F_{T_{n-1}} \right] \nonumber \\
+        &=& B_{T_{n-1}}\mathbb E \left[ B_{T_n}^{-1} (IEV_n(T_n)-HV_n(T_n))^{+} ~|~ \mathcal F_{T_{n-1}} \right] \nonumber \\
+        & & + B_{T_{n-1}}\mathbb E \left[ B_{T_n}^{-1} HV_n(T_n) ~|~ \mathcal F_{T_{n-1}} \right]
+\end{eqnarray}
+where $IEV_{n}(T_n)$ denotes the immediate exercise values at time $T_n$. Setting $HV_N(T_N) = 0$ and using the above recursion relation, we obtain
+\begin{eqnarray}
+HV_{n-1}(T_{n-1}) &=& B_{T_{n-1}} \sum_{m=n}^{N} \mathbb E \left[ B_{T_m}^{-1} (IEV_m(T_m)-HV_m(T_m))^{+} ~|~ \mathcal F_{T_{n-1}} \right] \nonumber \\
+                  & &
+\end{eqnarray}
+Let's denote the exercise region at time $T_n$ by $\mathcal R_n$,
+\begin{eqnarray}
+\mathcal R_n &=& \left\{ \omega \in \Omega ~:~ H_n(T_n,\omega) \le IEV_n(T_n,\omega) \right\} \\
+             &=& \left\{ \omega \in \Omega ~:~ IEV_n(T_n,\omega)-H_n(T_n,\omega) \ge 0 \right\} 
+\end{eqnarray}
+The stopping time is then ($T_{N+1}$ denoting no exercise)
+\begin{eqnarray}
+\tau(\omega) = min \left\{ T_n, ~ n \ge 1 ~|~ \omega \in R_n \right\} \wedge N+1
+\end{eqnarray}
+The pickup value $PKV_{n}(T_n)$ at time $T_n$ is defined by 
+\begin{eqnarray}
+PKV_n(T_n) &:=& IEV_n(T_n)-HV_n(T_n)
+\end{eqnarray}
+At each time $T_n$ we approximate the the pickup value by the following sum:
+\begin{eqnarray}
+G_n(T_n, \omega) = \sum_{k=1}^M \alpha_k(T_n) X_k(\left\{x_1(T_n,\omega),x_2(T_n,\omega),~...,x_p(T_n,\omega)\right\})
+\end{eqnarray}
+where $\left\{X_1(...),~X_2(...),~...,X_m(...)\right\}$ are the basis functions, the explanatory variable are denoted by $\left\{x_1(T_n,\omega),x_2(T_n,\omega),~...,x_p(T_n,\omega)\right\}$ and the coefficients $\alpha_1(T_n),~,\alpha_k(T_n),~...,~\alpha_M(T_n)$ are found by performing a regression.
+
+In more detail: starting at $T_N$ we perform a regression of $PKV_N(T_N)$ (in this case equal to $IEV_N(T_N)$) giving $\alpha_k(T_N) \forall k$. At $T_{N-1}$ we calculate the pickup value using the relation below
+\begin{eqnarray}
+PKV_{N-1}(T_{N-1}, \omega) &=& IEV_{N-1}(T_{N-1}) - B_{T_{N-1}} \mathbb E \left[B_{T_{N}}^{-1} (G_N(T_N, \omega))^{+} \right] \nonumber \\
+                           & &
+\end{eqnarray}
+using $G_N(T_N, \omega)$ found in the previous step. Again we approximate $PKV_{N-1}(T_{N-1},\omega)$ by $G_{N-1}(T_{N-1}, \omega)$ and perform a regression to obtain $\alpha_k(T_{N-1}) \forall k$. At $T_{N-2}$ we calculate the pickup value using the relation below:
+\begin{eqnarray}
+PKV_{N-2}(T_{N-2}, \omega) &=& IEV_{N-2}(T_{N-2}) \nonumber \\
+& & - B_{T_{N-2}} \mathbb \sum_{m=N-1}^N \mathbb E \left[B_{T_{m}}^{-1} (G_m(T_m, \omega))^{+} \right]
+\end{eqnarray}
+Again we approximate $PKV_{N-2}(T_{N-2},\omega)$ by $G_{N-2}(T_{N-2}, \omega)$ and perform a regression to obtain $\alpha_k(T_{N-2}) \forall k$. The above steps are then repeated until we have reached $T_1$.
+
