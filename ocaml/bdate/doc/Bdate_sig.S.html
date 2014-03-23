@@ -32,13 +32,31 @@ A set of date-time libraries based on generic programming
 The type of a date<br>
 </div>
 
+<pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="Bdate_sig.S.html#TYPEt">t</a> -> <a href="Bdate_sig.S.html#TYPEt">t</a> -> int</code></pre><div class="info">
+Lexicographical ordering<br>
+</div>
 <pre><span id="VALstring_of_date"><span class="keyword">val</span> string_of_date</span> : <code class="type"><a href="Bdate_sig.S.html#TYPEt">t</a> -> string</code></pre><div class="info">
-<b>Returns</b> a string represenation of a date<br>
+<b>Returns</b> a string representation of a date<br>
 </div>
 <br>
 <h2 id="2_Functions">Functions</h2><br>
+<pre><span id="VALmk_date"><span class="keyword">val</span> mk_date</span> : <code class="type">int * int * int -> <a href="Bdate_sig.S.html#TYPEt">t</a></code></pre><div class="info">
+Create a date with the given year, month and day<br>
+</div>
 <pre><span id="VALlocal_day"><span class="keyword">val</span> local_day</span> : <code class="type">unit -> <a href="Bdate_sig.S.html#TYPEt">t</a></code></pre><div class="info">
 Get the local day based on the time zone settings of the
       computer<br>
+</div>
+<pre><span id="VALyear"><span class="keyword">val</span> year</span> : <code class="type"><a href="Bdate_sig.S.html#TYPEt">t</a> -> int</code></pre><div class="info">
+Project the year of a date<br>
+</div>
+<pre><span id="VALmonth"><span class="keyword">val</span> month</span> : <code class="type"><a href="Bdate_sig.S.html#TYPEt">t</a> -> int</code></pre><div class="info">
+Project the month of a date<br>
+</div>
+<pre><span id="VALday"><span class="keyword">val</span> day</span> : <code class="type"><a href="Bdate_sig.S.html#TYPEt">t</a> -> int</code></pre><div class="info">
+Project the day of the month of a date<br>
+</div>
+<pre><span id="VALyear_month_day"><span class="keyword">val</span> year_month_day</span> : <code class="type"><a href="Bdate_sig.S.html#TYPEt">t</a> -> int * int * int</code></pre><div class="info">
+<b>Returns</b> tuple of components<br>
 </div>
 </body></html>

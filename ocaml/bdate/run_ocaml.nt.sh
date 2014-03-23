@@ -20,7 +20,23 @@ ocamlopt.opt -verbose \
   -o bdate_test.exe \
   unix.cmxa libbdate_c.lib bdate.cmxa bdate_test.cmx 
 
+#Build procedure for driver in C (avoiding flexlink)
+#
+#   cl /c /nologo /EHs /MD /I"C:/ibox-current/x86_64/mlfi/lib" \
+#    /I"C:/BPCDEVTOOLS/bde/2.19.0/include" \
+#     hello_stubs.cpp
+#   lib /nologo /out:hello_c.lib hello_stubs.obj
+#
+#   mlfiopt.opt -output-obj -o hello_ocaml.obj hello.mf
+#
+#   cl /c /EHs /MD /nologo /I"C:/ibox-current/x86_64/mlfi/lib" driver.c
+#
+#   link /SUBSYSTEM:CONSOLE /OUT:hello.exe driver.obj hello_c.lib hello_ocaml.obj \
+#     C:/ibox-current/x86_64/mlfi/lib/libasmrun.lib \
+#     C:/BPCDEVTOOLS/bde/2.19.0/lib/v100/release_dynamic_64/bsl.lib
+
 echo Generating documentation...
 mkdir -p doc
 ocamldoc -intro intro -d doc -html -colorize-code -stars -sort \
   bdate_sig.mli bdate.mli bdate.ml
+
