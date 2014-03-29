@@ -42,7 +42,7 @@ let geometric_mean t =
   *)
   let n = List.length t in
   let prod = List.fold_left (fun acc xi -> acc *. xi) 1.0 t in
-  let powf b x = exp (x *. (log b)) in powf prod (1.0/.(float_of_int n))
+  prod ** (1.0/.(float_of_int n))
 
 let quadratic_mean t =
   (*http://en.wikipedia.org/wiki/Standard_deviation
@@ -69,10 +69,9 @@ let power_mean p t =
     arithmetic, geometric, and harmonic means
 
   *)
-  let powf b x = exp (x *. (log b)) in
   let powers = List.fold_left 
-    (fun acc xi -> acc @ [powf xi p]) [] t in
-  powf (arithmetic_mean powers) (1.0/.p)
+    (fun acc xi -> acc @ [( ** ) xi p]) [] t in
+    (arithmetic_mean powers)**(1.0/.p)
 
 let standard_deviation t =
   (*http://en.wikipedia.org/wiki/Standard_deviation
