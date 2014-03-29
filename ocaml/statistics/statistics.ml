@@ -33,6 +33,47 @@ let harmonic_mean t =
              (fun acc xi -> acc +. 1.0 /. xi) 0.0 t 
  in n /. denom
 
+let geometric_mean t =
+  (*http://en.wikipedia.org/wiki/Geometric_mean
+
+    The geometric mean is defined as the nth root (where n is the
+    count of numbers) of the product of the numbers.
+
+  *)
+  let n = List.length t in
+  let prod = List.fold_left (fun acc xi -> acc *. xi) 1.0 t in
+  let powf b x = exp (x *. (log b)) in powf prod (1.0/.(float_of_int n))
+
+let quadratic_mean t =
+  (*http://en.wikipedia.org/wiki/Standard_deviation
+
+  In mathematics, the root mean square (abbreviated RMS or rms),
+  also known as the quadratic mean, is a statistical measure of the
+  magnitude of a varying quantity. It is especially useful when
+  variates are positive and negative, e.g., sinusoids. RMS is used
+  in various fields, including electrical engineering.  It can be
+  calculated for a series of discrete values or for a continuously
+  varying function. Its name comes from its definition as the square
+  root of the mean of the squares of the values.
+
+  *)
+  let squares = List.fold_left 
+    (fun acc xi -> acc @ [xi *. xi]) [] t in
+  sqrt (arithmetic_mean squares)
+
+let power_mean p t =
+  (*http://en.wikipedia.org/wiki/Generalized_mean
+
+    In mathematics, generalized means are a family of functions for
+    aggregating sets of numbers, that include as special cases the
+    arithmetic, geometric, and harmonic means
+
+  *)
+  let powf b x = exp (x *. (log b)) in
+  let powers = List.fold_left 
+    (fun acc xi -> acc @ [powf xi p]) [] t in
+  powf (arithmetic_mean powers) (1.0/.p)
+
 let standard_deviation t =
   (*http://en.wikipedia.org/wiki/Standard_deviation
 
@@ -44,5 +85,3 @@ let standard_deviation t =
  let av = arithmetic_mean t in
  let squared_diffs = List.fold_left (fun acc xi -> ((xi -. av) *. (xi -. av)) :: acc) [] t
  in sqrt (arithmetic_mean squared_diffs)
-
-let _ = Printf.printf "%f\n" (12.0/.7.0); Printf.printf "%f\n" (harmonic_mean [1.0;2.0;4.0])

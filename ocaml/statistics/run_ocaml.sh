@@ -1,3 +1,3 @@
 #/bin/bash
 
-ocamlopt.opt -o stats.exe statistics.ml
+ocamlopt.opt -o stats.opt statistics.ml
