@@ -1,0 +1,12 @@
+"exe\imm_dates\src\imm_dates.cpp" -Fo"exe\imm_dates\src\bin\msvc-9.0\release\debug-symbols-on\threading-multi\imm_dates.obj"   -TP /O2 /Z7 /Ob2 /W3 /GR /MD /Zc:forScope /Zc:wchar_t /wd4675 /EHs -c 
+-DBOOST_ALL_NO_LIB 
+-DBOOST_PYTHON_DYNAMIC_LIB 
+-DNDEBUG 
+-D_CRT_SECURE_NO_DEPRECATE 
+-D_CRT_SECURE_NO_WARNINGS 
+-D_SCL_SECURE_NO_WARNINGS 
+"-I." 
+"-Ic:\blitz-0.9" 
+"-Ic:\boost\include\boost-1_37" 
+"-Ic:\python25\include" 
+"-Ic:\python25\lib\site-packages\numpy\core\include"
