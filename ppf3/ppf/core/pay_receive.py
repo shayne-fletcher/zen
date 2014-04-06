@@ -1,1 +1,0 @@
-PAY, RECEIVE = (-1, 1)
