@@ -1,0 +1,12 @@
+{1 Special_functions} 
+
+The [Special_functions] module. Provides a small number of high
+quality special functions, initially these were concentrated on
+functions used in statistical applications along with those in the
+Technical Report on C++ Library Extensions. See
+{{:http://www.boost.org/doc/libs/1_55_0/libs/math/doc/html/special.html}
+Boost Math Toolkit}
+{2 Index}
+{!indexlist}
+{2 Modules}
+{!modules:Special_functions_sig}
