@@ -52,22 +52,31 @@ module Dfs : S = struct
         fun n {d;f;pred;color} -> { d; f; pred; color = Char_map.add n `White color }
       ) v {d=Char_map.empty; f=Char_map.empty; pred=Char_map.empty; color=Char_map.empty} 
     in
+
     let node u (t, {d; f; pred; color}) =
+
       let rec dfs_visit t u {d; f; pred; color} =
         let edge (t, {d; f; pred; color}) v =
           if Char_map.find v color = `White then
-            dfs_visit t v {d; f; pred=(Char_map.add v u pred); color} 
+            dfs_visit t v {d; f; pred=(Char_map.add v u pred); color}  (*Visit [v]*)
           else  (t, {d; f; pred; color})
         in
+
         let t, {d; f; pred; color} = 
+          let t = t + 1 in
           List.fold_left edge 
-            (t + 1, {d=Char_map.add u (t + 1) d; f; pred; color=Char_map.add u `Gray color}) 
-            (Char_map.find u e) in
-        (t + 1) , {d; f=(Char_map.add u (t + 1) f); pred; color=Char_map.add u `Black color}
+            (t, {d=Char_map.add u t d; f; pred; color=Char_map.add u `Gray color}) 
+            (Char_map.find u e) 
+
+        in
+
+        let t = t + 1 in
+        t , {d; f=(Char_map.add u t f); pred; color=Char_map.add u `Black color}
+
       in
-      if Char_map.find u color = `White then
-        dfs_visit t u {d; f; pred; color}
+      if Char_map.find u color = `White then dfs_visit t u {d; f; pred; color}
       else (t, {d; f; pred; color})
+
     in 
     let _, st = Char_set.fold node v (0, (initial_state v)) in st
 
