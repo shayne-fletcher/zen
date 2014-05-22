@@ -30,7 +30,7 @@
   ]}
 
 *)
-module Char_set = Set.Make (Char)
+
 module Char_map = Map.Make (Char)
 
 type graph = { e:(char list) Char_map.t }
