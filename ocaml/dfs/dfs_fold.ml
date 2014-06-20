@@ -1,12 +1,18 @@
-module Char_map = Map.Make (Char)
-type graph = (char list) Char_map.t
-
-module type S = sig
-  type 'a state
-  val fold : ('a -> char -> 'a) -> 'a -> graph -> 'a
+module type GRAPH = sig
+  type node = char
+  type t
+  val of_adjacency : (node * node list) list -> t
+  val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a -> 'a
 end
 
-module Dfs : S = struct
+module M : GRAPH = struct
+
+  module Char_map = Map.Make (Char)
+  type node = char
+  type t = (node list) Char_map.t
+
+  let of_adjacency l = 
+    List.fold_right (fun (x, y) -> Char_map.add x y) l Char_map.empty
 
   type colors = White|Gray|Black
 
@@ -18,60 +24,43 @@ module Dfs : S = struct
     acc : 'a ; (*user specified type used by 'fold'*)
   }
 
-  let fold fn acc g =
-    let node u (t, {d; f; pred; color; acc}) =
-      let rec dfs_visit t u {d; f; pred; color; acc} =
-        let edge (t, {d; f; pred; color; acc}) v =
-          if Char_map.find v color = White then
-            dfs_visit t v {d; f; pred=(Char_map.add v u pred); color; acc}
-          else  (t, {d; f; pred; color; acc})
-        in
-        let t, {d; f; pred; color; acc} =
-          let t = t + 1 in
-          List.fold_left edge
-            (t, {d=Char_map.add u t d; f;
-                 pred; color=Char_map.add u Gray color; acc})
-            (Char_map.find u g)
-        in
-        let t = t + 1 in
-        t , {d; f=(Char_map.add u t f); pred; color=Char_map.add u Black color; acc = fn acc u}
+  let dfs_fold g c fn acc =
+    let rec dfs_visit t u {d; f; pred; color; acc} =
+      let edge (t, state) v =
+        if Char_map.find v state.color = White then
+          dfs_visit t v {state with pred=Char_map.add v u state.pred;}
+        else  (t, state)
       in
-      if Char_map.find u color = White then dfs_visit t u {d; f; pred; color; acc}
-      else (t, {d; f; pred; color; acc})
+      let t, {d; f; pred; color; acc} =
+        let t = t + 1 in
+        List.fold_left edge
+          (t, {d=Char_map.add u t d; f;
+               pred; color=Char_map.add u Gray color; acc = fn acc u})
+          (Char_map.find u g)
+      in
+      let t = t + 1 in
+      t , {d; f=(Char_map.add u t f); pred; color=Char_map.add u Black color; acc}
     in
-    let v = List.fold_left (fun k (x, _) -> x::k) [] (Char_map.bindings g) in
+    let v = List.fold_left (fun k (x, _) -> x :: k) [] (Char_map.bindings g) in
     let initial_state= 
-       {d=Char_map.empty;
-        f=Char_map.empty;
-        pred=Char_map.empty;
-        color=List.fold_right (fun x->Char_map.add x White) v Char_map.empty;
-        acc=acc}
+      {d=Char_map.empty;
+       f=Char_map.empty;
+       pred=Char_map.empty;
+       color=List.fold_right (fun x->Char_map.add x White) v Char_map.empty;
+       acc=acc}
     in
-    (snd (List.fold_right node v (0, initial_state))).acc
-
+    (snd (dfs_visit 0 c initial_state)).acc
 end
 
 (* Test *)
 
-let () =
-  let string_of_list 
-      (f:'a -> string) 
-      (l:'a list) : string = 
-    "[" ^ String.concat ";" (List.map f l) ^ "]"  
-  in
+let g = M.of_adjacency
+            ['u', ['v'; 'x'] ;
+             'v',      ['y'] ;
+             'w', ['z'; 'y'] ;
+             'x',      ['v'] ;
+             'y',      ['x'] ;
+             'z',      ['z'] ;
+            ]
 
-  let g =
-       List.fold_right
-          (fun (x, y) -> Char_map.add x y)
-          ['u', ['v'; 'x'] ;
-           'v',      ['y'] ;
-           'w', ['z'; 'y'] ;
-           'x',      ['v'] ;
-           'y',      ['x'] ;
-           'z',      ['z'] ;
-          ]
-          Char_map.empty
-  in
-
-  let l = Dfs.fold (fun acc c -> c :: acc) [] g in
-  print_endline (string_of_list (fun c -> String.make 1 c) l)
+let l = List.rev (M.dfs_fold g 'w' (fun acc c -> c :: acc) [])

@@ -6,7 +6,7 @@ module Dfs = struct
     val fold : ('a -> t -> 'a) -> 'a -> (t list) Node_map.t -> 'a
   end
 
-  module Make (M : Map.OrderedType) = struct
+  module Make (M : Map.OrderedType) : S with type t = M.t = struct
 
       module Node_map = Map.Make (M)
 
