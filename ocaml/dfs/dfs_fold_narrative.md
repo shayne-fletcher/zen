@@ -1,6 +1,6 @@
 # Depth first search
 
-In a depth-first search the idea is to fully explore the edges of the
+In a depth-first search you fully explore the edges of the
 most recently discovered node *v* before 'backtracking' to explore
 edges leaving the node from which *v* was discovered. To do a
 depth-first search means keeping careful track of what vertices have
