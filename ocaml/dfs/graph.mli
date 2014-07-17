@@ -1,5 +1,7 @@
 (**Depth-first order graph traversal. Generalization of the solution
-   accepted to http://ocaml.org/learn/tutorials/99problems.html*)
+   accepted to the
+   '{{:http://ocaml.org/learn/tutorials/99problems.html}99 problems
+   (solved) in OCaml}' page on ocaml.org*)
 
 (**Output signature of the functor [Graph.Make]*)
 module type S = sig
