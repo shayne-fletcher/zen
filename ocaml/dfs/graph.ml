@@ -1,14 +1,24 @@
-module type GRAPH = sig
+(**Depth-first order graph traversal. Generalization of the solution
+   accepted to http://ocaml.org/learn/tutorials/99problems.html*)
+
+module type S = sig
+    (**Vertex representation*)
     type node
+
+    (**Graph representation*)
     type t
+
+    (**Construct a graph from its adjacency-list representation*)
     val of_adjacency : (node * node list) list -> t
+
+    (**Generate a depth-first order graph traversal sequence*)
     val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a -> 'a
   end
 
-module Make (M : Map.OrderedType) : GRAPH with type node = M.t = struct
+module Make (M : Map.OrderedType)(* : S with type node = M.t*) = struct
 
   type node=M.t
-  module Node_map = Map.Make (node)
+  module Node_map = Map.Make (M)
   type t = (node list) Node_map.t
 
   let of_adjacency l = 
@@ -48,12 +58,25 @@ module Make (M : Map.OrderedType) : GRAPH with type node = M.t = struct
        f=Node_map.empty;
        pred=Node_map.empty;
        color=List.fold_right (fun x->Node_map.add x White) v Node_map.empty;
-       acc=acc}
+       acc}
     in
     (snd (dfs_visit 0 c initial_state)).acc
-  end
 
 end
 
-module Graph : GRAPH with type node = char = Make (Char)
+(*
+module Char_graph : GRAPH with type node = char = Make (Char)
 
+(* Test *)
+
+let g = Char_graph.of_adjacency
+            ['u', ['v'; 'x'] ;
+             'v',      ['y'] ;
+             'w', ['z'; 'y'] ;
+             'x',      ['v'] ;
+             'y',      ['x'] ;
+             'z',      ['z'] ;
+            ]
+
+let l = List.rev (Char_graph.dfs_fold g 'w' (fun acc c -> c :: acc) [])
+*)
