@@ -15,7 +15,7 @@ module type S = sig
     val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a -> 'a
   end
 
-module Make (M : Map.OrderedType)(* : S with type node = M.t*) = struct
+module Make (M : Map.OrderedType) : S with type node = M.t = struct
 
   type node=M.t
   module Node_map = Map.Make (M)
