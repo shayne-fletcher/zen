@@ -4,23 +4,49 @@
 #include <boost/next_prior.hpp>
 #include <boost/range.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 
 namespace algo
 {
-  template <class S>
-  S take (std::size_t n, S src)
+  template <class S, class D>
+  D take (std::size_t n, S src, D dst)
   {
     typedef boost::range_iterator<S>::type it_t;
 
     it_t curr = boost::begin (src), last = boost::end (src);
 
-    if (n == 0 || boost::empty (src))
-      return S (last, last);
+    if (n <= 0)
+      return dst;
 
-    S r = take (n-1, S (boost::next (curr), last));
+    if (boost::empty (src))
+      return dst;
 
-    return S (boost::begin (src), boost::end (r));
+    take (n-1, S (boost::next (curr), last), *dst++ = *curr);
+
+    return dst;
+  }
+
+  template <class S, class D>
+  D drop (std::size_t n, S src, D dst)
+  {
+    typedef boost::range_iterator<S>::type it_t;
+
+    it_t curr = boost::begin (src), last = boost::end (src);
+
+    if (n <= 0)
+      {
+        std::copy (boost::begin (src), boost::end (src), dst);
+
+        return dst;
+      }
+
+    if (boost::empty (src))
+      return dst;
+
+    drop (n-1, S (boost::next (curr), last), dst);
+ 
+    return dst;
   }
 
 }//namespace algo
@@ -34,9 +60,9 @@ int main ()
 {
   int data[] = {1, 2, 3, 4};
 
-  std::pair<int const*, int const*> r = 
-    algo::take (2u, std::make_pair (data, data + 4));
-  std::copy (boost::begin (r), boost::end (r), std::ostream_iterator<int>(std::cout, ", "));
+  algo::take (2u, std::make_pair (data, data + 4), std::ostream_iterator<int>(std::cout, ", "));
+  std::cout << std::endl;
+  algo::drop (2u, std::make_pair (data, data + 4), std::ostream_iterator<int>(std::cout, ", "));
 
   return 0;
 }
