@@ -8,7 +8,7 @@
 #include <vector>
 #include <cstdlib>
 
-namespace algo
+namespace range
 {
   //take
 
@@ -82,12 +82,11 @@ namespace algo
     return dst;
   }
   
-}//namespace algo
+}//namespace range
 
 #include <boost/assign/list_of.hpp>
 
 #include <utility>
-#include <algorithm>
 #include <iterator>
 #include <iostream>
 
@@ -105,40 +104,40 @@ int main ()
 
   std::cout << "\ntake ():\n";
 
-  algo::take (0u, src, dst); std::cout << std::endl;
-  algo::take (1u, src, dst); std::cout << std::endl;
-  algo::take (2u, src, dst); std::cout << std::endl;
-  algo::take (3u, src, dst); std::cout << std::endl;
-  algo::take (4u, src, dst); std::cout << std::endl;
-  algo::take (5u, src, dst); std::cout << std::endl;
+  range::take (0u, src, dst); std::cout << std::endl;
+  range::take (1u, src, dst); std::cout << std::endl;
+  range::take (2u, src, dst); std::cout << std::endl;
+  range::take (3u, src, dst); std::cout << std::endl;
+  range::take (4u, src, dst); std::cout << std::endl;
+  range::take (5u, src, dst); std::cout << std::endl;
 
   std::cout << "\ndrop ():\n";
 
-  algo::drop (5u, src, dst); std::cout << std::endl;
-  algo::drop (4u, src, dst); std::cout << std::endl;
-  algo::drop (3u, src, dst); std::cout << std::endl;
-  algo::drop (2u, src, dst); std::cout << std::endl;
-  algo::drop (1u, src, dst); std::cout << std::endl;
-  algo::drop (0u, src, dst); std::cout << std::endl;
+  range::drop (5u, src, dst); std::cout << std::endl;
+  range::drop (4u, src, dst); std::cout << std::endl;
+  range::drop (3u, src, dst); std::cout << std::endl;
+  range::drop (2u, src, dst); std::cout << std::endl;
+  range::drop (1u, src, dst); std::cout << std::endl;
+  range::drop (0u, src, dst); std::cout << std::endl;
 
   std::cout << "\nsplit ():\n\n";
 
-  algo::split (0u, src, dst, dst); std::cout << std::endl;
-  algo::split (1u, src, dst, dst); std::cout << std::endl;
-  algo::split (2u, src, dst, dst); std::cout << std::endl;
-  algo::split (3u, src, dst, dst); std::cout << std::endl;
-  algo::split (4u, src, dst, dst); std::cout << std::endl;
-  algo::split (5u, src, dst, dst); std::cout << std::endl;
+  range::split (0u, src, dst, dst); std::cout << std::endl;
+  range::split (1u, src, dst, dst); std::cout << std::endl;
+  range::split (2u, src, dst, dst); std::cout << std::endl;
+  range::split (3u, src, dst, dst); std::cout << std::endl;
+  range::split (4u, src, dst, dst); std::cout << std::endl;
+  range::split (5u, src, dst, dst); std::cout << std::endl;
 
   std::cout << "\nmerge ():\n\n";
 
   std::vector <int> l=list_of(-1)(2), r=list_of(0)(1);
-  algo::merge (l, r, dst); std::cout << std::endl;
+  range::merge (l, r, dst); std::cout << std::endl;
 
   std::cout << "\nmerge_sort ():\n\n";
 
   int unord[] = {-1, 2, 0, 4, 3, 5};
-  algo::merge_sort (make_pair (unord, unord + 6), dst);
+  range::merge_sort (make_pair (unord, unord + 6), dst);
 
   return 0;
 }
