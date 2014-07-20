@@ -26,7 +26,8 @@ module type MERGESORT = sig
      single sorted sequence e.g. [merge_sort [1; 2; -1; 0; 3]] {i = }
      [[-1; 0; 1; 2; 3]]*)
   val merge_sort : 'a list -> 'a list
-end
+
+  end (*module type MERGESORT*)
 
 module Merge_sort : MERGESORT = struct
 
