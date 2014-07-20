@@ -2,30 +2,30 @@
    algorithm *)
 module type MERGESORT = sig
 
+  val take : int -> 'a list -> 'a list
   (**[take n] applied to a list [xs], returns the prefix of [xs] of
      length [n] or [xs] itself if [n > List.length xs] e.g. [take 2
      [1; 2; 3]] {i = } [[1; 2]]*)
-  val take : int -> 'a list -> 'a list
 
+  val drop : int -> 'a list -> 'a list
   (**[drop n] applied to a list [xs], returns the suffix of [xs] after
      the first [n] elements or, [[]] if [n > List.length xs]
      e.g. [drop 2 [1; 2; 3]] {i = } [[3]]*)
-  val drop : int -> 'a list -> 'a list
 
+  val split : int -> 'a list -> 'a list * 'a list
   (**[split n xs] is equivalent to [take n xs, drop n xs] e.g. [split
      2 [1; 2; 3]] {i = } [([1; 2], [3])]*)
-  val split : int -> 'a list -> 'a list * 'a list
 
+  val merge : 'a list -> 'a list -> 'a list
   (**[merge] given two {b sorted} sequences [xs] and [ys] returns a
      single sorted sequence of the elements of [xs] and [ys]
      e.g. [merge [1; 3] [2; 4]] {i = } [[1; 2; 3; 4]]*)
-  val merge : 'a list -> 'a list -> 'a list
 
+  val merge_sort : 'a list -> 'a list
   (**[merge_sort] works by splitting a sequence into two parts,
      recursively sorting the two parts and merging the results into a
      single sorted sequence e.g. [merge_sort [1; 2; -1; 0; 3]] {i = }
      [[-1; 0; 1; 2; 3]]*)
-  val merge_sort : 'a list -> 'a list
 
   end (*module type MERGESORT*)
 
