@@ -6,6 +6,9 @@
 #include <boost/mpl/push_front.hpp>
 #include <boost/mpl/fold.hpp>
 #include <boost/mpl/reverse.hpp>
+#include <boost/mpl/placeholders.hpp>
+
+using namespace boost::mpl::placeholders;
 
 template <class L, class R>
 struct product
@@ -13,17 +16,12 @@ struct product
   struct g {
     template <class AccT, class A>
     struct apply {
-      struct f {
-        template <class AccT, class X>
-        struct apply {
-          typedef typename 
-             boost::mpl::push_front<
-               AccT, boost::mpl::pair <A, X> >::type type;
-        };
-      };
-      typedef typename boost::mpl::fold <R, AccT, f>::type type;
+       typedef typename boost::mpl::fold <
+         R, AccT, boost::mpl::push_front<_1, boost::mpl::pair<A, _2> > 
+         >::type type;
     };
   };
+
   typedef typename boost::mpl::reverse <
     typename boost::mpl::fold <L, boost::mpl::vector<>, g>::type>::type type;
 };
