@@ -18,8 +18,7 @@ template <class A, class B>
 struct make_tree
 {
   typedef boost::variant <
-    boost::recursive_wrapper<term <A, B> >,
-    boost::recursive_wrapper<var<B> > >   type;
+    boost::recursive_wrapper<term <A, B> >, var<B> >   type;
 };
 
 template <class A, class B>
