@@ -32,12 +32,7 @@ namespace string_util /*In honor of Stefano :)*/
   template <class RgT>
   std::string concat (std::string const& sep, RgT lst)
   {
-    using boost::empty;
-    using boost::begin;
-    using boost::end;
-
-    if (boost::empty (lst))
-      return std::string ("");
+    if (boost::empty (lst)) return "";
 
     std::size_t num = 0, len = 0;
     std::accumulate (
