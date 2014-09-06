@@ -5,6 +5,7 @@
 #include <boost/range.hpp>
 #include <boost/assign/list_of.hpp>
 
+#include <iterator>
 #include <iostream>
 #include <list>
 #include <string>
@@ -123,11 +124,16 @@ namespace {
     template <class A, class B>
     std::string operator()(term<A, B> const& t) const 
     {
-      return "(" + std::accumulate (
-         t.children.begin (), t.children.end(), t.a, 
-         [](std::string const& acc, typename make_tree<A, B>::type const& x) {
-           return acc + boost::apply_visitor(string_of_term_visitor(), x) + ",";
-         }) + ")";
+      std::list <std::string> lst;
+      std::transform (
+         t.children.begin (), t.children.end(), 
+         std::back_inserter (lst), 
+         [&](typename make_tree<A, B>::type const& child) 
+         { 
+           return boost::apply_visitor (string_of_term_visitor (), child); 
+         });
+
+      return t.a + "(" + string_util::concat (std::string (","), lst) + ")";
     }
   };
 
@@ -153,10 +159,5 @@ int main ()
 
   std::cout << string_of_term (t) << std::endl;
 
-  std::list <std::string> l = boost::assign::list_of ("foo")("bar")("baz");
-
-  std::string r = string_util::concat (std::string (","), l);
-  std::cout << r << std::endl;
-  
   return 0;
 }
