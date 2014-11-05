@@ -84,3 +84,42 @@ let standard_deviation t =
  let av = arithmetic_mean t in
  let squared_diffs = List.fold_left (fun acc xi -> ((xi -. av) *. (xi -. av)) :: acc) [] t
  in sqrt (arithmetic_mean squared_diffs)
+
+let unbiased_standard_deviation t =
+  (*http://en.wikipedia.org/wiki/Unbiased_estimation_of_standard_deviation
+
+    In statistics and in particular statistical theory, unbiased
+    estimation of a standard deviation is the calculation from a
+    statistical sample of an estimated value of the standard deviation
+    (a measure of statistical dispersion) of a population of values,
+    in such a way that the expected value of the calculation equals
+    the true value.
+
+  *)
+ let av = arithmetic_mean t in
+ let squared_diffs = List.fold_left (fun acc xi -> ((xi -. av) *. (xi -. av)) :: acc) [] t
+ in sqrt ((sum squared_diffs)/.((float_of_int (List.length t)) -. 1.0))
+
+let correlation_coefficient x y =
+  (*http://en.wikipedia.org/wiki/Correlation_and_dependence
+
+    The most familiar measure of dependence between two quantities is
+    the Pearson product-moment correlation coefficient, or "Pearson's
+    correlation coefficient", commonly called simply "the correlation
+    coefficient". It is obtained by dividing the covariance of the two
+    variables by the product of their standard deviations.  
+  *) 
+
+  let x_b = arithmetic_mean x in
+  let y_b = arithmetic_mean y in
+  let s_x = unbiased_standard_deviation x in
+  let s_y = unbiased_standard_deviation y in
+
+  if s_x = 0. || s_y = 0. then 0.
+  else
+    let f acc x_i y_i =
+      acc +. ((x_i -. x_b) *. (y_i -. y_b)) in
+    let n = float_of_int (List.length x) in
+    let s = List.fold_left2 f 0.0 x y  in
+    s/.((n -. 1.) *. s_x *. s_y)
+
