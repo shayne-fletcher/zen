@@ -26,5 +26,5 @@ let rec collect f i n =
     collect f (i + 1) n
 ;;
 
-let () = collect range 10 17;;
+let () = collect range2 10 17;;
 
