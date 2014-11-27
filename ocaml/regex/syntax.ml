@@ -4,18 +4,16 @@ module Int_set : Set.S = Set.Make (
     let compare = Pervasives.compare
   end)
 
-type int_set = Int_set.t
-
-type regexpr =
+type regular_expression =
   | Epsilon
-  | Symbol of char * int
-  | Star of regexpr * pos
-  | Or of regexpr * regexpr * pos
-  | Seq of regexpr * regexpr * pos
+  | Character of char * int
+  | Sequence of regexpr * regexpr * pos
+  | Alternative of regexpr * regexpr * pos
+  | Repetition of regexpr * pos
   | Accept of int
    and pos =
      {
-       null : bool;
+       null : Int_set.t;
        first : Int_set.t;
        last : Int_set.t;
      }
