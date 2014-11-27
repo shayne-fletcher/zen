@@ -7,9 +7,9 @@ module Int_set : Set.S = Set.Make (
 type regular_expression =
   | Epsilon
   | Character of char * int
-  | Sequence of regexpr * regexpr * pos
-  | Alternative of regexpr * regexpr * pos
-  | Repetition of regexpr * pos
+  | Sequence of regular_expression * regular_expression * pos
+  | Alternative of regular_expression * regular_expression * pos
+  | Repetition of regular_expression * pos
   | Accept of int
    and pos =
      {

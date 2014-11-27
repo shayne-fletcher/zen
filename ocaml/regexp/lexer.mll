@@ -18,7 +18,7 @@ rule main = parse
   | [^ '\\' '|' '*' '?' '+' '(' ')']
     { Tchar(Char.code(Lexing.lexeme_char lexbuf 0)) }
   | '\\' ['\\' '|' '*' '?' '+' '(' ')']
-    { Tchar (Char.code(Lexing.lexeme_char lexbuf 1))) }
+    { Tchar (Char.code(Lexing.lexeme_char lexbuf 1)) }
   | '|'  { Tor }
   | '*'  { Tstar }
   | '?'  { Tmaybe }

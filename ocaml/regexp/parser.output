@@ -1,0 +1,184 @@
+   0  $accept : %entry% $end
+
+   1  main : regexp Tend
+
+   2  regexp : Tchar
+   3         | regexp Tstar
+   4         | regexp Tmaybe
+   5         | regexp Tplus
+   6         | regexp Tor regexp
+   7         | regexp regexp
+   8         | Tlparen regexp Trparen
+
+   9  %entry% : '\001' main
+
+state 0
+	$accept : . %entry% $end  (0)
+
+	'\001'  shift 1
+	.  error
+
+	%entry%  goto 2
+
+
+state 1
+	%entry% : '\001' . main  (9)
+
+	Tchar  shift 3
+	Tlparen  shift 4
+	.  error
+
+	main  goto 5
+	regexp  goto 6
+
+
+state 2
+	$accept : %entry% . $end  (0)
+
+	$end  accept
+
+
+state 3
+	regexp : Tchar .  (2)
+
+	.  reduce 2
+
+
+state 4
+	regexp : Tlparen . regexp Trparen  (8)
+
+	Tchar  shift 3
+	Tlparen  shift 4
+	.  error
+
+	regexp  goto 7
+
+
+state 5
+	%entry% : '\001' main .  (9)
+
+	.  reduce 9
+
+
+state 6
+	main : regexp . Tend  (1)
+	regexp : regexp . Tstar  (3)
+	regexp : regexp . Tmaybe  (4)
+	regexp : regexp . Tplus  (5)
+	regexp : regexp . Tor regexp  (6)
+	regexp : regexp . regexp  (7)
+
+	Tchar  shift 3
+	Tend  shift 8
+	Tor  shift 9
+	Tstar  shift 10
+	Tmaybe  shift 11
+	Tplus  shift 12
+	Tlparen  shift 4
+	.  error
+
+	regexp  goto 13
+
+
+state 7
+	regexp : regexp . Tstar  (3)
+	regexp : regexp . Tmaybe  (4)
+	regexp : regexp . Tplus  (5)
+	regexp : regexp . Tor regexp  (6)
+	regexp : regexp . regexp  (7)
+	regexp : Tlparen regexp . Trparen  (8)
+
+	Tchar  shift 3
+	Tor  shift 9
+	Tstar  shift 10
+	Tmaybe  shift 11
+	Tplus  shift 12
+	Tlparen  shift 4
+	Trparen  shift 14
+	.  error
+
+	regexp  goto 13
+
+
+state 8
+	main : regexp Tend .  (1)
+
+	.  reduce 1
+
+
+state 9
+	regexp : regexp Tor . regexp  (6)
+
+	Tchar  shift 3
+	Tlparen  shift 4
+	.  error
+
+	regexp  goto 15
+
+
+state 10
+	regexp : regexp Tstar .  (3)
+
+	.  reduce 3
+
+
+state 11
+	regexp : regexp Tmaybe .  (4)
+
+	.  reduce 4
+
+
+state 12
+	regexp : regexp Tplus .  (5)
+
+	.  reduce 5
+
+
+state 13
+	regexp : regexp . Tstar  (3)
+	regexp : regexp . Tmaybe  (4)
+	regexp : regexp . Tplus  (5)
+	regexp : regexp . Tor regexp  (6)
+	regexp : regexp . regexp  (7)
+	regexp : regexp regexp .  (7)
+
+	Tchar  shift 3
+	Tstar  shift 10
+	Tmaybe  shift 11
+	Tplus  shift 12
+	Tlparen  shift 4
+	Tend  reduce 7
+	Tor  reduce 7
+	Trparen  reduce 7
+
+	regexp  goto 13
+
+
+state 14
+	regexp : Tlparen regexp Trparen .  (8)
+
+	.  reduce 8
+
+
+state 15
+	regexp : regexp . Tstar  (3)
+	regexp : regexp . Tmaybe  (4)
+	regexp : regexp . Tplus  (5)
+	regexp : regexp . Tor regexp  (6)
+	regexp : regexp Tor regexp .  (6)
+	regexp : regexp . regexp  (7)
+
+	Tchar  shift 3
+	Tstar  shift 10
+	Tmaybe  shift 11
+	Tplus  shift 12
+	Tlparen  shift 4
+	Tend  reduce 6
+	Tor  reduce 6
+	Trparen  reduce 6
+
+	regexp  goto 13
+
+
+14 terminals, 4 nonterminals
+10 grammar rules, 16 states
