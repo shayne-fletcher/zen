@@ -131,9 +131,12 @@ let parse_augmented_regexp s =
   let count = generate_label () in
   (re2, count)
 
-let string_of_int_set s =
-  let f i acc = (string_of_int i) :: acc in
+let string_of_set f s =
+  let f i acc = (f i) :: acc in
   "[" ^ String.concat "," (List.rev (Int_set.fold f s [])) ^ "]"
+
+let string_of_list f l =
+  "[" ^ String.concat ";" (List.map f l) ^ "]"
 
 let string_of_array f arr =
   "[|" ^ String.concat ";" (List.map f (Array.to_list arr)) ^ "|]"
@@ -141,7 +144,7 @@ let string_of_array f arr =
 let rec string_of_augmented_regexp x =
   let string_of_pos (p:pos) =
     let {null; first; last} = p in
-    Printf.sprintf "{null=%b;first=%s;last=%s}" (null) (string_of_int_set (first)) (string_of_int_set (last)) in
+    Printf.sprintf "{null=%b;first=%s;last=%s}" (null) (string_of_set string_of_int first) (string_of_set string_of_int last) in
   match x with
   | Epsilon -> "Epsilon"
   | Character (c, i) -> Printf.sprintf "Character ('%c', %d)" c i
@@ -178,4 +181,25 @@ let regexp_follow s =
   (re, follow, chars)
 
 let string_of_follow_result (e, follow, chars) =
-  Printf.sprintf "%s,\n%s, %s" (string_of_augmented_regexp e) (string_of_array string_of_int_set follow) (string_of_array (fun maybe_c -> match maybe_c with | None -> "None" | Some c -> "Some '"^String.make 1 c^"'") chars)
+  Printf.sprintf "%s,\n%s, %s" 
+    (string_of_augmented_regexp e) 
+    (string_of_array (string_of_set string_of_int) follow) 
+    (string_of_array (function | None -> "None" | Some c -> "Some '"^String.make 1 c^"'") chars)
+
+type state = {
+  pos : Int_set.t;
+  mutable trans : transitions ;
+} and
+transitions = (char * state) list
+
+let partition chars s =
+  let f acc c =
+    match c with
+    | Some _ ->
+      let f i acc =
+        if chars.(i) <> c then acc else Int_set.add i acc in
+      let s' =  Int_set.fold f s (Int_set.empty) in
+      (c, s') :: acc
+    | None -> (c, Int_set.empty) :: acc in
+  Array.fold_left f [] chars
+  
