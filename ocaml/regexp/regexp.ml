@@ -1,5 +1,3 @@
-(*include Syntax*)
-
 let rec string_of_regexp re =
   match re with
   | Syntax.Epsilon -> "Epsilon"
@@ -133,11 +131,15 @@ let parse_augmented_regexp s =
   let count = generate_label () in
   (re2, count)
 
+let string_of_int_set s =
+  let f i acc = (string_of_int i) :: acc in
+  "[" ^ String.concat "," (List.rev (Int_set.fold f s [])) ^ "]"
+
+let string_of_array f arr =
+  "[|" ^ String.concat ";" (List.map f (Array.to_list arr)) ^ "|]"
+
 let rec string_of_augmented_regexp x =
   let string_of_pos (p:pos) =
-    let string_of_int_set s =
-      let f i acc = (string_of_int i) :: acc in
-      "[" ^ String.concat "," (List.rev (Int_set.fold f s [])) ^ "]" in
     let {null; first; last} = p in
     Printf.sprintf "{null=%b;first=%s;last=%s}" (null) (string_of_int_set (first)) (string_of_int_set (last)) in
   match x with
@@ -147,3 +149,33 @@ let rec string_of_augmented_regexp x =
   | Alternative (x, y, p) -> Printf.sprintf "Alternative (%s, %s, %s)" (string_of_augmented_regexp x) (string_of_augmented_regexp y) (string_of_pos p) 
   | Repetition (x, p) -> Printf.sprintf "Repetition (%s, %s)" (string_of_augmented_regexp x) (string_of_pos p) 
   | Accept i -> Printf.sprintf "Accept %d" i
+
+let compute_follow follow chars (x:augmented_regexp) =
+  let rec compute x = 
+    match x with
+    | Sequence (e1, e2, p) ->
+      compute e1; compute e2;
+      let first2 = first_pos e2 in
+      let f i =
+        follow.(i) <- Int_set.union first2 (follow.(i)) in
+      Int_set.iter f (last_pos e1)
+    | Repetition (e, p) ->
+      compute e;
+      let f i =
+        follow.(i) <- Int_set.union (p.first) (follow.(i)) in
+      Int_set.iter f (p.last)
+    | Alternative (e1, e2, p) -> compute e1; compute e2
+    | Epsilon -> ()
+    | Accept i -> chars.(i) <- None
+    | Character (c, i) -> chars.(i) <- Some c in
+  compute x
+
+let regexp_follow s = 
+  let re, n = parse_augmented_regexp s in
+  let follow = Array.make n (Int_set.empty) in
+  let chars = Array.make n None in
+  compute_follow follow chars re;
+  (re, follow, chars)
+
+let string_of_follow_result (e, follow, chars) =
+  Printf.sprintf "%s,\n%s, %s" (string_of_augmented_regexp e) (string_of_array string_of_int_set follow) (string_of_array (fun maybe_c -> match maybe_c with | None -> "None" | Some c -> "Some '"^String.make 1 c^"'") chars)
