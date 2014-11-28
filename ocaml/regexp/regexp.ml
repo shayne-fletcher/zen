@@ -50,7 +50,7 @@ and pos = {
 
 let reset_label, generate_label =
  let r = ref (-1) in
- ((fun () -> r := 0), (fun () -> r := !r + 1; !r))
+ ((fun () -> r := (-1)), (fun () -> r := !r + 1; !r))
 
 let null_pos x =
   match x with
@@ -112,27 +112,34 @@ let accept (e:augmented_regexp) =
 let rec augmented_regexp (x:Syntax.regular_expression) =
   match x with
   | Syntax.Epsilon -> epsilon ()
-  | Syntax.Character i -> character (Char.chr i)
-  | Syntax.Sequence (x, y) ->
-    let x' = augmented_regexp x 
-    and y' = augmented_regexp y in
+  | Syntax.Character i ->  character (Char.chr i)
+  | Syntax.Sequence (x, y) -> 
+    (*Be very careful here. Evaluation order matters!*)
+    let x' = (augmented_regexp x)
+    and y' = (augmented_regexp y) in
     sequence x' y'
-  | Syntax.Alternative (x, y) ->
-    let x' = augmented_regexp x 
-    and y' = augmented_regexp y in
+  | Syntax.Alternative (x, y) -> 
+    (*Be very careful here. Evaluation order matters!*)
+    let x' = (augmented_regexp x)
+    and y' = (augmented_regexp y) in
     alternative x' y'
-  | Syntax.Repetition x ->    
-    let x' = augmented_regexp x in
-    repetition x' 
+  | Syntax.Repetition x -> repetition (augmented_regexp x)
 
-let string_of_pos (p:pos) =
-  let string_of_int_set s =
-    let f i acc = (string_of_int i) :: acc in
-    "[" ^ String.concat "," (List.rev (Int_set.fold f s [])) ^ "]" in
-  let {null; first; last} = p in
-  Printf.sprintf "{null=%b;first=%s;last=%s}" (null) (string_of_int_set (first)) (string_of_int_set (last))
+let parse_augmented_regexp s =
+  let () = reset_label () in
+  let ast = regexp_of_string s in
+  let re1 = augmented_regexp ast in
+  let re2 = accept  re1 in
+  let count = generate_label () in
+  (re2, count)
 
 let rec string_of_augmented_regexp x =
+  let string_of_pos (p:pos) =
+    let string_of_int_set s =
+      let f i acc = (string_of_int i) :: acc in
+      "[" ^ String.concat "," (List.rev (Int_set.fold f s [])) ^ "]" in
+    let {null; first; last} = p in
+    Printf.sprintf "{null=%b;first=%s;last=%s}" (null) (string_of_int_set (first)) (string_of_int_set (last)) in
   match x with
   | Epsilon -> "Epsilon"
   | Character (c, i) -> Printf.sprintf "Character ('%c', %d)" c i
