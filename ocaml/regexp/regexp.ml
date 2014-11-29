@@ -1,3 +1,5 @@
+(*val string_of_regexp : Syntax.regular_expression -> string*)
+
 let rec string_of_regexp re =
   match re with
   | Syntax.Epsilon -> "Epsilon"
@@ -5,6 +7,8 @@ let rec string_of_regexp re =
   | Syntax.Sequence (p, q) -> Printf.sprintf "Sequence (%s, %s)" (string_of_regexp p) (string_of_regexp q)
   | Syntax.Alternative (p, q) -> Printf.sprintf "Alternative (%s, %s)" (string_of_regexp p) (string_of_regexp q)
   | Syntax.Repetition r -> Printf.sprintf "Repetition (%s)" (string_of_regexp r)
+
+(*val regexp_of_string : string -> Syntax.regular_expression*)
 
 let regexp_of_string s =
   let parse_buf lexbuf =
@@ -50,6 +54,8 @@ let reset_label, generate_label =
  let r = ref (-1) in
  ((fun () -> r := (-1)), (fun () -> r := !r + 1; !r))
 
+(*val null_pos : augmented_regexp -> bool*)
+
 let null_pos x =
   match x with
   | Epsilon -> true
@@ -58,6 +64,8 @@ let null_pos x =
   | Alternative (_, _, p) -> p.null
   | Repetition (_, p) -> p.null
   | Accept _ -> false
+
+(*val first_pos : augmented_regexp -> Int_set.t*)
 
 let first_pos x =
   match x with
@@ -68,6 +76,8 @@ let first_pos x =
   | Sequence (_, _, p) -> p.first
   | Accept i -> Int_set.add i (Int_set.empty)
 
+(*val last_pos : augmented_regexp -> Int_set.t*)
+
 let last_pos x =
   match x with
   | Epsilon -> Int_set.empty
@@ -77,20 +87,30 @@ let last_pos x =
   | Sequence (_, _, p) -> p.last
   | Accept i -> Int_set.add i (Int_set.empty)
 
+(*val epsilon : unit -> augmented_regexp*)
+
 let epsilon () = 
   Epsilon
+
+(*val character : char -> augmented_regexp*)
 
 and character c = 
   Character (c, generate_label ())
 
+(*val repetition : augmented_regexp -> augmented_regexp*)
+
 and repetition e = 
   Repetition (e, {null=true;first=first_pos e; last=last_pos e})
 
+(*val alternative : augmented_regexp -> augmented_regexp -> augmented_regexp*)
+    
 and alternative e1 e2 = 
   Alternative (e1, e2, 
                {null=null_pos e1 || null_pos e2;
                 first=Int_set.union (first_pos e1)(first_pos e2); 
                 last=Int_set.union (last_pos e1) (last_pos e2)})
+
+(*val sequence : augmented_regexp -> augmented_regexp -> augmented_regexp*)
 
 and sequence e1 e2 = 
   let b1 = null_pos e1 
@@ -104,8 +124,12 @@ and sequence e1 e2 =
                 if b2 then Int_set.union (last_pos e1) (last_pos e2)
                 else last_pos e2})
 
+(*val accept : augmented_regexp -> augmented_regexp*)
+
 let accept (e:augmented_regexp) = 
   sequence e (Accept (generate_label ()))
+
+(*val augmented_regexp : Syntax.regular_expression -> augmented_regexp*)
 
 let rec augmented_regexp (x:Syntax.regular_expression) =
   match x with
@@ -123,6 +147,8 @@ let rec augmented_regexp (x:Syntax.regular_expression) =
     alternative x' y'
   | Syntax.Repetition x -> repetition (augmented_regexp x)
 
+(*val parse_augmented_regexp : string -> augmented_regexp * int*)
+
 let parse_augmented_regexp s =
   let () = reset_label () in
   let ast = regexp_of_string s in
@@ -131,15 +157,23 @@ let parse_augmented_regexp s =
   let count = generate_label () in
   (re2, count)
 
+(*val string_of_set : (Int_set.elt -> string) -> Int_set.t -> string*)
+
 let string_of_set f s =
   let f i acc = (f i) :: acc in
   "[" ^ String.concat "," (List.rev (Int_set.fold f s [])) ^ "]"
 
+(*val string_of_list : ('a -> string) -> 'a list -> string*)
+
 let string_of_list f l =
   "[" ^ String.concat ";" (List.map f l) ^ "]"
 
+(*val string_of_array : ('a -> string) -> 'a array -> string*)
+
 let string_of_array f arr =
   "[|" ^ String.concat ";" (List.map f (Array.to_list arr)) ^ "|]"
+
+(*val string_of_augmented_regexp : augmented_regexp -> string*)
 
 let rec string_of_augmented_regexp x =
   let string_of_pos (p:pos) =
@@ -152,6 +186,8 @@ let rec string_of_augmented_regexp x =
   | Alternative (x, y, p) -> Printf.sprintf "Alternative (%s, %s, %s)" (string_of_augmented_regexp x) (string_of_augmented_regexp y) (string_of_pos p) 
   | Repetition (x, p) -> Printf.sprintf "Repetition (%s, %s)" (string_of_augmented_regexp x) (string_of_pos p) 
   | Accept i -> Printf.sprintf "Accept %d" i
+
+(*val compute_follow : Int_set.t array -> char option array -> augmented_regexp -> unit*)
 
 let compute_follow follow chars (x:augmented_regexp) =
   let rec compute x = 
@@ -173,12 +209,16 @@ let compute_follow follow chars (x:augmented_regexp) =
     | Character (c, i) -> chars.(i) <- Some c in
   compute x
 
+(*val regexp_follow : string -> augmented_regexp * Int_set.t array * char option array*)
+
 let regexp_follow s = 
   let re, n = parse_augmented_regexp s in
   let follow = Array.make n (Int_set.empty) in
   let chars = Array.make n None in
   compute_follow follow chars re;
   (re, follow, chars)
+
+(*val string_of_follow_result : augmented_regexp * Int_set.t array * char option array -> string*)
 
 let string_of_follow_result (e, follow, chars) =
   Printf.sprintf "%s,\n%s, %s" 
@@ -192,14 +232,99 @@ type state = {
 } and
 transitions = (char * state) list
 
+let string_of_transition (c, st) =
+  Printf.sprintf "'%c' -> %s" c (string_of_set string_of_int st.pos)
+let string_of_transitions l =
+  "[" ^ String.concat " or " (List.map string_of_transition l) ^ "]"
+let string_of_state s =
+  Printf.sprintf "{pos=%s;trans=%s}\n" (string_of_set string_of_int s.pos) (string_of_transitions (s.trans))
+
+(*val partition : char option array -> Int_set.t -> (char option * Int_set.t) list*)
+
 let partition chars s =
   let f acc c =
     match c with
     | Some _ ->
-      let f i acc =
-        if chars.(i) <> c then acc else Int_set.add i acc in
-      let s' =  Int_set.fold f s (Int_set.empty) in
-      (c, s') :: acc
-    | None -> (c, Int_set.empty) :: acc in
-  Array.fold_left f [] chars
-  
+      if List.mem_assoc c acc then acc 
+      else
+        let f i acc = if chars.(i) <> c then acc else Int_set.add i acc in
+        let s' =  Int_set.fold f s (Int_set.empty) in
+        (c, s') :: acc
+    | None -> if List.mem_assoc c acc then acc else (c, Int_set.empty) :: acc in
+  List.rev (Array.fold_left f [] chars)
+
+(*val list_of_set : Int_set.t -> Int_set.elt list*)
+
+let list_of_set s =
+  let f e acc = e :: acc in
+  List.rev (Int_set.fold f s [])
+
+(*val accessible : state -> Int_set.t array -> char option array -> (char * Int_set.t) list*)
+
+let accessible s follow chars =
+  let part = partition chars s.pos in
+  let f p rest =
+    match p with
+    | (Some c, l) -> 
+      (c,
+       List.fold_left 
+         (Int_set.union) 
+         (Int_set.empty) 
+         (List.map (Array.get follow) (list_of_set l))
+      ) :: rest
+    | _ -> rest  in
+  List.fold_right f part []
+
+(*val find_state : Int_set.t -> state list -> state list -> state*)
+
+let find_state s l m =
+  let test e = e.pos = s in
+  try
+    List.find test l
+  with
+  | Not_found -> List.find test m
+
+(*val compute_states : state list -> state list -> Int_set.t array -> char option array -> state array*)
+
+let rec compute_states marked unmarked follow chars =
+  match unmarked with
+  | [] -> Array.of_list marked
+  | st :: umsts ->
+    let access = accessible st follow chars in
+    let marked1 = st :: marked in
+    let f (c, s) umsts =
+      if Int_set.is_empty s then 
+        umsts (*Suppress empty sets*)
+      else
+        try
+          st.trans <- (c, find_state s marked1 umsts) ::st.trans ;
+          umsts
+        with
+        | Not_found -> 
+          let state1 = {pos = s; trans = []} in
+          st.trans <- (c, state1) :: st.trans;
+          state1 :: umsts in
+    let unmarked1 = List.fold_right f access umsts in
+    compute_states marked1 unmarked1 follow chars
+
+(*val array_indexq : 'a array -> 'a -> int*)
+
+let array_indexq arr e =
+  let rec loop i =
+    if i = Array.length arr then
+      raise (Not_found)
+    else if Array.get arr i == e then i
+    else loop (i + 1) in
+  loop 0
+
+(*val dfa_of : augmented_regexp * Int_set.t array * char option array -> state array*)
+
+let dfa_of (e, follow, chars) =
+  let init_state = {pos = first_pos e; trans = []} in
+  let dfa = compute_states [] [init_state] follow chars in
+  (*Installing initial state at index 0*)
+  let idx_start = array_indexq dfa init_state in
+  dfa.(idx_start) <- dfa.(0);
+  dfa.(0) <- init_state;
+  dfa
+
