@@ -1,4 +1,4 @@
-open Regexp
+(*open Regexp*)
 
 (*
 let chars = Array.of_list [Some 'a'; Some 'b'; Some 'a'; Some 'b'; Some 'b'; None]
@@ -10,6 +10,25 @@ let string_of_pair (ch, s') =
 let () = Printf.printf "%s" (string_of_list string_of_pair (partition chars s))
 *)
 
+let explode s =
+  let n = String.length s in
+  let rec loop acc i =
+    if i = n then List.rev acc
+    else loop (String.get s i :: acc) (i + 1) in
+  loop [] 0
+
+let implode l =
+  let n = List.length l in
+  let buf = Bytes.create n in
+  let f i c = Bytes.set buf i c in
+  List.mapi f l ; Bytes.to_string buf
+
+type 'a recognizer =
+| Remans of 'a list
+| Fails
+
+
+(*
 let _ = 
   let s = "(a|b)*abb" in
   try 
@@ -18,3 +37,4 @@ let _ =
   with 
   | Failure msg -> print_endline msg
 
+*)
