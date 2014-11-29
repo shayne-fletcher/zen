@@ -1,4 +1,4 @@
-#rm *.obj *.cmx *.cmi *~ parser.ml parser.mli lexer.ml
+rm *.obj *.cmx *.cmi *~ parser.ml parser.mli lexer.ml
 
 ocamllex lexer.mll
 ocamlyacc parser.mly
