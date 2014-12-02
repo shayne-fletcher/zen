@@ -26,13 +26,17 @@ module type S = sig
      argument*)
   val recognizer_of_char : 'a -> 'a recognizer
 
+  (**Kleene star recognizers*)
+  val zero_or_more : 'a recognizer -> 'a recognizer
+  val one_or_more : 'a recognizer -> 'a recognizer
+
   (**Recognizer disjunction*)
   val compose_or : 'a recognizer -> 'a recognizer -> 'a recognizer
+  val compose_or_list : 'a recognizer -> 'a recognizer list -> 'a recognizer
 
   (**Recognizer conjunction*)
   val compose_and : 'a recognizer -> 'a recognizer -> 'a recognizer
-
-  (**Kleene star recognizer*)
-  val zero_or_more : 'a recognizer -> 'a recognizer
+  val compose_and_list : 'a recognizer list -> 'a recognizer(**Note that the **)
+  (**conjunction of an empty list is taken to be the recognizer [epsilon]*)
 
 end

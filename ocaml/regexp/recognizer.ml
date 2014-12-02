@@ -24,4 +24,11 @@ let compose_and r1 r2 = fun toks ->
   | Remains toks1 -> r2 toks1
   | _ -> Recognition_fails
 
+let compose_or_list r rl = List.fold_right compose_or rl r
+
+let compose_and_list rl = List.fold_left compose_and epsilon rl
+
 let rec zero_or_more r = compose_or (compose_and r (zero_or_more r)) epsilon
+
+let rec one_or_more r = compose_and r (zero_or_more r)
+
