@@ -328,83 +328,22 @@ let dfa_of (e, follow, chars) =
   dfa.(0) <- init_state;
   dfa
 
-let explode s =
-  let n = String.length s in
-  let rec loop acc i =
-    if i = n then List.rev acc
-    else loop (String.get s i :: acc) (i + 1) in
-  loop [] 0
-
-let implode l =
-  let n = List.length l in
-  let buf = Bytes.create n in
-  let f i c = Bytes.set buf i c in
-  List.iteri f l ; Bytes.to_string buf
-
-type parsed =
-  | Returns of char option* (char list)
-  | Analyze_fails
-
-type parser = char list -> parsed
-
-let (token : (char -> char option) -> parser) =
-  let f test l =
-    match l with
-    | (t :: ts) -> 
-       begin
-         match test t with
-         | Some r -> Returns (Some r, ts)
-         | None -> Analyze_fails
-       end
-    | _ -> Analyze_fails in
-  f
-
-let end_of_input l = 
-  match l with
-  | [] -> Returns (None, [])
-  | _ -> Analyze_fails
-
-let parser_of_char c = token (fun c' -> if c = c' then Some c else None)
-
-let (or_else : parser -> parser -> parser) =
-  fun p1 p2 toks ->
-  match p1 toks with
-  | Analyze_fails -> p2 toks
-  | Returns (c, cs) -> Returns (c, cs)
-
-let (and_also : parser -> parser -> parser) =
-  fun p1 p2 toks ->
-  match p1 toks with
-  | Analyze_fails -> Analyze_fails
-  | Returns (c, cs) -> p2 cs
-
-(*val epsilon : char list -> parsed*)
-
-let epsilon l = 
-  Printf.printf "epsilon" ;
-  Returns (None, l)
-
-(*val parser_or : parser -> parser list -> parser*)
-
-let parser_or p pl = List.fold_right or_else pl p
-
 let interpret_dfa dfa accept =
+  let open Lexical_analysis in
   let num_states = Array.length dfa in
-  let fvect = 
-    Array.make (num_states) 
-               (fun _ -> failwith "unexpected : no value") in
+  let fvect = Array.make (num_states) (fun _ -> failwith "no value") in
   for i = 0 to num_states - 1 do
     let trans = dfa.(i).trans in
     let f (c, st) =
-      let pc = parser_of_char c in
+      let pc = Recognizer.recognizer_of_char c in
       let j = array_indexq dfa st in
-      and_also pc (fun l -> fvect.(j) l) in
+      Recognizer.compose_and pc (fun l -> fvect.(j) l) in
     let parsers = List.map f trans in
     if Int_set.mem accept (dfa.(i).pos) then
-      fvect.(i) <- parser_or end_of_input parsers
+      fvect.(i) <- Recognizer.compose_or_list (Recognizer.end_of_input) parsers
     else match parsers with
          | [] -> failwith "Impossible"
-         | p :: ps -> fvect.(i) <- parser_or p ps
+         | p :: ps -> fvect.(i) <- Recognizer.compose_or_list p ps
   done;
   fvect.(0)
 
@@ -412,4 +351,4 @@ let compile xpr =
   let ((e, follow, chars) as ast) = regexp_follow xpr in
   let dfa = dfa_of ast in
   let parser = interpret_dfa dfa (Array.length chars - 1) in
-  fun s -> parser (explode s)
+  fun s -> parser (Lexical_analysis.explode s)

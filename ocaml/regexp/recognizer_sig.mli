@@ -18,6 +18,9 @@ module type S = sig
      and no input is ever consumed*)
   val epsilon : 'a recognizer
 
+  (**A recognizer that only recognizes  the empty ['a list].*)
+  val end_of_input : 'a recognizer
+
   (**Given a predicate, 'token' produces the recognizer associated
      with the elements that satisfy this predicate*)
   val recognizer_of_token : ('a -> bool) -> 'a recognizer

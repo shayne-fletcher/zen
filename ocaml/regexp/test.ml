@@ -3,7 +3,7 @@ open Regexp
 let test xpr s = 
   let result = xpr s in
   match result with
-  | Returns (None, []) -> Printf.printf "\"%s\" : success\n" s
+  | Lexical_analysis.Recognizer.Remains [] -> Printf.printf "\"%s\" : success\n" s
   | _ -> Printf.printf "\"%s\" : fail\n" s
 
 let _ = 

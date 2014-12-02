@@ -6,6 +6,10 @@ type 'a recognizer = 'a list -> 'a remaining
 
 let epsilon toks = Remains toks
 
+let end_of_input = function
+  | [] -> Remains []
+  | _ -> Recognition_fails
+
 let recognizer_of_token test = 
   fun toks -> 
     match toks with
