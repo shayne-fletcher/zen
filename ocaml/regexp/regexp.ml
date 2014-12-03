@@ -1,35 +1,31 @@
-(*val string_of_regexp : Syntax.regular_expression -> string*)
+let rec (string_of_regexp : Syntax.regular_expression -> string) = 
+  fun re ->
+    match re with
+    | Syntax.Epsilon -> "Epsilon"
+    | Syntax.Character c -> Printf.sprintf "Character '%c'" (Char.chr c)
+    | Syntax.Sequence (p, q) -> Printf.sprintf "Sequence (%s, %s)" (string_of_regexp p) (string_of_regexp q)
+    | Syntax.Alternative (p, q) -> Printf.sprintf "Alternative (%s, %s)" (string_of_regexp p) (string_of_regexp q)
+    | Syntax.Repetition r -> Printf.sprintf "Repetition (%s)" (string_of_regexp r)
 
-let rec string_of_regexp re =
-  match re with
-  | Syntax.Epsilon -> "Epsilon"
-  | Syntax.Character c -> Printf.sprintf "Character '%c'" (Char.chr c)
-  | Syntax.Sequence (p, q) -> Printf.sprintf "Sequence (%s, %s)" (string_of_regexp p) (string_of_regexp q)
-  | Syntax.Alternative (p, q) -> Printf.sprintf "Alternative (%s, %s)" (string_of_regexp p) (string_of_regexp q)
-  | Syntax.Repetition r -> Printf.sprintf "Repetition (%s)" (string_of_regexp r)
-
-(*val regexp_of_string : string -> Syntax.regular_expression*)
-
-let regexp_of_string s =
-  let parse_buf lexbuf =
-    try 
-      Parser.main Lexer.main lexbuf
-    with 
-    | Parsing.Parse_error ->
-      begin
-        let curr = lexbuf.Lexing.lex_curr_p in
-        let line = curr.Lexing.pos_lnum in
-        let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
-        let tok = Lexing.lexeme lexbuf in
-        raise 
-          (Failure
-             (Printf.sprintf 
-                "file \"<string>\", line %d, character %d\n\
-Error : Syntax error \"%s\"" line cnum tok
-             )
-          )
-      end
-  in parse_buf (Lexing.from_string s)
+let (regexp_of_string : string -> Syntax.regular_expression) =
+  fun s ->
+    let parse_buf lexbuf =
+      try 
+        Parser.main Lexer.main lexbuf
+      with 
+      | Parsing.Parse_error ->
+        begin
+          let curr = lexbuf.Lexing.lex_curr_p in
+          let line = curr.Lexing.pos_lnum in
+          let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
+          let tok = Lexing.lexeme lexbuf in
+          raise (Failure
+                   (Printf.sprintf 
+                    "file \"<string>\", line %d, character %d\n\
+                     Error : Syntax error \"%s\"" line cnum tok
+                 ))
+        end
+    in parse_buf (Lexing.from_string s)
 
 module Int_set : Set.S with type elt = int = Set.Make (
   struct
@@ -54,65 +50,54 @@ let reset_label, generate_label =
  let r = ref (-1) in
  ((fun () -> r := (-1)), (fun () -> r := !r + 1; !r))
 
-(*val null_pos : augmented_regexp -> bool*)
+let (null_pos : augmented_regexp -> bool)  =
+  fun x ->
+    match x with
+    | Epsilon -> true
+    | Character (_, i) -> false
+    | Sequence (_, _, p) -> p.null
+    | Alternative (_, _, p) -> p.null
+    | Repetition (_, p) -> p.null
+    | Accept _ -> false
 
-let null_pos x =
-  match x with
-  | Epsilon -> true
-  | Character (_, i) -> false
-  | Sequence (_, _, p) -> p.null
-  | Alternative (_, _, p) -> p.null
-  | Repetition (_, p) -> p.null
-  | Accept _ -> false
+let (first_pos : augmented_regexp -> Int_set.t) =
+  fun x ->
+    match x with
+    | Epsilon -> Int_set.empty
+    | Character (_, i) -> Int_set.add i (Int_set.empty)
+    | Alternative (_, _, p) -> p.first
+    | Repetition (_, p) -> p.first
+    | Sequence (_, _, p) -> p.first
+    | Accept i -> Int_set.add i (Int_set.empty)
 
-(*val first_pos : augmented_regexp -> Int_set.t*)
+let (last_pos : augmented_regexp -> Int_set.t) =
+  fun x ->
+    match x with
+    | Epsilon -> Int_set.empty
+    | Character (_, i) -> Int_set.add i (Int_set.empty)
+    | Alternative (_, _, p) -> p.last
+    | Repetition (_, p) -> p.last
+    | Sequence (_, _, p) -> p.last
+    | Accept i -> Int_set.add i (Int_set.empty)
 
-let first_pos x =
-  match x with
-  | Epsilon -> Int_set.empty
-  | Character (_, i) -> Int_set.add i (Int_set.empty)
-  | Alternative (_, _, p) -> p.first
-  | Repetition (_, p) -> p.first
-  | Sequence (_, _, p) -> p.first
-  | Accept i -> Int_set.add i (Int_set.empty)
+let (epsilon : unit -> augmented_regexp) = 
+  fun () -> Epsilon
 
-(*val last_pos : augmented_regexp -> Int_set.t*)
+and (character : char -> augmented_regexp) = 
+  fun c ->Character (c, generate_label ())
 
-let last_pos x =
-  match x with
-  | Epsilon -> Int_set.empty
-  | Character (_, i) -> Int_set.add i (Int_set.empty)
-  | Alternative (_, _, p) -> p.last
-  | Repetition (_, p) -> p.last
-  | Sequence (_, _, p) -> p.last
-  | Accept i -> Int_set.add i (Int_set.empty)
+and (repetition : augmented_regexp -> augmented_regexp) = 
+  fun e -> Repetition (e, {null=true;first=first_pos e; last=last_pos e})
 
-(*val epsilon : unit -> augmented_regexp*)
+and (alternative : augmented_regexp -> augmented_regexp -> augmented_regexp)  = 
+  fun e1 e2 ->
+    Alternative (e1, e2, 
+                 {null=null_pos e1 || null_pos e2;
+                  first=Int_set.union (first_pos e1)(first_pos e2); 
+                  last=Int_set.union (last_pos e1) (last_pos e2)})
 
-let epsilon () = 
-  Epsilon
-
-(*val character : char -> augmented_regexp*)
-
-and character c = 
-  Character (c, generate_label ())
-
-(*val repetition : augmented_regexp -> augmented_regexp*)
-
-and repetition e = 
-  Repetition (e, {null=true;first=first_pos e; last=last_pos e})
-
-(*val alternative : augmented_regexp -> augmented_regexp -> augmented_regexp*)
-    
-and alternative e1 e2 = 
-  Alternative (e1, e2, 
-               {null=null_pos e1 || null_pos e2;
-                first=Int_set.union (first_pos e1)(first_pos e2); 
-                last=Int_set.union (last_pos e1) (last_pos e2)})
-
-(*val sequence : augmented_regexp -> augmented_regexp -> augmented_regexp*)
-
-and sequence e1 e2 = 
+and (sequence : augmented_regexp -> augmented_regexp -> augmented_regexp) = 
+  fun e1 e2 ->
   let b1 = null_pos e1 
   and b2 = null_pos e2 in
   Sequence (e1, e2, 
@@ -124,61 +109,43 @@ and sequence e1 e2 =
                 if b2 then Int_set.union (last_pos e1) (last_pos e2)
                 else last_pos e2})
 
-(*val accept : augmented_regexp -> augmented_regexp*)
+let (accept : augmented_regexp -> augmented_regexp) = 
+  fun e -> sequence e (Accept (generate_label ()))
 
-let accept (e:augmented_regexp) = 
-  sequence e (Accept (generate_label ()))
-
-(*val augmented_regexp : Syntax.regular_expression -> augmented_regexp*)
-
-let rec augmented_regexp (x:Syntax.regular_expression) =
-  match x with
-  | Syntax.Epsilon -> epsilon ()
-  | Syntax.Character i ->  character (Char.chr i)
-  | Syntax.Sequence (x, y) -> 
+let rec (augmented_regexp : Syntax.regular_expression -> augmented_regexp) =
+  fun x ->
+    match x with
+    | Syntax.Epsilon -> epsilon ()
+    | Syntax.Character i ->  character (Char.chr i)
+    | Syntax.Sequence (x, y) -> 
     (*Be very careful here. Evaluation order matters!*)
-    let x' = (augmented_regexp x)
-    and y' = (augmented_regexp y) in
-    sequence x' y'
-  | Syntax.Alternative (x, y) -> 
+      let x' = (augmented_regexp x)
+      and y' = (augmented_regexp y) in
+      sequence x' y'
+    | Syntax.Alternative (x, y) -> 
     (*Be very careful here. Evaluation order matters!*)
-    let x' = (augmented_regexp x)
-    and y' = (augmented_regexp y) in
-    alternative x' y'
-  | Syntax.Repetition x -> repetition (augmented_regexp x)
+      let x' = (augmented_regexp x)
+      and y' = (augmented_regexp y) in
+      alternative x' y'
+    | Syntax.Repetition x -> repetition (augmented_regexp x)
 
-(*val parse_augmented_regexp : string -> augmented_regexp * int*)
+let (parse_augmented_regexp : string-> augmented_regexp * int)  =
+  fun s ->
+    let () = reset_label () in
+    let ast = regexp_of_string s in
+    let re1 = augmented_regexp ast in
+    let re2 = accept  re1 in
+    let count = generate_label () in
+    (re2, count)
 
-let parse_augmented_regexp s =
-  let () = reset_label () in
-  let ast = regexp_of_string s in
-  let re1 = augmented_regexp ast in
-  let re2 = accept  re1 in
-  let count = generate_label () in
-  (re2, count)
-
-(*val string_of_set : (Int_set.elt -> string) -> Int_set.t -> string*)
-
-let string_of_set f s =
-  let f i acc = (f i) :: acc in
-  "[" ^ String.concat "," (List.rev (Int_set.fold f s [])) ^ "]"
-
-(*val string_of_list : ('a -> string) -> 'a list -> string*)
-
-let string_of_list f l =
-  "[" ^ String.concat ";" (List.map f l) ^ "]"
-
-(*val string_of_array : ('a -> string) -> 'a array -> string*)
-
-let string_of_array f arr =
-  "[|" ^ String.concat ";" (List.map f (Array.to_list arr)) ^ "|]"
 
 (*val string_of_augmented_regexp : augmented_regexp -> string*)
 
 let rec string_of_augmented_regexp x =
   let string_of_pos (p:pos) =
+    let open Print_utils in
     let {null; first; last} = p in
-    Printf.sprintf "{null=%b;first=%s;last=%s}" (null) (string_of_set string_of_int first) (string_of_set string_of_int last) in
+    Printf.sprintf "{null=%b;first=%s;last=%s}" (null) (string_of_set string_of_int (Int_set.fold) first) (string_of_set string_of_int (Int_set.fold) last) in
   match x with
   | Epsilon -> "Epsilon"
   | Character (c, i) -> Printf.sprintf "Character ('%c', %d)" c i
@@ -221,9 +188,10 @@ let regexp_follow s =
 (*val string_of_follow_result : augmented_regexp * Int_set.t array * char option array -> string*)
 
 let string_of_follow_result (e, follow, chars) =
+  let open Print_utils in
   Printf.sprintf "%s,\n%s, %s" 
     (string_of_augmented_regexp e) 
-    (string_of_array (string_of_set string_of_int) follow) 
+    (string_of_array (string_of_set string_of_int (Int_set.fold)) follow) 
     (string_of_array (function | None -> "None" | Some c -> "Some '"^String.make 1 c^"'") chars)
 
 type state = {
@@ -233,11 +201,11 @@ type state = {
 transitions = (char * state) list
 
 let string_of_transition (c, st) =
-  Printf.sprintf "'%c' -> %s" c (string_of_set string_of_int st.pos)
+  Printf.sprintf "'%c' -> %s" c (Print_utils.string_of_set string_of_int (Int_set.fold) st.pos)
 let string_of_transitions l =
   "[" ^ String.concat " or " (List.map string_of_transition l) ^ "]"
 let string_of_state s =
-  Printf.sprintf "{pos=%s;trans=%s}\n" (string_of_set string_of_int s.pos) (string_of_transitions (s.trans))
+  Printf.sprintf "{pos=%s;trans=%s}\n" (Print_utils.string_of_set string_of_int (Int_set.fold) s.pos) (string_of_transitions (s.trans))
 
 (*val partition : char option array -> Int_set.t -> (char option * Int_set.t) list*)
 
@@ -346,6 +314,8 @@ let interpret_dfa dfa accept =
          | p :: ps -> fvect.(i) <- Recognizer.compose_or_list p ps
   done;
   fvect.(0)
+
+type compiled_regexp = (string -> char Lexical_analysis.Recognizer.remaining)
 
 let compile xpr = 
   let ((e, follow, chars) as ast) = regexp_follow xpr in

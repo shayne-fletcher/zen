@@ -1,5 +1,3 @@
-open Regexp
-
 let test xpr s = 
   let result = xpr s in
   match result with
@@ -8,7 +6,7 @@ let test xpr s =
 
 let _ = 
   try 
-    let xpr = compile "(a|b)*abb" in
+    let xpr = Regexp.compile "(a|b)*abb" in
     Printf.printf "Pattern: \"%s\"\n" "(a|b)*abb" ;
     test xpr "abb" ;
     test xpr "aabb" ;
