@@ -19,4 +19,8 @@ module type S = sig
      that the attempt at recognition failed*)
   module Recognizer : Recognizer_sig.S
 
+  (**An implementation of the character classification functions in
+     the <ctype> header of the C++ standard library*)
+  module C_type : C_type_sig.S
+
 end

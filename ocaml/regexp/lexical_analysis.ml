@@ -1,6 +1,3 @@
-module Analyzer : Analyzer_sig.S = Analyzer
-module Recognizer : Recognizer_sig.S = Recognizer
-
 let explode s =
   let n = String.length s in
   let rec loop acc i =
@@ -13,3 +10,7 @@ let implode l =
   let buf = Bytes.create n in
   let f i c = Bytes.set buf i c in
   List.iteri f l ; Bytes.to_string buf
+
+module Analyzer : Analyzer_sig.S = Analyzer
+module Recognizer : Recognizer_sig.S = Recognizer
+module C_type : C_type_sig.S = C_type

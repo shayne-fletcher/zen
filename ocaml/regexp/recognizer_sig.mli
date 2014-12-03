@@ -42,4 +42,43 @@ module type S = sig
   val compose_and_list : 'a recognizer list -> 'a recognizer(**Note that the **)
   (**conjunction of an empty list is taken to be the recognizer [epsilon]*)
 
+  (**{2 Character classification functions}*)
+
+  (**A predicate to test whether a character belongs to the union of
+     closed intervals of characters*)
+  val char_range : char -> (char * char) list -> bool
+
+  (**Check if character is a decimal digit*)
+  val isdigit : char -> bool
+
+  (**Check if character is alphabetic*)
+  val isalpha : char -> bool
+
+  (**Check if character is alphanumeric*)
+  val isalnum : char -> bool
+
+  (**Check if charcter is a blank*)
+  val isblank : char -> bool
+
+  (**Check if charcter is a control character*)
+  val iscntrl : char -> bool
+
+  (**Check if charcter is a printable character*)
+  val isprint : char -> bool
+
+  (**Check if charcter has a graphical representation*)
+  val isgraph : char -> bool
+
+  (**Check if charcter is a lower case letter*)
+  val islower : char -> bool
+
+  (**Check if charcter is a upper case letter*)
+  val isupper : char -> bool
+
+  (**Check if charcter is a white-space*)
+  val isspace : char -> bool
+
+  (**Check if charcter is a hexadecimal digit*)
+  val isxdigit : char -> bool
+
 end

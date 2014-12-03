@@ -1,8 +1,7 @@
 let test xpr s = 
-  let result = xpr s in
-  match result with
-  | Lexical_analysis.Recognizer.Remains [] -> Printf.printf "\"%s\" : success\n" s
-  | _ -> Printf.printf "\"%s\" : fail\n" s
+  match Regexp.re_match xpr s with
+  | true -> Printf.printf "\"%s\" : success\n" s
+  | false -> Printf.printf "\"%s\" : fail\n" s
 
 let _ = 
   try 
