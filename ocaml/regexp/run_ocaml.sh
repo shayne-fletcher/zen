@@ -1,4 +1,4 @@
-rm *.obj *.cmx *.cmi *~ parser.ml parser.mli lexer.ml
+rm *.o *.obj *.cmx *.cmi *~ parser.ml parser.mli lexer.ml
 
 ocamllex lexer.mll
 ocamlyacc parser.mly
@@ -15,9 +15,11 @@ ocamlopt.opt -c print_utils_sig.mli print_utils.mli print_utils.ml
 ocamlopt.opt -c regexp_sig.mli regexp.mli regexp.ml
 ocamlopt.opt -c test.ml
 
-ocamlopt.opt -o regexp.exe syntax.cmx lexer.cmx parser.cmx recognizer.cmx analyzer.cmx c_type.cmx lexical_analysis.cmx print_utils.cmx regexp.cmx test.cmx
+ocamlopt.opt -o regexp.opt syntax.cmx lexer.cmx parser.cmx recognizer.cmx analyzer.cmx c_type.cmx lexical_analysis.cmx print_utils.cmx regexp.cmx test.cmx
 
 PATH="`cygpath -p 'C:\ibox-current\x86_64\msvc-12\mlfi\lib\stublibs'`:$PATH"
 SIGS=`ls *_sig.mli`
 echo $SIGS
 ocamldoc -I . -d doc -html -stars -sort $SIGS
+
+
