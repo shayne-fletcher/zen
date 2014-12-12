@@ -1,7 +1,7 @@
-(**Analysis = Recognition + Values {i based on Cosineau and Mauny,
-   section 8.4}*)
+(**Analysis = Recognition + Values *)
 
-(**A mini-combinator library for lexical analysis*)
+(**A mini-combinator library for lexical analysis {i based on Cosineau
+   and Mauny, section 8.4}*)
 module type S = sig
 
   (**Result of an 'analyzer'. Indicates the result of attempting to

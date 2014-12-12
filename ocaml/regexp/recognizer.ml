@@ -65,22 +65,3 @@ let isgraph c = not (
   match (recognizer_of_char ' ') [c] with 
   |  Remains [] -> true
   | _ -> false) && isprint c
-
-let islower c = char_range c ['a', 'z']
-
-let isupper c = char_range c ['A', 'Z']
-
-let isspace c =
-  let spc:char recognizer =recognizer_of_char '\x20' (*space SPC*)in
-  let spcs:(char recognizer list)=
-      [recognizer_of_char '\x09'; (*horizontal tab TAB ('\t')*)
-       recognizer_of_char '\x0a'; (*newline LF ('\n')*)
-       recognizer_of_char '\x0b'; (*vertical tab VT ('\v')*)
-       recognizer_of_char '\x0c';  (*form feed FF ('\f')*)
-       recognizer_of_char '\x0d'] (*carriage return CR ('\r')*) in
-  let skip:char recognizer = compose_or_list spc spcs in
-  match skip [c] with
-  | Remains [] -> true
-  | _ -> false
-
-let isxdigit c = char_range c [('0', '9'); ('a', 'f'); ('A', 'F')]

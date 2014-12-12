@@ -1,3 +1,4 @@
+(**Printing utilities**)
 module type S = sig
 
   (**A function to produce a string representation of a list. The

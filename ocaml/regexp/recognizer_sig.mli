@@ -29,56 +29,23 @@ module type S = sig
      argument*)
   val recognizer_of_char : 'a -> 'a recognizer
 
-  (**Kleene star recognizers*)
+  (**Kleene star recognizer, match zero or more*)
   val zero_or_more : 'a recognizer -> 'a recognizer
+
+  (**Kleene star recognizer, match one or more*)
   val one_or_more : 'a recognizer -> 'a recognizer
 
   (**Recognizer disjunction*)
   val compose_or : 'a recognizer -> 'a recognizer -> 'a recognizer
+
+  (**Recognizer disjunction, list version*)
   val compose_or_list : 'a recognizer -> 'a recognizer list -> 'a recognizer
 
   (**Recognizer conjunction*)
   val compose_and : 'a recognizer -> 'a recognizer -> 'a recognizer
-  val compose_and_list : 'a recognizer list -> 'a recognizer(**Note that the **)
-  (**conjunction of an empty list is taken to be the recognizer [epsilon]*)
 
-  (**{2 Character classification functions}*)
-
-  (**A predicate to test whether a character belongs to the union of
-     closed intervals of characters*)
-  val char_range : char -> (char * char) list -> bool
-
-  (**Check if character is a decimal digit*)
-  val isdigit : char -> bool
-
-  (**Check if character is alphabetic*)
-  val isalpha : char -> bool
-
-  (**Check if character is alphanumeric*)
-  val isalnum : char -> bool
-
-  (**Check if charcter is a blank*)
-  val isblank : char -> bool
-
-  (**Check if charcter is a control character*)
-  val iscntrl : char -> bool
-
-  (**Check if charcter is a printable character*)
-  val isprint : char -> bool
-
-  (**Check if charcter has a graphical representation*)
-  val isgraph : char -> bool
-
-  (**Check if charcter is a lower case letter*)
-  val islower : char -> bool
-
-  (**Check if charcter is a upper case letter*)
-  val isupper : char -> bool
-
-  (**Check if charcter is a white-space*)
-  val isspace : char -> bool
-
-  (**Check if charcter is a hexadecimal digit*)
-  val isxdigit : char -> bool
+  (**Recognizer conjunction, list version. Note that the conjunction
+     of an empty list is taken to be the recognizer [epsilon]*)
+  val compose_and_list : 'a recognizer list -> 'a recognizer
 
 end

@@ -17,4 +17,7 @@ ocamlopt.opt -c test.ml
 
 ocamlopt.opt -o regexp.exe syntax.cmx lexer.cmx parser.cmx recognizer.cmx analyzer.cmx c_type.cmx lexical_analysis.cmx print_utils.cmx regexp.cmx test.cmx
 
-
+PATH="`cygpath -p 'C:\ibox-current\x86_64\msvc-12\mlfi\lib\stublibs'`:$PATH"
+SIGS=`ls *_sig.mli`
+echo $SIGS
+ocamldoc -I . -d doc -html -stars -sort $SIGS
