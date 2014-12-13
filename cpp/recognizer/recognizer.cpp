@@ -25,7 +25,7 @@ struct remains{
 template <class A>
 struct recognition_fails {};
 
-//Result of a 'recognizer. Indicates the result of attempting to
+//Result of a recognizer. Indicates the result of attempting to
 //recognize something from a list
 template <class A> using remaining = 
   boost::variant<remains <A>, recognition_fails<A> >;
@@ -63,13 +63,6 @@ recognizer<A> recognizer_of_token (F test)
     };
 }
 
-//A function to produce a recognizer that recognizes only the
-//given character
-recognizer<char> char_ (char c)
-{
-  return recognizer_of_token<char>([=](char x) -> bool { return c == x; });
-}
-
 //Recognizer disjunction
 template <class A>
 recognizer<A> compose_or (recognizer<A> p, recognizer<A> q)
@@ -96,6 +89,7 @@ recognizer<A> compose_and (recognizer<A> p, recognizer<A> q)
     };
 }
 
+//The '*' iterator (Kleen star)
 template <class A>
 recognizer<A> zero_or_more (recognizer<A> p)
 {
@@ -105,6 +99,14 @@ recognizer<A> zero_or_more (recognizer<A> p)
     };
 }
 
+//A function to produce a recognizer that recognizes only the
+//given character
+recognizer<char> char_ (char c)
+{
+  return recognizer_of_token<char>([=](char x) -> bool { return c == x; });
+}
+
+//A function to produce a recognizer of a specific string
 recognizer<char> string_ (std::string const& s)
 {
   std::list <recognizer <char> > rs;
@@ -126,8 +128,8 @@ recognizer<char> string_ (std::string const& s)
       { return compose_and (acc, r); });
 }
 
-//Match on a remaining<A> returns true if it contains a remains<A>
-//value, false if it contains a recognition_fails<A> value
+//Match on a remaining<A> returns 'true' if it contains a 'remains<A>'
+//value, 'false' if it contains a 'recognition_fails<A>' value
 template <class A>
 struct accept_visitor
 {
@@ -143,10 +145,10 @@ bool accept (remaining<A> const& r)
   return boost::apply_visitor( accept_visitor<A> (), r);
 }
 
-//Test if the provided parser can recognize the given string
+//Test if the provided recognizer can recognize the given string
 bool parse (recognizer<char> parser, std::string const& s)
 {
-  return accept (parser (std::list<char>(s.begin (), s.end() )));
+  return accept (parser (std::list<char>(s.begin (), s.end() ));
 }
 
 int main ()
