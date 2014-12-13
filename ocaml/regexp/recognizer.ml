@@ -32,9 +32,10 @@ let compose_or_list r rl = List.fold_right compose_or rl r
 
 let compose_and_list rl = List.fold_left compose_and epsilon rl
 
-let rec zero_or_more r = compose_or (compose_and r (zero_or_more r)) epsilon
+let rec zero_or_more r = 
+  fun toks -> (compose_or (compose_and r (zero_or_more r)) epsilon) toks
 
-let rec one_or_more r = compose_and r (zero_or_more r)
+let rec one_or_more r = fun toks -> compose_and r (zero_or_more r) toks
 
 let rec char_range c = function
   | [] -> false
