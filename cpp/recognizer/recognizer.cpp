@@ -4,10 +4,11 @@
 #include <boost/variant.hpp>
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/utility.hpp>
+#include <boost/range.hpp>
+#include <boost/detail/lightweight_test.hpp>
 
 #include <list>
 #include <functional>
-#include <iostream>
 #include <numeric>
 #include <string>
 
@@ -107,24 +108,27 @@ recognizer<char> char_ (char c)
 }
 
 //A function to produce a recognizer of a specific string
-recognizer<char> string_ (std::string const& s)
+template <class C>
+recognizer<typename boost::range_value<C>::type> string_ (C s)
 {
-  std::list <recognizer <char> > rs;
+  typedef typename boost::range_value<C>::type value;
 
-  typedef std::back_insert_iterator<std::list<recognizer<char> > > it_t;
+  std::list <recognizer<value> > rs;
+
+  typedef std::back_insert_iterator<std::list<recognizer<value> > > it_t;
 
   std::accumulate (
-      s.begin ()
-    , s.end ()
+      boost::begin (s)
+    , boost::end (s)
     , std::back_inserter (rs)
-    , [](it_t dst, char c) -> it_t 
+    , [](it_t dst, value c) -> it_t 
       { *dst++ = char_ (c); return dst; });
 
   return std::accumulate (
       boost::next (rs.begin ())
     , rs.end ()
     , rs.front ()
-    , [](recognizer<char> acc, recognizer<char> r) -> recognizer<char>
+    , [](recognizer<value> acc, recognizer<value> r) -> recognizer<value>
       { return compose_and (acc, r); });
 }
 
@@ -148,24 +152,24 @@ bool accept (remaining<A> const& r)
 //Test if the provided recognizer can recognize the given string
 bool parse (recognizer<char> parser, std::string const& s)
 {
-  return accept (parser (std::list<char>(s.begin (), s.end() ));
+  return accept (parser (std::list<char>(s.begin (), s.end())));
 }
 
 int main ()
 {
-  std::cout.setf(std::ios_base::boolalpha);
+  //char_
+  BOOST_TEST( parse (char_ ('a'), "a") );
+  BOOST_TEST( !parse (char_ ('b'), "a") );
+  BOOST_TEST( parse (char_ ('b'), "b") );
 
-  std::cout << parse (char_ ('a'), "a") << std::endl; //true
-  std::cout << parse (char_ ('b'), "a") << std::endl; //false
-  std::cout << parse (char_ ('b'), "b") << std::endl; //true
+  //'*'
+  BOOST_TEST( parse (zero_or_more (char_ ('a')), "aa") );
+  BOOST_TEST( parse (zero_or_more (char_ ('a')), "") );
+  BOOST_TEST( !parse (zero_or_more (char_ ('a')), "ab") );
 
-  //a*
-  std::cout << parse (zero_or_more (char_ ('a')), "aaa") << std::endl; //true
-  std::cout << parse (zero_or_more (char_ ('a')), "") << std::endl; //true
-  std::cout << parse (zero_or_more (char_ ('a')), "ab") << std::endl; //false
-
-  std::cout << parse (string_ ("foo"), "foo") << std::endl; //true
-  std::cout << parse (string_ ("foo"), "bar") << std::endl; //false
+  //string_
+  BOOST_TEST (parse (string_ (std::string ("foo")), "foo") );
+  BOOST_TEST (!parse (string_ (std::string ("foo")), "bar") );
   
-  return 0;
+  return boost::report_errors ();
 }
