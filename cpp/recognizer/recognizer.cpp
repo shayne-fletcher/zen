@@ -155,17 +155,17 @@ int main ()
 {
   std::cout.setf(std::ios_base::boolalpha);
 
-  std::cout << parse (char_('a'), "a") << std::endl; //true
-  std::cout << parse (char_('b'), "a") << std::endl; //false
-  std::cout << parse (char_('b'), "b") << std::endl; //true
+  std::cout << parse (char_ ('a'), "a") << std::endl; //true
+  std::cout << parse (char_ ('b'), "a") << std::endl; //false
+  std::cout << parse (char_ ('b'), "b") << std::endl; //true
 
   //a*
-  std::cout << parse (zero_or_more(char_ ('a')), "aaa") << std::endl; //true
-  std::cout << parse (zero_or_more(char_ ('a')), "") << std::endl; //true
-  std::cout << parse (zero_or_more(char_ ('a')), "ab") << std::endl; //false
+  std::cout << parse (zero_or_more (char_ ('a')), "aaa") << std::endl; //true
+  std::cout << parse (zero_or_more (char_ ('a')), "") << std::endl; //true
+  std::cout << parse (zero_or_more (char_ ('a')), "ab") << std::endl; //false
 
-  std::cout << parse (string_("foo"), "foo") << std::endl; //true
-  std::cout << parse (string_("foo"), "bar") << std::endl; //false
+  std::cout << parse (string_ ("foo"), "foo") << std::endl; //true
+  std::cout << parse (string_ ("foo"), "bar") << std::endl; //false
   
   return 0;
 }
