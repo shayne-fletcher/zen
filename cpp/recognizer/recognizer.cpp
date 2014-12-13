@@ -33,7 +33,7 @@ template <class A> using remaining =
 template <class A> using recognizer = 
   std::function<remaining<A>(std::list<A> const&)>;
 
-//A recognizer that recognizes the empty string. It always succeeds an
+//A recognizer that recognizes the empty string. It always succeeds and
 //no input is ever consumed
 template <class A>
 remaining<A> epsilon (std::list<A> const& cs)
@@ -41,8 +41,8 @@ remaining<A> epsilon (std::list<A> const& cs)
   return remains<A> (cs);
 }
 
-//Given a predicate, 'token' produces the recognizer associated with
-//the elements that satisfy this predicate
+//Given a predicate, 'recognizer_of_token' produces the recognizer
+//associated with the elements that satisfy this predicate
 template <class A, class F/*bool(char)*/>
 recognizer<A> recognizer_of_token (F test)
 {
