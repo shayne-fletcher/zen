@@ -20,6 +20,6 @@ ocamlopt.opt -o regexp.opt syntax.cmx lexer.cmx parser.cmx recognizer.cmx analyz
 PATH="`cygpath -p 'C:\ibox-current\x86_64\msvc-12\mlfi\lib\stublibs'`:$PATH"
 SIGS=`ls *_sig.mli`
 echo $SIGS
-ocamldoc -I . -d doc -html -stars -sort $SIGS
+ocamldoc -I . -intro intro -d doc -html -stars -sort $SIGS
 
 

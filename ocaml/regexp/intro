@@ -1,0 +1,18 @@
+{1 Lexical_analysis}
+
+[Lexical_analysis] modules.
+
+{2 Index}
+
+{!indexlist}
+
+{2 Modules}
+
+{!modules:
+  Analyzer_sig
+  C_type_sig
+  Lexical_analysis_sig
+  Print_utils_sig
+  Recognizer_sig
+  Regexp_sig
+}
