@@ -40,7 +40,7 @@ template <class A> using recognizer =
 template <class A>
 recognizer<A> epsilon ()
 {
-  return [](std::list<A> const& cs) -> remaining<A>
+  return [] (std::list<A> const& cs) -> remaining<A>
     {
       return remains<A> (cs.begin (), cs.end ());
     };
@@ -48,7 +48,7 @@ recognizer<A> epsilon ()
 
 //Given a predicate, 'recognizer_of_token' produces the recognizer
 //associated with the elements that satisfy this predicate
-template <class A, class F/*bool(char)*/>
+template <class A, class F/*bool (char)*/>
 recognizer<A> recognizer_of_token (F test)
 {
   return
@@ -58,9 +58,9 @@ recognizer<A> recognizer_of_token (F test)
         return recognition_fails<A> ();
 
       if (test (cs.front ()))
-        return remains<A> (boost::next (cs.begin()), cs.end());
+        return remains<A> (boost::next (cs.begin ()), cs.end ());
 
-      return recognition_fails<A>();
+      return recognition_fails<A> ();
     };
 }
 
@@ -68,10 +68,10 @@ recognizer<A> recognizer_of_token (F test)
 template <class A>
 recognizer<A> compose_or (recognizer<A> p, recognizer<A> q)
 {
-  return [=](std::list<A> const& toks) -> remaining<A>
+  return [=] (std::list<A> const& toks) -> remaining<A>
     {
       remaining <A> res = p (toks);
-      if (remains<A>* rem = boost::get<remains<A> >(&res)) return *rem;
+      if (remains<A>* rem = boost::get<remains<A> > (&res)) return *rem;
 
       return q (toks);
     };
@@ -81,10 +81,10 @@ recognizer<A> compose_or (recognizer<A> p, recognizer<A> q)
 template <class A>
 recognizer<A> compose_and (recognizer<A> p, recognizer<A> q)
 {
-  return [=](std::list<A> const& toks) -> remaining<A>
+  return [=] (std::list<A> const& toks) -> remaining<A>
     {
       remaining <A> res = p (toks);
-      if (remains<A>* rem = boost::get<remains<A> >(&res)) return q (rem->left);
+      if (remains<A>* rem = boost::get<remains<A> > (&res)) return q (rem->left);
 
       return recognition_fails<A> ();
     };
@@ -147,13 +147,13 @@ struct accept_visitor
 template <class A>
 bool accept (remaining<A> const& r)
 {
-  return boost::apply_visitor( accept_visitor<A> (), r);
+  return boost::apply_visitor ( accept_visitor<A> (), r);
 }
 
 //Test if the provided recognizer can recognize the given string
 bool parse (recognizer<char> parser, std::string const& s)
 {
-  return accept (parser (std::list<char>(s.begin (), s.end())));
+  return accept (parser (std::list<char> (s.begin (), s.end ())));
 }
 
 int main ()
