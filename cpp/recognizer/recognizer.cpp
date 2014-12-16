@@ -102,9 +102,10 @@ recognizer<A> zero_or_more (recognizer<A> p)
 
 //A function to produce a recognizer that recognizes only the
 //given character
-recognizer<char> char_ (char c)
+template <class A>
+recognizer<A> char_ (A c)
 {
-  return recognizer_of_token<char>([=](char x) -> bool { return c == x; });
+  return recognizer_of_token<A>([=](A x) -> bool { return c == x; });
 }
 
 //A function to produce a recognizer of a specific string
