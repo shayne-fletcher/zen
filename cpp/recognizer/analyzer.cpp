@@ -1,3 +1,6 @@
+//"c:/program files (x86)/Microsoft Visual Studio 12.0/vc/vcvarsall.bat" x64
+//cl /Feanalyzer.exe /Zi /MDd /EHsc /I d:/boost_1_55_0 analyzer.cpp
+
 //g++ -std=c++11 -I ~/project/boost_1_55_0 -o parser parser.cpp
 
 #include <boost/variant.hpp>
@@ -431,12 +434,14 @@ template <class A, class B>
 parser<A, B> left_assoc (parser<A, B> term, parser<A, std::function<B(B, B)>> op_)
 {
   std::cout << "In left_assoc" << std::endl;
-  std::function<parser<A, B>(B)> sequence=
+  static std::function<parser<A, B>(B)> sequence=
     [=](B t1) -> parser<A, B>
     {
       return
       (((op_ >> term) >= 
-        [=](std::pair<std::function<B(B,B)>,B> res) -> B { return res.first (t1, res.second); }
+        [=](std::pair<std::function<B(B,B)>,B> res) -> B 
+        { std::cout << "Constructing tree" << std::endl;
+          return res.first (t1, res.second); }
         ) >>= sequence)| empty <A, B>(t1);
         };
   std::cout << "Done constructing sequence" << std::endl;
@@ -679,12 +684,12 @@ B accept (parsed<A, B> const& res) {
 
 //parser<token_t, expression_t> test (expression_t) { return num; }
 
-std::function<int(int)> fact = [](int n) { if (n == 0) {return 1; } return n * fact (n - 1); };
+//std::function<int(int)> fact = [](int n) { if (n == 0) {return 1; } return n * fact (n - 1); };
 
 //Test
 int main () {
   try {
-    std::cout << fact (5) << std::endl;
+    //std::cout << fact (5) << std::endl;
     /*
     typedef token_t A;
     typedef expression_t B;
@@ -695,14 +700,12 @@ int main () {
     parser<A, B> pp = (p >>= test);
     */
 
-    /*
     T_num one; one.val = 1.0;
-    std::list<token_t> toks({one, T_plus (), one});
+    std::list<token_t> toks({one, T_plus (), one, T_plus (), one});
     parser<token_t, expression_t> p = left_assoc (num, addop);
     parsed<token_t, expression_t> res = p (toks);
     std::cout << string_of_expression (accept (res)) << std::endl;
-    */
-}
+  }
   catch (std::runtime_error const& e) {
       std::cerr << e.what() << '\n';
     }
