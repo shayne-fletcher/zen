@@ -347,6 +347,8 @@ struct E_subtraction { expression_t left; expression_t right; };
 struct E_multiplication { expression_t left; expression_t right; };
 struct E_division { expression_t left; expression_t right; };
 
+typedef std::function<expression_t(expression_t, expression_t)> op_t;
+
 std::string string_of_expression (expression_t const& e); //fwd. decl.
 
 struct string_of_expression_visitor {
@@ -403,6 +405,217 @@ struct string_of_expression_visitor {
 std::string string_of_expression (expression_t const& e) {
   return boost::apply_visitor (string_of_expression_visitor (), e);
 }
+
+template <class A, class B, class F>
+typename std::result_of<F (B)>::type operator >>= (parser<A, B> p1, F p2)
+{
+  typedef typename std::result_of<F (B)>::type parser_t;
+  typedef typename std::result_of<parser_t(std::list<A> const&)>::type parsed_t;
+
+  std::cout << "In givento" << std::endl;
+
+  return [=](std::list<A> const& toks) -> parsed_t
+    {
+      parsed<A, B> res = p1 (toks);
+      if(returns<A, B>* r = boost::get<returns<A, B>>(&res))
+        {
+          B b = r-> result.first;
+          parser<A, B> f = p2 (b);
+          return f (r->result.second);
+        }
+      return parse_fails<A, B> ();
+    };
+}
+
+template <class A, class B>
+parser<A, B> left_assoc (parser<A, B> term, parser<A, std::function<B(B, B)>> op_)
+{
+  std::cout << "In left_assoc" << std::endl;
+  std::function<parser<A, B>(B)> sequence=
+    [=](B t1) -> parser<A, B>
+    {
+      return
+      (((op_ >> term) >= 
+        [=](std::pair<std::function<B(B,B)>,B> res) -> B { return res.first (t1, res.second); }
+        ) >>= sequence)| empty <A, B>(t1);
+        };
+  std::cout << "Done constructing sequence" << std::endl;
+  parser<A, B> p = (term >>= sequence);
+  return p;
+}
+
+// //'givento'
+// template <class A, class B, class F>
+// parser<A, /*C*/typename std::result_of<F(B)>::type> 
+// operator >>= (parser<A, B> p1, F/*std::function<parser<A, C>(B)>*/ p2)
+// {
+//   typedef typename std::result_of<F(B)>::type C;
+
+//   throw std::runtime_error ("In given to");
+
+//   return [=](std::list<A> const& toks) -> parsed<A, C>
+//     {
+//       parsed<A, B> res = p1 (toks);
+//       if (returns<A, B>* r = boost::get<returns<A, B>>(&res))
+//         {
+//           return (p2 (r->result.first))(r->result.second);
+//         }
+//       return parse_fails<A, C> ();
+//     };
+// }
+
+// //Left associative ops
+// template <class A, class B>
+// parser<A, B> left_assoc (parser<A, B> term, parser<A, std::function<B(B, B)>> op_)
+// {
+//   std::cout << "In left_assoc" << std::endl;
+
+//   std::function<parser<A, B>(B)> sequence=
+//     [=](B t1) -> parser<A, B>
+//     {
+//       std::cout << "In sequence" << std::endl;
+
+//       return (((op_ >> term) >= 
+//                [=](std::pair<std::function<B(B, B)>, B> res) -> B { 
+//                     return res.first (t1, res.second); }
+//                ) >>= sequence) | empty <A, B>(t1);
+//     };
+//   std::cout << "Leaving left_assoc" << std::endl;
+
+//   return term >>= sequence;
+// }
+
+parser<token_t, expression_t> num = 
+  token<token_t, expression_t> (
+    [](token_t tok) -> boost::optional<expression_t> {
+      if (T_num* t = boost::get<T_num>(&tok)) {
+          E_constant e; e.val = t->val;
+          return boost::optional<expression_t>(e);
+        }
+      return boost::optional<expression_t>();
+    }
+   );
+
+parser<token_t, expression_t> ident =
+  token<token_t, expression_t> (
+    [](token_t tok) -> boost::optional<expression_t> {
+      if (T_ident* t = boost::get<T_ident>(&tok)) {
+          E_variable e; e.val = t->val;
+          return boost::optional<expression_t>(e);
+        }
+      return boost::optional<expression_t>();
+    }
+   );
+
+parser<token_t, std::function<expression_t(expression_t, expression_t)>> addop =
+  token<token_t, op_t>(
+    [](token_t tok) -> boost::optional<op_t> {
+      if (T_plus* t = boost::get<T_plus>(&tok)) {
+          op_t add = [](expression_t e1, expression_t e2) -> expression_t {
+            E_addition e; e.left = e1; e.right = e2;
+            return e;
+          };
+          return boost::optional<op_t>(add);
+        }
+      if (T_minus* t = boost::get<T_minus>(&tok)) {
+          op_t sub = [](expression_t e1, expression_t e2) -> expression_t {
+            E_subtraction e; e.left = e1; e.right = e2;
+            return e;
+          };
+          return boost::optional<op_t>(sub);
+        }
+      return boost::optional<op_t>();
+    }
+  );
+
+parser<token_t, std::function<expression_t(expression_t, expression_t)>> mulop =
+  token<token_t, op_t>(
+    [](token_t tok) -> boost::optional<op_t> {
+      if (T_star* t = boost::get<T_star>(&tok)) {
+          op_t mul = [](expression_t e1, expression_t e2) -> expression_t {
+            E_multiplication e; e.left = e1; e.right = e2;
+            return e;
+          };
+          return boost::optional<op_t>(mul);
+        }
+      if (T_slash* t = boost::get<T_slash>(&tok)) {
+        op_t div = [](expression_t e1, expression_t e2) -> expression_t {
+          E_division e; e.left = e1; e.right = e2;
+          return e;
+        };
+        return boost::optional<op_t>(div);
+      }
+      return boost::optional<op_t>();
+    }
+  );
+
+parser<token_t, unit_t> open_paren =
+  token<token_t, unit_t>(
+    [](token_t tok) -> boost::optional<unit_t> {
+      if(boost::get<T_lparen>(&tok))
+        return boost::optional<unit_t>(unit);
+      return boost::optional<unit_t>();
+    }
+  );
+
+parser<token_t, unit_t> close_paren =
+  token<token_t, unit_t>(
+    [](token_t tok) -> boost::optional<unit_t> {
+      if(boost::get<T_rparen>(&tok))
+        return boost::optional<unit_t>(unit);
+      return boost::optional<unit_t>();
+    }
+  );
+
+/*
+(*
+expr :=
+  | term (['+'|'-'] term)*
+  ;
+term :=
+  | fact (['*'|'/'] fact)*
+  ;
+fact :=
+  | num
+  | identifier
+  | '( expr ')
+ *)
+ */
+
+// parsed<token_t, expression_t> analyze_expr (std::list<token_t> const& l)
+//  {
+//    parser<token_t, expression_t> expr =
+//      [=](std::list<token_t> const& t1) -> parsed<token_t, expression_t>
+//      {
+//        parser<token_t, expression_t> term  =
+//        [=](std::list<token_t> const& t2) -> parsed<token_t, expression_t>
+//        {
+//          throw std::runtime_error ("In term ");
+
+//          /*
+//          parser<token_t, expression_t> fact =
+//          [=](std::list<token_t> const& t3) -> parsed<token_t, expression_t>
+//          {
+//            std::cout << "In fact" << std::endl;
+//            return
+//              (num | ident | 
+//               ((open_paren >> expr >> close_paren) >=
+//                [=](std::pair<std::pair<unit_t, expression_t>, unit_t> res) -> expression_t {
+//                 return res.first.second;
+//                 }))(t3);
+//          };
+
+//          return (left_assoc (fact, mulop)) (t2);
+//          */
+//        };
+
+//        parser<token_t, expression_t> p = left_assoc (term, addop);
+
+//        return p (t1);
+//      };
+
+//    return expr (l);
+//  };
 
 //Utilities for testing
 
@@ -464,14 +677,32 @@ B accept (parsed<A, B> const& res) {
   return boost::apply_visitor (accept_visitor<A, B> (), res);
 }
 
+//parser<token_t, expression_t> test (expression_t) { return num; }
+
+std::function<int(int)> fact = [](int n) { if (n == 0) {return 1; } return n * fact (n - 1); };
+
 //Test
 int main () {
   try {
-    std::list<token_t> toks = accept (parse (lex, "1.e-2 -3 * (4*5) / y + 6"));
-    std::list<std::string> lst;
-    std::transform (toks.begin (), toks.end (), std::back_inserter (lst), string_of_token);
-    std::cout << "[" << string_util::concat (std::string ("; "), lst) << "]\n";
-    }
+    std::cout << fact (5) << std::endl;
+    /*
+    typedef token_t A;
+    typedef expression_t B;
+    typedef std::function<parser<A, B>(B)> F;
+
+    parser<A, B> p = num;
+    F f(test);
+    parser<A, B> pp = (p >>= test);
+    */
+
+    /*
+    T_num one; one.val = 1.0;
+    std::list<token_t> toks({one, T_plus (), one});
+    parser<token_t, expression_t> p = left_assoc (num, addop);
+    parsed<token_t, expression_t> res = p (toks);
+    std::cout << string_of_expression (accept (res)) << std::endl;
+    */
+}
   catch (std::runtime_error const& e) {
       std::cerr << e.what() << '\n';
     }
