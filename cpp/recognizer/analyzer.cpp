@@ -429,19 +429,29 @@ typename std::result_of<F (B)>::type operator >>= (parser<A, B> p1, F p2)
 }
 
 template <class A, class B>
-parser<A, B> left_assoc (parser<A, B> term, parser<A, std::function<B(B, B)>> op_)
+struct sequence_
 {
-  static std::function<parser<A, B>(B)> sequence=
-    [=](B t1) -> parser<A, B>
-    {
+  parser<A, B> term_;
+  parser<A, std::function<B(B, B)>> op__;
+  sequence_(parser<A, B> term, parser<A, std::function<B(B, B)>> op_)
+    : term_(term), op__(op_)
+  {}
+
+  parser<A, B> operator ()(B t1) const
+  {
       return
-      (((op_ >> term) >= 
+      (((op__ >> term_) >= 
         [=](std::pair<std::function<B(B,B)>,B> res) -> B {
           return res.first (t1, res.second); }
-        ) >>= sequence)| empty <A, B>(t1);
-        };
+        ) >>= sequence_<A, B>(term_, op__))| empty <A, B>(t1);
+  }
+};
 
-  parser<A, B> p = (term >>= sequence);
+template <class A, class B>
+parser<A, B> left_assoc (parser<A, B> term, parser<A, std::function<B(B, B)>> op_)
+{
+  sequence_<A, B> seq (term, op_);
+  parser<A, B> p = (term >>= seq);
   return p;
 }
 
@@ -630,14 +640,13 @@ B accept (parsed<A, B> const& res) {
 
 //Test
 int main () {
+
   try {
-    std::list<token_t> toks = accept (parse (lex, "1+ 2"));
-    /*
-    std::list<std::string> strs;
-    std::transform (toks.begin (), toks.end (), std::back_inserter (strs), string_of_token);
-    std::cout << string_util::concat ("; ", strs) << std::endl;
-    */
-    std::cout << string_of_expression (accept (analyze_expr (toks))) << std::endl;;
+    std::cout << 
+      string_of_expression (
+         accept (analyze_expr (
+            accept (parse (lex, "1 + 2 + 3 - 4 - x*6"))))) 
+              << std::endl;
   }
   catch (std::runtime_error const& e) {
       std::cerr << e.what() << '\n';
