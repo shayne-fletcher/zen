@@ -1,7 +1,7 @@
 //"c:/program files (x86)/Microsoft Visual Studio 12.0/vc/vcvarsall.bat" x64
 //cl /Feanalyzer.exe /Zi /MDd /EHsc /I d:/boost_1_55_0 analyzer.cpp
 
-//g++ -std=c++11 -I ~/project/boost_1_55_0 -o parser parser.cpp
+//g++ -std=c++11 -I ~/project/boost_1_55_0 -o analyzer analyzer.cpp
 
 #include <boost/variant.hpp>
 #include <boost/variant/apply_visitor.hpp>
@@ -577,42 +577,6 @@ parsed<token_t, expression_t> analyze_expr (std::list<token_t> const& toks)
 {
   return expr (toks);
 }
-
-//Utilities for testing
-
-namespace string_util { //In honor of Stefano :)
-
-  template <class RgT>
-  std::string concat (std::string const& sep, RgT lst) {
-    using boost::empty;
-    using boost::begin;
-    using boost::end;
-
-    if (boost::empty (lst))
-      return std::string ("");
-
-    std::size_t num = 0, len = 0;
-    std::accumulate (
-      boost::begin (lst), boost::end (lst), 0,
-      [&](int _, std::string const& s) -> 
-      int { ++num, len += s.size(); return _; } );
-    std::string r(len + sep.size () * (num - 1), '\0');
-    std::string const& hd = *(boost::begin (lst));
-    std::memcpy ((void*)(r.data ()), (void*)(hd.data ()), hd.size());
-    std::size_t pos = hd.size();
-    std::accumulate (
-      boost::next (boost::begin (lst)), boost::end (lst), 0,
-      [&](int _, std::string const& s) -> 
-      int {
-        std::memcpy((void*)(r.data ()+pos),(void*)(sep.data()),sep.size ());
-        pos += sep.size ();
-        std::memcpy ((void*)(r.data()+pos),(void*)(s.data()),s.size ());
-        pos += s.size ();
-        return _; });
-  
-  return r;
-}
-}//namespace<string_util>
 
 //Parse a string
 template <class P>
