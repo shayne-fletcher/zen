@@ -429,41 +429,8 @@ typename std::result_of<F (B)>::type operator >>= (parser<A, B> p1, F p2)
 }
 
 template <class A, class B>
-struct x
-{
-  B t1;
-  x(B t1) : t1 (t1)
-  {}
-
-  B operator()(std::pair<std::function<B(B, B)>, B> res) const
-  {
-    return res.first (t1, res.second);
-  }
-};
-
-template <class A, class B>
-struct sequence_
-{
-  parser<A, B> term;
-  parser<A, std::function<B(B, B)>> op_;
-
-  sequence_(parser<A, B> term, parser<A, std::function<B(B, B)>> op) : term (term), op_(op_) 
-  {}
-
-  parser<A, B> operator ()(B t1) const
-  {
-      return
-        (((op_ >> term) >= (x<A, B> (t1))
-          /*[=](std::pair<std::function<B(B,B)>,B> res) -> B {
-            return res.first (t1, res.second); }*/
-          ) >>= sequence_(term, op_))| empty <A, B>(t1);
-  }
-};
-
-template <class A, class B>
 parser<A, B> left_assoc (parser<A, B> term, parser<A, std::function<B(B, B)>> op_)
 {
-  /*
   static std::function<parser<A, B>(B)> sequence=
     [=](B t1) -> parser<A, B>
     {
@@ -473,8 +440,8 @@ parser<A, B> left_assoc (parser<A, B> term, parser<A, std::function<B(B, B)>> op
           return res.first (t1, res.second); }
         ) >>= sequence)| empty <A, B>(t1);
         };
-  */
-  parser<A, B> p = (term >>= (sequence_<A, B> (term, op_)));
+
+  parser<A, B> p = (term >>= sequence);
   return p;
 }
 
@@ -664,7 +631,7 @@ B accept (parsed<A, B> const& res) {
 //Test
 int main () {
   try {
-    std::list<token_t> toks = accept (parse (lex, "1"));
+    std::list<token_t> toks = accept (parse (lex, "1+ 2"));
     /*
     std::list<std::string> strs;
     std::transform (toks.begin (), toks.end (), std::back_inserter (strs), string_of_token);
