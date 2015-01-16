@@ -1,0 +1,84 @@
+==========================
+ Weekly OCaml exercise #1
+==========================
+
+Difficulty level : Easy
+
+Problem :
+
+Write the function 'suffixes' that works like the following example.
+
+::
+
+  # let suffixes l =
+     ... (*Your implementation goes here*)
+  ;;
+            val suffixes : 'a list -> 'a list list = <fun>
+  # suffixes [1; 2; 3; 4] ;;
+  - : int list list = [[1; 2; 3; 4]; [2; 3; 4]; [3; 4]; [4]; []]
+  
+As we talked about yesterday, I'll happily receive your solutions via MSG and post the best next week on {TEAM OCAML<GO>}!
+
+::
+
+  (*Ronnie Bhatti  - doesn't include the empty list*)
+  let suffixes l =
+    let rec suff l n =
+      match l with
+            | [] -> List.rev n
+            | hd :: tl  -> suff tl (tl :: n)
+    in suff l [l]
+  
+  (*Alexander Demidovich*)
+  let suffixes l =
+    let rec aux a = function
+      | (_::xs) as l -> aux (l::a) xs
+      | [] -> List.rev ([]::a)
+    in
+    aux [] l
+  
+  (*Michael Thorpe - broken in that this doesn't include the empty list*)
+  let rec suffixes l = 
+    match l with 
+    | [] -> [] 
+    | h::t -> (h::t) :: suffixes t
+  
+  (*Christopher Rosset*)
+  let rec suffixes (l : 'a list) = 
+    l :: match l with
+    | []      -> []
+    | _ :: t  -> suffixes t
+  
+  (*Philip Allison*)
+  let rec suffix_helper acc l = match l with
+      | [] -> [] :: acc
+      | (hd :: tl) -> suffix_helper ((hd :: tl) :: acc) tl
+  let suffix l = List.rev (suffix_helper [] l)
+  
+  (*Adedamola Adeagbo*)
+  let suffixes l =
+    let rec loop acc l =
+      match l with
+      | [] -> []::acc
+      | (h::t) -> loop (l::acc) t
+    in List.rev (loop [] l)
+  
+  (*Tomasz Kupczyk*)
+  let suffixes ys =
+    let flip f x y = f y x in
+    let f _ = function 
+      | (ss, x::xs) -> ((x::xs)::ss, xs) 
+      | (ss, []) -> (ss, []) in
+    List.rev ([] :: (fst (List.fold_left (flip f) ([], ys) ys)))
+  (* some unit testing *)
+  let () =
+    assert (suffixes [] = [[]]);
+    assert (suffixes [1] = [[1]; []]);
+    assert (suffixes [1; 2; 3; 4] = [[1; 2; 3; 4]; [2; 3; 4]; [3; 4]; [4]; []])
+  
+  (*Andy Onyung*)
+  let rec suffixes l = 
+  match l with
+    |[] -> [[]]
+    |(head :: tail) ->  l :: (suffixes tail)
+  
