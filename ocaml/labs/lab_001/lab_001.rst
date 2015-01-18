@@ -82,3 +82,27 @@ As we talked about yesterday, I'll happily receive your solutions via MSG and po
     |[] -> [[]]
     |(head :: tail) ->  l :: (suffixes tail)
   
+  (*Enrique Naudon*)
+  (**
+   *  Iterate over the list, adding each element and everything after it to
+   *  the suffix list (acc).
+   **)
+  let rec suffixes_recursive l =
+    let rec loop acc l = match l with
+      | [] -> List.rev ([] :: acc)
+      | l  -> loop (l :: acc) (List.tl l)
+    in
+    loop [] l
+  ;;
+  
+  (**
+   *  Reverse the list and iterate over it, adding each element (elem) and
+   *  the previous suffix (List.hd acc) to the suffix list (acc).
+   **)
+  let suffixes_foldleft l =
+    let helper acc elem =
+      (elem :: (List.hd acc)) :: acc
+    in
+    List.fold_left helper [[]] (List.rev l)
+  ;;
+  
