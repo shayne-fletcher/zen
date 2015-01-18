@@ -66,8 +66,8 @@ parser<A, A> char_ (A c) {
   return token<A, A> (
          [=](A ch) -> boost::optional<A> {
            if (ch == c) 
-             return boost::optional<A> (c);
-           return boost::optional<A> ();
+             return some (c);
+           return none<A> ();
       });
 }
 
@@ -114,16 +114,44 @@ parser<A, std::pair<B, C> > operator >> (parser<A, B> const& p1, parser<A, C> co
     };
 }
 
+namespace {
+
+  template <class B>
+  boost::optional<B> const none () { return boost::optional<B>(); }
+
+  template <class B>
+  boost::optional<B> some (B tok) { return boost::optional<B>(tok); }
+
+  //Push the first element of the pair onto the list that is the
+  //second element
+  template <class B>
+  std::function<std::list<B>(std::pair<B, std::list<B>>)> prepend ()
+  {
+    return [](std::pair<B, std::list<B> > r) -> std::list<B> {
+      std::list<B> l (r.second);
+      l.push_front (r.first);
+      return l;
+    };
+  }
+
+  //Splice the two lists together
+  template <class B>
+  std::function<std::list<B>(std::pair<std::list<B>, std::list<B>>)> splice ()
+  {
+    return [](std::pair<std::list<B>, std::list<B>> res) -> std::list<B> {
+      res.first.splice(res.first.end(), res.second);
+      return res.first;
+    };
+  }
+
+}//namespace<anonymous>
+
 //Kleene star iterator
 template <class A, class B>
 parser<A, std::list<B>> operator * (parser<A, B> const& p) {
   return [=] (std::list<A> const& toks) -> parsed<A, std::list<B>>{
-      return (((p >> *(p)) >= 
-        [](std::pair<B, std::list<B> > r) -> std::list<B> {
-          std::list<B> l(r.second);
-          l.push_front(r.first);
-          return l;
-        }) | empty<A, std::list<B> > (std::list<B>())) (toks);
+    return (((p >> *(p)) >= prepend<B> ()) 
+            | empty<A> (std::list<B>())) (toks);
     };
 }
 
@@ -138,13 +166,15 @@ bool char_range (char c, std::list<std::pair<char, char>> l) {
 
 //Test for digit
 bool is_digit (char c) {
-  return char_range (c, std::list<std::pair<char, char>>{std::make_pair('0', '9')});
+  return char_range (c, std::list<std::pair<char, char>>{
+      std::make_pair('0', '9')});
 }
 
 //Test for letter
 bool is_letter (char c) {
   return char_range (c, 
-    std::list<std::pair<char, char>>{std::make_pair ('a', 'z'), std::make_pair ('A', 'Z')});
+    std::list<std::pair<char, char>>{
+                       std::make_pair ('a', 'z'), std::make_pair ('A', 'Z')});
 }
 
 // digit := '0'|'1'|'2'|'3'|'4'|'5'|'6'|'7'|'8'|'9'
@@ -152,17 +182,12 @@ parser<char, char> digit =
   token<char, char> (
      [](char c) -> boost::optional<char> {
        if (is_digit (c)) 
-         return boost::optional<char> (c); 
-       else return boost::optional<char> ();
+         return some (c); 
+       else return none<char>();
      });
 
 //digits := digit digit*
-parser <char, std::list<char>> digits =
-  ((digit >> *digit)) >= 
-  [](std::pair<char, std::list<char>> res) -> std::list<char> {
-    res.second.push_front (res.first);
-    return res.second;
-};
+parser <char, std::list<char>> digits = ((digit >> *digit)) >= prepend<char> ();
 
 //optsign := '+' | '-' | epsilon
 parser<char, std::list<char>> optsign =
@@ -171,30 +196,22 @@ parser<char, std::list<char>> optsign =
       if (c == '-' || c == '+') {
           std::list<char> cs;
           cs.push_front (c);
-          return boost::optional<std::list<char>>(cs);
+          return some (cs);
         }
-      return boost::optional<std::list<char>>();
-    })) | empty<char, std::list<char>> (std::list<char>());
+      return none<std::list<char>>();
+    })) | empty<char> (std::list<char>());
 
 //optfrac := ('.' digit*)|epsilon
 parser<char, std::list<char>> optfrac =
-  (char_ ('.') >> *digit >= 
-  [](std::pair<char, std::list<char>> res) -> std::list<char>{
-    res.second.push_front (res.first);
-    return res.second;
-  }) | empty<char, std::list<char>> (std::list<char>());
+  (char_ ('.') >> *digit >= prepend<char> ()) | 
+  empty<char> (std::list<char>());
 
 //optexp := (('e'|'E') optsign digits)|epsilon
 parser<char, std::list<char>> optexp =
-  (((((char_ ('e') | char_ ('E')) >> optsign) >= 
-  [](std::pair<char, std::list<char>> res) -> std::list<char> {
-    res.second.push_front (res.first);
-    return res.second;
-  }) >> digits) >= 
-  [](std::pair<std::list<char>, std::list<char>> res) -> std::list<char> {
-    res.first.splice(res.first.end(), res.second);
-    return res.first;
-  }) | empty<char, std::list<char>>(std::list<char>());
+  (((((char_ ('e') | char_ ('E')) 
+      >> optsign) >= prepend<char> ()) >> digits) 
+   >= splice<char> ()) 
+  | empty<char> (std::list<char>());
 
 //Tokens
 
@@ -253,8 +270,8 @@ parser<char, char> letter =
   token<char, char> (
          [](char c) -> boost::optional<char> {
            if (is_letter (c)) 
-             return boost::optional<char>(c);
-           return boost::optional<char>();
+             return some (c);
+           return none<char> ();
          });
 
 //identifer := letter *letter
@@ -272,11 +289,11 @@ parser<char, token_t> operator_ =
   token<char, token_t> (
          [](char c) -> boost::optional<token_t> {
            switch (c) {
-           case '+' : return boost::optional<token_t>(T_plus ());
-           case '-' : return boost::optional<token_t>(T_minus ());
-           case '*' : return boost::optional<token_t>(T_star ());
-           case '/' : return boost::optional<token_t>(T_slash ());
-           default: return boost::optional<token_t>();
+           case '+' : return some (token_t (T_plus ()));
+           case '-' : return some (token_t (T_minus ()));
+           case '*' : return some (token_t (T_star ()));
+           case '/' : return some (token_t (T_slash ()));
+           default: return none<token_t>();
            }
          }
        );
@@ -286,9 +303,9 @@ parser<char, token_t> paren =
   token<char, token_t> (
          [](char c) -> boost::optional<token_t> {
            switch (c) {
-           case '(' : return boost::optional<token_t>(T_lparen ());
-           case ')' : return boost::optional<token_t>(T_rparen ());
-           default: return boost::optional<token_t>();
+           case '(' : return some (token_t (T_lparen ()));
+           case ')' : return some (token_t (T_rparen ()));
+           default: return none<token_t> ();
            }
          }
         );
@@ -299,33 +316,28 @@ unit_t const unit;
 //space := ' '|'\t'|'\r'|'\n'
 parser <char, unit_t> space =
   token<char, unit_t> (
-         [](char c) -> boost::optional<unit_t> {
-           switch (c) {
-             case ' ':
-             case '\t':
-             case '\r':
-             case '\n':
-               return boost::optional<unit_t>(unit);
-             default : return boost::optional<unit_t>();
-             }
-         }
-  );
+    [](char c) -> boost::optional<unit_t> {
+      switch (c) {
+      case ' ': case '\t': case '\r': case '\n': 
+        return some (unit);
+      default : return none<unit_t> ();
+      }
+    }
+ );
 
 //spaces := space *space
 parser<char, unit_t> spaces =
   ((space >> *space) >= 
-  [](std::pair<unit_t, std::list<unit_t>>) -> unit_t { 
-    return unit; }) 
-  | empty<char, unit_t>(unit);
+  [](std::pair<unit_t, std::list<unit_t>>) -> unit_t { return unit; }
+   ) | empty<char>(unit);
 
 //lex := spaces *((identifier | number | operator | paren) spaces)
 parser<char, std::list<token_t>> lex =
   spaces >> 
   *(((identifier|number|operator_|paren) >> spaces)>= 
-    [](std::pair<token_t, unit_t> res) -> token_t { 
-      return res.first; }) 
-  >= [](std::pair<unit_t, std::list<token_t>> res) -> std::list<token_t> { 
-  return res.second; };
+    [](std::pair<token_t, unit_t> res) -> token_t { return res.first; }
+    ) >= [](std::pair<unit_t, std::list<token_t>> res) -> std::list<token_t> { 
+         return res.second; };
 
 //Expressions
 
@@ -443,7 +455,7 @@ struct sequence_
       (((op__ >> term_) >= 
         [=](std::pair<std::function<B(B,B)>,B> res) -> B {
           return res.first (t1, res.second); }
-        ) >>= sequence_<A, B>(term_, op__))| empty <A, B>(t1);
+        ) >>= sequence_<A, B>(term_, op__))| empty <A>(t1);
   }
 };
 
@@ -460,9 +472,9 @@ parser<token_t, expression_t> num =
     [](token_t tok) -> boost::optional<expression_t> {
       if (T_num* t = boost::get<T_num>(&tok)) {
           E_constant e; e.val = t->val;
-          return boost::optional<expression_t>(e);
+          return some (expression_t (e));
         }
-      return boost::optional<expression_t>();
+      return none<expression_t>();
     }
    );
 
@@ -471,9 +483,9 @@ parser<token_t, expression_t> ident =
     [](token_t tok) -> boost::optional<expression_t> {
       if (T_ident* t = boost::get<T_ident>(&tok)) {
           E_variable e; e.val = t->val;
-          return boost::optional<expression_t>(e);
+          return some (expression_t (e));
         }
-      return boost::optional<expression_t>();
+      return none<expression_t>();
     }
    );
 
@@ -485,16 +497,16 @@ parser<token_t, std::function<expression_t(expression_t, expression_t)>> addop =
             E_addition e; e.left = e1; e.right = e2;
             return e;
           };
-          return boost::optional<op_t>(add);
+          return some (op_t (add));
         }
       if (T_minus* t = boost::get<T_minus>(&tok)) {
           op_t sub = [](expression_t e1, expression_t e2) -> expression_t {
             E_subtraction e; e.left = e1; e.right = e2;
             return e;
           };
-          return boost::optional<op_t>(sub);
+          return some (op_t (sub));
         }
-      return boost::optional<op_t>();
+      return none<op_t>();
     }
   );
 
@@ -506,16 +518,16 @@ parser<token_t, std::function<expression_t(expression_t, expression_t)>> mulop =
             E_multiplication e; e.left = e1; e.right = e2;
             return e;
           };
-          return boost::optional<op_t>(mul);
+          return some (op_t (mul));
         }
       if (T_slash* t = boost::get<T_slash>(&tok)) {
         op_t div = [](expression_t e1, expression_t e2) -> expression_t {
           E_division e; e.left = e1; e.right = e2;
           return e;
         };
-        return boost::optional<op_t>(div);
+        return some (op_t (div));
       }
-      return boost::optional<op_t>();
+      return none<op_t> ();
     }
   );
 
@@ -523,8 +535,8 @@ parser<token_t, unit_t> open_paren =
   token<token_t, unit_t>(
     [](token_t tok) -> boost::optional<unit_t> {
       if(boost::get<T_lparen>(&tok))
-        return boost::optional<unit_t>(unit);
-      return boost::optional<unit_t>();
+        return some (unit);
+      return none<unit_t>();
     }
   );
 
@@ -532,8 +544,8 @@ parser<token_t, unit_t> close_paren =
   token<token_t, unit_t>(
     [](token_t tok) -> boost::optional<unit_t> {
       if(boost::get<T_rparen>(&tok))
-        return boost::optional<unit_t>(unit);
-      return boost::optional<unit_t>();
+        return some (unit);
+      return none<unit_t>();
     }
   );
 
@@ -552,18 +564,22 @@ fact :=
  *)
  */
 
+///Mutually recursive, fwd decls.
 parsed<token_t, expression_t> expr (std::list<token_t> const& toks);
 parsed<token_t, expression_t> term (std::list<token_t> const& toks);
 parsed<token_t, expression_t> fact (std::list<token_t> const& toks);
 
+//expr
 parsed<token_t, expression_t> expr (std::list<token_t> const& toks) {
   return (left_assoc (parser<token_t, expression_t>(term), addop)) (toks);
 }
 
+//term
 parsed<token_t, expression_t> term (std::list<token_t> const& toks) {
   return (left_assoc (parser<token_t, expression_t>(fact), mulop)) (toks);
 }
 
+//fact
 parsed<token_t, expression_t> fact (std::list<token_t> const& toks) {
   return
     (num | ident | 
