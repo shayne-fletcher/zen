@@ -106,3 +106,16 @@ As we talked about yesterday, I'll happily receive your solutions via MSG and po
     List.fold_left helper [[]] (List.rev l)
   ;;
   
+  (*Viet Li*)
+  let rec suffixes l = match l with
+      [] -> [[]]
+      | l -> l :: suffixes (List.tl l)
+  ;;
+
+  (*Gen Suzuki*)
+  let rec suffixes l =
+    match l with
+    | []      -> [[]]
+    | _ :: tl -> l :: (suffixes tl)
+  ;;
+
