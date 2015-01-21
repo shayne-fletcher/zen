@@ -1,200 +1,232 @@
-(* From, "The Funcational Approach to Programming" - Cosineau,
-   Mauny. *)
+type ast =
+  | Constant of float
+  | Variable of string
+  | Addition of ast * ast
+  | Subtraction of ast * ast
+  | Multiplication of ast * ast
+  | Division of ast * ast
 
-type ('a, 'b) parsed = 
-| Returns of 'b * ('a list)
-| AnalyzeFails
-;;
+type token =
+  | T_num of float
+  | T_ident of string
+  | T_lparen | T_rparen
+  | T_plus | T_minus | T_star | T_slash
 
-type ('a, 'b) parser = 'a list -> ('a, 'b) parsed ;;
+type ('a, 'b) parsed =
+| Returns of 'b * 'a list
+| Analyze_fails
 
-(* Extract the return value of an analyzer. *)
+type ('a, 'b) parser = 'a list -> ('a, 'b) parsed
 
-let accept : ('a, 'b) parsed -> 'b = 
-  fun expr ->
-    match expr with
-      | Returns (e, []) -> e
-      | Returns (_, _ :: _ ) -> failwith "Couldn't consume all the input"
-      | AnalyzeFails -> failwith "Failed"
-  ;;
+let (accept : ('a, 'b) parsed -> 'b) = function
+   | Returns (v, []) -> v
+   | Returns (_, _ :: _) -> failwith "Couldn't consume all input"
+   | Analyze_fails  -> failwith "Failed"
 
-(* First stop. The analyzer that recognizes the empty string. *)
-
-let (empty : 'b -> ('a, 'b) parser) =  
-  fun v toks -> Returns (v, toks) 
-;;
-
-(* The analyzers associated with tokens are buillt by means of
-   functions returning a value of type 'b option.
-*)
+let (empty : 'b -> ('a, 'b) parser) = fun v toks -> Returns (v, toks)
 
 let (token : ('a -> 'b option) -> ('a, 'b) parser) =
-  fun test x ->
-    match x with
-    | (t :: ts) ->
-      (
-	match test t with
-        | Some r -> Returns (r, ts)
-        | None -> AnalyzeFails
-      )
-    | _ -> AnalyzeFails
-;;
+  fun test ->
+    let f l =
+      match l with
+      | (t :: ts) -> 
+         begin
+           match test t with
+           | Some r -> Returns (r, ts)
+           | None -> Analyze_fails
+         end
+      | _ -> Analyze_fails in
+    f
 
-let char (c:char) = token (fun c' -> if c = c' then Some c else None);;
+let (char : 'a -> ('a, 'a) parser) = 
+  fun c -> token (fun c' -> if c = c' then Some c else None)
 
-type ast =
-| Constant of float
-| Variable of string
-| Addition of ast * ast
-| Subtraction of ast * ast
-| Multiplication of ast * ast 
-| Division of ast * ast
-;;
+let (num : (token, ast) parser) = 
+  token (function | T_num n -> Some (Constant n) | _ -> None)
 
-type tokens =
-| NUM of float
-| IDENT of string
-| LPAR
-| RPAR
-| PLUS
-| MINUS
-| STAR
-| SLASH
-;;
+let (ident : (token, ast) parser) =
+  token (function | T_ident s -> Some (Variable s) | _ -> None)
 
-let num =
-  token (fun x -> 
-    match x with
-    | NUM n -> Some (Constant n)
-    | _ -> None
-  )
-and ident =
-  token (fun x ->
-    match x with
-    | IDENT s -> Some (Variable s)
-    | _ -> None
-  )
-and addop = 
-  token (fun x ->
-    match x with
-    | PLUS -> Some (fun a b -> Addition (a, b))
-    | MINUS -> Some (fun a b -> Subtraction (a, b))
-    | _ -> None
-  )
-and mulop =
-  token (fun x ->
-    match x with
-    | STAR -> Some (fun a b -> Multiplication (a, b))
-    | SLASH -> Some (fun a b -> Division (a, b))
-    | _ ->None
-  )
-;;
+let (addop : (token, ast -> ast -> ast) parser) = 
+  token (function 
+          | T_plus -> Some (fun e1 e2 -> Addition (e1, e2)) 
+          | T_minus -> Some (fun e1 e2 -> Subtraction (e1, e2))
+          | _ -> None)
 
-(*
+let (mulop : (token, ast -> ast -> ast) parser) =
+  token (function 
+          | T_star -> Some (fun e1 e2 -> Multiplication (e1, e2))
+          | T_slash -> Some (fun e1 e2 -> Division (e1, e2))
+          | _ -> None
+        )
 
-  val num : (tokens, ast) parser = <fun>
-  val ident : (tokens, ast) parser = <fun>
-  val addop : (tokens, ast -> ast -> ast) parser = <fun>
-  val mulop : (tokens, ast -> ast -> ast) parser = <fun>
-
-  # num [NUM 3.0 ; LPAR];;
-  - : (tokens, ast) parsed = Returns (Constant 3., [LPAR])
-
-*)
-
-let gives : ('a, 'b) parser -> ('b -> 'c) -> ('a, 'c) parser = 
+(*gives*)
+let (( |>~ ) : ('a, 'b) parser -> ('b -> 'c) -> ('a, 'c) parser) =
   fun p f toks ->
-    match p toks with 
-      | Returns (r1, toks1) -> Returns (f r1, toks1)
-      | AnalyzeFails -> AnalyzeFails
-;;
+    match p toks with
+    | Returns (r1, toks1) -> Returns (f r1, toks1)
+    | Analyze_fails -> Analyze_fails
 
-let ( /* ) x y = y x  ;;
-let ( */ ) x y = x y  ;;
-
-(* infix `gives` *)
-
-(*
-# gives num (
-  fun x ->
-    match x with
-      | Constant n -> n
-      | _ -> 0.) [NUM 3.0];;
-        - : (tokens, float) parsed = Returns (3., [])
-
-# let ( /* ) x y = y x;;
-val ( /* ) : 'a -> ('a -> 'b) -> 'b = <fun>
-# let ( */ ) x y = x y;;
-val ( */ ) : ('a -> 'b) -> 'a -> 'b = <fun>
-# (num /* gives */ (
-  fun x ->
-    match x with
-      | Constant n -> n
-      | _ -> 0.)) [NUM 3.0];;
-        - : (tokens, float) parsed = Returns (3., [])
-*)
-
-let orelse : ('a, 'b) parser -> ('a, 'b) parser -> ('a, 'b) parser =
+(*orelse*)
+let (( |~ ) : ('a, 'b) parser -> ('a, 'b) parser -> ('a, 'b) parser) =
   fun p1 p2 toks ->
     match p1 toks with
-      | AnalyzeFails -> p2 toks
-      | res -> res
-;;
+    | Analyze_fails -> p2 toks
+    | res -> res
 
-(* Infix `orelse`
-
-# (num /* orelse */ empty (Constant 0.0))[LPAR];;
-- : (tokens, ast) parsed = Returns (Constant 0., [LPAR])
-
-# (num /* orelse */ empty (Constant 0.0))[NUM 3.0];;
-- : (tokens, ast) parsed = Returns (Constant 3., [])
-
-*)
-
-let andalso : ('a, 'b) parser -> ('a, 'c) parser -> ('a, ('b * 'c)) parser =
+(*andalso*)
+let (( &~ ) : ('a, 'b) parser -> ('a, 'c) parser -> ('a, 'b * 'c) parser) =
   fun p1 p2 toks ->
-    (match p1 toks with
-      | Returns (r1, toks1) ->
-	     (match p2 toks1 with
-  	       | Returns (r2, toks2) -> Returns ((r1, r2), toks2)
-	       | _ -> AnalyzeFails)
-      | _ -> AnalyzeFails)
-;;
+    match p1 toks with
+    | Returns (r1, toks1) -> 
+       (match p2 toks1 with
+        | Returns (r2, toks2) -> Returns ((r1, r2), toks2)
+        | _ -> Analyze_fails)
+    | _ -> Analyze_fails
 
-(* Infix `andalso`
+let rec (zero_or_more  : ('a, 'b) parser -> ('a, 'b list) parser) =
+  fun p toks -> 
+    (((p &~ (zero_or_more p)) |>~ (fun (x, xs) -> x :: xs)) |~ (empty [])) toks
 
-# (andalso num addop) [NUM 1.0; PLUS];;
-- : (tokens, ast * (ast -> ast -> ast)) parsed =
-Returns ((Constant 1., <fun>), [])
-# (andalso addop num) [PLUS; NUM 1.0];;
-- : (tokens, (ast -> ast -> ast) * ast) parsed =
-Returns ((<fun>, Constant 1.), [])
-# gives (andalso (andalso num addop) num) (fun ((e1, f), e2) -> f e1 e2) [NUM 1.0; PLUS; NUM 2.0];;
-- : (tokens, ast) parsed = Returns (Addition (Constant 1., Constant 2.), [])
-# (((num /* andalso */ addop) /* andalso */ num) /* gives */ (fun ((e1, f), e2) -> f e1 e2)) [NUM 1.0; PLUS; NUM 2.0];;
-- : (tokens, ast) parsed = Returns (Addition (Constant 1., Constant 2.), [])
+let rec (char_range : char -> (char * char) list -> bool)= 
+  fun c -> function
+        | [] -> false
+        | ((c1, c2) :: l) -> 
+           (int_of_char c1 <= int_of_char c && 
+              int_of_char c <= int_of_char c2) 
+           || char_range c l
 
-*)
+let (is_digit : char -> bool) = fun c -> char_range c [('0', '9')]
 
-let rec zero_or_more p toks = 
-  (orelse (gives (andalso p (zero_or_more p)) 
-	     (fun (x, xs) -> x::xs)) (empty [])) toks 
-;;
-(*  val zero_or_more : ('a, 'b) parser -> ('a, 'b list) parser = <fun>  *)
+let (is_letter : char -> bool) = fun c -> char_range c [('a', 'z'); ('A', 'Z')]
+
+let (digit : (char, char) parser) = 
+  token (fun c -> if is_digit c then Some c else None)
+
+let (digits : (char, char list) parser) = 
+  (digit &~ (zero_or_more digit)) |>~ (fun (c, cs) -> c :: cs)
+
+let (optsign : (char, char list) parser) =
+  (token (function 
+           | '-' | '+' as c -> Some [c]
+           | _ -> None)) |~ empty []
+
+let (optfrac : (char, char list) parser) =
+  ((char '.' &~ (zero_or_more digit)) |>~ (fun (c, cs) -> c :: cs) |~ empty [])
+
+let (optexp : (char, char list) parser) = 
+ (((((char 'e' |~ char 'E') &~ optsign) |>~ (fun (c, cs) -> c :: cs)) &~ digits) |>~ fun (l, r) -> l @ r) |~ empty []
+
+let (explode : string -> char list) =
+  fun s ->
+    let n = String.length s in
+    let rec loop acc i =
+      if i = n then List.rev acc
+      else loop (String.get s i :: acc) (i + 1) in
+    loop [] 0
+
+let (implode : char list -> string) =
+  fun l ->
+    let n = List.length l in
+    let buf = Bytes.create n in
+    let f i c = Bytes.set buf i c in
+    List.iteri f l ; Bytes.to_string buf
+
+let (number : (char, token) parser) = 
+  (digits &~ optfrac &~ optexp) |>~  
+    (fun ((csi , csf), cse) -> 
+      T_num (implode (csi @ csf @ cse) |> float_of_string))
+
+let (letter : (char, char) parser) =
+  token (fun c -> if is_letter c then Some c else None)
+
+let (identifier : (char, token) parser) =
+  (letter &~ (zero_or_more letter)) |>~ (fun (c, cs) -> T_ident (implode (c :: cs)))
+
+let (operator : (char, token) parser) = 
+  token (function | '+' -> Some T_plus | '-' -> Some T_minus 
+         | '*' -> Some T_star | '/' -> Some T_slash | _ -> None)
+
+let (paren : (char, token) parser) =
+  token (function | '(' -> Some T_lparen | ')' -> Some T_rparen | _ -> None)
+
+let (space : (char, unit) parser) = 
+  token (function | ' '| '\t' | '\r' | '\n' -> Some () | _ -> None)
+
+let rec (spaces : (char, unit) parser)= 
+  fun toks -> (((space &~ spaces) |>~ (fun _ -> ())) |~ empty ()) toks
+
+(* lex := spaces ((identifier|number|operator|paren)spaces)* *)
+let (lex : (char, token list) parser) = 
+  spaces &~ (zero_or_more (((identifier |~ number |~ operator |~ paren) &~ spaces) |>~ (fun (tok, ()) -> tok))) |>~ fun ((), toks) -> toks
+
+let (any : 'a -> ('b, 'a) parser) = 
+  fun v -> token (fun _ -> Some v)
+
+let (optional : ('a, 'b) parser -> 'b -> ('a, 'b) parser) = 
+  fun p v -> p |~ (empty v)
+
+let (one_or_more : ('a, 'b) parser -> ('a, 'b * 'b list) parser) =
+  fun p -> p &~ (zero_or_more p)
+
+let (and_list : ('a, 'b) parser list -> ('a, 'b list) parser) =
+  fun pl -> List.fold_right (fun p acc -> (p &~ acc)  |>~ (fun (x, xs) -> x :: xs)) pl (empty [])
+
+let (or_list : ('a, 'b) parser -> ('a, 'b) parser list -> ('a, 'b) parser) =
+  fun p pl -> List.fold_left ( |~ ) p pl
+
+(* expr := term (op expr | epsilon) *)
+
+let rec right_assoc term op =
+  (fun toks ->
+     ((term &~ (((op &~ (right_assoc term op))
+                |>~ (fun (f, t2) -> (fun t1 -> f t1 t2)))
+      |~ (empty (fun t -> t))))
+  |>~ (fun (t1, f) -> f t1)) toks : ('a, 'b) parser)
+
+(*givento*)
+let (( |>>~ ) : ('a, 'b) parser -> ('b -> ('a, 'c) parser) -> ('a, 'c) parser) =
+  fun p1 p2 toks ->
+  match p1 toks with
+  | Returns (r1, toks1) -> p2 r1 toks1
+  | Analyze_fails -> Analyze_fails
+
+(*expr := term (op term)* *)
+
+let (left_assoc : ('a, 'b) parser -> ('a, 'b -> 'b -> 'b) parser -> ('a, 'b) parser) =
+  fun term op ->
+    let rec sequence t1 =
+      (((op &~ term) |>~ (fun (f, t2) -> f t1 t2)) |>>~ sequence) |~ (empty t1) in
+    term |>>~ sequence
+
+let open_paren = token (function | T_lparen -> Some () | _ -> None)
+let close_paren = token (function | T_rparen -> Some () | _ -> None)
 
 (*
-
-# zero_or_more num [LPAR];;
-- : (tokens, ast list) parsed = Returns ([], [LPAR])
-# zero_or_more num [NUM 0.0; NUM 1.0; NUM 2.0];;
-- : (tokens, ast list) parsed =
-Returns ([Constant 0.; Constant 1.; Constant 2.], [])
-
-# (((num /* andalso */ (zero_or_more num)) /* gives */ (fun (x, xs) -> x::xs )) /* orelse */ (empty [])) [NUM 0.0; NUM 1.0; NUM 2.0];;
-- : (tokens, ast list) parsed =
-Returns ([Constant 0.; Constant 1.; Constant 2.], [])
-
+expr :=
+  | term (['+'|'-'] term)*
+  ;
+term :=
+  | fact (['*'|'/'] fact)*
+  ;
+fact :=
+  | num
+  | identifier
+  | '( expr ')
+ *)
+let (analyze_expr : (token, ast) parser) =
+  let rec expr toks = (left_assoc term addop) toks
+    and term toks = (left_assoc fact mulop) toks
+    and fact toks = 
+      (num 
+       |~ ident 
+       |~ ((open_paren &~ expr &~ close_paren) |>~ (fun ((_, e),_) -> e))) toks
+  in expr
+(*
+# accept (analyze_expr (accept (lex (explode "1.+2.+3.-4.-x*6."))));;
+- : ast =
+Subtraction
+ (Subtraction (Addition (Addition (Constant 1., Constant 2.), Constant 3.),
+   Constant 4.),
+ Multiplication (Variable "x", Constant 6.))
 *)
-
-let _ = Printf.printf "Hello" ;;
-
