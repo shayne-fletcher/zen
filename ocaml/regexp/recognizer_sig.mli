@@ -16,7 +16,7 @@ module type S = sig
 
   (**A recognizer that recognizes the empty string. It always succeeds
      and no input is ever consumed*)
-  val epsilon : 'a recognizer
+  val empty : 'a recognizer
 
   (**A recognizer that only recognizes  the empty ['a list].*)
   val end_of_input : 'a recognizer
@@ -36,16 +36,16 @@ module type S = sig
   val one_or_more : 'a recognizer -> 'a recognizer
 
   (**Recognizer disjunction*)
-  val compose_or : 'a recognizer -> 'a recognizer -> 'a recognizer
+  val ( |~ ) : 'a recognizer -> 'a recognizer -> 'a recognizer
 
   (**Recognizer disjunction, list version*)
-  val compose_or_list : 'a recognizer -> 'a recognizer list -> 'a recognizer
+  val compose_or : 'a recognizer -> 'a recognizer list -> 'a recognizer
 
   (**Recognizer conjunction*)
-  val compose_and : 'a recognizer -> 'a recognizer -> 'a recognizer
+  val ( &~ ) : 'a recognizer -> 'a recognizer -> 'a recognizer
 
   (**Recognizer conjunction, list version. Note that the conjunction
      of an empty list is taken to be the recognizer [epsilon]*)
-  val compose_and_list : 'a recognizer list -> 'a recognizer
+  val compose_and : 'a recognizer list -> 'a recognizer
 
 end

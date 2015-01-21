@@ -12,3 +12,6 @@ html
 *.omc
 *.pyc
 *.opt
+*.ilk
+*.pdb
+*.suo

@@ -288,21 +288,21 @@ let (dfa_of : augmented_regexp * Int_set.t array * char option array -> state ar
 
 let (interpret_dfa : state array -> int -> char Lexical_analysis.Recognizer.recognizer) =
   fun dfa accept ->
-    let open Lexical_analysis in
+    let open Lexical_analysis.Recognizer in
     let num_states = Array.length dfa in
     let fvect = Array.make (num_states) (fun _ -> failwith "no value") in
     for i = 0 to num_states - 1 do
       let trans = dfa.(i).trans in
       let f (c, st) =
-        let pc = Recognizer.recognizer_of_char c in
+        let pc = recognizer_of_char c in
         let j = array_indexq dfa st in
-        Recognizer.compose_and pc (fun l -> fvect.(j) l) in
+        pc &~ (fun l -> fvect.(j) l) in
       let parsers = List.map f trans in
       if Int_set.mem accept (dfa.(i).pos) then
-        fvect.(i) <- Recognizer.compose_or_list (Recognizer.end_of_input) parsers
+        fvect.(i) <- compose_or end_of_input parsers
       else match parsers with
       | [] -> failwith "Impossible"
-      | p :: ps -> fvect.(i) <- Recognizer.compose_or_list p ps
+      | p :: ps -> fvect.(i) <-  compose_or p ps
     done;
     fvect.(0)
 
