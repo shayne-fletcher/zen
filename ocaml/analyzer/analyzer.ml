@@ -1,16 +1,17 @@
 type ast =
-  | Constant of float
-  | Variable of string
-  | Addition of ast * ast
-  | Subtraction of ast * ast
-  | Multiplication of ast * ast
-  | Division of ast * ast
+  | E_let of string * ast
+  | E_constant of float
+  | E_variable of string
+  | E_addition of ast * ast
+  | E_subtraction of ast * ast
+  | E_multiplication of ast * ast
+  | E_division of ast * ast
 
 type token =
   | T_num of float
   | T_ident of string
   | T_lparen | T_rparen
-  | T_plus | T_minus | T_star | T_slash
+  | T_plus | T_minus | T_star | T_slash | T_semicolon | T_equal
 
 type ('a, 'b) parsed =
 | Returns of 'b * 'a list
@@ -42,21 +43,21 @@ let (char : 'a -> ('a, 'a) parser) =
   fun c -> token (fun c' -> if c = c' then Some c else None)
 
 let (num : (token, ast) parser) = 
-  token (function | T_num n -> Some (Constant n) | _ -> None)
+  token (function | T_num n -> Some (E_constant n) | _ -> None)
 
 let (ident : (token, ast) parser) =
-  token (function | T_ident s -> Some (Variable s) | _ -> None)
+  token (function | T_ident s -> Some (E_variable s) | _ -> None)
 
 let (addop : (token, ast -> ast -> ast) parser) = 
   token (function 
-          | T_plus -> Some (fun e1 e2 -> Addition (e1, e2)) 
-          | T_minus -> Some (fun e1 e2 -> Subtraction (e1, e2))
+          | T_plus -> Some (fun e1 e2 -> E_addition (e1, e2)) 
+          | T_minus -> Some (fun e1 e2 -> E_subtraction (e1, e2))
           | _ -> None)
 
 let (mulop : (token, ast -> ast -> ast) parser) =
   token (function 
-          | T_star -> Some (fun e1 e2 -> Multiplication (e1, e2))
-          | T_slash -> Some (fun e1 e2 -> Division (e1, e2))
+          | T_star -> Some (fun e1 e2 -> E_multiplication (e1, e2))
+          | T_slash -> Some (fun e1 e2 -> E_division (e1, e2))
           | _ -> None
         )
 
@@ -156,9 +157,15 @@ let (space : (char, unit) parser) =
 let rec (spaces : (char, unit) parser)= 
   fun toks -> (((space &~ spaces) |>~ (fun _ -> ())) |~ empty ()) toks
 
-(* lex := spaces ((identifier|number|operator|paren)spaces)* *)
+let (equal : (char, token) parser) =
+  token (function | '=' -> Some T_equal | _ -> None)
+
+let (semicolon : (char, token) parser) = 
+  token (function | ';' -> Some T_semicolon | _ -> None)
+
+(* lex := spaces ((identifier|number|operator|paren|semicolon|equal)spaces)* *)
 let (lex : (char, token list) parser) = 
-  spaces &~ (zero_or_more (((identifier |~ number |~ operator |~ paren) &~ spaces) |>~ (fun (tok, ()) -> tok))) |>~ fun ((), toks) -> toks
+  spaces &~ (zero_or_more (((identifier |~ number |~ operator |~ paren |~ semicolon |~ equal) &~ spaces) |>~ (fun (tok, ()) -> tok))) |>~ fun ((), toks) -> toks
 
 let (any : 'a -> ('b, 'a) parser) = 
   fun v -> token (fun _ -> Some v)
@@ -201,9 +208,15 @@ let (left_assoc : ('a, 'b) parser -> ('a, 'b -> 'b -> 'b) parser -> ('a, 'b) par
 
 let open_paren = token (function | T_lparen -> Some () | _ -> None)
 let close_paren = token (function | T_rparen -> Some () | _ -> None)
+let semi = token (function | T_semicolon -> Some () | _ -> None)
+let equals = token (function | T_equal -> Some () | _ -> None)
 
 (*
+expr_list :=
+  | expr *(';' expr)
+  ;
 expr :=
+  | identifier '=' expr
   | term (['+'|'-'] term)*
   ;
 term :=
@@ -214,19 +227,45 @@ fact :=
   | identifier
   | '( expr ')
  *)
-let (analyze_expr : (token, ast) parser) =
-  let rec expr toks = (left_assoc term addop) toks
-    and term toks = (left_assoc fact mulop) toks
-    and fact toks = 
-      (num 
-       |~ ident 
-       |~ ((open_paren &~ expr &~ close_paren) |>~ (fun ((_, e),_) -> e))) toks
-  in expr
-(*
-# accept (analyze_expr (accept (lex (explode "1.+2.+3.-4.-x*6."))));;
-- : ast =
-Subtraction
- (Subtraction (Addition (Addition (Constant 1., Constant 2.), Constant 3.),
-   Constant 4.),
- Multiplication (Variable "x", Constant 6.))
-*)
+let rec expr_list toks =(((
+     expr &~ zero_or_more (
+                 (semi &~ expr)|>~ fun ((), e) -> e)
+     ) |>~ fun (e, es) -> e :: es)
+    |~ empty []) toks
+and expr toks = (bind |~ left_assoc term addop) toks
+and term toks = (left_assoc fact mulop) toks
+and fact toks  = (
+          num 
+      |~ ident 
+      |~ ((open_paren &~ expr &~ close_paren) |>~ (fun ((_, e),_) -> e))) toks
+and bind toks = (((((ident &~ equals) |>~ fun (i, ()) -> i)) &~ expr) 
+   |>~ fun (i, e) -> 
+     match i with | E_variable s -> E_let (s, e) | _ -> failwith "unexpected") toks
+
+let tokenize : string -> token list = fun s -> s |> explode |> lex |> accept
+let parse_eval : string -> ast = fun s -> s |> tokenize |> expr |> accept
+let parse_expr_list : string -> ast list = fun s -> s |> tokenize |> expr_list |> accept
+
+let rec eval (env: (string*float) list ref) (expr:ast) : float =
+  match expr with
+  | E_let (tag, e) -> let v = eval env e in env := (tag, v) :: !env; v
+  | E_constant f -> f
+  | E_variable tag ->
+    begin
+      try
+        List.assoc tag (!env)
+      with
+      | Not_found -> failwith ("\""^tag^"\" is not bound in the environment")
+    end
+  | E_addition (l, r) -> eval env l +. eval env r
+  | E_subtraction (l, r) -> eval env l -. eval env r
+  | E_multiplication (l, r) -> eval env l *. eval env r
+  | E_division (l, r) -> eval env l /. eval env r
+
+let parse_eval_exprs s =
+  let env = ref [] (*Top level 'env' is mutable and initially empty*)
+  in let rec loop acc l =
+    match l with
+    | [] -> List.rev acc
+    | (h :: t) -> loop ((eval env h) :: acc) t
+  in  loop [] (parse_expr_list s)
