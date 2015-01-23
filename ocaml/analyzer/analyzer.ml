@@ -262,10 +262,54 @@ let rec eval (env: (string*float) list ref) (expr:ast) : float =
   | E_multiplication (l, r) -> eval env l *. eval env r
   | E_division (l, r) -> eval env l /. eval env r
 
-let parse_eval_exprs s =
-  let env = ref [] (*Top level 'env' is mutable and initially empty*)
-  in let rec loop acc l =
+let parse_eval_exprs env s =
+  let rec loop acc l =
     match l with
     | [] -> List.rev acc
     | (h :: t) -> loop ((eval env h) :: acc) t
   in  loop [] (parse_expr_list s)
+
+(*repl*)
+
+let prompt (continuing:bool) =
+  (print_string (if (not continuing)
+    then "? " else "... ");(flush stdout))
+
+let read (continuing:bool)=prompt continuing; input_line stdin
+
+let safe_proc ?(finally=fun () -> ()) f =
+  try f ()
+  with 
+  | Stack_overflow -> finally () ; Printf.printf "Stack overflow\n"
+  | Division_by_zero -> finally () ; Printf.printf "Division by zero\n"
+  | End_of_file as e-> finally (); raise e
+  | Failure s -> finally () ; (Printf.printf "%s\n" s)
+  | _  as e -> finally (); Printf.printf "Unknown exception : %s\n" (Printexc.to_string e) ; raise e
+
+let main =
+  let initial_capacity = 4*1024 in
+  let buf = Buffer.create initial_capacity in
+  try 
+    let env = ref [] in
+    while true do
+      let f () =
+        let l = read ((Buffer.length buf)!=0) in
+        let len = String.length l in
+        if len > 0 then
+          if l.[0] = '%' then (*Comment line. Discard*) ()
+          else
+            if l.[len - 1] = '\\' then
+              (*Line continuation; append and keep reading*)
+              (Buffer.add_string buf ((String.sub l 0 (len-1))^"\n"))
+            else
+              (*Discard partial statements with ^G*)
+              if l.[len-1] = (char_of_int 7) then Buffer.clear buf
+              else
+                (*We think we got a phrase. Evaluate*)
+                let _ = Buffer.add_string buf l in
+                let res = parse_eval_exprs env (Buffer.contents buf) in
+                Buffer.clear buf; Printf.printf "%f\n" (List.nth res (List.length res - 1))
+      in (safe_proc ~finally:(fun () -> Buffer.clear buf) f)
+    done
+  with
+  | End_of_file -> print_string "\n" (*We're out of here!*)
