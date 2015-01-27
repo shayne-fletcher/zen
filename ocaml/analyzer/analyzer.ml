@@ -167,29 +167,12 @@ let (semicolon : (char, token) parser) =
 let (lex : (char, token list) parser) = 
   spaces &~ (zero_or_more (((identifier |~ number |~ operator |~ paren |~ semicolon |~ equal) &~ spaces) |>~ (fun (tok, ()) -> tok))) |>~ fun ((), toks) -> toks
 
-let (any : 'a -> ('b, 'a) parser) = 
-  fun v -> token (fun _ -> Some v)
-
-let (optional : ('a, 'b) parser -> 'b -> ('a, 'b) parser) = 
-  fun p v -> p |~ (empty v)
-
-let (one_or_more : ('a, 'b) parser -> ('a, 'b * 'b list) parser) =
-  fun p -> p &~ (zero_or_more p)
-
-let (and_list : ('a, 'b) parser list -> ('a, 'b list) parser) =
-  fun pl -> List.fold_right (fun p acc -> (p &~ acc)  |>~ (fun (x, xs) -> x :: xs)) pl (empty [])
-
-let (or_list : ('a, 'b) parser -> ('a, 'b) parser list -> ('a, 'b) parser) =
-  fun p pl -> List.fold_left ( |~ ) p pl
-
-(* expr := term (op expr | epsilon) *)
-
-let rec right_assoc term op =
-  (fun toks ->
+let rec right_assoc :('a, 'b) parser -> ('a, 'b -> 'b -> 'b) parser -> ('a, 'b) parser =
+  (fun term op toks ->
      ((term &~ (((op &~ (right_assoc term op))
                 |>~ (fun (f, t2) -> (fun t1 -> f t1 t2)))
       |~ (empty (fun t -> t))))
-  |>~ (fun (t1, f) -> f t1)) toks : ('a, 'b) parser)
+  |>~ (fun (t1, f) -> f t1)) toks)
 
 (*givento*)
 let (( |>>~ ) : ('a, 'b) parser -> ('b -> ('a, 'c) parser) -> ('a, 'c) parser) =
@@ -198,18 +181,16 @@ let (( |>>~ ) : ('a, 'b) parser -> ('b -> ('a, 'c) parser) -> ('a, 'c) parser) =
   | Returns (r1, toks1) -> p2 r1 toks1
   | Analyze_fails -> Analyze_fails
 
-(*expr := term (op term)* *)
-
 let (left_assoc : ('a, 'b) parser -> ('a, 'b -> 'b -> 'b) parser -> ('a, 'b) parser) =
   fun term op ->
     let rec sequence t1 =
       (((op &~ term) |>~ (fun (f, t2) -> f t1 t2)) |>>~ sequence) |~ (empty t1) in
     term |>>~ sequence
 
-let open_paren = token (function | T_lparen -> Some () | _ -> None)
-let close_paren = token (function | T_rparen -> Some () | _ -> None)
-let semi = token (function | T_semicolon -> Some () | _ -> None)
-let equals = token (function | T_equal -> Some () | _ -> None)
+let open_paren : (token, unit) parser = token (function | T_lparen -> Some () | _ -> None)
+let close_paren : (token, unit) parser = token (function | T_rparen -> Some () | _ -> None)
+let semi : (token, unit) parser = token (function | T_semicolon -> Some () | _ -> None)
+let equals : (token, unit) parser = token (function | T_equal -> Some () | _ -> None)
 
 (*
 expr_list :=
@@ -227,23 +208,28 @@ fact :=
   | identifier
   | '( expr ')
  *)
-let rec expr_list toks =(((
+let rec expr_list : (token, ast list) parser = 
+  fun toks -> (((
      expr &~ zero_or_more (
                  (semi &~ expr)|>~ fun ((), e) -> e)
      ) |>~ fun (e, es) -> e :: es)
     |~ empty []) toks
-and expr toks = (bind |~ left_assoc term addop) toks
-and term toks = (left_assoc fact mulop) toks
-and fact toks  = (
-          num 
+and expr : (token, ast) parser = 
+  fun toks ->(bind |~ left_assoc term addop) toks
+and term : (token, ast) parser = 
+  fun toks -> (left_assoc fact mulop) toks
+and fact : (token, ast) parser= 
+  fun toks -> (
+         num 
       |~ ident 
       |~ ((open_paren &~ expr &~ close_paren) |>~ (fun ((_, e),_) -> e))) toks
-and bind toks = (((((ident &~ equals) |>~ fun (i, ()) -> i)) &~ expr) 
+and bind : (token, ast) parser = 
+  fun toks -> (((((ident &~ equals) |>~ fun (i, ()) -> i)) &~ expr) 
    |>~ fun (i, e) -> 
      match i with | E_variable s -> E_let (s, e) | _ -> failwith "unexpected") toks
 
 let tokenize : string -> token list = fun s -> s |> explode |> lex |> accept
-let parse_eval : string -> ast = fun s -> s |> tokenize |> expr |> accept
+let parse_expr : string -> ast = fun s -> s |> tokenize |> expr |> accept
 let parse_expr_list : string -> ast list = fun s -> s |> tokenize |> expr_list |> accept
 
 let rec eval (env: (string*float) list ref) (expr:ast) : float =
@@ -262,12 +248,13 @@ let rec eval (env: (string*float) list ref) (expr:ast) : float =
   | E_multiplication (l, r) -> eval env l *. eval env r
   | E_division (l, r) -> eval env l /. eval env r
 
-let parse_eval_exprs env s =
-  let rec loop acc l =
-    match l with
-    | [] -> List.rev acc
-    | (h :: t) -> loop ((eval env h) :: acc) t
-  in  loop [] (parse_expr_list s)
+let parse_eval_exprs : (string * float) list ref -> string -> float list = 
+  fun env s ->
+    let rec loop acc l =
+      match l with
+      | [] -> List.rev acc
+      | (h :: t) -> loop ((eval env h) :: acc) t
+    in  loop [] (parse_expr_list s)
 
 (*repl*)
 
@@ -280,9 +267,9 @@ let read (continuing:bool)=prompt continuing; input_line stdin
 let safe_proc ?(finally=fun () -> ()) f =
   try f ()
   with 
+  | End_of_file as e -> finally (); raise e
   | Stack_overflow -> finally () ; Printf.printf "Stack overflow\n"
   | Division_by_zero -> finally () ; Printf.printf "Division by zero\n"
-  | End_of_file as e-> finally (); raise e
   | Failure s -> finally () ; (Printf.printf "%s\n" s)
   | _  as e -> finally (); Printf.printf "Unknown exception : %s\n" (Printexc.to_string e) ; raise e
 

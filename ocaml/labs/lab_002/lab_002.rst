@@ -139,5 +139,107 @@ Have a good weekend!
     7 | 1110 | {0,1,2} | {1,2,3}
     
     Does that make sense?
+   *)
+
+  (*Thomas Foster*)
+  let powerset =
+      let f xss x =
+          let withx =
+              List.rev_map (fun xs -> x::xs) xss in
+          List.rev_append withx xss in
+      List.fold_left f [[]] ;;
     
-     *)
+
+  (*Jon Clique*)
+  let powerset l =
+      let rec loop acc l =
+          let gen_sets acc elem = (List.map (fun x -> elem::x) acc) @ acc
+          in match l with
+          | hd::tl -> loop (gen_sets acc hd) tl
+          | [] -> acc
+      in List.map List.rev (loop [[]] l) (* reverse for neatness *)
+
+  (* Tomasz Kupczyk *) (* Why? Well, 2^N = (1 + 1)^N = (N 0) + (N 1) +
+  ... + (N N) and that's the combinatorial sum of elements of a power
+  set. *)
+  let powerset =
+      let
+          powersetAux e = List.fold_left (fun acc x -> (e :: x) :: x :: acc) []
+      in
+          List.fold_left (fun acc x -> powersetAux x acc) [[]];;
+
+  (*Stephen Tuck*)
+  let powerset list = 
+      let prepend x acc item = item::(x::item)::acc in
+      let aux acc item = List.fold_left (prepend item) [] acc in
+      List.fold_left aux [[]] (List.rev list) 
+
+  (*Viet
+  1) Proving |P(S)| = 2^(|S|)
+
+     For a set with N elements, there's C(K, N) ways to pick K
+     elements from the set, with C(K, N) = N!/(N-K)!
+
+     Powerset of S = (All sets with 0 elements) + (All sets with 1
+     element) + (All sets with 2 elements) + ... + (All sets with (N-1)
+     elements) + (All sets with N elements) = C(0, N) + C(1, N) +
+     C(2, N) + ... + C(N-1, N) + C(N, N) = (1+1)^N
+
+    This can be proven by induction as well:
+
+      N = 0: [] -> [[]] -> 1 (correct)
+      N = 1: [1] -> [[1]; []] -> 2 (correct)
+      N = 2: [1;2] -> [[1;2]; [1]; [2]; []] -> 4 (correct)
+
+    Let assume the equation |P(S)| = 2^(|S|) holds for N = |S| = k >=
+     2, let's analyse the case N' = |S'| = k+1, where S' = x union S,
+     and x does not belong to S:
+
+      P(S') = P(S) union |x union with all sets of P(S)| = 2^k + 2^k =
+      2^(k+1) = 2^N'
+
+    So we can conclude this equation holds for all sets S.
+  *)
+  (*
+    2) Non-tail-recursive solution:
+
+    This is very simple: Let say S = H::T, then powerset of S union of
+    (powerset of T) with (H prepended to all elements of powerset
+    of T) 
+  *)
+  let rec powerset = function
+      [] -> [[]]
+      | h::t -> let aux = powerset t
+          in List.append (List.map (fun x -> h::x) aux) aux
+  (*Tail recursive solution*)
+  let powerset s =
+    let prepend l x = List.fold_left (fun a b -> (x::b)::a) [] l
+    in let fold_func a b = List.rev_append (prepend a b) a
+    in List.fold_left fold_func [[]] (List.rev s)
+
+  (*Sen Han*)
+  let set_insert s set = List.map (fun x -> s::x) set;;
+  let rec power_set set = 
+  match set with 
+    | [] -> [[]]
+    | hd::sub_set -> (set_insert hd (power_set sub_set)) @ (power_set sub_set) ;; 
+
+  (*Gen Suzuki*)
+  let rec powerset l =
+    match l with
+    | []       -> [[]]
+    | hd :: tl -> let tl' = powerset tl in
+                  let hd' = List.map (fun x -> hd :: x) tl' in
+                  hd' @ tl'
+
+  (*Nicholas Bishop*)
+  let rec powerset = function 
+      | [] -> [[]]
+      | hd::tl -> (powerset tl) @ (List.map (fun l -> hd::l) (powerset tl))
+  let powerset_tail_recursive l =
+      let rec powerset_impl acc = function 
+        | [] -> [[]]
+        | hd :: tl -> List.rev_append 
+            (powerset_impl acc tl) 
+            (List.rev_map (fun l -> hd::l) (powerset_impl acc tl))
+        in powerset_impl [] l

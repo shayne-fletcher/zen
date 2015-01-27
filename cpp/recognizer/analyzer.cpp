@@ -16,6 +16,9 @@
 #include <cstdlib>
 #include <sstream>
 #include <cstring>
+#include <map>
+#include <algorithm>
+#include <iterator>
 
 //Parse success
 template <class A, class B> 
@@ -223,11 +226,14 @@ struct T_plus {};
 struct T_minus {};
 struct T_star {};
 struct T_slash {};
+struct T_semicolon {};
+struct T_equal {};
+
 typedef boost::variant <
   T_num, 
   T_ident, 
   T_lparen, T_rparen, 
-  T_plus, T_minus, T_star, T_slash> token_t;
+  T_plus, T_minus, T_star, T_slash, T_semicolon, T_equal> token_t;
 
 struct string_of_token_visitor {
   typedef std::string result_type;
@@ -238,6 +244,8 @@ struct string_of_token_visitor {
   std::string operator()(T_minus) const { return "T_minus"; }
   std::string operator()(T_star) const { return "T_star"; }
   std::string operator()(T_slash) const { return "T_slash"; }
+  std::string operator()(T_semicolon) const { return "T_semicolon"; }
+  std::string operator()(T_equal) const { return "T_equal"; }
   std::string operator ()(T_num tok) const { 
     std::ostringstream os;
     os << "T_num " << tok.val;
@@ -310,6 +318,28 @@ parser<char, token_t> paren =
          }
         );
 
+//equal := '='
+parser<char, token_t> equal =
+  token<char, token_t> (
+         [](char c) -> boost::optional<token_t> {
+           switch (c) {
+           case '=' : return some (token_t (T_equal ()));
+           default: return none<token_t> ();
+           }
+         }
+        );
+
+//semicolon := ';'
+parser<char, token_t> semicolon =
+  token<char, token_t> (
+         [](char c) -> boost::optional<token_t> {
+           switch (c) {
+           case ';' : return some (token_t (T_semicolon ()));
+           default: return none<token_t> ();
+           }
+         }
+        );
+
 struct unit_t {};//The single point type
 unit_t const unit;
 
@@ -334,13 +364,14 @@ parser<char, unit_t> spaces =
 //lex := spaces *((identifier | number | operator | paren) spaces)
 parser<char, std::list<token_t>> lex =
   spaces >> 
-  *(((identifier|number|operator_|paren) >> spaces)>= 
+  *(((identifier|number|operator_|paren|semicolon|equal) >> spaces)>= 
     [](std::pair<token_t, unit_t> res) -> token_t { return res.first; }
     ) >= [](std::pair<unit_t, std::list<token_t>> res) -> std::list<token_t> { 
          return res.second; };
 
 //Expressions
 
+struct E_let;
 struct E_constant;
 struct E_variable;
 struct E_addition;
@@ -350,13 +381,16 @@ struct E_division;
 typedef boost::variant<
     E_constant
   , E_variable
+  , boost::recursive_wrapper<E_let>
   , boost::recursive_wrapper<E_addition>
   , boost::recursive_wrapper<E_subtraction>
   , boost::recursive_wrapper<E_multiplication>
   , boost::recursive_wrapper<E_division>
   > expression_t;
+
 struct E_constant { double val; };
 struct E_variable { std::string val; };
+struct E_let { std::string tag; expression_t ast; };
 struct E_addition { expression_t left; expression_t right; };
 struct E_subtraction { expression_t left; expression_t right; };
 struct E_multiplication { expression_t left; expression_t right; };
@@ -368,6 +402,13 @@ std::string string_of_expression (expression_t const& e); //fwd. decl.
 
 struct string_of_expression_visitor {
   typedef std::string result_type;
+
+  std::string operator ()(E_let const& e) const {
+    std::ostringstream os;
+    os << "E_let (\"" << e.tag << "\", " << string_of_expression (e.ast) << ")";
+
+     return os.str ();
+  }
 
   std::string operator ()(E_constant const& e) const {
     std::ostringstream os;
@@ -549,9 +590,30 @@ parser<token_t, unit_t> close_paren =
     }
   );
 
+parser<token_t, unit_t> semi =
+  token<token_t, unit_t>(
+    [](token_t tok) -> boost::optional<unit_t> {
+      if(boost::get<T_semicolon>(&tok))
+        return some (unit);
+      return none<unit_t>();
+    }
+  );
+
+parser<token_t, unit_t> equals =
+  token<token_t, unit_t>(
+    [](token_t tok) -> boost::optional<unit_t> {
+      if(boost::get<T_equal>(&tok))
+        return some (unit);
+      return none<unit_t>();
+    }
+  );
+
 /*
-(*
+expr_list :=
+  | expr *(';' expr)
+  ;
 expr :=
+  | identifier '=' expr
   | term (['+'|'-'] term)*
   ;
 term :=
@@ -561,7 +623,6 @@ fact :=
   | num
   | identifier
   | '( expr ')
- *)
  */
 
 ///Mutually recursive, fwd decls.
@@ -569,9 +630,38 @@ parsed<token_t, expression_t> expr (std::list<token_t> const& toks);
 parsed<token_t, expression_t> term (std::list<token_t> const& toks);
 parsed<token_t, expression_t> fact (std::list<token_t> const& toks);
 
+//expr list
+parsed<token_t, std::list<expression_t>> 
+expr_list (std::list<token_t> const& toks)
+{
+  parser<token_t, expression_t> xpr = expr;
+  parser<token_t, std::list<expression_t>> p = *((semi >> xpr) >= 
+    [=](std::pair<unit_t, expression_t> const& p) -> expression_t 
+    { return p.second; });
+  return ((xpr >> p) >= prepend<expression_t>() 
+          | empty<token_t> (std::list<expression_t>())) (toks);
+}
+
+//bind
+parser<token_t, expression_t> bind =
+   (((parser<token_t, expression_t>(ident) >> parser<token_t, unit_t>(equals)) >=
+      [=](std::pair<expression_t, unit_t> p) -> expression_t
+       {return p.first;}) >> parser<token_t, expression_t>(expr)) >=
+       [](std::pair<expression_t, expression_t> const& p) -> expression_t
+       {
+         if (E_variable const* var = boost::get<E_variable>(&p.first))
+         {
+            E_let e; 
+            e.tag = var->val; 
+            e.ast = p.second;
+            return e;
+         }
+       };
+
 //expr
 parsed<token_t, expression_t> expr (std::list<token_t> const& toks) {
-  return (left_assoc (parser<token_t, expression_t>(term), addop)) (toks);
+  parser<token_t, expression_t> let = bind; 
+  return ( let | left_assoc (parser<token_t, expression_t>(term), addop)) (toks);
 }
 
 //term
@@ -589,18 +679,6 @@ parsed<token_t, expression_t> fact (std::list<token_t> const& toks) {
       }))(toks);
 }
 
-parsed<token_t, expression_t> analyze_expr (std::list<token_t> const& toks)
-{
-  return expr (toks);
-}
-
-//Parse a string
-template <class P>
-typename std::result_of<P (std::list<char> const&)>::type 
-parse (P const& parser, std::string const& s) {
-  return parser (std::list<char>(s.begin (), s.end ()));
-}
-
 //A function to extract the result of a parse
 template <class A, class B>
 struct accept_visitor {
@@ -613,25 +691,126 @@ struct accept_visitor {
     throw std::runtime_error ("Failed");
   }
 };
+
 template <class A, class B>
 B accept (parsed<A, B> const& res) {
   return boost::apply_visitor (accept_visitor<A, B> (), res);
 }
 
+//A function to produce a list of tokens from a string
+std::list<token_t> tokenize (std::string const& s)
+{
+  return accept (lex (std::list<char> (s.begin (), s.end ())));
+}
+
+//A function to produce an ast from a list of tokens
+expression_t parse_expr (std::string const& s)
+{
+  return accept (expr (tokenize (s)));
+}
+
+//A function to produce a list of ast from a list of tokens
+std::list<expression_t> parse_expr_list (std::string const& s)
+{
+  return accept (expr_list (tokenize (s)));
+}
+
+float eval (
+     std::map<std::string, float>* env
+     , expression_t const& ast); //fwd decl.
+
+namespace {
+
+  struct eval_visitor
+  {
+    typedef float result_type;
+
+    std::map<std::string, float>* env_;
+
+    eval_visitor (std::map<std::string, float>* env) 
+      : env_ (env) 
+    {}
+
+    float operator () (E_constant e) const 
+    { 
+      return e.val; 
+    }
+    float operator () (E_let const& e) const
+    {
+      float v = eval (env_, e.ast);
+      (*env_)[e.tag] = v;
+
+      return v;
+    }
+    float operator () (E_variable const& e) const
+    {
+      auto where = env_->find (e.val);
+      if (where == env_->end())
+        {
+          std::ostringstream os;
+          os << "\"" << e.val <<"\" is not bound in the environment";
+          throw std::runtime_error (os.str ());
+        }
+      return where->second;
+    }
+    float operator () (E_addition const& e) const
+    {
+      return eval (env_, e.left) + eval (env_, e.right);
+    }
+    float operator () (E_subtraction const& e) const
+    {
+      return eval (env_, e.left) - eval (env_, e.right);
+    }
+    float operator () (E_multiplication const& e) const
+    {
+      return eval (env_, e.left) * eval (env_, e.right);
+    }
+    float operator () (E_division const& e) const
+    {
+      return eval (env_, e.left) / eval (env_, e.right);
+    }
+    template <class T> float operator ()(T) const 
+    { throw std::runtime_error ("not implemented");}
+  };
+
+}//namespace<anonymous>
+
+float eval (
+     std::map<std::string, float>* env
+   , expression_t const& ast)
+{
+  return boost::apply_visitor (eval_visitor (env), ast);
+}
+
+std::list<float> parse_eval_exprs (
+   std::map<std::string, float>* env, std::string const& s)
+{
+  std::list<expression_t> exprs = parse_expr_list (s);
+
+  std::list<float> values;
+  std::transform (
+      exprs.begin ()
+    , exprs.end ()
+    , std::back_inserter (values), 
+      [&] (expression_t const& e) { return eval (env, e); });
+
+  return values;
+}
+
 //Test
 int main () {
 
+  std::map<std::string, float>  env; //mutable
+
   try {
-    std::cout << 
-      string_of_expression (
-         accept (analyze_expr (
-            accept (parse (lex, "1 + 2 + 3 - 4 - x*6"))))) 
-              << std::endl;
+    std::list<float> results =
+      parse_eval_exprs (&env, "x = 1; y = 2; x + y");
+
+    std::cout << results.back () << std::endl;
   }
   catch (std::runtime_error const& e) {
-      std::cerr << e.what() << '\n';
-    }
+    std::cerr << e.what() << '\n';
+  }
 
  return 0;
 }
-
