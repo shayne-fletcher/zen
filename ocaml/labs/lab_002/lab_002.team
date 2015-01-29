@@ -1,11 +1,31 @@
-Solutions :
-Let's start with the little inline question regarding the number of subsets in a powerset of cardinality N. One can resort to combinatorics which says that, for any set containing n elements, the number of distinct k-element subsets of it that can be formed is given by the binomial coefficient (n k) read as "n choose k". Then, the cardinality of a powerset of a set with cardinality n is the sum over k from 0 to n of the binomial coefficients (n k). Phew! That approach is a kind of 'dodge'. It does nothing helpful for our purposes. It's better to focus on the idea behind the theory : When there are u ways to do A and v ways to do B, then the number of ways of doing A then B is u * v. So in our case, considering each member e of the set when forming a subset, there are two choices for e, either it is in the set or it isn't. So there are 2 * 2 * ... * 2 = 2^N possible subsets. Simple! Thinking about it this way is also revealing. To form the set of all subsets consider the first element. The powerset is the set containing all subsests of which the first element is a member together with all the subsets for which the first element is not a member
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #2
+2015-01-15 by 
+Difficulty level :
+Easy
+Problem :
+If S is a set, then P(S), the 'powerset' of S is the set of all subsets of S including the empty set and S itself. If S has cardinality N then the cardinality of P(S) is 2N (why?).
+
+Write the function 'powerset' that computes the powerset of a given set. Your function will satisfy this signature:
+val powerset : 'a list -> 'a list list
+For example, in the top-level:
+# powerset [1; 2; 3] ;;
+- : int list list = [[]; [3]; [2]; [2; 3]; [1]; [1; 3]; [1; 2]; [1; 2; 3]]
+The ordering of the sets that your function finds is not important here, just that all the sets are discovered.
+Solutions:
+Let's start with the little inline question regarding the number of sets in the powerset of a set with cardinality N. One can resort to combinatorics which says that, for any set containing n elements, the number of distinct k-element subsets of it that can be formed is given by the binomial coefficient (n k) read as "n choose k". Then, the cardinality of a powerset of a set with cardinality n is the sum over k from 0 to n of the binomial coefficients (n k). Phew! That approach is a kind of 'dodge'. It does nothing helpful for our purposes. It's better to focus on the idea behind the theory : When there are u ways to do A and v ways to do B, then the number of ways of doing A then B is u * v. So in our case, considering each member e of the set when forming a subset, there are two choices for e, either it is in the set or it isn't. So there are 2 * 2 * ... * 2 = 2N possible subsets. Simple! Thinking about it this way is also revealing. To form the set of all subsets consider the first element. The powerset is the set containing all subsets of which the first element is a member together with all the subsets for which the first element is not a member.
   let rec powerset l =
       match l with
       | [] -> [[]]
       | (h :: tl) -> 
           let s' = powerset tl in
-          List.map (fun s -> h :: s) s' @ s' ;;
+          List.map (fun s -> h :: s) s' @ s'
 That way of thinking is suitable for recursion since it splits the primary problem into two "smaller" problems. That is the very definition of "divide and conquer". By far, the majority of the submitted solutions said something like that. What is nice to me about solutions like these is that they are declarative. That is, they say little about how to "find" the solution, rather they are just a sort of definition of the solution. That style of programming is somehow reminiscint of magic to me (Prolog anyone?)! If you want to get down to the nitty-gritty though there is another approach, this time generative rather than declarative and suggested by a smaller number of submitters.
   let powerset s =
     let helper acc elem =
@@ -13,11 +33,13 @@ That way of thinking is suitable for recursion since it splits the primary probl
       sets @ acc in
     List.fold_left helper [[]] s
 The idea here is at each step, you join what has been computed so far with a new set where the element under consideration is included in what has been computed so far. For example, given [1; 2; 3] you compute in turn
-  [[]]
-  [[1]; []]
-  [[2; 1]; [2]; [1]; []]
-  [[3; 2; 1]; [3; 2]; [3; 1]; [2; 1]; [2]; [1]; []]
-Nice! Of course, there is more than one way to skin a cat. Another approach entirely is to generate the numbers between 0 and 2^N. Each such number in it's binary representation maps to a subset which includes the element e_i if the bit at position i in the number is 1 else excludes it if it is 0.
+[[]]
+[[1]; []]
+[[2; 1]; [2]; [1]; []]
+[[3; 2; 1]; [3; 2]; [3; 1]; [3]; [2; 1]; [2]; [1]; []]
+Nice!
+
+Of course, there is more than one way to skin a cat. Another approach entirely is to generate the numbers between 0 and 2N-1. Each such number in it's binary representation maps to a subset which includes the element ei if the bit at position i has the value 1 else excludes it if it is 0.
   let binary_log i =
     let f = float_of_int i in
     let log2 = (log f) /. (log 2.) in
@@ -38,11 +60,14 @@ Nice! Of course, there is more than one way to skin a cat. Another approach enti
         let inc = find_set_bits i in
         let sets = List.fold_left helper [] inc in
         loop (sets :: acc) (i - 1) in
-    loop [[]] (1 lsl (Array.length arr) - 1);;
-One can't help admire the skill demonstrated in putting that solution together (but I'd hate to be 'the guy' responding to a 'WP' about it at 3am!). Well, all in all, I favor simplicity over all things (until some circumstance demands it be given up e.g. in favor of performance considerations). Accordingly, the very first solution gets my vote as the "best" solution for this problem.
+    loop [[]] (1 lsl (Array.length arr) - 1)
+One can't help admire the skill demonstrated in putting that solution together (but I'd hate to be 'the guy' responding to a 'WP' about it at 3am!).
+ Well, all in all, I favor simplicity over all things (until some circumstance demands it be given up e.g. in favor of performance considerations). Accordingly, the very first solution gets my vote as the "best" solution for this problem.
   let rec powerset = function [] -> [[]]
-    | (h :: tl) -> let s' = powerset tl in List.map (fun s -> h :: s) s' @ s' ;;
-el.e.gance (noun) "the quality of being pleasingly ingenious and simple; neatness". Before I go, I'll offer one more solution credited to Jon Harrop (F#, OCaml functional programming gurur) - I don't think anyone suggested this version
+    | (h :: tl) -> let s' = powerset tl in List.map (fun s -> h :: s) s' @ s'
+el.e.gance (noun) "the quality of being pleasingly ingenious and simple; neatness".
+
+Before I go, I'll offer one more solution credited to Jon Harrop (F#, OCaml functional programming guru). This one lies between the declarative and the generative - in fact, it's probably better than the one above... I don't recall anyone suggesting this version.
 let rec powerset = function [] -> [[]]
-  | h::t -> List.fold_left (fun xs t -> (h::t)::t::xs) [] (powerset t);;
+  | h::t -> List.fold_left (fun xs t -> (h::t)::t::xs) [] (powerset t)
 See you next week!
