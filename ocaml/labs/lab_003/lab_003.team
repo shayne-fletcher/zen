@@ -59,7 +59,7 @@ let rec drop l k =
      List.fold_left f [] (range 0 (List.length l))
 Only one last comment on this solution, the use of the '@@' operator. This operator is builtin to modern OCaml. It's definition is equivalent to 'let ( @@ ) f x = f x' that is, just does function application (I tend to think of it as the 'command' operator). The '@@' operator is infix and right associative so 'permutations @@ take l k @ drop l (k + 1)' is interpreted as 'permuations (take l k @ drop l (k + 1))' but is prettier in that it requires less parentheses to say. Enough of my solution. What did others come up with? Another approach lies in this line of thought. Given a two element sequence like ['b'; 'c'] say, you can generate the two permutations [['b';'c'] and ['c';'b']]. Given a three element sequence ['a';'b';'c'], you can get all the permutations by 'threading' the 'a' into all the possible positions it can go into the known 2-element permutations : 
   [['a';'b';'c']; ['b'; 'a'; 'c']; ['b';'c'; 'a']; ['a'; 'c'; 'b']; ['c'; 'a'; 'b']; ['c'; 'b'; 'a']]
-Of course, you can extend this idea for four element sequences and beyond. Of solutions of this kind, I think the most elegantly phrased was this one.
+Of course, you can extend this idea for four element sequences and beyond. Of solutions of this kind, this was very elegantly phrased.
  let rec choices elem l =
    match l with
    | []       -> [[elem]]
@@ -70,7 +70,15 @@ Of course, you can extend this idea for four element sequences and beyond. Of so
    | []       -> [[]]
    | [a]      -> [[a]]
    | hd :: tl -> List.concat (List.map (choices hd) (permutations tl))
-It gets my vote as the winner for this week. Congratulations to all that got a solution. I think the difficulty level was misjudged and apologies if you don't see exactly yours here (they were all outstanding)! In closing though, I would be remiss in not sharing this very novel approach.
+This is very similar (and I'm always impressed by the 'e :: match l with ...' construct).
+
+   let rec interleave e l = (e :: l) :: match l with | [] -> []
+     | hd :: tl -> List.map (fun x -> hd :: x) (interleave e tl)
+
+   let rec permutations l = match l with | [] -> [[]]
+     | hd :: tl -> List.flatten (List.map (interleave hd) (permutations tl))
+
+One point - note that '::' is surrounded by white space in the above. This is considered good style for infix operators. e.g. 'let (*) = ...' will give you a syntax error (why?), write 'let ( * ) = ...'. Either way, one or both of the above gets my vote as the winner for this week. Congratulations to all that got a solution. I think the difficulty level was misjudged and apologies if you don't see exactly yours here (they were all outstanding)! In closing though, I would be remiss in not sharing this very novel approach.
 let rec factorial n =
    match n with
    | 1 -> 1

@@ -145,6 +145,7 @@ Write the function 'permuations' that satisfies the following signature.
    
    	in recurse [] l []
    
+   (*Gen Suzuki*)
    (*
      Inspired by the description of permutations in Higher-Order Perl, page 3.
    
@@ -181,8 +182,89 @@ Write the function 'permuations' that satisfies the following signature.
      let go = fun ps x -> List.fold_left (fun acc p -> (insert x p)@acc) [] ps
      in List.fold_left go [[]] xs
 
-
-
+   (*Enrique Naudon*)
+   (**
+    *
+    *  SOLUTION 1: Short and sweet (but not tail-recursive)
+    *
+    **)
+   
+   (**
+    *  Returns all possible interleavings of element e into list l.
+    *
+    *  Let I(e, l) be the set of strings that could result from inserting e
+    *  somewhere into list l.  Given I(e, tl), we generate I(e, hd::tl) by
+    *  prepending hd to each element, and including e::hd::tl (i.e. the
+    *  interleaving where e comes first).
+    *  
+    *  I( 0, [2]) =
+    *    [0;2]; [2;0]
+    *  I(0, 1 :: [2]) =
+    *    [0;1;2];                    (* e::hd::tl *)
+    *    [1;0;2]; [1;2;0]            (* I(e, tl) with hd prepended *)
+    **)
+   let rec interleave e l = (e::l) :: match l with | [] -> []
+     | hd::tl -> List.map (fun x -> hd::x) (interleave e tl)
+   
+   (**
+    *  Return all the permutations of l.
+    *
+    *  Let P(l) be all the possible permutations of l.  Given P(tl), we
+    *  generate P(hd::tl) by interleaving of e into each member of P(tl).  For
+    *  example:
+    *
+    *  P( [1;2] ) =
+    *    [1;2]; [2;1]
+    *  P( 3 :: [1;2] ) =
+    *    [3;1;2]; [1;3;2]; [1;2;3];    (* Interleavings of 3 into [1;2] *)
+    *    [3;2;1]; [2;3;1]; [2;1;3]     (* Interleavings of 3 into [2;1] *)
+    **)
+   let rec permutations l = match l with | [] -> [[]]
+     | hd::tl -> List.flatten (List.map (interleave hd) (permutations tl))
+   
+   
+   (**
+    *
+    *  SOLUTION 2: Tail-recursive (but big and ugly)
+    *
+    **)
+   
+   (**
+    *  Return all possible interleavings of element e into list l.
+    *
+    *  This is an ugly refactoring of the first version of interleave.  The
+    *  List.map part is the same; seen keeps track of the elements of l that
+    *  we've already seen.
+    *
+    *  I have a sneaking suspicion that there is an elegant solution here
+    *  (i.e. without this seen stuff) although I haven't been able to find it.
+    **)
+   let interleave_tr e l =
+     let rec helper acc seen l = match l with
+       | [] -> acc
+       | hd::tl ->
+         let seen' = hd::seen in
+         let acc' = (e::seen') :: (List.map (fun x -> hd::x) acc) in
+         helper acc' seen' tl
+     in
+     helper [[e]] [] l
+   
+   (**
+    *  Return all the permutations of l.
+    *
+    *  This is basically the non-tail-recursive version, just backwards.  We
+    *  start with the base case, P([]) = [].  From here we generate subsequent
+    *  permutations by interleaving each new element into the permutations
+    *  we've already generated (i.e. into the accumulator).
+    *
+    *  NOTE: this is technically not tail-recursive since flatten isn't.
+    **)
+   let permutations_tr l =
+     let helper acc elem =
+       List.flatten ((List.map (interleave_tr elem) acc))
+     in
+     List.fold_left helper [[]] l
+   
 
 
 
