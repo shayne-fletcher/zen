@@ -1,0 +1,194 @@
+==========================
+ Weekly OCaml exercise #2
+==========================
+
+Difficulty level : Easy
+
+Problem :
+
+Combinations are selections that disregard order. The powerset P(S) of a set S is the set of all possible combinations of the n elements of S. There are 2^n of these. Permutations are arrangements of sequences into orders. The number of permutations of a set is denoted n!
+
+For example, the set {x, y, z} has 6 permutations : {x, y, z}, {x, z, y}, {y, x, z}, {y, z, x}, {z, y, x} and {z, x, y}.
+
+Write the function 'permuations' that satisfies the following signature.
+::
+
+  val permutations : 'a list -> 'a list list
+
+::
+
+   (*Me*)
+   let rec drop l k =  
+     if k <= 0 then l 
+     else 
+       match l with
+       | [] -> []
+       | (_ :: tl) -> drop tl (k - 1)
+   let rec take l k = 
+     if k <= 0 then []
+      else 
+        match l with 
+         | [] -> []
+         | (h :: tl) -> h :: take tl (k - 1)
+   let rec range s e = if s > e - 1 then [] else s :: range (s + 1) e
+   let rec perms = function
+     | [] -> [[]]
+     | [x] -> [[x]]
+     | _ as l-> 
+       let f acc k =
+         let e = List.nth l k in
+         List.map (fun x ->  e :: x) (perms @@ take l k @ drop l (k + 1)) @ acc in
+       List.fold_left f [] (range 0 (List.length l))
+  
+   (*Me - This is flawed though. I had hoped that the use of [x == e]
+   would work but it doesn't as exhibited on the list [ [1; 1; 2] ]*)
+   let rec perms = function
+     | [] -> [[]]
+     | [x] -> [[x]]
+     | _ as l-> 
+       let f acc e =
+         List.map (fun x -> e :: x) (perms (List.filter (fun x -> not (x == e)) l )) @ acc in
+       List.fold_left f [] l
+
+   (* Tomasz Kupczyk - slight error, the empty list has no
+   permuations; wrong it has one permuations since 0! = 1*)
+   let rec perms = function
+     | [] -> [[]]
+     | x::xs -> 
+       let rec mixin ys e = function
+         | [] -> [ys @ [e]]
+         | x::xs -> (ys @ (e::x::xs)) :: (mixin (x::ys) e xs)  
+         in
+           let xs' = perms xs in List.flatten (List.map (fun y -> mixin [] x y) xs');;
+ 
+   (*Sen Han*)
+   let rec insert s p l  =
+     match p with
+     | 0 -> s::l
+     | _ -> List.hd(l) :: (insert s (p-1) (List.tl l));;
+   let permu_insert s l =
+     let rec insert_in_ever_pos s p l =
+       match p with
+       | 0 -> [insert s 0 l]
+       | _ -> (insert s p l)::(insert_in_ever_pos s (p-1) l) in
+     (insert_in_ever_pos s (List.length l) l);;
+   let rec permutation l =
+     match l with
+     | [] -> [[]]
+     | hd::tl -> (List.fold_left (fun acc s -> acc@(permu_insert hd s)) [] (permutation tl));;
+   
+    (*Jim Coakely*)
+   let rec factorial n =
+       match n with
+       | 1 -> 1
+       | n -> n * factorial (n -1 )
+
+   let shuffle l = 
+       let tagged = List.map (fun e -> (Random.bits (), e)) l in
+       let resorted = List.sort (fun a b -> compare (fst a) (fst b)) tagged in
+       List.map snd resorted
+
+   let permutations x = 
+       let rec permuter original permutations n = 
+           if List.length permutations = n then 
+               permutations
+           else let newpermutation = shuffle original in
+               if List.mem newpermutation permutations then
+                   permuter original permutations n
+               else
+                   permuter original (newpermutation :: permutations) n
+       in permuter x [ x ] (factorial (List.length x))
+ 
+   (*Jim Coakely*)
+   let rec permutations2 l = 
+       let intercalate x l =
+           List.fold_right (fun el acc -> let h = List.hd acc in let t = List.tl acc in
+               List.append [ (x::el::(List.tl h)); (el::h)] (List.map (fun e -> el::e) t)) l [[x]]
+       in match l with
+       | [x] -> [[x]]
+       | h :: t -> List.concat (List.map (fun e -> intercalate h e) (permutations2 t))
+
+   (* The hard part was writing a function that will take a thing and
+      a list, and return a list of lists with that thing in each of
+      the different positions of the original list. i.e. intercalate 1
+      [2;3] -> [[1;2;3];[2;1;3];[2;3;1]] After that, to get
+      permutations of a list just apply that using the head on the
+      permutations of the tail.  I feel like it's a bit verbose and
+      wastes effort with all the list tomfoolery, but it seems to
+      work...*)
+   
+   (*Philip Allison*)
+   let permutations l =
+   	(* Given a prefix and a suffix, generate a list
+   	   of "head" & "tail" lists. Each head list is
+   	   a successive item of the suffix, appended to
+   	   the given prefix; each tail is the remainder.
+   	   [1] [2; 3] --> [([1; 2], [3]); ([1; 3], [2])] *)
+       let heads_and_tails prefix suffix =
+           let rec cycle acc left right =
+               match right with
+                   | [] -> acc
+                   | rhd::rtl -> cycle ((prefix@[rhd], left@rtl)::acc) (left@[rhd]) rtl
+           in cycle [] [] suffix
+   
+   	(* Generate a set of head & tail lists given the
+   	   existing starting prefix and suffix, then recursively
+   	   generate *their* head and tail lists, and so on.
+   	   When the suffix is empty, we have a full permutation of
+   	   the original list. *)
+   	in let rec recurse prefix suffix acc =
+   		match (prefix, suffix) with
+   			| (_, []) -> prefix :: acc
+   			| (_, _) -> 
+   				List.fold_left (fun acc' (p, s) -> recurse p s acc')
+   					acc (heads_and_tails prefix suffix)
+   
+   	in recurse [] l []
+   
+   (*
+     Inspired by the description of permutations in Higher-Order Perl, page 3.
+   
+     Permutations for the sequence ['A'; 'B'; 'C']:
+   
+     A  BC   A  CB
+     B A C   C A B
+     BC  A   CB  A
+   *)
+   
+   let rec choices elem l =
+     match l with
+     | []       -> [[elem]]
+     | hd :: tl -> [elem :: l] @ List.map (fun x -> hd :: x) (choices elem tl)
+   
+   let rec permutations l =
+     match l with
+     | []       -> [[]]
+     | [a]      -> [[a]]
+     | [a; b]   -> [[a; b]; [b; a]]
+     | hd :: tl -> List.concat (List.map (choices hd) (permutations tl))
+   
+   (* END *)
+   
+   (*Eugene Perederey*)
+   let splits xs =
+     let go = fun ((lefts, rights)::ps) x -> (x::lefts, List.tl rights)::(lefts, rights)::ps in
+     List.fold_left go [([], xs)] xs
+   
+   let insert x xs =
+     List.map (fun (left, right) -> List.rev_append left (x::right)) (splits xs)
+   
+   let permutations xs =
+     let go = fun ps x -> List.fold_left (fun acc p -> (insert x p)@acc) [] ps
+     in List.fold_left go [[]] xs
+
+
+
+
+
+
+
+
+
+
+
+   

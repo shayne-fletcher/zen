@@ -1,0 +1,94 @@
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #3
+2015-01-30 by 
+Difficulty level :
+Easy
+Problem :
+Combinations are selections that disregard order. The powerset P(S) of a set S is the set of all possible combinations of the n elements of S. There are 2n of these. Permutations are arrangements of sequences into orders. The number of permutations of a sequence is denoted n! For example, the sequence {x, y, z} has 6 permutations : {x, y, z}, {x, z, y}, {y, x, z}, {y, z, x}, {z, y, x} and {z, x, y}.
+Write the function 'permutations' that satisfies the following signature.
+val permutations : 'a list -> 'a list list
+Be careful that your function works correctly in the presence of sequences that contain duplicates e.g.
+# permutations [1; 1; 2] ;;
+- : int list list =
+[[2; 1; 1]; [2; 1; 1]; [1; 2; 1]; [1; 1; 2]; [1; 2; 1]; [1; 1; 2]]
+Solutions:
+As we will see, there's a couple of different ways (at least!) to think about this. Here's the idea that usually comes to my mind first. There is only one permutation of the empty list, that is the empty list itself. There is only one permutation of a singleton list, that list itself. Now, for any other list, you can consider each element in turn and work out all of the permuations that have the element under consideration in the 'head' position (and that's a 'divide and conquer' step). The complete list of permutations then is the union of these over all elements. So here's an attempt to capture that in code:
+let rec permutations = function
+  | [] -> [[]]
+  | [x] -> [[x]]
+  | _ as l ->
+     let f acc e =
+       List.map (fun x -> e :: x) (perms (List.filter (fun x -> not (x == e)) l )) @ acc in
+     List.fold_left f [] l
+Indeed when run over the list [1; 2; 3], this is looking pretty good:
+- : int list list =
+[[3; 2; 1]; [3; 1; 2]; [2; 3; 1]; [2; 1; 3]; [1; 3; 2]; [1; 2; 3]]
+This algorithm is flawed though. Notice the use of '==' rather than '='? The hope was that the predicate to 'filter' will remove exactly one element from the source list, not every node in the list that has the value 'e' but alas it does not as shown here.
+# perms [1; 1; 2];;
+- : int list list = [[2; 1]; [2; 1]; [1; 2]; [1; 2]]
+What this means is that integer values in OCaml are implemented using the 'flyweight' pattern. No matter how many instances of the number '3' there are in your program for example, they all utimately map to one unique value! Ok, well, the idea is sound even if the implementation is buggy. This second attempt gives me a chance to show you some very useful utility functions for lists 'borrowed' from the Haskell standard pelude, 'take' and 'drop'. The function 'range' of course is best known from Python.
+let rec drop l k =  
+  if k <= 0 then l 
+  else 
+    match l with
+    | [] -> []
+    | (_ :: tl) -> drop tl (k - 1)
+
+ let rec take l k = 
+   if k <= 0 then []
+   else 
+     match l with 
+      | [] -> []
+      | (h :: tl) -> h :: take tl (k - 1)
+
+ let rec range s e = if s > e - 1 then [] else s :: range (s + 1) e
+
+ let rec permutations = function
+   | [] -> [[]]
+   | [x] -> [[x]]
+   | _ as l-> 
+     let f acc k =
+       let e = List.nth l k in
+       List.map (fun x ->  e :: x) (permutations @@ take l k @ drop l (k + 1)) @ acc in
+     List.fold_left f [] (range 0 (List.length l))
+Only one last comment on this solution, the use of the '@@' operator. This operator is builtin to modern OCaml. It's definition is equivalent to 'let ( @@ ) f x = f x' that is, just does function application (I tend to think of it as the 'command' operator). The '@@' operator is infix and right associative so 'permutations @@ take l k @ drop l (k + 1)' is interpreted as 'permuations (take l k @ drop l (k + 1))' but is prettier in that it requires less parentheses to say. Enough of my solution. What did others come up with? Another approach lies in this line of thought. Given a two element sequence like ['b'; 'c'] say, you can generate the two permutations [['b';'c'] and ['c';'b']]. Given a three element sequence ['a';'b';'c'], you can get all the permutations by 'threading' the 'a' into all the possible positions it can go into the known 2-element permutations : 
+  [['a';'b';'c']; ['b'; 'a'; 'c']; ['b';'c'; 'a']; ['a'; 'c'; 'b']; ['c'; 'a'; 'b']; ['c'; 'b'; 'a']]
+Of course, you can extend this idea for four element sequences and beyond. Of solutions of this kind, I think the most elegantly phrased was this one.
+ let rec choices elem l =
+   match l with
+   | []       -> [[elem]]
+   | hd :: tl -> [elem :: l] @ List.map (fun x -> hd :: x) (choices elem tl)
+   
+ let rec permutations l =
+   match l with
+   | []       -> [[]]
+   | [a]      -> [[a]]
+   | hd :: tl -> List.concat (List.map (choices hd) (permutations tl))
+It gets my vote as the winner for this week. Congratulations to all that got a solution. I think the difficulty level was misjudged and apologies if you don't see exactly yours here (they were all outstanding)! In closing though, I would be remiss in not sharing this very novel approach.
+let rec factorial n =
+   match n with
+   | 1 -> 1
+   | n -> n * factorial (n -1 )
+
+let shuffle l = 
+   let tagged = List.map (fun e -> (Random.bits (), e)) l in
+   let resorted = List.sort (fun a b -> compare (fst a) (fst b)) tagged in
+   List.map snd resorted
+
+let permutations x = 
+   let rec permuter original permutations n = 
+       if List.length permutations = n then 
+           permutations
+       else let newpermutation = shuffle original in
+           if List.mem newpermutation permutations then
+               permuter original permutations n
+           else
+               permuter original (newpermutation :: permutations) n
+   in permuter x [ x ] (factorial (List.length x))
+Wow! Apparently this algorithm employs 'bogosort' to achieve its objective! :)
