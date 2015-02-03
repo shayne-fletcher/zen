@@ -1,0 +1,57 @@
+==========================
+ Weekly OCaml exercise #4
+==========================
+
+Difficulty level : Medium
+
+Problem :
+
+The module [Lazy] provides the type ['a t]. A value of type ['a Lazy.t] is a deferred computation, called a suspension (or a 'thunk'), that has a result of type ['a]. The special syntax [lazy (exr)] makes a suspension of the computation of [expr] without computing [expr] itself. "Forcing" the suspension will then compute [expr] and return its result. Using suspensions, a type for modeling (non-empty) infinite lists follows easily.
+
+  type 'a inflist = Cons of 'a * 'a inflist Lazy.t
+
+For example, [hd] the function that returns the head of an infinite list can be written like this
+
+  let hd : 'a inflist -> 'a =  function | Cons (h, _) -> h
+
+The [Lazy] function [val force : 'a Lazy.t -> 'a] works like this : [force x] forces the suspension [x] and returns its result. If [x] has already been forced, [Lazy.force x] returns the same value again without recomputing it. So, using [force], the function [tl] is written
+
+  let tl : 'a inflist -> 'a inflist = function | Cons (_, t) -> Lazy.force t
+
+This is the familiar function [map] written for infinite lists.
+
+  let rec map : ('a -> 'b) -> 'a inflist -> 'b inflist =
+    fun f -> function | Cons (h, t) -> Cons (f h, lazy (map f (Lazy.force t)))
+
+So how do we construct an infinite list in practise? Generally speaking, recursively. For example, this construction produces the counting numbers.
+
+  let rec count = Cons (1, lazy (map (( + ) 1) count)) ;;
+
+Assuming a suitable definition for [take] (see the exercise) you could pull of the first 10 of them say like this.
+
+  # take 10 count ;;
+  - : int list = [1; 2; 3; 4; 5; 6; 7; 8; 9; 10]
+
+The function [map2] is like [map] but the iteration is over two lists.
+
+  val map2 : ('a -> 'b -> 'c) -> 'a inflist -> 'b inflist -> 'c inflist
+
+In terms of [map2], the Fibonacci sequence (http://en.wikipedia.org/wiki/Fibonacci_number) can be written as an infinite list like this
+
+  let rec fibs = Cons (0, lazy (Cons (1, lazy (map2 ( + ) fibs (tl fibs)))))
+
+Here then is the problem. Write the following functions.
+
+  val map2 : ('a -> 'b -> 'c) -> 'a inflist -> 'b inflist -> 'c inflist
+    (**Like [map] but the iteration is over two infinite lists*)
+
+  val nth : 'a inflist -> int -> 'a
+    (**Compute (generate) the {i n}th element of an infinite list*)
+
+  val drop : int -> 'a inflist -> 'a inflist
+    (**Drop the first {i k} elements of the given infinite list*)
+
+  val take : int -> 'a inflist -> 'a list
+    (**Take the first {i k} elements of the given infinite list*)
+
+You can write tests for your functions using the provided definition of the Fibonacci sequence.
