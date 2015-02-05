@@ -1,5 +1,5 @@
 ==========================
- Weekly OCaml exercise #2
+ Weekly OCaml exercise #3
 ==========================
 
 Difficulty level : Easy
