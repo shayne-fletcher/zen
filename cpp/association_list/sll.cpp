@@ -482,14 +482,12 @@ struct eval_visitor {
   }
 
   value_t operator () (E_apply const& xpr) const {
-    value_t f=eval (env, xpr.func);
-    value_t x=eval (env, xpr.arg);
+    value_t f=eval (env, xpr.func), x = eval (env, xpr.arg);
     if (V_closure* p = boost::get<V_closure>(&f)){
       E_fun e = boost::get<E_fun>(p->e);
       list<p_t> h=cons (std::make_pair (e.arg, x), p->env);
       return eval (&h, e.ast);
     }
-
     throw std::runtime_error ("Can't apply a value that is not a function");
   }
 };
