@@ -1,4 +1,10 @@
-//cl /Fesll.exe /Zi /MDd /EHsc /I d:/boost_1_55_0 sll.cpp
+//cl /Fesll.exe /Zi /MDd /EHsc /I d:/boost_1_55_0 sll.cpp /D_DEBUG=1
+
+#if defined (_MSC_VER)&&defined(_DEBUG)
+#  define _CRTDBG_MAP_ALLOC
+#  include <stdlib.h>
+#  include <crtdbg.h>
+#endif//defined(_MSC_VER)&&defined(_DEBUG)
 
 #include <boost/variant.hpp>
 #include <boost/variant/apply_visitor.hpp>
@@ -25,7 +31,6 @@ template <class T> list<T>& tl (list<T> l);
 template <class T> list<T> last (list<T> l);
 template <class T> typename node<T>::weak_ptr ref (list<T> src);
 template <class T> bool is_ref (list<T> src);
-template <class T> list<T> copy (list<T> src);
 
 // --
 
@@ -119,118 +124,18 @@ namespace {
     return boost::optional<B>(tok); 
   }
 
-  //Copy a list. If there is a cycle, nil terminate the result
-  template <class T>
-  list<T> copy_aux (list<T> src) {
-    if (empty (src))
-      return nil<T> (); //run out of list
-
-    if (boost::get<node<T>::weak_ptr>(&src))
-      return nil<T> (); //encountered a cycle
-
-    return typename node<T>::shared_ptr (new node<T>{ hd (src), copy_aux (tl (src))});
-  }
-
-  //The idea is, if you can find a reference, follow it. If there's a
-  //reference there's a cycle, that's where it starts
-  template <class T>
-  maybe_shared_ptr<node<T>> cycle_start (list<T> l) {
-    if (empty (l)) 
-      return none<node<T>::shared_ptr>();
-    if (node<T>::weak_ptr* p=boost::get<node<T>::weak_ptr>(&l))
-      return some (p->lock());
-
-    return cycle_start (tl (l));
-  }
-
-  //Number of 'tl' invocations needed to reach 'x'
-  template <class T>
-  int distance (int acc, typename node<T>::shared_ptr x, ptr_t<node<T>> l) {
-    //'l' may not be empty
-    if (empty (l))
-      throw std::runtime_error ("distance_aux : empty list");
-    //'x' must be reachable from l without following a reference
-    if (boost::get<node<T>::weak_ptr> (&l))
-      throw std::runtime_error ("distance_aux : cycle encountered");
-    typename node<T>::shared_ptr p =boost::get<typename node<T>::shared_ptr>(l);
-    if (p == x)
-      return acc;
-
-    return distance (acc + 1, x, tl (l));
-  }
-
-  //Invoke 'tl', 'n' times
-  template <class T>
-  list<T> advance (int n, list<T> l) {
-    if (n == 0)
-      return l;
-    return advance ((n - 1), tl (l));
-  }
-
 }//namespace<anonymous>
-
-template <class T>
-list<T> copy (list<T> src){
-  list<T> dst = copy_aux (src);
-
-  //Patch up 'dst' in the case 'src' has a cycle
-  maybe_shared_ptr<node<T>> maybe_cycle=cycle_start (src);
-  if (!!maybe_cycle) {
-    tl (last (dst)) = ref (advance (distance (0, maybe_cycle.get (), src), dst));
-  }
-
-  return dst;
-}
-
-// namespace {
-//   template<class T>
-//   int print_aux (int count, list<T> l) {
-//     if (count > 100) return count;
-//     if (!empty (l)) {
-//       std::cout << hd (l);
-//       if (!empty (tl (l))) std::cout << "; ";
-//       return print_aux (count + 1, tl (l));
-//     }
-//     return count;
-//   }
-//
-//   template <class T>
-//   void print (ptr_t<node<T>> l) {
-//     std::cout << "[";   
-//     int count = print_aux (0, l);
-//     if (count >= 100)
-//       std::cout << "...";
-//     else std::cout << "]";
-// }
-//
-// }//namespace<anonymous>
-//
-//
-// int main () {
-//
-//   try{
-//     list<int> p = cons (1, cons (0, nil<int> ()));
-//     tl (last (p)) = ref (p);
-//
-//     list<int> q = copy (p);
-//
-//     print (p); std::cout << std::endl;
-//     print (q); std::cout << std::endl;
-//   }
-//   catch (std::runtime_error const& e) {
-//     std::cerr << e.what () << std::endl;
-//   }
-//
-//   return 0;
-// }
 
 // --
 
+struct E_if;
+struct E_bool;
 struct E_let; //let f = e
 struct E_letrec; //let rec f = (fun x -> e (f))
 struct E_fun;
-struct E_constant;
+struct E_number;
 struct E_variable;
+struct E_equal;
 struct E_addition;
 struct E_subtraction;
 struct E_multiplication;
@@ -239,8 +144,11 @@ struct E_apply; //f x
 struct E_if;
 
 typedef boost::variant<
-    E_constant
+    E_bool
+  , E_number
   , E_variable
+  , boost::recursive_wrapper<E_if>
+  , boost::recursive_wrapper<E_equal>
   , boost::recursive_wrapper<E_addition>
   , boost::recursive_wrapper<E_subtraction>
   , boost::recursive_wrapper<E_multiplication>
@@ -251,24 +159,33 @@ typedef boost::variant<
   , boost::recursive_wrapper<E_apply>
   > expression_t;
 
-struct E_constant { double val; };
+struct E_bool { bool val; };
+struct E_number { double val; };
 struct E_variable { std::string val; };
 struct E_fun { std::string arg; expression_t ast; };
 struct E_let { std::string tag; expression_t ast; };
 struct E_letrec { std::string tag; expression_t ast; };
+struct E_equal { expression_t left; expression_t right; };
 struct E_addition { expression_t left; expression_t right; };
 struct E_subtraction { expression_t left; expression_t right; };
 struct E_multiplication { expression_t left; expression_t right; };
 struct E_division { expression_t left; expression_t right; };
 struct E_apply { expression_t func; expression_t arg; };
+struct E_if { expression_t p; expression_t t; expression_t f; };
 
 std::string string_of_expression (expression_t);
 namespace {
   struct string_of_expression_visitor {
     typedef std::string result_type;
-    std::string operator ()(E_constant e) const {
+
+    std::string operator ()(E_bool e) const {
       std::ostringstream os;
-      os << "E_constant " << e.val;
+      os <<  "E_bool " << std::boolalpha << e.val;
+      return os.str ();
+    }
+    std::string operator ()(E_number e) const {
+      std::ostringstream os;
+      os << "E_number " << e.val;
       return os.str ();
     }
     std::string operator ()(E_variable e) const {
@@ -289,6 +206,11 @@ namespace {
     std::string operator ()(E_letrec e) const {
       std::ostringstream os;
       os << "E_letrec (\"" << e.tag << "\", " << string_of_expression (e.ast) << ")";
+      return os.str ();
+    }
+    std::string operator ()(E_equal e) const {
+      std::ostringstream os;
+      os << "E_equal (" << string_of_expression (e.left) << ", " << string_of_expression (e.right) << ")";
       return os.str ();
     }
     std::string operator ()(E_addition e) const {
@@ -316,36 +238,84 @@ namespace {
       os << "E_apply (" << string_of_expression (e.func) << ", " << string_of_expression (e.arg) << ")";
       return os.str ();
     }
+    std::string operator ()(E_if e) const {
+      std::ostringstream os;
+      os << "E_if (" << string_of_expression (e.p) << ", " << string_of_expression (e.t) << ", " << string_of_expression (e.f) << ")";
+      return os.str ();
+    }
   };
+
 }//namespace<anonymous>
 
 std::string string_of_expression (expression_t e) {
   return boost::apply_visitor (string_of_expression_visitor (), e);
 }
 
+struct V_bool;
 struct V_float;
 struct V_closure;
 
 typedef boost::variant<
-    V_float
+    V_bool
+  , V_float
   , V_closure //boost::recursive_wrapper<V_closure>
   > value_t;
 
 typedef std::pair<std::string, value_t> p_t;
 typedef list<p_t> env_t;
 
+struct V_bool { bool val; };
+bool operator == (V_bool const& l, V_bool const& r) {
+  return l.val == r.val;
+}
+
 struct V_float { double val; };
+bool operator == (V_float const& l, V_float const& r) {
+  return l.val == r.val;
+}
 
 struct V_closure {
   env_t env;
   expression_t e;
 };
+bool operator == (V_closure const& l, V_closure const& r) {
+  throw std::runtime_error ("Functions cannot be compared for equality");
+  return false;
+}
+
+namespace {
+
+  struct values_equal_visitor  {
+    typedef bool result_type;
+
+    template <class T, class U>
+    bool operator ()(T const&, U const&) const {
+      return false; //can't compare different types
+    }
+
+    template <class T>
+    bool operator ()(T const& l, T const& r) const {
+      return l == r;
+    }
+  };
+
+}//namespace<anonymous>
+
+bool values_equal (value_t const& l, value_t const& r) {
+  return boost::apply_visitor (values_equal_visitor (), l, r);
+}
 
 std::string string_of_environment (env_t const& env);
 
 namespace {
   struct string_of_value_visitor {
     typedef std::string result_type;
+
+    std::string operator ()(V_bool v) const {
+      std::ostringstream os;
+      os << "V_bool " << v.val;
+      return os.str ();
+    }
 
     std::string operator ()(V_float v) const {
       std::ostringstream os;
@@ -398,7 +368,11 @@ struct eval_visitor {
  
   eval_visitor (env_t* env) : env (env) {}
   
-  value_t operator () (E_constant const& e) const {
+  value_t operator () (E_bool const& e) const {
+    return V_bool {e.val};
+  }
+
+  value_t operator () (E_number const& e) const {
     return V_float {e.val};
   }
 
@@ -418,6 +392,11 @@ struct eval_visitor {
       if (V_float*q=boost::get<V_float>(&r))
         return V_float {p->val + q->val};
     throw std::runtime_error ("Bad types for operator '+'");
+  }
+
+  value_t operator ()(E_equal const& xpr) const {
+    value_t l=eval (env, xpr.left), r=eval (env, xpr.right);
+    return V_bool {values_equal (l, r)};
   }
 
   value_t operator ()(E_subtraction const& xpr) const {
@@ -452,19 +431,18 @@ struct eval_visitor {
   }
 
   value_t operator () (E_fun const& xpr) const {
-    return V_closure {copy (*env), xpr};
+    return V_closure { *env, xpr};
   }
 
   value_t operator () (E_let const& xpr) const {
-    value_t rhs=eval (env, xpr.ast);
+    value_t rhs = eval (env, xpr.ast);
     *env = cons (std::make_pair (xpr.tag, rhs), *env);
     return rhs;
   }
 
   value_t operator () (E_letrec const& xpr) const {
 
-    //In OCaml, (where 'env' is of type (string * value) list) we
-    //might write: 
+    //In caml,
     //
     //  let rec vars = (tag, V_closure(vars, e))::env
     //
@@ -490,6 +468,18 @@ struct eval_visitor {
     }
     throw std::runtime_error ("Can't apply a value that is not a function");
   }
+
+  value_t operator () (E_if const& xpr) const {
+
+    value_t cond=eval (env, xpr.p);
+    if(V_bool* r = boost::get<V_bool>(&cond)){
+      if (r->val)
+        return eval (env, xpr.t);
+      else
+        return eval (env, xpr.f);
+    }
+    throw std::runtime_error ("Bool expected");
+  }
 };
 
 value_t eval ( env_t* env, expression_t const& ast) {
@@ -514,18 +504,36 @@ int main ()
     //g = f 3 (i.e. fun y -> 3 * y)
     v= eval (&env, 
              E_let {"g", 
-                 E_apply {E_variable {"f"}, E_constant {3.0}}             
+                 E_apply {E_variable {"f"}, E_number {3.0}}             
              }
           );
 
     //g 4
     v= eval (&env, 
-             E_let {"g", 
-                 E_apply {E_variable {"g"}, E_constant {4.0}}
-             }
+             E_apply {E_variable {"g"}, E_number {4.0}}
            );
+
+    //fact = fun x -> if x = 0 then 1 else x * fact (x - 1)
+    v= eval (&env,
+          E_letrec {"fact",
+                 E_fun {"x",
+                   E_if { E_equal {E_variable {"x"}, E_number {0.0}}, 
+                   E_number {1.0}, 
+                   E_multiplication {
+                   E_variable {"x"}, 
+                   E_apply {E_variable {"fact"}, 
+                   E_subtraction {E_variable {"x"}, E_number {1.0}}}}
+                   }
+               }
+             }
+          );
+
+    //fact 5
+    v = eval (&env, 
+              E_apply {E_variable {"fact"}, E_number {5.0}}
+            );
           
-    std::cout << string_of_value (v) << std::endl;// i.e. 12
+    std::cout << string_of_value (v) << std::endl;// i.e. 120
 
     //std::cout << string_of_environment (env) << std::endl;
   }
@@ -535,6 +543,11 @@ int main ()
   catch (std::runtime_error const& e) {
     std::cout << e.what () << std::endl;
   }
+
+  int* p = new int;
+#if defined (_MSC_VER)&&defined(_DEBUG)
+  _CrtDumpMemoryLeaks ();
+#endif//defined(_MSC_VER)&&defined(_DEBUG)
 
   return 0;
 }
