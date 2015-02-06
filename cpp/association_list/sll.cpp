@@ -16,31 +16,42 @@
 #include <functional>
 #include <sstream>
 
-template <class T> using ptr_t = 
-boost::variant <
-    boost::shared_ptr<T>  
-  , boost::weak_ptr<T>>;
+// --
+
 template <class T> struct node;
-template <class T> using list = ptr_t<node<T>>;
+template <class T> using node_ptr=typename node<T>::node_ptr;
+template <class T> using node_weak_ptr=typename node<T>::weak_ptr;
+template <class T> using node_shared_ptr=typename node<T>::shared_ptr;
+template <class T> struct ptr_t;
+template <class T> using list=ptr_t<node<T>>;
+template <class T> using list_ref=node_weak_ptr<T>;
 
 template <class T> list<T> nil (); 
 template <class T> bool empty (list<T> l);
 template <class T> list<T> cons (T val, list<T> l);
 template <class T> T& hd (list<T> l);
 template <class T> list<T>& tl (list<T> l);
-template <class T> list<T> last (list<T> l);
-template <class T> typename node<T>::weak_ptr ref (list<T> src);
+template <class T> list_ref<T> ref (list<T> src);
 template <class T> bool is_ref (list<T> src);
 
 // --
 
+template <class T> struct ptr_t :
+  boost::variant <boost::shared_ptr<T>, boost::weak_ptr<T>> {
+  typedef boost::variant <boost::shared_ptr<T>, boost::weak_ptr<T>> base;
+  ptr_t () {}
+  ptr_t (boost::weak_ptr<T> p) : base (p) {}
+  ptr_t (boost::shared_ptr<T> p) : base (p) {}
+};
+
 template <class T>
 struct node {
-  T data;
-  ptr_t<node<T>> next;
+  typedef ptr_t<node> node_ptr;
+  typedef boost::weak_ptr<node> weak_ptr;
+  typedef boost::shared_ptr<node> shared_ptr;
 
-  typedef boost::weak_ptr<node<T>> weak_ptr;
-  typedef boost::shared_ptr<node<T>> shared_ptr;
+  T data;
+  node_ptr next;
 };
 
 namespace {
@@ -56,7 +67,7 @@ namespace {
 }//namespace<anonymous>
 
 template <class T> list<T> nil (){ 
-  return typename node<T>::shared_ptr (); 
+  return typename node_shared_ptr<T> (); 
 }
 
 template <class T> bool empty (list<T> l) { 
@@ -64,7 +75,7 @@ template <class T> bool empty (list<T> l) {
 }
 
 template <class T> list<T> cons (T val, list<T> l) {
-  return node<T>::shared_ptr (new node<T>{val, l});
+  return node_shared_ptr<T> (new node<T>{val, l});
 }
 
 template <class T> T& hd (list<T> l) {   
@@ -77,25 +88,12 @@ template <class T> list<T>& tl (list<T> l) {
   return get (l) -> next; 
 }
 
-template <class T> list<T> last (list<T> l) {
-  if (empty (l))
-    throw std::runtime_error ("last");
-  if (boost::get<typename node<T>::weak_ptr>(&l))
-    throw std::runtime_error ("last");
-
-  list<T> t = tl (l);
-  if (empty (t)) return l;
-
-  return last (t);
-}
-
 template <class T> bool is_ref (list<T> src) {
-  return boost::get<typename node<T>::weak_ptr>(&src)!=nullptr;
+  return boost::get<list_ref<T>>(&src)!=nullptr;
 }
 
-template <class T> typename node<T>::weak_ptr ref (list<T> src)  {
-  return typename node<T>::weak_ptr(
-           boost::get<typename node<T>::shared_ptr>(src));
+template <class T> typename node_weak_ptr<T> ref (list<T> src)  {
+  return node_weak_ptr<T>(boost::get<node_shared_ptr<T>>(src));
 }
 
 struct not_found {};
@@ -110,21 +108,6 @@ B assoc (A a, list<std::pair<A, B>> l) {
     return p.second;
   return assoc (a, tl (l));
 }
-
-namespace {
-
-  template <class T> using maybe_shared_ptr = 
-    boost::optional<boost::shared_ptr<T>>;
-
-  template <class B> boost::optional<B> const none () { 
-    return boost::optional<B>(); 
-  }
-
-  template <class B> boost::optional<B> some (B tok) { 
-    return boost::optional<B>(tok); 
-  }
-
-}//namespace<anonymous>
 
 // --
 
@@ -450,7 +433,7 @@ struct eval_visitor {
     //closure value itself contains (an expression and) a list, the
     //contained list is 'vars' itself.
 
-    list<p_t> vars = node<p_t>::shared_ptr(new node<p_t>);
+    list<p_t> vars = node_shared_ptr<p_t>(new node<p_t>);
     hd (vars) = std::make_pair (xpr.tag, V_closure {ref (vars), xpr.ast});
     tl (vars) = *env; 
 
@@ -513,6 +496,8 @@ int main ()
              E_apply {E_variable {"g"}, E_number {4.0}}
            );
 
+    std::cout << string_of_value (v) << std::endl;// i.e. 12
+
     //fact = fun x -> if x = 0 then 1 else x * fact (x - 1)
     v= eval (&env,
           E_letrec {"fact",
@@ -534,8 +519,6 @@ int main ()
             );
           
     std::cout << string_of_value (v) << std::endl;// i.e. 120
-
-    //std::cout << string_of_environment (env) << std::endl;
   }
   catch (not_found const&) {
     std::cout << "Not found" << std::endl;
