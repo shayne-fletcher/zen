@@ -1,4 +1,5 @@
 //cl /Fesll.exe /Zi /MDd /EHsc /I d:/boost_1_55_0 sll.cpp /D_DEBUG=1
+//g++ -std=c++11 -I ~/project/boost_1_55_0 -o sll sll.cpp
 
 #if defined (_MSC_VER)&&defined(_DEBUG)
 #  define _CRTDBG_MAP_ALLOC
@@ -67,7 +68,7 @@ namespace {
 }//namespace<anonymous>
 
 template <class T> list<T> nil (){ 
-  return typename node_shared_ptr<T> (); 
+  return node_shared_ptr<T> (); 
 }
 
 template <class T> bool empty (list<T> l) { 
@@ -92,7 +93,7 @@ template <class T> bool is_ref (list<T> src) {
   return boost::get<list_ref<T>>(&src)!=nullptr;
 }
 
-template <class T> typename node_weak_ptr<T> ref (list<T> src)  {
+template <class T> node_weak_ptr<T> ref (list<T> src)  {
   return node_weak_ptr<T>(boost::get<node_shared_ptr<T>>(src));
 }
 
