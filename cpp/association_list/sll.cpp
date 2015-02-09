@@ -9,13 +9,14 @@
 
 #include <boost/variant.hpp>
 #include <boost/variant/apply_visitor.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/weak_ptr.hpp>
+//#include <boost/shared_ptr.hpp>
+//#include <boost/weak_ptr.hpp>
 #include <boost/optional.hpp>
 
 #include <stdexcept>
 #include <functional>
 #include <sstream>
+#include <memory>
 
 // --
 
@@ -38,18 +39,18 @@ template <class T> bool is_ref (list<T> src);
 // --
 
 template <class T> struct ptr_t :
-  boost::variant <boost::shared_ptr<T>, boost::weak_ptr<T>> {
-  typedef boost::variant <boost::shared_ptr<T>, boost::weak_ptr<T>> base;
+  boost::variant <std::shared_ptr<T>, std::weak_ptr<T>> {
+  typedef boost::variant <std::shared_ptr<T>, std::weak_ptr<T>> base;
   ptr_t () {}
-  ptr_t (boost::weak_ptr<T> p) : base (p) {}
-  ptr_t (boost::shared_ptr<T> p) : base (p) {}
+  ptr_t (std::weak_ptr<T> p) : base (p) {}
+  ptr_t (std::shared_ptr<T> p) : base (p) {}
 };
 
 template <class T>
 struct node {
   typedef ptr_t<node> node_ptr;
-  typedef boost::weak_ptr<node> weak_ptr;
-  typedef boost::shared_ptr<node> shared_ptr;
+  typedef std::weak_ptr<node> weak_ptr;
+  typedef std::shared_ptr<node> shared_ptr;
 
   T data;
   node_ptr next;
@@ -59,11 +60,11 @@ namespace {
   //'get' at the raw pointer in the union of a smart/weak pointer
   template <class T>
   T* get (ptr_t<T> l) {
-    if (boost::shared_ptr<T>* p=
-        boost::get<boost::shared_ptr<T>>(&l)) {
+    if (std::shared_ptr<T>* p=
+        boost::get<std::shared_ptr<T>>(&l)) {
       return p->get ();
     }
-    return boost::get<boost::weak_ptr<T>>(l).lock ().get ();
+    return boost::get<std::weak_ptr<T>>(l).lock ().get ();
   }
 }//namespace<anonymous>
 
