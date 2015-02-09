@@ -1,4 +1,4 @@
-==========================
+\==========================
  Weekly OCaml exercise #4
 ==========================
 
@@ -55,3 +55,147 @@ Here then is the problem. Write the following functions.
     (**Take the first {i k} elements of the given infinite list*)
 
 You can write tests for your functions using the provided definition of the Fibonacci sequence.
+
+Solutions:
+::
+
+  (*Viet Li - difficulty score 2*)
+  (* map2 *)
+  let rec map2 : ('a -> 'b -> 'c) -> 'a inflist -> 'b inflist -> 'c inflist =
+  	fun f l1 l2 -> match (l1, l2) with (Cons (h1, t1), Cons (h2, t2))
+  		-> Cons (f h1 h2, lazy (map2 f (Lazy.force t1) (Lazy.force t2)))
+  
+  (* nth *)
+  let rec nth : 'a inflist -> int -> 'a =
+  	fun l n -> match l with Cons (h, t) ->
+  		if n = 0 then h else nth (Lazy.force t) (n-1)
+  
+  (* drop *)
+  let rec drop : int -> 'a inflist -> 'a inflist =
+  	fun i -> function | Cons (_, t) as l ->
+  		if i = 0 then l else drop (i-1) (Lazy.force t)
+  
+  (* take *)
+  let take : int -> 'a inflist -> 'a list = fun i l ->
+      let rec aux i acc = function | Cons (h, t) ->
+      	if i = 0 then acc else aux (i-1) (h::acc) (Lazy.force t)
+      in List.rev (aux i [] l)
+
+  (*Enrique Naudon difficulty score 2*)
+
+  let rec map2 f l1 l2 = match (l1, l2) with
+    | Cons (h1, t1), Cons (h2, t2) ->
+      Cons (f h1 h2, lazy (map2 f (Lazy.force t1) (Lazy.force t2)))
+
+  let rec nth l i = match l with
+    | Cons(hd, tl) ->
+      if i = 0 then hd
+      else nth (Lazy.force tl) (i - 1)
+
+  let rec drop i l = match l with
+    | Cons(_, tl) ->
+      let rest = Lazy.force tl in
+      if i = 0 then rest else drop (i - 1) rest
+
+  let rec take i l = match l with
+    | Cons(hd, tl) ->
+      hd :: if i = 0 then []
+      else take (i - 1) (Lazy.force tl)
+
+  (*Eugene Perederey-- difficulty level 2*)
+  let rec map2 f xs ys = Cons (f (hd xs) (hd ys), lazy (map2 f (tl xs) (tl ys)))
+
+  let rec nth n xs =
+    if n < 0 then failwith "negative index!"
+    else if n == 0 then hd xs
+    else nth (n-1) (tl xs)
+
+  let rec drop n xs = if n <= 0 then xs else drop (n-1) (tl xs)
+
+  let take n xs =
+   let rec helper k xs acc = 
+      if k > 0 then helper (k-1) (tl xs) (hd xs::acc) else acc
+    in List.rev (helper n xs [])
+
+  (*Jim Coakley*)
+  let rec map2 f a b = 
+      Cons (f (hd a) (hd b), lazy (map2 f (tl a) (tl b)))
+  
+  let rec nth il n = match n with
+      | 0 -> hd il
+      | _ -> nth (tl il) (n - 1)
+  
+  let take n il =
+      let rec aux l n il = match n with
+          | 0 -> l
+          | _ -> aux ((hd il) :: l) (n - 1) (tl il)
+      in List.rev (aux [] n il)
+  
+  let rec drop n il =
+      match n with 
+          | 0 -> il
+          | _ -> drop (n - 1) (tl il)
+  
+  (*Sen Han*)
+
+  (*Utility functions provided by the example*)
+  type 'a inflist = Cons of 'a * 'a inflist Lazy.t;;
+  let hd : 'a inflist -> 'a = function | Cons (hd, _) -> hd;;
+  let tl : 'a inflist -> 'a inflist = function | Cons (_, tl) -> Lazy.force tl ;;
+  let rec map : ('a -> 'b) -> 'a inflist -> 'b inflist =
+    fun f -> function
+    | Cons (hd, tl) -> Cons ( f hd, lazy ( map f (Lazy.force tl ) ) );;
+  let rec count = Cons ( 1 , lazy ( ( map ( ( + ) 1 ) count ) ) );;
+  
+  
+  (*Solutions*)
+  let rec map2 f l1 l2 = 	match (l1, l2) with | (Cons(hd1, tl1) , Cons(hd2, tl2)) -> Cons( (f hd1 hd2), lazy (map2 f (Lazy.force tl1) (Lazy.force tl2) ));;
+  let rec nth l i = match i with | 0 -> (hd l) | _ -> (nth (tl l) (i - 1));;
+  let rec drop i l = match i with | 0 -> l | _ -> drop (i - 1) (tl l);;
+  let rec take i l = match i with | 0 -> [(hd l)] | _ -> (hd l)::(take (i - 1) (tl l));;
+  
+  (* Tested with the fibs function *)
+  let rec fibs = Cons(0, lazy (Cons ( 1, lazy ( map2 ( + ) fibs (tl fibs) ) ) ) );;
+  
+  (* Testing Results *)
+  
+  # take 10 fibs;;
+  - : int list = [0; 1; 1; 2; 3; 5; 8; 13; 21; 34; 55]
+  # take 50 fibs;;
+  - : int list =
+  [0; 1; 1; 2; 3; 5; 8; 13; 21; 34; 55; 89; 144; 233; 377; 610; 987; 1597;
+   2584; 4181; 6765; 10946; 17711; 28657; 46368; 75025; 121393; 196418; 317811;
+   514229; 832040; 1346269; 2178309; 3524578; 5702887; 9227465; 14930352;
+   24157817; 39088169; 63245986; 102334155; 165580141; 267914296; 433494437;
+   701408733; 1134903170; 1836311903; 2971215073; 4807526976; 7778742049;
+   12586269025]
+  # nth fibs 100;;
+  - : int = 3736710778780434371
+  # nth fibs 20;;
+  - : int = 6765
+  
+  (*Jon Cinque*)
+
+  (* "nth": force evaluation on the next element until the counter hits 0 *)
+  let rec nth : 'a inflist -> int -> 'a =
+      function | Cons (h,t) ->
+          fun n -> if n > 0 then nth (Lazy.force t) (n-1) else h
+  
+  (* "take": build up the returned list as long as counter i > 0 *)
+  let rec take : int -> 'a inflist -> 'a list =
+      fun i -> function | Cons (h,t) when i > 0 -> h::(take (i-1) (Lazy.force t))
+                        | _                     -> []
+  
+  (* "drop": move on to the next element in the list if counter i > 0, 
+   * otherwise return the current infinite list *)
+  let rec drop : int -> 'a inflist -> 'a inflist =
+      fun i -> function | Cons (h,t) when i > 0 -> drop (i-1) (Lazy.force t)
+                        | _ as l                -> l
+  
+  (* "map2": match both infinite lists with for head/tail values, then construct
+   * the next element of the list *)
+  let rec map2 : ('a -> 'b -> 'c) -> 'a inflist -> 'b inflist -> 'c inflist =
+      fun f l1 l2 -> match l1, l2 with
+          | Cons (h1,t1), Cons(h2,t2) ->
+                  Cons (f h1 h2, lazy (map2 f (Lazy.force t1) (Lazy.force t2)))
+  
