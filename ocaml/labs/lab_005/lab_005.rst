@@ -1,0 +1,15 @@
+==========================
+ Weekly OCaml exercise #5
+==========================
+
+Difficulty level : Medium
+
+Problem :
+
+The sieve of Eratosthenese is a simple, beautiful algorithm from antiquity for finding all prime numbers up to any limit. It works iteratively by marking as composites the multiples of each prime, starting with 2. It is in fact, one of the most efficient ways known to find all of the smaller primes.
+
+For example, to find the prime numbers less than 10, start with the list [1; 2; 3; 4; 5; 6; 7; 8; 9]. Removing multiples of 2 you get the list [1; 2; 3; 5; 7; 9], then removing multiples of 3 you get [1; 2; 3; 5; 7] and since there are no multiples of 5 or 7 for this limit, we are done.
+
+This week, the problem is to produce an implementation of this algorithm. To test, show that your program correctly finds all primes below 121.
+
+For the truly adventourous, Xavier Leroy's beautiful work "Unix System Programming in OCaml" (http://ocaml.github.io/ocamlunix/index.html), section 5.2,  presents a parallel multi-process solution!

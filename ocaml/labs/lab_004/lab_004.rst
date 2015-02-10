@@ -1,8 +1,8 @@
-\==========================
+==========================
  Weekly OCaml exercise #4
 ==========================
 
-Difficulty level : Medium
+Difficulty level : Easy
 
 Problem :
 
