@@ -2,7 +2,7 @@
  Weekly OCaml exercise #5
 ==========================
 
-Difficulty level : Medium
+Difficulty level : Easy/Medium
 
 Problem :
 
@@ -12,4 +12,16 @@ For example, to find the prime numbers less than 10, start with the list [1; 2; 
 
 This week, the problem is to produce an implementation of this algorithm. To test, show that your program correctly finds all primes below 121.
 
-For the truly adventourous, Xavier Leroy's beautiful work "Unix System Programming in OCaml" (http://ocaml.github.io/ocamlunix/index.html), section 5.2,  presents a parallel multi-process solution!
+There are so many ways to express an answer to this problem... For the truly adventourous, Xavier Leroy's "Unix System Programming in OCaml" (http://ocaml.github.io/ocamlunix/index.html), section 5.2,  presents a parallel multi-process solution!
+
+Solutions
+::
+
+  (*Shayne*)
+  let mk_fil k tl = fun i -> 
+    if i mod k = 0 then None else tl i
+  let f (acc, s) = fun i -> 
+    match s i with
+      | Some p -> (p :: acc, mk_fil p s)
+      | _ -> (acc, s)
+  let l = List.rev (fst (List.fold_left f ([2], mk_fil 2 (fun x -> Some x)) (range 3 122)))
