@@ -68,7 +68,7 @@ Solutions:
   (* nth *)
   let rec nth : 'a inflist -> int -> 'a =
   	fun l n -> match l with Cons (h, t) ->
-  		if n = 0 then h else nth (Lazy.force t) (n-1)
+  		if n = 0 then h else nth (Lazy.force t) (n - 1)
   
   (* drop *)
   let rec drop : int -> 'a inflist -> 'a inflist =

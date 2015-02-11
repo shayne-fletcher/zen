@@ -1,0 +1,89 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #4
+2015-02-06 by 
+Difficulty level :
+Medium
+Problem :
+The module Lazy provides the type α t. A value of type α Lazy.t is a deferred computation, called a suspension (or a 'thunk'), that has a result of type α. The special syntax lazy (expr) makes a suspension of the computation of expr without computing expr itself. "Forcing" the suspension will then compute expr and return its result. Using suspensions, a type for modeling (non-empty) infinite lists follows easily.
+type 'a inflist = Cons of 'a * 'a inflist Lazy.t
+For example, hd the function that returns the head of an infinite list can be written like this
+let hd : 'a inflist -> 'a = function | Cons (h, _) -> h
+The Lazy function val force : α Lazy.t -> α works like this : force x forces the suspension x and returns its result. If x has already been forced, Lazy.force x returns the same value again without recomputing it. So, using force, the function tl is written
+let tl : 'a inflist -> 'a inflist = function | Cons (_, t) -> Lazy.force t
+This is the familiar function map written for infinite lists.
+let rec map : ('a -> 'b) -> 'a inflist -> 'b inflist = fun f -> function | Cons (h, t) -> Cons (f h, lazy (map f (Lazy.force t)))
+So how do we construct an infinite list in practice? Recursively. For example, this construction produces the counting numbers.
+let rec count = Cons (1, lazy (map (( + ) 1) count))
+Assuming a suitable definition for take (see the exercise) you could pull of the first 10 of them say like this.
+# take 10 count ;;
+- : int list = [1; 2; 3; 4; 5; 6; 7; 8; 9; 10]
+The function map2 is like map but the iteration is over two lists.
+val map2 : ('a -> 'b -> 'c) -> 'a inflist -> 'b inflist -> 'c inflist
+In terms of map2, the Fibonacci sequence can be written as an infinite list like this
+let rec fibs = Cons (0, lazy (Cons (1, lazy (map2 ( + ) fibs (tl fibs)))))
+Here then is the problem. Write the following functions.
+val map2 : ('a -> 'b -> 'c) -> 'a inflist -> 'b inflist -> 'c inflist
+(**Like [map] but the iteration is over two infinite lists*)
+
+
+val nth : 'a inflist -> int -> 'a
+(**Compute (generate) the {i n}th element of an infinite list*)
+
+
+val drop : int -> 'a inflist -> 'a inflist
+(**Drop the first {i k} elements of the given infinite list*)
+
+
+val take : int -> 'a inflist -> 'a list
+(**Take the first {i k} elements of the given infinite list*)
+You can write tests for your functions using the provided definition of the Fibonacci sequence.
+Solutions :
+This week's problem didn't admit a lot of "wiggle-room". Here's map2.
+  let rec map2 : ('a -> 'b -> 'c) -> 'a inflist -> 'b inflist -> 'c inflist =
+  	fun f l1 l2 -> match (l1, l2) with (Cons (h1, t1), Cons (h2, t2))
+  		-> Cons (f h1 h2, lazy (map2 f (Lazy.force t1) (Lazy.force t2)))
+Here's one way to write drop
+  let rec drop : int -> 'a inflist -> 'a inflist =
+  	fun i -> function | Cons (_, t) as l ->
+  		if i = 0 then l else drop (i-1) (Lazy.force t)
+This version of drop eliminates some "syntactic noise" by using the existing tl function to eliminate an explicit force
+ let rec drop n xs = if n <= 0 then xs else drop (n - 1) (tl xs)
+but its real improvement is that it defines the case n < 0 which should be preferred in the interests of defensive programming as in this submission.
+let rec drop : int -> 'a inflist -> 'a inflist = fun i -> function | Cons (h, t) when i > 0 -> drop (i - 1) (Lazy.force t) | _ as l -> l
+This looks like it is quite an elegant implementation of take
+  let rec take i l = match l with
+    | Cons(hd, tl) ->
+      hd :: if i = 0 then []
+      else take (i - 1) (Lazy.force tl)
+but it's not correct though since take 0 l should always return the empty list. Nonetheless, it provides a chance to point out that you can do an implicit match on an argument to reduce on some syntax.
+  let rec take i (Cons (hd, tl)) =  hd :: if i = 0 then [] else take (i - 1) (Lazy.force tl)
+Here's a correct version.
+  let take : int -> 'a inflist -> 'a list = fun i l ->
+      let rec aux i acc = 
+         function 
+             | Cons (h, t) ->
+                if i = 0 then acc else aux (i - 1) (h::acc) (Lazy.force t)
+      in List.rev (aux i [] l)
+As per the above, could cut down significantly on the syntax though...
+let take : int -> 'a inflist -> 'a list = fun i l ->
+   let rec aux i acc (Cons (h, t)) = 
+     if i = 0 then acc else aux (i - 1) (h :: acc) (Lazy.force t)
+   in List.rev (aux i [] l)
+... and also, there should be white-space on either side of an infix operator (as that last example addresses).
+
+Here's a fair definition for nth
+  let rec nth il n = match n with
+      | 0 -> hd il
+      | _ -> nth (tl il) (n - 1)
+but again, will recurse infinitely in the presence of n < 0. I offer this alternate version.
+ let rec nth (Cons (hd, tl)) n = match n with
+    | i when i < 0 -> failwith "nth"
+    | i when i = 0 -> hd
+    | _ -> nth (Lazy.force tl) (n - 1)
