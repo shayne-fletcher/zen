@@ -25,3 +25,218 @@ Solutions
       | Some p -> (p :: acc, mk_fil p s)
       | _ -> (acc, s)
   let l = List.rev (fst (List.fold_left f ([2], mk_fil 2 (fun x -> Some x)) (range 3 122)))
+
+  (*Shayne*)
+  let sieve n =
+    let rec loop acc i n s =
+      if i >= n then acc
+      else match s i with
+      | None -> loop acc (i + 1) n s
+      | Some p -> loop (p :: acc) (i + 1) n (mk_fil p s) in
+    List.rev (loop [] 2 n (mk_fil 2 (fun x -> Some x)))
+  
+  (*Eugene Perederey*)
+  (*Difficulty level easy*)
+  (*Notice that after k rounds of elimination
+    there are k prime numbers on the left of the list (with k-th prime
+    used in k-th round of elimination).  So given the first k primes we
+    can find out if the next element to be inspected is prime.*)
+    let rec primes = 
+    function 1 -> []
+           | 2 -> [2]
+           | _ as n ->
+              let ps = primes (n-1) in
+              if List.for_all (fun p -> n mod p <> 0) ps then (n::ps)
+              else ps
+    let l = List.rev (primes 121);;
+    - : int list =
+    [2; 3; 5; 7; 11; 13; 17; 19; 23; 29; 31; 37; 41; 43; 47; 53; 59; 61; 67; 71;
+     73; 79; 83; 89; 97; 101; 103; 107; 109; 113]
+
+  (*Jon Cinque - Difficulty level very easy*)
+  let rec primes : int -> int list = fun limit ->
+      (* simple helper function to create the list of numbers to sieve through *)
+      let rec generate_list : int list -> int -> int list = fun acc limit ->
+          if limit > 1 then generate_list (limit::acc) (limit-1) else acc
+      in let candidate_list = generate_list [] limit
+      
+      (* main work to recursively build up the list of primes *)
+      in let rec filter_candidate_list : int list -> int list -> int list =
+          fun prime_list -> function
+          (* the head of the list is prime because it got through all previous 
+           * filtering stages, so append it to the list of primes *)
+          | hd::tl -> filter_candidate_list (hd::prime_list)
+                      (* filter out the multiples of the current prime hd from the
+                       * rest of the list *)
+                      (List.filter (fun x -> (x mod hd) != 0) tl )
+          (* at the end of the list, just return *)
+          | _  -> prime_list
+      in List.rev(filter_candidate_list [] candidate_list)
+  (* Testing *)
+  let primesBelow121 = primes 121
+  let actualPrimesBelow121 = [ 2;3;5;7;11;13;17;19;23;29;31;37;41;43;47;53;59;61;67;71;73;79;83;89;97;101;103;107;109;113 ]
+  (* make sure all elements are the same *)
+  let allOk = List.fold_left2 (fun allOk x y -> allOk && (x==y)) true
+                              primesBelow121 actualPrimesBelow121
+  let () = assert(allOk == true)
+  
+  (*Viet Li - Difficulty 2/5*)
+  let eratosthenes n =
+      let rec fold_when_true f acc = function | [] -> acc
+          | h :: t -> if f h then fold_when_true f acc t else false
+      in let rec aux acc i m = if i <= m then
+          if fold_when_true (fun x -> i mod x <> 0) true acc then aux (acc @ [i]) (i+1) m else aux acc (i+1) m
+      else acc
+  in aux [] 2 n
+  (*Attempt 3*)
+  let eratosthenes3 n =
+      let make_range n = let rec aux acc i n = if i > n then acc
+          else aux (i::acc) (i+1) n in List.rev (aux [] 2 n)
+      in let rec pick_when_true f g acc = function | [] -> acc
+          | h :: t -> if f h then pick_when_true f g (g h acc) t else pick_when_true f g acc t
+      in let rec sieve acc = function | [] -> acc
+          | [h] -> h :: acc
+          | h :: (h2 :: t as tl) as l -> if h < h2 then sieve (h::acc) (
+                  pick_when_true (fun x -> x mod h <> 0) (fun x accx -> x::accx) [] tl)
+              else sieve acc (List.rev l)
+  in List.rev (sieve [] (make_range n));;
+  (* Attempt 6*)
+  let eratosthenes6 n =
+      let make_range n = let rec aux acc i n = if i > n then acc
+          else aux (i::acc) (i+1) n in List.rev (aux [] 2 n)
+      in let coprimes x l = let rec aux x acc = function | [] -> acc
+          | h :: t -> if h mod x <> 0 then aux x (h :: acc) t else aux x acc t
+          in aux x [] l
+      in let rec sieve acc = function | [] -> acc
+          | h :: t as l -> if h*h <= n then sieve (h :: acc) (List.rev (coprimes h l))
+              else List.rev_append acc l
+      in sieve [] (make_range n);;
+
+  (*Sen Han*)
+  # (* Generate a list a integers, for testing example *)
+  let upto i =
+          let rec aux acc j =
+                  match j with
+                  | 2 -> 2::acc
+                  | _ -> aux (j::acc) (j-1) in
+          aux [] i;;
+  val upto : int -> int list = <fun>
+  #
+  let l = upto 121;;
+      val l : int list =
+    [2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17; 18; 19; 20; 21;
+     22; 23; 24; 25; 26; 27; 28; 29; 30; 31; 32; 33; 34; 35; 36; 37; 38; 39;
+     40; 41; 42; 43; 44; 45; 46; 47; 48; 49; 50; 51; 52; 53; 54; 55; 56; 57;
+     58; 59; 60; 61; 62; 63; 64; 65; 66; 67; 68; 69; 70; 71; 72; 73; 74; 75;
+     76; 77; 78; 79; 80; 81; 82; 83; 84; 85; 86; 87; 88; 89; 90; 91; 92; 93;
+     94; 95; 96; 97; 98; 99; 100; 101; 102; 103; 104; 105; 106; 107; 108; 109;
+     110; 111; 112; 113; 114; 115; 116; 117; 118; 119; 120; 121]
+  #   (* helper filter function *)
+    let not_divisable_by a b = b mod a <> 0;;
+  val not_divisable_by : int -> int -> bool = <fun>
+  #  (* Recursively apply the filter *)
+      let rec find_primes l =
+          match l with
+          | [] -> []
+          | hd::tl -> hd::(find_primes (List.filter (not_divisable_by hd) tl));;
+  val find_primes : int list -> int list = <fun>
+  # find_primes l;;
+  - : int list =
+  [2; 3; 5; 7; 11; 13; 17; 19; 23; 29; 31; 37; 41; 43; 47; 53; 59; 61; 67; 71;
+   73; 79; 83; 89; 97; 101; 103; 107; 109; 113]
+  let timer f x =
+      let t0 = Sys.time()                                         
+      in let result = f x                                              
+      in let diff = Sys.time() -. t0                                     
+      in diff, result;;
+  let eratosthenes7 n =
+      let make_range n = let rec aux acc i n = if i > n then acc
+          else aux (i::acc) (i+1) n in List.rev (aux [] 2 n)
+      in let coprimes x l = let rec aux x acc = function | [] -> acc
+          | h :: t -> if h mod x <> 0 then aux x (h :: acc) t else aux x acc t
+          in aux x [] l
+      in let rec sieve acc next = function | [] -> acc
+          | [h] -> h :: acc
+          | h :: (h2 :: t as tl) as l -> if h < h2 then
+              if h*h <= n then sieve (h :: acc) h2 (coprimes h tl) else List.rev_append acc l
+          else sieve (next :: acc) next (coprimes next l)
+      in sieve [] 2 (make_range n);;
+  let eratosthenes6 n =
+      let make_range n = let rec aux acc i n = if i > n then acc
+          else aux (i::acc) (i+1) n in List.rev (aux [] 2 n)
+      in let coprimes x l = let rec aux x acc = function | [] -> acc
+          | h :: t -> if h mod x <> 0 then aux x (h :: acc) t else aux x acc t
+          in aux x [] l
+      in let rec sieve acc = function | [] -> acc
+          | h :: t as l -> if h*h <= n then sieve (h :: acc) (List.rev (coprimes h l))
+              else List.rev_append acc l
+      in sieve [] (make_range n);;
+    
+  //rust submission - david levy
+  // difficulty level 2
+  #![feature(os)]
+  
+  use std::os;
+  
+  fn main() {
+      println!("{:?}", sieve::primes(
+              match &os::args()[] {
+                  [_, ref limit_str] => match limit_str.parse() {
+                      Ok(x) => x,
+                      Err(e) => {
+                          println!("Invalid literal: {}", e);
+                          return;
+                      },
+                  },
+                  [ref name, ..] => {
+                      println!("Usage: {} limit", name);
+                      return;
+                  },
+                  _ => unreachable!(),
+              }
+              ));
+  }
+  
+  mod sieve {
+      use std::iter;
+  
+      pub fn primes (limit: usize) -> Vec<usize> {
+          // create a vector of booleans for the primality indicators
+          let mut flags =
+              iter::repeat(true)
+              .take(limit + 1)
+              .collect::<Vec<_>>();
+  
+          for x in 2..limit {
+              if flags[x] {
+                  (2..)                                       // iterate over integers starting at 2...
+                      .map(|mult| mult * x)                   // to get multiples of our value
+                      .take_while(|value| *value <= limit)    // stop when we exceed the limit
+                      .map(|value| flags[value] = false)      // mark multiples as non-primes
+                      .last();                                // force evaluation
+              }
+          }
+  
+          (0..limit + 1)
+              .zip(flags.into_iter()) // combine values with flags
+              .filter(|&(_, f)| f)    // only keep primes
+              .map(|(x, _)| x)        // strip out flags
+              .skip(2)                // 0 and 1 shouldn't be in the result set
+              .collect()              // collect into a vector
+      }
+  
+      #[cfg(test)]
+      mod test {
+          use super::primes;
+  
+          #[test]
+          fn test_30 () {
+              assert!(primes(30) == vec![2, 3, 5, 7, 11, 13, 17, 19, 23, 29]);
+          }
+  
+          #[test]
+          fn test_121 () {
+              assert!(primes(121) == vec![2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113]);
+          }
+      }
+  }

@@ -1,0 +1,80 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #5
+2015-02-12 by 
+Difficulty level :
+Easy/Medium
+Problem :
+The sieve of Eratosthenes is a simple, beautiful algorithm from antiquity for finding all prime numbers up to any limit. It works iteratively by marking as composites the multiples of each prime, starting with 2. It is in fact, one of the most efficient ways known to find all of the smaller primes.
+For example, to find the prime numbers less than 10, start with the list [2; 3; 4; 5; 6; 7; 8; 9]. Removing multiples of 2 you get the list [2; 3; 5; 7; 9], then removing multiples of 3 you get [2; 3; 5; 7] and since there are no multiples of 5 or 7 for this limit, we are done.
+
+R&D X-asset Risk/Pricing > Week #005 > sieve.png
+
+This week, the problem is to produce an implementation of this algorithm. To test, show that your program correctly finds all primes below 121.
+There are so many ways to express an answer to this problem... For the truly adventurous, Xavier Leroy's "Unix System Programming in OCaml", section 5.2, presents a parallel multi-process solution for example!
+Solutions :
+This version is generative, building up the list of primes as it considers each number between 2 and the limit for inclusion or not.
+let rec primes = function ->
+   | 2 -> [2]
+   | _ as n ->
+       let ps = primes (n - 1) in
+       if List.for_all (fun p -> n mod p <> 0) ps then (n :: ps)
+       else ps
+How does this work? Well, let's take the case n = 3. We come to the second case in the match with ps = [2] and since there is no element p in ps for which n is divisible by p, the result is [3; 2]. Now lets take the case n = 4, then ps = [3; 2] and since n is divisible by the list member 2, we conclude the result is [3; 2].  Lastly, let's work n = 5. Again ps = [3; 2] but this time there is no p in ps that divides 5 so we compute the result [5; 3; 2].
+This next version is the same only tail recursive. The function fold_when_true has signature (α-> bool) -> bool -> α list -> bool. On inspection, it is in fact the List function  for_all which returns true if  and only if all of the elements of the list satisfy the given predicate which we observed at use in the first solution.
+let eratosthenes n =
+    let rec fold_when_true f acc = function | [] -> acc
+        | h :: t -> if f h then fold_when_true f acc t else false
+    in let rec aux acc i m = if i <= m then
+        if fold_when_true (fun x -> i mod x <> 0) true acc then aux (acc @ [i]) (i+1) m else aux acc (i+1) m
+    else acc
+in aux [] 2 n
+Let's try this with n = 3. Then we call aux with acc = [], i = 2 and m = 4. Since 2 ≤ 3 and it is vacuously true that there are no elements in acc that divide 2 we add 2 to the list of primes and invoke aux recursively, this time with i = 3. With i = 3 we still find no elements in acc = [2] which divide 3 so the result is [2; 3]. With i = 4 though, we find the existing element 2 divides 4 and terminate with the final list [2; 3].
+This solution was proposed by more than one submitter. It is less declarative and more "procedural" in its approach in that it first generates a list of candidates on which it then goes to work on filtering away the non-primes.
+let rec primes : int -> int list = fun limit ->
+    (* simple helper function to create the list of numbers to sieve through *)
+    let rec generate_list : int list -> int -> int list = fun acc limit ->
+        if limit > 1 then generate_list (limit::acc) (limit-1) else acc
+    in let candidate_list = generate_list [] limit
+      
+    (* main work to recursively build up the list of primes *)
+    in let rec filter_candidate_list : int list -> int list -> int list =
+        fun prime_list -> function
+        (* the head of the list is prime because it got through all previous 
+         * filtering stages, so append it to the list of primes *)
+        | hd::tl -> filter_candidate_list (hd::prime_list)
+                    (* filter out the multiples of the current prime hd from the
+                     * rest of the list *)
+                    (List.filter (fun x -> (x mod hd) != 0) tl )
+        (* at the end of the list, just return *)
+        | _  -> prime_list
+    in List.rev(filter_candidate_list [] candidate_list)
+Analysis time. Let's start with the candidate list [2; 3; 4; 5]. We start filtering from the candidate list by calling filter_candidate_list [] candidate_list where the first argument is the list of primes we know. We assume the head of candidates list is prime and so, we augment the list of primes, strike out multiples of the prime from the candidate list and filter_candidate_list again. There's an issue with the syntax here :  List.filter (fun x -> (x mod hd) != 0) tl should read List.filter (fun x -> (x mod hd) <> 0) tl because it's structural equality not identity we are testing (although they happen to be the same here but in general they are not!).
+
+In the past when posed this problem I've produced solutions of the types we've seen above. This time though I resolved to do something different. This approach I arrived at is based on the programming idiom called CPS (continuation passing style).
+
+Start with this function mk_fil ("make filter")
+let mk_fil k tl = fun i -> 
+    if i mod k = 0 then None else tl i
+The idea is, given a number k and a continuatation tl (the "next" filter), it returns a function in an integer i such that if k divides i, then i is "knocked out" otherwise the continuatation gets to decide on its fate. So, with mk_fil, here's one (tail-recursive) way to write the sieve.
+let f (acc, s) = fun i -> 
+    match s i with
+      | Some p -> (p :: acc, mk_fil p s)
+      | _ -> (acc, s)
+let l = List.rev (fst (List.fold_left f ([2], mk_fil 2 (fun x -> Some x)) (range 3 122)))
+There's no requirement to generate the candidates a priori though, you can generate candidates and filter as you go which I reason has better memory usage characteristics.
+let sieve n =
+    let rec loop acc i n s =
+      if i >= n then acc
+      else match s i with
+      | None -> loop acc (i + 1) n s
+      | Some p -> loop (p :: acc) (i + 1) n (mk_fil p s) in
+    List.rev (loop [] 2 n (mk_fil 2 (fun x -> Some x)))
+This program seems to work "quite well" for large values of n (like n = 1.0 x 106 for example) that I got to wondering about the limits of just how well it can really do?
+On a 64-bit architecture, maxint has the value (263 - 1) / 2 = 4611686018427387903.5 (i.e ~4.6115 x 1018). π (x) is the number of primes less than or equal to x. The prime number theorem tells us that π (x) ≈ x / (log x - 1) where log is the natural log function. So, there are approximately 109867117656813059 (i.e. ~1 x 1017) primes less than max_int. A 64-bit integer requires 8 bytes of storage so, we'll need 878936941254504479 Bytes or 780 Petabytes to hold them all! That is if you can have the patience to search for them. I ran the program for 10 hours straight and only managed to get my working memory set up to 30 kilobytes in that time!
