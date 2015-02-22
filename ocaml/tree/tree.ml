@@ -1,3 +1,6 @@
+let string_of_list f l = 
+  "[" ^ String.concat ";" (List.map f l) ^ "]" ;;
+
 let explode s =
   let n = String.length s in
   let rec loop acc i =
@@ -16,7 +19,9 @@ type 'a tree = | Leaf of 'a | Node of 'a tree * 'a tree
 type direction = | L | R
 
 let direction_list_of_string s =
-  List.map (function |'0' -> L|'1' -> R | _ -> failwith "invalid") (explode s)
+  List.map (function |'0' -> L| '1' -> R | _ -> failwith "invalid") (explode s)
+
+let string_of_direction_list l = implode (List.map (function | L -> '0' | R -> '1') l)
 
 let rec subtree (l : direction list) (t : 'a tree) : 'a tree option =
   match l with
@@ -44,36 +49,35 @@ let decode (l : direction list) (t : 'a tree) : 'a list option =
     end
   in aux l t []
 
-let collect_leaves l =
-  let f acc e =
-    match e with
-    | (Leaf _, p) -> e :: acc
-    | _ -> acc
-  in List.fold_left f [] l
-    
 let findmin (l : ('a tree * 'b) list) : 'a tree * 'b =
-  let leaves = collect_leaves l in
   let f acc elem =
     if snd elem < snd acc then elem else acc
   in List.fold_left f (List.hd l) (List.tl l)
 
+let is_leaf = function | Leaf _ -> true | _ -> false
+
 let huffman (l : ('a * float) list) : 'a tree =
-  let f x = let (c, p) = x in Leaf c, p in
-  let l = List.map f l in
   let rec loop acc =
     match acc with
     | [] -> failwith "empty"
-    | [(Node (left, right), p) as n] -> acc
+    | [(Node (left, right), p)] -> acc
     | (h :: tl) ->
         let m = findmin acc in
         let acc = List.filter (fun e -> e <> m)  acc in
         let n = findmin acc in
         let acc = List.filter (fun e -> e <> n)  acc in
-        let pair = Node (fst m, fst n), snd m +. snd n in
-        loop (pair :: acc) 
-  in fst (List.hd (loop l))
+        loop ((Node (fst m, fst n), snd m +. snd n) :: acc)
+  in fst (List.hd (loop (List.map (fun (c, p) -> Leaf c, p) l)))
 
 let tree = huffman ['a', 0.4; 'b', 0.35; 'c', 0.2; 'd', 0.05]
 
-(* let l = decode (direction_list_of_string "0000010100111") t *)
+let encoding (t : 'a tree) : ('a * string) list =
+  let rec loop (node : 'a tree) (path : direction list) (acc : ('a * direction list) list) =
+    match node with
+    | Leaf x -> (x, List.rev path) :: acc
+    | Node (left, right) -> loop right (R :: path) (loop left (L :: path) acc)
+  in List.map (fun (s, p) -> (s, string_of_direction_list p)) (loop t [] [])
 
+let string_of_code (sym, path) = Printf.sprintf "('%c', %s)" sym path
+
+let () = Printf.printf "%s" (string_of_list string_of_code (encoding tree))
