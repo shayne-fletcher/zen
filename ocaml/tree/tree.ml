@@ -78,6 +78,105 @@ let encoding (t : 'a tree) : ('a * string) list =
     | Node (left, right) -> loop right (R :: path) (loop left (L :: path) acc)
   in List.map (fun (s, p) -> (s, string_of_direction_list p)) (loop t [] [])
 
-let string_of_code (sym, path) = Printf.sprintf "('%c', %s)" sym path
+let string_of_code (sym, path) = Printf.sprintf "('%c', \"%s\")" sym path
 
-let () = Printf.printf "%s" (string_of_list string_of_code (encoding tree))
+let () = Printf.printf "%s\n" (string_of_list string_of_code (encoding tree))
+
+type token =
+| T_char of char
+| T_comma | T_lparen | T_rparen 
+
+type ('a, 'b) parsed =
+| Returns of 'b * 'a list
+| Analyze_fails
+
+type ('a, 'b) parser = 'a list -> ('a, 'b) parsed
+
+let (accept : ('a, 'b) parsed -> 'b) = function
+   | Returns (v, []) -> v
+   | Returns (_, _ :: _) -> failwith "Couldn't consume all input"
+   | Analyze_fails  -> failwith "Failed"
+
+let (empty : 'b -> ('a, 'b) parser) = fun v toks -> Returns (v, toks)
+
+let (token : ('a -> 'b option) -> ('a, 'b) parser) =
+  fun test ->
+    let f l =
+      match l with
+      | (t :: ts) -> 
+         begin
+           match test t with
+           | Some r -> Returns (r, ts)
+           | None -> Analyze_fails
+         end
+      | _ -> Analyze_fails in
+    f
+
+let (char : 'a -> ('a, 'a) parser) = 
+  fun c -> token (fun c' -> if c = c' then Some c else None)
+
+let (( |>~ ) : ('a, 'b) parser -> ('b -> 'c) -> ('a, 'c) parser) =
+  fun p f toks ->
+    match p toks with
+    | Returns (r1, toks1) -> Returns (f r1, toks1)
+    | Analyze_fails -> Analyze_fails
+
+let (( |~ ) : ('a, 'b) parser -> ('a, 'b) parser -> ('a, 'b) parser) =
+  fun p1 p2 toks ->
+    match p1 toks with
+    | Analyze_fails -> p2 toks
+    | res -> res
+
+let (( &~ ) : ('a, 'b) parser -> ('a, 'c) parser -> ('a, 'b * 'c) parser) =
+  fun p1 p2 toks ->
+    match p1 toks with
+    | Returns (r1, toks1) -> 
+       (match p2 toks1 with
+        | Returns (r2, toks2) -> Returns ((r1, r2), toks2)
+        | _ -> Analyze_fails)
+    | _ -> Analyze_fails
+
+let rec (zero_or_more  : ('a, 'b) parser -> ('a, 'b list) parser) =
+  fun p toks -> 
+    (((p &~ (zero_or_more p)) |>~ (fun (x, xs) -> x :: xs)) |~ (empty [])) toks
+
+let rec (char_range : char -> (char * char) list -> bool)= 
+  fun c -> function
+        | [] -> false
+        | ((c1, c2) :: l) -> 
+           (int_of_char c1 <= int_of_char c && 
+              int_of_char c <= int_of_char c2) 
+           || char_range c l
+
+let (is_letter : char -> bool) = fun c -> char_range c [('a', 'z'); ('A', 'Z')]
+let (digit : (char, char) parser) = token (fun c -> if is_digit c then Some c else None)
+let (paren : (char, token) parser) = token (function | '(' -> Some T_lparen | ')' -> Some T_rparen | _ -> None)
+let (comma_ : (char, token) parser) = token (function | ',' -> Some T_comma | _ -> None)
+let (space : (char, unit) parser) = token (function | ' '| '\t' | '\r' | '\n' -> Some () | _ -> None)
+let rec (spaces : (char, unit) parser)= fun toks -> (((space &~ spaces) |>~ (fun _ -> ())) |~ empty ()) toks
+let (letter : (char, token) parser) = token (fun c -> if is_letter c then Some (T_char c) else None)
+
+(* 
+  lex := spaces((paren|letter)spaces)*
+*)
+let (lex : (char, token list) parser) = spaces &~ (zero_or_more (((paren |~ comma_ |~ letter) &~ spaces) |>~ (fun (tok, ()) -> tok))) |>~ fun ((), toks) -> toks
+(*
+  tree :=
+    | leaf
+    | (tree, tree)
+*)
+let open_paren : (token, unit) parser = token (function | T_lparen -> Some () | _ -> None)
+let close_paren : (token, unit) parser = token (function | T_rparen -> Some () | _ -> None)
+let comma : (token, unit) parser = token (function | T_comma -> Some () | _ -> None)
+let rec (leaf : (token, char tree) parser) =
+  token (function | T_char c -> Some (Leaf c) | _ -> None)
+and (tree : (token, char tree) parser) =
+  fun toks -> (
+      leaf
+      |~ ((open_paren &~ tree &~ comma &~ tree &~ close_paren) 
+                 |>~ (fun ((((_, l),_), r), _) -> Node (l, r)))
+  ) toks
+let tokenize : string -> token list = fun s -> s |> explode |> lex |> accept
+let tree_of_string : string -> char tree = fun s -> s |> tokenize |> tree |> accept
+
+let t = tree_of_string "(a, (b, (c, d)))"
