@@ -1,0 +1,135 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #6
+2015-02-20 by 
+Difficulty level :
+Hard
+Problem :
+The type α tree is suitable for modeling "binary trees".
+type 'a tree = | Leaf of 'a | Node of 'a tree * 'a tree
+
+For example, this tree
+R&D X-asset Risk/Pricing > Week #006 > tree.png
+can be written in abstract syntax as
+Node (Leaf 3, Node (Leaf 4, Leaf 5))
+(of course, we'd rather write that in concrete syntax as something like "(3, (4, 5))" but that's a problem for another day).
+
+We can associate a node or a leaf in a tree of type α tree with the list of binary choices to make in order to traverse the tree from the root to that node or leaf. For example, if we denote left by the letter l and right by the letter r, then in the tree  Node (Leaf 3, Node (Leaf 4, Leaf 5)), rl represents the path designating the subtree Leaf 4.
+
+(1) Given a tree t and a path of directions u,  we will denote the subtree of t corresponding to u (if it exists) by t/u. Define a type direction with two values, L and R, together with a function of type direction list -> α tree -> α tree option that starting with a list of directions dl and a tree t, provides t/dl.
+
+(2) If all the values in a tree of type α tree are distinct, then the tree provides a binary encoding of the values it contains. For example, if we let 0 indicate left and 1 indicate right then the tree in this figure
+R&D X-asset Risk/Pricing > Week #006 > tree2.png
+corresponds to the binary code (a → 000), (b → 001), (c → 010), (d → 011), (e → 1).
+To decode such a group of binary values by a binary tree of type  α tree and to produce the group of values of type α to which they correspond, all we have to do is traverse the tree, interpreting the binary symbols as indications of direction and returning to the root of the tree after getting to a leaf. In our example, the group "00111" decodes as "bee".
+
+Write a function of type direction list -> 'a tree -> 'a list option  to decode the binary groups of type direction list by means of a tree.
+
+(3) For a set of values that we want to code as binary, there are a priori a great many possible trees corresponding to various encodings. We can compare different encodings by comparing the average length of encoded messages. The following technique due to Huffman, finds the code that is optimal from this point of view. We start from a set of symbols (x1, ... xn) to code, and we associate them with probabilities (p1, ..., pn) that they will appear. Then we build the list [Leaf x1, p1; ... ; Leaf xn, pn]. Then from this list, we iterate the construction that consists of choosing (from the list) the two pairs (a, pa) and (b, pb) where pa and pb are the two smallest probabilities and replacing them with the pair (Node (a, b), pa + pb). When the list contains only a single pair, its first component is an optimal code for the original set. Write a function of type (α * float) list -> α tree that implements this algorithm.
+
+Solutions
+(1) Here's one submitted solution:
+  let visit t dir =
+  	match t with
+  	| Leaf x -> Leaf x
+  	| Node (l, r) -> 
+  		match dir with
+  		| L -> l
+  		| R -> r;;
+  let rec nodeByPath t u =
+  	match u with 
+  	| [] -> t
+  	| hd::tl -> (nodeByPath (visit t hd) tl);;
+The logic is correct but this function will silently accept paths that don't conform to valid subtrees. That is, it doesn't conform to the specification which asked for a function of this type direction list -> α tree -> α tree option. Here's another go:
+let rec subtree dl t = match dl, t with
+    | [], _ -> Some t
+    | L :: tdl, Node (l, _) -> subtree tdl l
+    | R :: tdl, Node (_, r) -> subtree tdl r
+    | _, _ -> None;;
+ I like that a lot. Correct and terse. For what it's worth, I had this, which is the same but a little more verbose.
+let rec subtree (l : direction list) (t : 'a tree) : 'a tree option =
+  match l with
+  | [] -> Some t
+  | (h :: tl) -> 
+    match t with
+    | Leaf _ -> None
+    | Node (left, right) -> 
+      if h = L then
+        subtree tl left
+      else 
+        subtree tl right
+ 
+(2) For this one, I took advantage of the above function:
+let decode (l : direction list) (t : 'a tree) : 'a list option = 
+  let rec aux l t' acc =
+  match l with
+  | [] -> Some (List.rev acc)
+  | (h :: tl) ->
+    begin
+      let s = subtree [h] t' in
+      match s with
+      | Some (Leaf x) -> aux tl t (x :: acc)
+      | Some (Node (l, r) as n) -> aux tl n acc
+      | _ -> None
+    end
+  in aux l t []
+That was not a requirement though as shown by this implementation:
+let bindecode dl t = let rec aux dl1 t1 acc =
+    match dl1, t1 with
+        | 0 :: tdl, Node (l, _) -> aux tdl l acc
+        | 1 :: tdl, Node (_, r) -> aux tdl r acc
+        | [], Leaf v -> Some (List.rev (v :: acc))
+        | dl2, Leaf v -> aux dl2 t (v :: acc)
+        | _, _ -> None
+    in aux dl t [];;
+Careful though. This was submitted as a solution to problem (2) but it doesn't conform to the required signature. Rather it has signature int list -> 'a tree -> 'a list option. Of course it's trivial to move back and forth between the representations of direction lists:
+let explode s =
+  let n = String.length s in
+  let rec loop acc i =
+    if i = n then List.rev acc
+    else loop (String.get s i :: acc) (i + 1) in
+  loop [] 0
+
+let implode l =
+  let n = List.length l in
+  let buf = Bytes.create n in
+  let f i c = Bytes.set buf i c in
+  List.iteri f l ; Bytes.to_string buf
+
+let direction_list_of_string s =
+  List.map (function |'0' -> L| '1' -> R | _ -> failwith "invalid") (explode s)
+
+let string_of_direction_list l = implode (List.map (function | L -> '0' | R -> '1') l)
+
+(3) When you get to this point, there's not so much that we can do differently from each other. Here was mine:
+let findmin (l : ('a tree * 'b) list) : 'a tree * 'b =
+  let f acc elem =
+    if snd elem < snd acc then elem else acc
+  in List.fold_left f (List.hd l) (List.tl l)
+let huffman (l : ('a * float) list) : 'a tree =
+  let rec loop acc =
+    match acc with
+    | [] -> failwith "empty"
+    | [(Node (left, right), p)] -> acc
+    | (h :: tl) ->
+        let m = findmin acc in
+        let acc = List.filter (fun e -> e <> m)  acc in
+        let n = findmin acc in
+        let acc = List.filter (fun e -> e <> n)  acc in
+        loop ((Node (fst m, fst n), snd m +. snd n) :: acc)
+  in fst (List.hd (loop (List.map (fun (c, p) -> Leaf c, p) l)))
+Another's takes a different approach to finding the minimum nodes to combine. Very elegant implementation!
+let combine (a1, p1) (a2, p2) = ((Node (a1, a2)), p1 +. p2)
+let rec huffman l =
+  let sorted = (List.sort (fun (x1, y1) (x2, y2)  -> if y2 > y1 then -1 else 1) l) in
+  match sorted with
+  | [(a, b)] -> a
+  | a::b::tl ->  huffman ((combine a b)::tl)
+
+I'd like to finish with a shout out to Harvey Stein for contributing a Lisp solution, David Levy for a Rust solution. I'll post these programs in child pages. Eugene Perederey should be commended for going to the trouble of solving the "find minimum" problem by a complete implementation of a binary heap!

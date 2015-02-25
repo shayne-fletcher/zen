@@ -1,0 +1,784 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #6
+2015-02-20 by 
+Difficulty level :
+Hard
+Problem :
+The type α tree is suitable for modeling "binary trees".
+type 'a tree = | Leaf of 'a | Node of 'a tree * 'a tree
+For example, this tree
+R&D X-asset Risk/Pricing > Week #006 > tree.png
+can be written in abstract syntax as
+Node (Leaf 3, Node (Leaf 4, Leaf 5))
+(of course, we'd rather write that in concrete syntax as something like "(3, (4, 5))" but that's a problem for another day).
+
+We can associate a node or a leaf in a tree of type α tree with the list of binary choices to make in order to traverse the tree from the root to that node or leaf. For example, if we denote left by the letter l and right by the letter r, then in the tree  Node (Leaf 3, Node (Leaf 4, Leaf 5)), rl represents the path designating the subtree Leaf 4.
+
+(1) Given a tree t and a path of directions u,  we will denote the subtree of t corresponding to u (if it exists) by t/u. Define a type direction with two values, L and R, together with a function of type direction list -> α tree -> α tree option that starting with a list of directions dl and a tree t, provides t/dl.
+
+(2) If all the values in a tree of type α tree are distinct, then the tree provides a binary encoding of the values it contains. For example, if we let 0 indicate left and 1 indicate right then the tree in this figure
+R&D X-asset Risk/Pricing > Week #006 > tree2.png
+corresponds to the binary code (a → 000), (b → 001), (c → 010), (d → 011), (e → 1).
+To decode such a group of binary values by a binary tree of type  α tree and to produce the group of values of type α to which they correspond, all we have to do is traverse the tree, interpreting the binary symbols as indications of direction and returning to the root of the tree after getting to a leaf. In our example, the group "0011010" decodes as "bee".
+
+Write a function of type direction list -> 'a tree -> 'a list option  to decode the binary groups of type direction list by means of a tree.
+
+(3) For a set of values that we want to code as binary, there are a priori a great many possible trees corresponding to various encodings. We can compare different encodings by comparing the average length of encoded messages. The following technique due to Huffman, finds the code that is optimal from this point of view. We start from a set of symbols (x1, ... xn) to code, and we associate them with probabilities (p1, ..., pn) that they will appear. Then we build the list [Leaf x1, p1; ... ; Leaf xn, pn]. Then from this list, we iterate the construction that consists of choosing (from the list) the two pairs (a, pa) and (b, pb) where pa and pb are the two smallest probabilities and replacing them with the pair (Node (a, b), pa + pb). When the list contains only a single pair, its first component is an optimal code for the original set. Write a function of type (α * float) list -> α tree that implements this algorithm.
+
+Solutions:
+
+  ;;Harvey Stein
+  ;;Exercise solution (in lisp):
+
+  ;; Binary tree exercise
+  
+  ;; Trees are expressed as lists.  For a tree T, (car T) is the left
+  ;; subtree, (cdr T) is the right subtree.  Leaves are required to be atoms.
+  ;;
+  ;; A route is a list of symbols "l" and "r", so, for example, '(l l r)
+  ;; refers to the subtree that's gotten to by going left, left & right.
+  ;;
+  ;; 
+  
+  (defun subtree (route tree)
+    "(SUBTREE ROUTE TREE) returns the subtree specified by route."
+    (cond ((null route) tree)
+  	((eq (car route) 'l) (subtree (cdr route) (car tree)))
+  	((eq (car route) 'r) (subtree (cdr route) (cdr tree)))))
+  
+  
+  (defun decode (route tree &optional (subtree tree) (result ()))
+    "(DECODE ROUTE TREE) decodes a route.  That is to say, it returns
+  the list of leaves hit by following route, where we start from the top
+  of the tree each time route leads us to a leaf."
+    (cond ((atom subtree) (decode route tree tree (cons subtree result)))
+  	((null route) (reverse result))
+  	((eq (car route) 'l)
+  	 (decode (cdr route) tree (car subtree) result))
+  	((eq (car route) 'r)
+  	 (decode (cdr route) tree (cdr subtree) result))))
+  
+  
+  (defun encode (problist)
+    "(ENCODE PROBLIST) returns a tree for PROBLIST.  PROBLIST is a list
+  of pairs of the form (atom probability).  The tree returned is a
+  binary tree with atoms from the list of atoms in PROBLIST and with
+  shortest average path length (given by the associated probabilities)."
+    (cond ((null (cdr problist))
+  	 (caar problist))
+  	(t (let ((pl (sort problist (lambda (x y) (< (cadr x) (cadr y))))))
+  	     (encode (cons (list (cons (car (first pl))
+  				       (car (second pl)))
+  				 (+ (cadr (first pl))
+  				    (cadr (second pl))))
+  			   (cddr pl)))))))
+  
+  (*Sen Han*)
+  type 'a tree = 
+  	| Leaf of 'a 
+  	| Node of 'a tree * 'a tree;;
+  	
+  type direction = L | R;;
+  
+  (* A helper function - Return left or right subtree which could be a leaf
+  	based on the dir is L or R *)
+  let visit t dir =
+  	match t with
+  	| Leaf x -> Leaf x
+  	| Node (l, r) -> 
+  		match dir with
+  		| L -> l
+  		| R -> r;;
+  
+  (* The function asked by section (1) *)
+  let rec nodeByPath t u =
+  	match u with 
+  	| [] -> t
+  	| hd::tl -> (nodeByPath (visit t hd) tl);;
+  	
+  (* Testing for section (1) *)
+  let t = Node (Leaf 3, Node (Leaf 4, Leaf 5));;
+  val t : int tree = Node (Leaf 3, Node (Leaf 4, Leaf 5))
+  nodeByPath t [R;L];;
+  - : int tree = Leaf 4
+  # nodeByPath t [R];;
+  - : int tree = Node (Leaf 4, Leaf 5)
+  
+  (*Decode Function for section (2)*)
+  let decode dir_l t1 =
+  	let whole_tree = t1 in
+  	let rec aux acc dir t2 = 
+  		match dir with
+  		| [] -> acc
+  		| hd::tl -> let sub = visit t2 hd in 
+  					match sub with
+  					| Leaf x -> (aux (x::acc) tl whole_tree)
+  					| Node (l, r) -> (aux acc tl (Node (l,r))) 
+  	in aux [] dir_l whole_tree;;
+  (* Testing for section (2) *)
+  # decode [L;R;R;R;L;L] t;;
+  - : int list = [3; 4; 5; 3]
+  
+  (* Section 3 *)
+  
+  let combine (a1, p1) (a2, p2) = ((Node (a1, a2)), p1 +. p2);;
+  
+  let rec huffman l =
+  	let sorted = (List.sort (fun (x1, y1) (x2, y2)  -> if y2 > y1 then -1 else 1) l) in
+  	match sorted with
+  	| [(a, b)] -> a
+  	| a::b::tl ->  huffman ((combine a b)::tl);;
+  (* Testing for section (3) *)
+  # let l = [Leaf 'a', 0.5; Leaf 'b', 0.35; Leaf 'c', 0.2; Leaf 'd', 0.05];;
+  val l : (char tree * float) list =
+    [(Leaf 'a', 0.5); (Leaf 'b', 0.35); (Leaf 'c', 0.2); (Leaf 'd', 0.05)]
+  # huffman l;;
+  - : char tree = Node (Leaf 'a', Node (Node (Leaf 'd', Leaf 'c'), Leaf 'b'))
+ 
+  (0) Data types
+  
+  type 'a tree = Leaf of 'a | Node of 'a tree * 'a tree;;
+  
+  type direction = L | R;;
+  
+  (*Viet Li*)
+  (*(1) Sub-tree by path*)
+  let rec subtree dl t = match dl, t with
+      | [], _ -> Some t
+      | L :: tdl, Node (l, _) -> subtree tdl l
+      | R :: tdl, Node (_, r) -> subtree tdl r
+      | _, _ -> None;;
+  (*(2) Decoding a binary sequence using the tree*)
+  let bindecode dl t = let rec aux dl1 t1 acc =
+      match dl1, t1 with
+          | 0 :: tdl, Node (l, _) -> aux tdl l acc
+          | 1 :: tdl, Node (_, r) -> aux tdl r acc
+          | [], Leaf v -> Some (List.rev (v :: acc))
+          | dl2, Leaf v -> aux dl2 t (v :: acc)
+          | _, _ -> None
+      in aux dl t [];;
+  (*(3) Huffman coding tree*)
+  let huffman_coding l =
+      let join_tree t1 t2 = Node (fst t1, fst t2), (snd t1) +. (snd t2)
+      and comp_snd a b = compare (snd a) (snd b)
+      and tlist = List.rev_map (fun (a, b) -> Leaf a, b) l
+      in let sort_tree_list = List.stable_sort comp_snd
+      in let rec merge_tree_list = function
+          | [] -> failwith "No love for empty lists!"
+          | [x] -> fst x
+          | h1 :: h2 :: tl -> let newlist = (join_tree h1 h2) :: tl
+              in merge_tree_list (sort_tree_list newlist)
+      in merge_tree_list (sort_tree_list tlist);;
+  (*(4) Some extras*)
+  let rec map f = function | Leaf v -> Leaf (f v)
+      | Node (l, r) -> Node (map f l, map f r);;
+  let traverse t = let rec aux path acc = function
+      | Leaf v -> (v, List.rev path) :: acc
+      | Node (l, r) -> (aux (0 :: path) acc l) @ (aux (1 :: path) acc r)
+      in aux [] [] t;;
+  
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+
+  (*Eugene Perederey*)
+
+  module BH : sig
+      type ('a, 'b) t 
+  
+      val merge : ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
+      val empty : ('a, 'b) t 
+      val isEmpty : ('a, 'b) t -> bool 
+      val findMin : ('a, 'b) t -> ('a * 'b) option 
+      val removeMin : ('a, 'b) t -> (('a * 'b) option * ('a, 'b) t) 
+      val add : 'a -> 'b -> ('a, 'b) t -> ('a, 'b) t
+  
+    end = struct
+      type ('a, 'b) tree = Tree of int * 'a * 'b * ('a, 'b) tree list 
+      type ('a, 'b) t = BH of ('a, 'b) tree list 
+  
+      let order : ('a, 'b) tree -> int =
+        function (Tree (r, _,  _, _)) -> r 
+  
+      let empty = BH [] 
+  
+      let isEmpty = function BH [] -> true | _ -> false 
+    
+      (* link two trees of the same order *)
+      let link (Tree (r1, k1, v1, chs1) as t1) (Tree (r2, k2, v2, chs2) as t2) =
+        if r1 <> r2 then failwith "can't link two trees of different orders"
+        else if k1 < k2 then Tree (r1 + 1, k1,  v1, t2 :: chs1)
+        else Tree (r2 + 1, k2, v2, t1 :: chs2)
+                                           
+    
+      let merge (BH xs) (BH ys) =
+        let rec aux xs ys carry =
+          (* carry is either None or Some tree of order <= min(order x, order y) *)
+          match xs, ys, carry with
+            (_, [], Some z) -> aux [z] xs None
+          | (_, [], None) -> xs
+          | ([], _, Some z) -> aux [z] ys None
+          | ([], _, None) -> ys
+          | (x :: xs', y :: ys', None) ->
+             if order x < order y then x :: aux xs' ys None
+             else if order x > order y then y :: aux xs ys' None
+             else aux xs' ys' (Some (link x y))
+          | (x :: xs', y :: ys', Some z) ->
+             if order z < order x && order z < order y
+             then z :: aux xs ys None
+             else if order z = order x && order z = order y
+             then z :: aux xs' ys' (Some (link x y))
+             else if order z = order x && order z < order y
+             then aux xs' ys (Some (link x z))
+             else if order z < order x && order z = order y
+             then aux xs ys' (Some (link z y))
+             else failwith "order z can't be > min (order x) (order y)"
+        in BH (aux xs ys None)
+      
+  
+      let add k v h = merge (BH [Tree (0, k, v, [])]) h 
+        
+      (* finds first minimal element in the list *)
+      let minimum : ('a * 'b) list -> ('a * 'b) =
+        function [] -> failwith "empty list"
+               | [x] -> x
+               | (x :: xs) ->
+                  let go ((k, _) as x ) ((a, _) as y) = if a < k then y else x in                  
+                  List.fold_left go x xs
+              
+        
+      let findMin (BH ts) =
+        match ts with [] -> None
+                     | _ -> Some (minimum (List.map (fun (Tree (_, k, v, _)) -> (k, v)) ts))
+      
+  
+      let removeMin (BH ts as h) =
+        match findMin h with
+          None -> (None, h)
+        | Some (minKey, value) -> (* min key is guaranteed to exist *)
+           let rec aux = function
+               [] -> []
+             | ((Tree (_, k, v, chs) as t) :: ts) ->
+                if k = minKey
+                then let (BH ts') = merge (BH (List.rev chs)) (BH ts) in ts'
+                else let (BH ts') = merge (BH [t]) (BH (aux ts)) in ts'
+           in (Some (minKey, value), BH (aux ts))
+      
+    (* let's throw in some tests *)
+      let kv1 = List.map (fun b -> (Random.int b, ())) [10; 10; 10; 10; 10; 10; 10]
+      let kv2 = List.map (fun b -> (Random.int b, ())) [11; 11; 11; 11; 11]
+  
+      let h1 = List.fold_left (fun h (k, v) -> add k v h) empty kv1
+      let h2 = List.fold_left (fun h (k, v) -> add k v h) empty kv2
+  
+      let rec aux h = match removeMin h with
+          (None, _) -> []
+        | (Some (k, v), h') -> (k, v) :: aux h'
+  
+  
+      let test () =
+        if aux h1 = List.sort compare kv1
+        then Printf.printf "Test1: PASS\n"
+        else Printf.printf "Test1: FAIL\n";
+        if aux h2 = List.sort compare kv2
+        then Printf.printf "Test2: PASS\n"
+        else Printf.printf "Test2: FAIL\n";
+        let h = merge h1 h2 in
+        if aux h = List.sort compare (kv1 @ kv2)
+        then Printf.printf "Test3: PASS\n"
+        else Printf.printf "Test3: FAIL\n"
+  
+    end
+  
+  
+    module Exercise6 : sig
+        type direction        
+        type 'a tree = Leaf of 'a | Node of 'a tree * 'a tree 
+        val navigate : direction list -> 'a tree -> 'a tree option    (* question 1 *)
+        val decode : direction list -> 'a tree -> 'a list option      (* question 2 *)
+        val huffman_bad : ('a * float) list -> 'a tree                (* question 3 -- map, fails on ['a',0.25; 'b', 0.25; 'c', 0.25; 'd', 0.25] *)
+        val huffman_list : ('a * float) list -> 'a tree               (* question 3 -- list, seems to work but can be slow *)
+        val huffman_heap : ('a * float) list -> 'a tree               (* question 3 -- binomial heap *)
+      end = struct
+        type direction = L | R 
+        type 'a tree = Leaf of 'a | Node of 'a tree * 'a tree 
+    
+        let steer t d = match (t, d) with
+            (Leaf _, _) -> failwith "can't go anywhere from a leaf"
+          | (Node (l, _), L) -> l
+          | (Node (_, r), R) -> r
+    
+        (* follow a path of directions *)
+        let rec navigate =
+          function [] -> fun t -> Some t
+                 | (d :: ds) -> function
+                                Leaf _ -> None
+                              | t -> navigate ds (steer t d)
+    
+        (* consume directions until we reach a leaf. Return the leaf and unconsumed input *)
+        let rec diveToLeaf ds t =
+          match (ds, t) with
+            (_, Leaf x) -> (Some x, ds)
+          | ([], Node _) -> (None, [])
+          | (d :: ds', _) -> diveToLeaf ds' (steer t d)
+    
+        let rec decode ds t = 
+          match diveToLeaf ds t with 
+            (None, _) -> None
+          | (Some x, []) -> Some [x]
+          | (Some x, ds') -> match decode ds' t with
+                               None -> None
+                             | Some xs -> Some (x :: xs)
+                                               
+        (* I don't believe this week's problem is marked 'hard' because of huffman's greedy algorithm.
+         * I'm pretty sure it's because it challenges us to reimplement a suitable data structure due to
+         * lack of batteries for Ocaml in our installation!
+         *)
+    
+        (* My first attempt was to use a Map *)
+                                               
+        (* algorithm: take a pair with the smallest weights and merge them into a single tree, then insert back into the list *)
+        (* actually, I don't want to store in a list, want a Map instead *)
+        (* Unfortunately, I don't see how Map can be instantiated with polymorphic key. 
+         * And I need polymorphic key because I need my keys to be unique and letter frequency itself doesn't have to be unique.
+    
+           This implem,entation passes the provided test, but
+           it doesn't work for ['a',0.25; 'b', 0.25; 'c', 0.25; 'd', 0.25]:
+             #  huffman ['a',0.25; 'b', 0.25; 'c', 0.25; 'd', 0.25]
+             - : char tree = Leaf 'd'       
+         *)
+       
+        module IntMap = Map.Make(Int32)                            
+    
+        let huffman_bad xs = 
+          let ys = List.fold_left (fun m (x, w) -> IntMap.add (Int32.of_float (1000.0 *. w)) (Leaf x) m) IntMap.empty xs in
+          let remove_min m = 
+            if IntMap.is_empty m then (None, m)
+            else let (k, v) = IntMap.min_binding m in
+                 let m' = IntMap.remove k m in
+                 (Some (k, v), m') in
+          let rec aux ys = 
+            match remove_min ys with
+              (None, _) -> failwith "Empty input"
+            | (Some (k1, v1), ys') -> match remove_min ys' with
+                                        (None, _) -> v1
+                                      | (Some (k2, v2), ys'') -> 
+                                         aux (IntMap.add (Int32.add k1 k2) (Node (v1, v2)) ys'')
+          in aux ys
+    
+    
+        (* Now I decided to implement naive but correct solution. Thankfully, lists are polymorphic! 
+         * Our key will contain a combination of weight and set of letters in a subtree rooted at this key,
+         * sorted lexicographically (provided by OCaML polymorphic comparison)
+         *)
+        type 'a key = Key of float * ('a list)
+        let add (Key (w1, s1)) (Key (w2, s2)) = Key (w1 +. w2, s1 @ s2)
+        
+    
+        (* assume that elements are unique *)
+        (* we rely on polymorphic comparison of tuples when using this function *)
+        let remove_mins xs = 
+          let go (past, x, y) z =
+            match x, y with
+              (None, None) -> (past, Some z, None)
+            | (Some a, None) | (None, Some a) -> (past, Some a, Some z)
+            | (Some a, Some b) -> if z > max a b then (z :: past, Some a, Some b)
+                                  else ((max a b) :: past, Some z, Some (min a b))
+          in List.fold_left go ([], None, None) xs
+    
+        let huffman_list xs = 
+          let rec aux =
+            function | _ as ys -> 
+                        match remove_mins ys with                                
+                          (_, Some (key, tree), None) -> tree       (* only one element in the list *)
+                        | (ys', Some (k1, t1), Some (k2, t2)) ->    (* more than one, need to reduce further *)
+                           if k1 < k2 then aux ((add k1 k2, Node (t1, t2)) :: ys')
+                           else aux ((add k1 k2, Node (t2, t1)) :: ys')                         
+                        | _ -> failwith "Empty input"
+          in aux (List.map (fun (c, w) -> (Key (w, [c]), Leaf c)) xs)
+    
+    
+        (* The above seems to be working but too easy. What if our alphabeth is very long?
+         * The complexity of constructing the tree is quadratic, but can be easily made O(NlogN) by using, for example,
+         * a binomial min-heap. There is no heap in ocaml library so we have to implement it -- perhaps the only hard bit of this exercise!
+         *)
+        let huffman_heap xs = 
+          let rec aux h =
+            match  BH.removeMin h with
+              (None, _) -> failwith "Empty input"
+            | (Some (k1, tree), h') -> match BH.removeMin h' with
+                                        (None, _) -> tree 
+                                      | (Some (k2, tree2), h'') -> aux (BH.add (add k1 k2) (Node (tree, tree2)) h'')
+          in aux (List.fold_left (fun h (c, w) -> BH.add (Key (w, [c])) (Leaf c) h) BH.empty xs)
+          
+    
+      end
+  
+  (*Jon Clique*)
+  type 'a tree = | Leaf of 'a | Node of 'a tree * 'a tree
+  type direction = L | R
+  (* Part 1, getting a subtree from a direction list *)
+  let rec subtree : direction list -> 'a tree -> 'a tree option = function
+      (* at the end, return the tree *)
+      | [] -> fun t -> Some(t)
+      | hd::tl -> function
+          (* keep moving down *)
+          | Node (l, _)  when hd=L-> subtree tl l
+          | Node (_, r)  when hd=R-> subtree tl r
+          (* either a Leaf or something else, no tree to return *)
+          | _  -> None
+  
+  (* Part 2, given a set of directions and an input tree, decode the message *)
+  let decode : direction list -> 'a tree -> 'a list option =
+      (* always hold on to the root of the tree to pop back out *)
+      let rec decode_helper dirs node root acc = match dirs, node with
+          (* At the end of the directions and at a leaf, return decoded list *)
+          | [], Leaf v -> Some(v::acc)
+          (* At the end of the directions but NOT at a leaf, return None *)
+          | [], _ -> None
+          (* More directions left, and at a leaf, so add the leaf and start over*)
+          | l, Leaf v -> decode_helper l root root (v::acc)
+          (* At a node, so move down to the correct branch *)
+          | hd::tl, Node (_,r) when hd=R -> decode_helper tl r root acc
+          | hd::tl, Node (l,_) when hd=L -> decode_helper tl l root acc
+          | _, _ -> None (* treat all cases *)
+      (* Correctly process None or Some return types *)
+      in fun dirs root -> match (decode_helper dirs root root []) with
+          | Some l -> Some(List.rev l)
+          | None -> None
+  
+  (* Part 3, create a Huffman tree given a list of symbols and probabilities *)
+  let huffman : ('a * float) list -> 'a tree = fun l ->
+      (* helper comparison function for sorting nodes by probability *)
+      let prob_compare l r = match l,r with
+          | (_,p1), (_,p2) -> let diff = p1 -. p2 in 
+                              if diff > 0. then 1 else if diff = 0. then 0 else -1
+      (* start off with a sorted list from lowest to greatest probability *)
+      in let sorted_items = List.sort prob_compare 
+                            (List.rev_map (fun (e,p) -> (Leaf e, p)) l)
+      in let rec merge_node = function
+          (* take the first two nodes in the list, assumed to be smallest,
+           * combine them, then merge the new node into the main list (sorted) *)
+          | (n1,p1)::(n2,p2)::tl -> 
+              merge_node (List.merge prob_compare tl [Node (n1, n2),(p1+.p2)])
+          | (n1,_)::_ -> n1
+          | _ -> raise (Failure "Malformed list provided") (* treat all cases *)
+      in merge_node sorted_items
+  
+  //David Levy, Rust
+  use std::cell::RefCell;
+  use std::cmp::PartialOrd;
+  use std::iter;
+  use std::rc::Rc;
+  
+  #[derive(Debug)]
+  pub enum Direction {
+      Left,
+      Right,
+  }
+  
+  pub enum Tree<T> {
+      Leaf(Rc<RefCell<T>>),
+      Node(Option<Rc<Tree<T>>>, Option<Rc<Tree<T>>>),
+  }
+  
+  pub fn traverse<T> (root: &Rc<Tree<T>>, directions: &[Direction]) -> Option<Rc<Tree<T>>> {
+      let mut cur = root;
+      for dir in directions {
+          cur = match **cur {
+              Tree::Node(ref left, ref right) => match dir {
+                  &Direction::Left => match left {
+                      &Some(ref x) => x,
+                      &None => return None,
+                  },
+                  &Direction::Right => match right {
+                      &Some(ref x) => x,
+                      &None => return None,
+                  },
+              },
+              _ => return None,
+          };
+      }
+  
+      Some(cur.clone())
+  }
+  
+  fn traverse_until_leaf<'a, T, I> (root: &Rc<Tree<T>>, directions: &mut I) -> Result<Option<Rc<RefCell<T>>>, ()> where I: iter::Iterator<Item=&'a Direction> {
+      let mut cur = root;
+      let mut started = false;
+      while {
+          match **cur {
+              Tree::Leaf(ref thing) => {
+                  return Ok(Some(thing.clone()));
+              },
+              _ => {},
+          }
+  
+          match directions.next() {
+              Some(dir) => {
+                  started = true;
+  
+                  cur = match **cur {
+                      Tree::Node(ref left, ref right) => match *dir {
+                          Direction::Left => match left {
+                              &Some(ref x) => x,
+                              &None => return Err(()),
+                          },
+                          Direction::Right => match right {
+                              &Some(ref x) => x,
+                              &None => return Err(()),
+                          },
+                      },
+                      _ => unreachable!(),
+                  };
+                  true
+              },
+              None => false,
+          }
+      } {}
+  
+      if !started {
+          return Ok(None);
+      }
+  
+      match **cur {
+          Tree::Leaf(ref thing) => Ok(Some(thing.clone())),
+          Tree::Node(..) => Err(()),
+      }
+  }
+  pub fn decode<T> (root: &Rc<Tree<T>>, directions: &[Direction]) -> Option<Vec<Rc<RefCell<T>>>> {
+      let mut iter = directions.iter();
+      let mut ret = Vec::new();
+  
+      loop {
+          ret.push(
+              match traverse_until_leaf(root, &mut iter) {
+                  Ok(Some(ret)) => ret,
+                  Ok(None) => break,
+                  Err(_) => return None,
+              }
+              );
+      }
+  
+      Some(ret)
+  }
+  
+  pub fn huffman<T> (leaves: Vec<(T, f64)>) -> Rc<Tree<T>> {
+      let mut leaves = leaves.into_iter().map(|(x, p)| (Tree::Leaf(Rc::new(RefCell::new(x))), p)).collect::<Vec<_>>();
+      while leaves.len() > 1 {
+          leaves.sort_by(|&(_, ref x), &(_, ref y)| x.partial_cmp(y).unwrap());  //TODO: don't unwrap
+          let (left, left_prob) = leaves.remove(0);
+          let (right, right_prob) = leaves.remove(0);
+          let new_node = (
+              Tree::Node(
+                  Some(Rc::new(left)),
+                  Some(Rc::new(right)),
+                  ),
+              left_prob + right_prob
+              );
+          leaves.push(new_node);
+      }
+  
+      let ret = leaves.remove(0);
+      return Rc::new(ret.0);
+  }
+  
+  #[cfg(not(test))]
+  fn main () {
+  }
+  
+  #[cfg(test)]
+  mod test {
+      use super::*;
+  
+      use std::cell::RefCell;
+      use std::rc::Rc;
+  
+      #[test]
+      fn test_bee () {
+          let tree = Tree::Node(
+              Some(Rc::new(Tree::Node(
+                          Some(Rc::new(Tree::Node(
+                                      Some(Rc::new(Tree::Leaf(Rc::new(RefCell::new('a'))))), Some(Rc::new(Tree::Leaf(Rc::new(RefCell::new('b')))))
+                                      ))),
+                          Some(Rc::new(Tree::Node(
+                                      Some(Rc::new(Tree::Leaf(Rc::new(RefCell::new('c'))))), Some(Rc::new(Tree::Leaf(Rc::new(RefCell::new('d')))))
+                                      ))),
+                          ))),
+              Some(Rc::new(Tree::Leaf(Rc::new(RefCell::new('e'))))),
+              );
+          let tree = Rc::new(tree);
+  
+          let left = decode(&tree, &[
+                 Direction::Left,
+                 Direction::Left,
+                 Direction::Right,
+                 Direction::Right,
+                 Direction::Right,
+          ]).unwrap().iter().map(|x| *(*x).borrow()).collect::<String>();
+  
+          println!("{}", left);
+          assert!(left == "bee");
+      }
+  
+      #[test]
+      fn test_huffman () {
+          let leaves = vec![
+              ('a', 0.4),
+              ('b', 0.35),
+              ('c', 0.2),
+              ('d', 0.05),
+          ];
+          let tree = huffman(leaves);
+  
+          let directions = &[
+              Direction::Right,
+              Direction::Right,   // b
+              Direction::Right,
+              Direction::Left,
+              Direction::Right,   // c
+              Direction::Right,
+              Direction::Left,
+              Direction::Left,    // d
+              Direction::Left,    // a
+          ];
+  
+          let decoded = decode(&tree, directions)
+              .unwrap()
+              .iter()
+              .map(|x| *(*x).borrow())
+              .collect::<String>();
+          println!("{}", decoded);
+          assert!(decoded == "bcda");
+      }
+  }
+    
+
+Syntax analysis
+
+Recall the definition of type α tree from this exercise. In the abstract syntax of char tree, the value of the figure
+R&D X-asset Risk/Pricing > Syntax analysis > tree2.png
+would be represented by this expression:
+Node (Node (Node (Leaf 'a', Leaf 'b'), Node (Leaf 'c', Leaf 'd')), Leaf 'e')
+
+Ideally though, we should like to represent values of type char tree in a concrete syntax so that for example, this tree expression might be written as something like "(((a, b), (c, d)), e)" and functions provided to convert from the concrete syntax (text) to the abstract syntax (expression).
+
+The procedure of converting from a concrete syntax to an abstract one is known as syntax analysis (or lexical analysis) and is achieved by a program termed a parser.
+
+Parser combinators
+There are varied approaches to producing parsers. For relatively simple parsing tasks, perhaps the easiest is the production of a recursive descent parser. Recursive descent parsers can be easily built from parser combinators. It is the objective of the remainder of this article to produce a recursive descent parser for type char tree in terms of parser combinators.
+
+First a type to represent the result of a 'parse'. 
+type ('a, 'b) parsed =
+| Returns of 'b * 'a list
+| Analyze_fails
+Parsers work on lists of α, where  α is the type of symbol being parsed. If analysis succeeds then part of the list being analyzed is consumed and the remainder of the list is "returned" along with a value β (the type of the value parsed from the symbols consumed) or, analysis fails. The type of a parser is an abbreviation:
+type ('a, 'b) parser = 'a list -> ('a, 'b) parsed
+accept is a function that extracts the result of a parse if analysis has been successful:
+let (accept : ('a, 'b) parsed -> 'b) = function
+   | Returns (v, []) -> v
+   | Returns (_, _ :: _) -> failwith "Couldn't consume all input"
+   | Analyze_fails  -> failwith "Failed"
+The parser associated with the empty string always succeeds and never consumes any symbols:
+let (empty : 'b -> ('a, 'b) parser) = fun v toks -> Returns (v, toks)
+Given a predicate test, token produces the parser associated with the elements that make that predicate true:
+let (token : ('a -> 'b option) -> ('a, 'b) parser) =
+  fun test ->
+    let f l =
+      match l with
+      | (t :: ts) -> 
+         begin
+           match test t with
+           | Some r -> Returns (r, ts)
+           | None -> Analyze_fails
+         end
+      | _ -> Analyze_fails in
+    f
+The parser for a specific symbol can then be written:
+let (char : 'a -> ('a, 'a) parser) = 
+  fun c -> token (fun c' -> if c = c' then Some c else None)
+This function provides parser disjunction. It tries first one parser p1 and if that doesn't succeed, a second p2. It can be read as the "or else" operator:
+let (( |~ ) : ('a, 'b) parser -> ('a, 'b) parser -> ('a, 'b) parser) =
+  fun p1 p2 toks ->
+    match p1 toks with
+    | Analyze_fails -> p2 toks
+    | res -> res
+Concatenation, that is p1 "and then" p2, is represented by this operator:
+let (( &~ ) : ('a, 'b) parser -> ('a, 'c) parser -> ('a, 'b * 'c) parser) =
+  fun p1 p2 toks ->
+    match p1 toks with
+    | Returns (r1, toks1) -> 
+       (match p2 toks1 with
+        | Returns (r2, toks2) -> Returns ((r1, r2), toks2)
+        | _ -> Analyze_fails)
+    | _ -> Analyze_fails
+The constructors for parsers (like &~ for example) produce values. It is useful to be able to change return values in order to re-organize them into data structures or, more generally, to apply a function to them. The "give" function provides for that:
+let (( |>~ ) : ('a, 'b) parser -> ('b -> 'c) -> ('a, 'c) parser) =
+  fun p f toks ->
+    match p toks with
+    | Returns (r1, toks1) -> Returns (f r1, toks1)
+    | Analyze_fails -> Analyze_fails
+With this machinery in hand, the Kleene star operator produces a list of results:
+let rec (zero_or_more  : ('a, 'b) parser -> ('a, 'b list) parser) =
+  fun p toks -> 
+    (((p &~ (zero_or_more p)) |>~ (fun (x, xs) -> x :: xs)) |~ (empty [])) toks
+
+Tree parser
+The type of tokens in the char tree concrete syntax:
+type token =
+| T_char of char
+| T_comma | T_lparen | T_rparen 
+This is a useful utility to test if a character is in a given range:
+let rec (char_range : char -> (char * char) list -> bool)= 
+  fun c -> function
+        | [] -> false
+        | ((c1, c2) :: l) -> 
+           (int_of_char c1 <= int_of_char c && 
+              int_of_char c <= int_of_char c2) 
+           || char_range c l
+We have everything we need now to implement a 'lexer':
+let (paren : (char, token) parser) = token (function | '(' -> Some T_lparen | ')' -> Some T_rparen | _ -> None)
+let (comma_ : (char, token) parser) = token (function | ',' -> Some T_comma | _ -> None)
+let (space : (char, unit) parser) = token (function | ' '| '\t' | '\r' | '\n' -> Some () | _ -> None)
+let rec (spaces : (char, unit) parser)= fun toks -> (((space &~ spaces) |>~ (fun _ -> ())) |~ empty ()) toks
+let (letter : (char, token) parser) = token (fun c -> if char_range c [('a', 'z'); ('A', 'Z')] then Some (T_char c) else None)
+(* 
+  lex := spaces((paren|comma|letter)spaces)*
+*)
+let (lex : (char, token list) parser) = spaces &~ (zero_or_more (((paren |~ comma_ |~ letter) &~ spaces) |>~ (fun (tok, ()) -> tok))) |>~ fun ((), toks) -> toks
+Now let us turn attention to implementing the parser itself:
+(*
+    tree :=
+      | leaf
+      | (tree, tree)
+      ;
+*)
+let open_paren : (token, unit) parser = token (function | T_lparen -> Some () | _ -> None)
+let close_paren : (token, unit) parser = token (function | T_rparen -> Some () | _ -> None)
+let comma : (token, unit) parser = token (function | T_comma -> Some () | _ -> None)
+let rec (leaf : (token, char tree) parser) =
+  token (function | T_char c -> Some (Leaf c) | _ -> None)
+and (tree : (token, char tree) parser) =
+  fun toks -> (
+      leaf
+      |~ ((open_paren &~ tree &~ comma &~ tree &~ close_paren) 
+                 |>~ (fun ((((_, l),_), r), _) -> Node (l, r)))
+  ) toks
+Finally, tree_from_string the function to parse trees from concrete syntax:
+let tokenize : string -> token list = fun s -> s |> explode |> lex |> accept
+let tree_of_string : string -> char tree = fun s -> s |> tokenize |> tree |> accept
+Here it is in action in the top-level:
+# let t = tree_of_string "(((a, b), (c, d)), e)";;
+val t : char tree =
+  Node (Node (Node (Leaf 'a', Leaf 'b'), Node (Leaf 'c', Leaf 'd')), Leaf 'e')

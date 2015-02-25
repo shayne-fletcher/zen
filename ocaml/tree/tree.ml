@@ -49,12 +49,12 @@ let decode (l : direction list) (t : 'a tree) : 'a list option =
     end
   in aux l t []
 
+let is_leaf = function | Leaf _ -> true | _ -> false
+
 let findmin (l : ('a tree * 'b) list) : 'a tree * 'b =
   let f acc elem =
     if snd elem < snd acc then elem else acc
   in List.fold_left f (List.hd l) (List.tl l)
-
-let is_leaf = function | Leaf _ -> true | _ -> false
 
 let huffman (l : ('a * float) list) : 'a tree =
   let rec loop acc =
@@ -81,10 +81,6 @@ let encoding (t : 'a tree) : ('a * string) list =
 let string_of_code (sym, path) = Printf.sprintf "('%c', \"%s\")" sym path
 
 let () = Printf.printf "%s\n" (string_of_list string_of_code (encoding tree))
-
-type token =
-| T_char of char
-| T_comma | T_lparen | T_rparen 
 
 type ('a, 'b) parsed =
 | Returns of 'b * 'a list
@@ -148,16 +144,17 @@ let rec (char_range : char -> (char * char) list -> bool)=
               int_of_char c <= int_of_char c2) 
            || char_range c l
 
-let (is_letter : char -> bool) = fun c -> char_range c [('a', 'z'); ('A', 'Z')]
-let (digit : (char, char) parser) = token (fun c -> if is_digit c then Some c else None)
+type token =
+| T_char of char
+| T_comma | T_lparen | T_rparen 
+
 let (paren : (char, token) parser) = token (function | '(' -> Some T_lparen | ')' -> Some T_rparen | _ -> None)
 let (comma_ : (char, token) parser) = token (function | ',' -> Some T_comma | _ -> None)
 let (space : (char, unit) parser) = token (function | ' '| '\t' | '\r' | '\n' -> Some () | _ -> None)
 let rec (spaces : (char, unit) parser)= fun toks -> (((space &~ spaces) |>~ (fun _ -> ())) |~ empty ()) toks
-let (letter : (char, token) parser) = token (fun c -> if is_letter c then Some (T_char c) else None)
-
+let (letter : (char, token) parser) = token (fun c -> if char_range c [('a', 'z'); ('A', 'Z')] then Some (T_char c) else None)
 (* 
-  lex := spaces((paren|letter)spaces)*
+  lex := spaces((paren|comma|letter)spaces)*
 *)
 let (lex : (char, token list) parser) = spaces &~ (zero_or_more (((paren |~ comma_ |~ letter) &~ spaces) |>~ (fun (tok, ()) -> tok))) |>~ fun ((), toks) -> toks
 (*
@@ -179,4 +176,4 @@ and (tree : (token, char tree) parser) =
 let tokenize : string -> token list = fun s -> s |> explode |> lex |> accept
 let tree_of_string : string -> char tree = fun s -> s |> tokenize |> tree |> accept
 
-let t = tree_of_string "(a, (b, (c, d)))"
+let t = tree_of_string "(((a, b), (c, d)), e)"
