@@ -11,42 +11,90 @@ let implode l =
   let f i c = Bytes.set buf i c in
   List.iteri f l ; Bytes.to_string buf
 
-type trie = Letter of char * bool * (trie list)
+(**Lexical trees or 'tries' are used for the reprsentation of
+   dictionaries*)
+module type TRIE = sig
 
-let rec exists_aux (cs : char list) ((Letter (d, e, nodes)) : trie) : bool =
-  match cs with
-  | [] -> false
-  | [h] when e -> d = h
-  | (h :: tl) -> d = h && List.exists (fun e -> exists_aux tl e) nodes
+    (* type trie = Letter of char * bool * (trie list) *)
+    type t(* = trie*)
 
-let exists (w : string) (t : trie) : bool = exists_aux (explode w) t
+    val exists : string -> t -> bool
+    (**Test if a word is in the dictionary*)
 
-let rec insert_aux cs (Letter (d, e, l) as n) =
-  if exists_aux cs n then n
-  else match cs with
-  | [] -> n
-  | (x :: []) -> Letter (d, e, (Letter (x, true, []) :: l))
-  | (x :: y :: tl) ->
-    if x = d then
-      match List.partition (fun (Letter (e, _, _)) -> e = y) l with
-      | [], _ -> Letter (d, e, (insert_aux tl (Letter (y, (List.length tl = 0), []))) :: l)
-      | [h], m -> Letter (d, e || (List.length tl = 0), (insert_aux tl h) :: m)
-      | _ -> failwith "unexpected"
-    else 
-      let () = Printf.printf "Here is an %c where x = %c \n" y x
-      in Letter (d, e, (insert_aux (y :: tl) (Letter (x, false, []))))
+    val insert : string -> t -> t
+    (**Take a word and a dictionary and compute a new dictionary that
+       additionally contains this word*)
 
-let insert (w : string) (t : trie) = insert_aux (explode w) t
+    val construct : string list -> t
+    (**Take a list of words and construct the corresponding
+       dictionary*)
 
-let t = Letter ('f', false, [Letter ('a', true, [Letter ('r', true, [])])])
-let test_0 = exists "far" t
-let test_1 = exists "fark" t
-let test_2 = exists "f" t
-let test_3 = exists "fa" t
+    val verify : string list -> t -> string list
+    (**Takes a list of words and a dictionary and returns the list of
+       words not in the dictionary*)
 
-let root = Letter ('f', false, [])
+    val words : t -> string list
+    (**Retrieve the list of words encoded in the dictionary*)
 
-let t = insert "fare" (insert "far" root)
+    val select : t -> int -> string list
+    (**Retrieve the set of words in the dictionary of the given length*)
 
+end
 
-(* let t = insert "frieze" (insert "fried" (insert "fare" (insert "far" (insert "false" (insert "fa" (insert "fa" root)))))) *)
+module Trie : TRIE = struct
+
+  type trie = Letter of char * bool * (trie list)
+  type t = trie
+
+  let exists (w : string) (t : trie) : bool = 
+    let rec exists_aux (cs : char list) ((Letter (d, e, nodes)) : trie) : bool =
+      match cs with
+      | [] -> false
+      | [h] when e -> d = h
+      | (h :: tl) -> d = h && List.exists (fun e -> exists_aux tl e) nodes in
+    exists_aux (explode w) t
+
+  let insert (w : string) (t : trie) : trie = 
+    let rec insert_aux cs (Letter (d, e, l) as n) =
+      match cs with
+      | [] -> n
+      | (x :: tl) -> 
+         if x = d then
+           insert_aux tl (Letter (d, List.length tl = 0, l))
+         else
+           match List.partition (fun (Letter (e, _, _)) -> e = x) l with
+           | [], _ -> Letter (d, e, (insert_aux tl (Letter (x, List.length tl = 0, []))) :: l)
+           | [h], m -> Letter (d, e, (insert_aux tl h :: m))
+           | _ -> failwith "unexpected" in
+    insert_aux (explode w) t
+
+  let construct (words : string list) : trie =
+    let k=String.get (List.nth words 0) 0 in
+    let f (c, acc) w =
+      if String.get w 0 = c then (k, insert w acc) else failwith "Mismatch" in
+    snd (List.fold_left f (k, Letter (k, false, [])) words)
+
+  let verify (words : string list) (t : trie) : string list =
+    let f acc word = if exists word t then acc else word :: acc in
+    List.fold_left f [] words
+
+  let words (t : trie) : string list =
+    let rec loop path acc node=
+      begin
+        match node with
+        | Letter (d, false, child) ->
+           let path = d :: path in List.fold_left (loop path) acc child
+        | Letter (d, true, child) ->
+           let path = d :: path in List.fold_left (loop path) (path :: acc) child
+      end
+    in List.map (fun s -> implode (List.rev s)) (loop[] [] t)
+
+  let select (t : trie) (i : int) : string list =
+    List.filter (fun w -> String.length w = i) (words t)
+
+end
+
+let t = Trie.construct ["fa"; "false"; "far"; "fare"; "fried"; "frieze"]
+let l = Trie.verify ["far"; "fgar"; "fare"; "fared"] t
+let w2 = Trie.words t
+let w3 = Trie.select t 5
