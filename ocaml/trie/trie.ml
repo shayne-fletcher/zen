@@ -1,22 +1,9 @@
-let explode s =
-  let n = String.length s in
-  let rec loop acc i =
-    if i = n then List.rev acc
-    else loop (String.get s i :: acc) (i + 1) in
-  loop [] 0
-
-let implode l =
-  let n = List.length l in
-  let buf = Bytes.create n in
-  let f i c = Bytes.set buf i c in
-  List.iteri f l ; Bytes.to_string buf
-
 (**Lexical trees or 'tries' are used for the reprsentation of
    dictionaries*)
 module type TRIE = sig
-
     (* type trie = Letter of char * bool * (trie list) *)
     type t(* = trie*)
+    (**The type of lexical trees*)
 
     val exists : string -> t -> bool
     (**Test if a word is in the dictionary*)
@@ -38,8 +25,20 @@ module type TRIE = sig
 
     val select : t -> int -> string list
     (**Retrieve the set of words in the dictionary of the given length*)
-
 end
+
+let explode s =
+  let n = String.length s in
+  let rec loop acc i =
+    if i = n then List.rev acc
+    else loop (String.get s i :: acc) (i + 1) in
+  loop [] 0
+
+let implode l =
+  let n = List.length l in
+  let buf = Bytes.create n in
+  let f i c = Bytes.set buf i c in
+  List.iteri f l ; Bytes.to_string buf
 
 module Trie : TRIE = struct
 
@@ -93,6 +92,8 @@ module Trie : TRIE = struct
     List.filter (fun w -> String.length w = i) (words t)
 
 end
+
+(*Test*)
 
 let t = Trie.construct ["fa"; "false"; "far"; "fare"; "fried"; "frieze"]
 let l = Trie.verify ["far"; "fgar"; "fare"; "fared"] t
