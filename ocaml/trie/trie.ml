@@ -45,6 +45,9 @@ let implode l =
 
 module Trie : TRIE = struct
 
+  (*'t must come first' principle:
+    {{:http://blogs.janestreet.com/core-principles-uniformity-of-interface/}}*)
+
   type trie = Letter of char * bool * (trie list)
   type t = trie
 
