@@ -3,4 +3,369 @@ Problem
 You are given an array of N integers, each of which may be positive, negative or zero. Give an algorithm to identify the start and end index, i and j say with j >= i, of the interval whose elements form the maximal sum of all possible intervals. For example given the sequence {1; 3; -8; 2; -1; 10; -2; 1], the sum over the interval [3, 5], which has value 11, is maximal.
 
 Solutions
+::
 
+  (*Harvey Stein*)
+  ;; Problem :
+  
+  ;; This exercise apparently has been a Facebook interview question. It
+  ;; goes like this:
+  
+  ;; You are given an array of n integers, each of which may be
+  ;; positive, negative or zero. Give an algorithm to identify the start
+  ;; and end index, i and j say with j >= i, of the interval whose
+  ;; elements form the maximal sum of all possible intervals. For
+  ;; example given the sequence [1; 3; -8; 2; -1; 10; -2; 1], the sum
+  ;; over the interval [3, 5], which has value 11, is maximal.
+  
+  ;; I.e. - mean that the subsequence starting at i and ending at j has
+  ;; maximum sum.
+  
+  ;; Analysis:
+  ;;
+  ;; If 1 element, answer is (0 0)
+  ;;
+  ;; Inductive step:
+  ;; 
+  ;; If know answer for list of length n, what is answer for list of
+  ;; length n+1?  Consider new number on left.  If <=0 then it's the
+  ;; answer for the remainder of the list (incremented by 1 to adjust
+  ;; for starting point.  If not, it's either that or it's one of the
+  ;; subsequences starting with the first element.
+  
+  (defun maxfromfirst (l)
+    "(maxfromfirst l) returns a list where the first element is index
+  into l such that the sum of the elements from the 0th to the index is
+  maximum.  The second element of the returned list is the sum of such elements."
+    (cond ((null l)
+  	 (list () 0))
+  	((null (cdr l)) (list 0 (car l)))
+  	(t (maxfromfirst-aux (cdr l) (car l) 0 (car l) 0))))
+  
+  (defun maxfromfirst-aux (l max maxidx sum sumidx)
+    "(maxfromfirst l max maxidx sum sumidx) is the helper function for
+  (maxfromfirst l).  It walks down the list keeping track of the MAX
+  found, its index (MAXIDX), the sum along the list so far (SUM) and
+  the index of the sum (SUMIDX)."
+    (cond ((null l) (list maxidx max))
+  	((> (+ (car l) sum) max)
+  	 (maxfromfirst-aux (cdr l)
+  			   (+ (car l) sum) 
+  			   (1+ sumidx)
+  			   (+ (car l) sum)
+  			   (1+ sumidx)))
+  	(t (maxfromfirst-aux (cdr l)
+  			     max
+  			     maxidx
+  			     (+ (car l) sum)
+  			     (1+ sumidx)))))
+  
+  (defun maxsubseq-aux (l)
+    "(maxsubseq-aux l) returns a list of 3 elements.  The first two are
+  the two indices such that the sum of the elements of l in the
+  subsequence defined by the indices is maximal.  The third element is
+  the actual sum."
+    (cond ((null l) '(() () ()))
+  	((null (cdr l)) (list 0 0 (car l)))
+  	(t (let ((old (maxsubseq-aux (cdr l)))
+  		 (new (maxfromfirst l)))
+  	     (if (> (third old) (second new))
+  		 (list (1+ (first old)) (1+ (second old)) (third old))
+  	       (list 0 (first new) (second new)))))))
+  
+  (defun maxsubseq (l)
+    "(maxsubseq-aux l) returns the two indices such that the sum of the
+  elements of l in the subsequence defined by the indices is maximal."
+    (butlast (maxsubseq-aux l)))
+  
+  ;; Test.  Run on above sequence:
+  ;; (maxsubseq '(1 3 -8 2 -1 10 -2 1))
+  ;; (3 5)
+  
+  (*Eugene Peredery*)
+  (* Algorithm: 
+   * 1) compute prefix sums of the list (i.e. i-th entry is th sum of list elements from 0 to i inclusive)
+   * 2) restate the problem as finding such indices i and j that the raise from prefix_sum(i-1) to prefix_sum(j) is maximized
+   * 3) To compute the above, for each i moving from left to right we keep track of min value encountered so far (and indices where it was found)
+   *    We also compute for each j from right to left the max value encountered so far (and where it was found)
+   * 4) we traverse the above results to find the max raise and pairs of indices where it happened
+   *)
+  
+  ;; You are given an array of n integers, each of which may be
+  ;; positive, negative or zero. Give an algorithm to identify the start
+  ;; and end index, i and j say with j >= i, of the interval whose
+  ;; elements form the maximal sum of all possible intervals. For
+  ;; example given the sequence [1; 3; -8; 2; -1; 10; -2; 1], the sum
+  ;; over the interval [3, 5], which has value 11, is maximal.
+  
+  ;; I.e. - mean that the subsequence starting at i and ending at j has
+  ;; maximum sum.
+  
+  ;; Analysis:
+  ;;
+  ;; If 1 element, answer is (0 0)
+  ;;
+  ;; Inductive step:
+  ;; 
+  ;; If know answer for list of length n, what is answer for list of
+  ;; length n+1?  Consider new number on left.  If <=0 then it's the
+  ;; answer for the remainder of the list (incremented by 1 to adjust
+  ;; for starting point.  If not, it's either that or it's one of the
+  ;; subsequences starting with the first element.
+  
+  (defun maxfromfirst (l)
+    "(maxfromfirst l) returns a list where the first element is index
+  into l such that the sum of the elements from the 0th to the index is
+  maximum.  The second element of the returned list is the sum of such elements."
+    (cond ((null l)
+  	 (list () 0))
+  	((null (cdr l)) (list 0 (car l)))
+  	(t (maxfromfirst-aux (cdr l) (car l) 0 (car l) 0))))
+  
+  (defun maxfromfirst-aux (l max maxidx sum sumidx)
+    "(maxfromfirst l max maxidx sum sumidx) is the helper function for
+  (maxfromfirst l).  It walks down the list keeping track of the MAX
+  found, its index (MAXIDX), the sum along the list so far (SUM) and
+  the index of the sum (SUMIDX)."
+    (cond ((null l) (list maxidx max))
+  	((> (+ (car l) sum) max)
+  	 (maxfromfirst-aux (cdr l)
+  			   (+ (car l) sum) 
+  			   (1+ sumidx)
+  			   (+ (car l) sum)
+  			   (1+ sumidx)))
+  	(t (maxfromfirst-aux (cdr l)
+  			     max
+  			     maxidx
+  			     (+ (car l) sum)
+  			     (1+ sumidx)))))
+  
+  (defun maxsubseq-aux (l)
+    "(maxsubseq-aux l) returns a list of 3 elements.  The first two are
+  the two indices such that the sum of the elements of l in the
+  subsequence defined by the indices is maximal.  The third element is
+  the actual sum."
+    (cond ((null l) '(() () ()))
+  	((null (cdr l)) (list 0 0 (car l)))
+  	(t (let ((old (maxsubseq-aux (cdr l)))
+  		 (new (maxfromfirst l)))
+  	     (if (> (third old) (second new))
+  		 (list (1+ (first old)) (1+ (second old)) (third old))
+  	       (list 0 (first new) (second new)))))))
+  
+  (defun maxsubseq (l)
+    "(maxsubseq-aux l) returns the two indices such that the sum of the
+  elements of l in the subsequence defined by the indices is maximal."
+    (butlast (maxsubseq-aux l)))
+  
+  ;; Test.  Run on above sequence:
+  ;; (maxsubseq '(1 3 -8 2 -1 10 -2 1))
+  ;; (3 5)
+  module IntervalSet =
+    Set.Make(struct
+                type t = (int * int)
+                let compare = compare
+              end)
+    
+  (* a few functions I miss in OCaML distribution *)
+  let enumerate n0 xs =
+    let n = List.length xs in
+    fst (List.fold_right (fun x (acc, i) -> ((x, n - 1 - i) :: acc, i + 1)) xs ([], -n0))
+  
+  let flip = fun f -> fun x -> fun y -> f y x
+  
+  let rec zip xs ys =
+    match xs, ys with [], _ | _, [] -> [] | (x :: xs', y :: ys') -> (x, y) :: zip xs' ys' 
+  
+  (* solution *)    
+  let prefix_sums xs =
+    List.rev
+      (List.fold_left (fun acc x -> match acc with [] -> [x] | (y :: ys) -> (x + y)::acc) [] xs)
+  
+  let goWith op = fun (x, i) acc ->
+      match acc with [] -> [(x, [i])] | vii :: _ -> (op vii (x, i)) :: acc
+  
+  let min_left sums =
+    let smaller ((v, ii) as vii) (x, i) =
+      if v = x then (v, i :: ii) 
+      else if v > x then (x, [i]) 
+      else (v, ii) in
+    List.rev (List.fold_left (flip (goWith smaller)) [] sums)
+  
+  let max_right sums =
+    let bigger ((v, ii) as vii) (x, i) =
+      if v = x then (v, i :: ii) 
+      else if v < x then (x, [i]) 
+      else (v, ii) in
+    List.fold_right (goWith bigger) sums []
+            
+  let cross xs ys = (* cross product of two lists *)
+    List.fold_left (fun s x -> List.fold_left (fun s y -> IntervalSet.add (x, y) s) s ys) IntervalSet.empty xs
+  
+  let combine xs =
+    let sums = prefix_sums xs in
+    let lefts = (0, [0]) :: min_left (enumerate 1 sums) in
+    let rights = max_right (enumerate 0 sums) in
+    let go acc ((minVal, ii), (maxVal, jj)) =
+      let candidateVal = maxVal - minVal in
+      let v, kk = acc in
+      if v = candidateVal then v, IntervalSet.union kk (cross ii jj)
+      else if v > candidateVal then acc
+      else candidateVal, cross ii jj
+    in
+    let leftsRights = zip lefts rights in
+    let (minVal1, ii), (maxVal1, jj) = List.hd leftsRights in
+    List.fold_left go (maxVal1 - minVal1, cross ii jj) (List.tl leftsRights)
+   
+  (* some tests *)
+  let test1 () = 
+    let v, s = combine [1; 3; -8; 2; -1; 10; -2; 1] in
+    if v = 11 && IntervalSet.elements s = [3, 5]
+    then Printf.printf "PASS\n"
+    else Printf.printf "FAIL\n"
+  
+  let test2 () = 
+    let v, s = combine [1; 1; 1; -6; 1; 1; 1] in
+    if v = 3 && IntervalSet.elements s = [0, 2; 4, 6]
+    then Printf.printf "PASS\n"
+    else Printf.printf "FAIL\n"
+  
+  (* generate a random list, find all consecutive intervals with minimal sums and compare to the output of combineSet *)
+  let sumArr arr i j =
+    let s = ref 0 in
+    for k=i to j; do
+      s := !s + arr.(k)
+    done; !s
+    
+  
+  (* brute-force reference solution *)
+  let combineBruteForce arr =
+    let s = ref IntervalSet.empty in
+    let sum = ref 0 in
+    for i=0 to (Array.length arr - 1); do
+      for j=0 to (Array.length arr - 1); do
+        let v = sumArr arr i j in
+        if v > !sum then (sum := v; s := IntervalSet.singleton (i, j))      
+        else if v = !sum then s := IntervalSet.add (i, j) !s
+      done;
+    done;
+    !s
+  
+  let testArr () =
+    let xs = List.map (fun x -> (Random.int 100) - 50) [1;1;1;1;1;1;1;1;1;1;] in
+    let arr = Array.of_list xs in
+    (combineBruteForce arr) = snd (combine xs)
+  
+  let test3 () =
+    if List.for_all testArr [(); (); (); (); (); (); (); (); (); (); (); ()]
+    then Printf.printf "PASS\n"
+    else Printf.printf "FAIL\n"
+  
+  (*Viet Li - This is broken as seen on the list [-1; 0; -1]*)
+   let maxrange = function | [] -> failwith "Must not be empty" | l ->
+      let aux (i, (msum, mfirst, mlast), (sum, first, last)) x  =
+          (* If the new sum is larger than the max sum, update the max sum & indices *)
+          if sum + x > msum then (i + 1, (sum + x, first, i), (sum + x, first, i))
+          (* If the new sum is negative, reset it to 0 and keep walking *)
+          else if sum + x < 0 then (i + 1, (msum, mfirst, mlast), (0, i + 1, i + 1))
+          (* Otherwise, keep the max sum and keep updating the new sum *)
+          else (i + 1, (msum, mfirst, mlast), (sum + x, first, i))
+      (* Take only indices of the max range *)
+      in let (_, (_, mfirst, mlast), (_, _, _)) = List.fold_left aux (0, (min_int, 0, 0), (0, 0, 0)) l
+      in [mfirst; mlast];;
+
+  (*Jon Cinque*)
+  let max_contiguous : int list -> (int * int) list = fun l ->
+      (* Helper for the fold left to get the current max at each stage *)
+      let get_current_max (cm, ca) x = let ca = ca + x in (max cm ca, max 0 ca)
+      
+      (* Get the max contiguous sum of the list *)
+      in let (smax,_) = List.fold_left get_current_max (0,0) l
+      
+      (* In case all numbers are <= 0, simply use the max element of the list *)
+      in let smax = if smax > 0 then smax else List.fold_left max min_int l
+      
+      (* Helper to pull out the indices whose sum add to the max sum *)
+      in let get_indices (l, (cas, cae, ca), m) x =
+          let ca = ca + x in
+          (* Reached the max, append the current indices *)
+          if ca = m then ((cas, cae)::l, (cas, cae+1, ca), m)
+          (* Below 0, reset *)
+          else if ca < 0 then (l, (cae+1, cae+1, 0), m)
+          (* Otherwise, keep moving *)
+          else (l, (cas, cae+1, ca), m)
+      
+      (* Do the work *)
+      in let (indices,_,_) = List.fold_left get_indices ([],(0,0,0), smax) l
+      in indices
+  
+  (* Testing *)
+  (* Print helper for testing *)
+  let ind_print (i1,i2) = Printf.printf "(%d, %d) " i1 i2
+  let mc1 = max_contiguous [40;1;2;3;5;-1;-100;51;-100;40;11]
+  let () = List.iter ind_print mc1; Printf.printf "\n"
+  let mc2 = max_contiguous [40;1;2;3;5;-1;-100;52;-100;40;11]
+  let () = List.iter ind_print mc2; Printf.printf "\n"
+  let mc3 = max_contiguous [40;1;2;3;5;-1;-100;51;-100;40;12]
+  let () = List.iter ind_print mc3; Printf.printf "\n"
+  let mc4 = max_contiguous [-4; -3; -4; -100; -1]
+  let () = List.iter ind_print mc4; Printf.printf "\n"
+  let mc5 = max_contiguous []
+  let () = List.iter ind_print mc5; Printf.printf "\n"
+  
+  (*Shayne*)
+  
+  module type LIST_UTILS = sig
+    val take : int -> 'a list -> 'a list
+    val drop : int -> 'a list -> 'a list
+    val slice : 'a list -> int -> int -> 'a list
+    val range : int -> int -> int list
+    val sum : int list -> int
+  end
+  
+  module List_utils : LIST_UTILS = struct
+    let rec take (k : int) (l : 'a list) : 'a list =
+      match (k, l) with
+      | n, _ when n <= 0 -> []
+      | _, [] -> []
+      | n, (x :: xs) -> x :: take (n - 1) xs
+  
+    let rec drop (k : int)  (l : 'a list) : 'a list =
+      match (k, l) with
+      | n, xs when n <= 0 -> xs
+      | _, [] -> []
+      | n, (_ :: xs) -> drop (n - 1) xs
+  
+    let slice (l : 'a list) (i : int) (j : int) = take (j - i) (drop i l)
+  
+    let range (s : int) (e : int) : int list =
+      let rec loop acc s e =
+        if s >= e then acc
+        else loop (s :: acc) (s + 1) e 
+      in List.rev (loop [] s e)
+  
+    let sum : int list -> int = List.fold_left (fun x y -> x + y) 0
+  end
+  
+  open List_utils
+  
+  let intervals (l : 'a list) =
+    (*The set of intervals starting at position [i]*)
+    let from (i : int) (l : 'a list) =
+      let s  = slice l i (List.length l) in
+      let f acc j = ((i, i + j - 1), sum (slice s 0 j)) :: acc
+      in List.fold_left f [] (range 1 (List.length s + 1)) in
+    (*The set of all intervals ([i = 0] to [i = List.length l - 1]*)
+    List.rev (
+        List.concat (
+            List.fold_left 
+              (fun acc i -> from i l :: acc) [] (range 0 (List.length l))
+          )
+      )
+  
+  let sub_array_max_sum (l : int list) : ((int * int) * int) list =
+    let t = intervals l in
+    let m = List.fold_left (fun acc (_, s) -> max acc s) min_int t in
+    List.fold_left  (fun acc (((_, _), z) as e) -> 
+                     if z = m then e :: acc else acc) [] t
+  

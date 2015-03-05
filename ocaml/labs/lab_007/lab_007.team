@@ -1,0 +1,74 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #7
+2015-02-27 by 
+Difficulty level :
+Easy/medium
+Problem :
+This exercise apparently has been a Facebook interview question. It goes like this. You are given an array of n integers, each of which may be positive, negative or zero. Give an algorithm to identify the start and end index, i and j say with j ≥ i, for (each of) the interval(s) whose elements form the maximal sum of all possible intervals. For example given the sequence [1; 3; -8; 2; -1; 10; -2; 1], the sum over the interval [3, 5], which has value 11, is maximal.
+ Solutions :
+Most submitters this week gave this problem 2/5 for the difficulty level. Ironically, only one submission met the specification and robustly gave right answers! Input sets like [-1; 0; -1] and [-1; -1; -1] showed that most solutions either simply didn't work correctly in the presence of negative numbers (algorithmically flawed) or, failed to find all intervals satisfying the maximum sum property (failed to meet the problem specification).
+I suggest that we might well be reminded of the old adage "make it work then make it fast". It doesn't do to try to be too clever. There is an obvious simple algorithm that is easy to implement and easy to understand : form the set of all possible intervals, select from that set the intervals that give rise to the maximum sum. Separation of concerns (first compute the intervals, then worry about which of them is maximal) leads to a straightforward implementation.
+module type LIST_UTILS = sig
+ val take : int -> 'a list -> 'a list
+ val drop : int -> 'a list -> 'a list
+ val slice : 'a list -> int -> int -> 'a list
+ val range : int -> int -> int list
+ val sum : int list -> int
+end
+
+module List_utils : LIST_UTILS = struct
+  let rec take (k : int) (l : 'a list) : 'a list =
+    match (k, l) with
+    | n, _ when n <= 0 -> []
+    | _, [] -> []
+    | n, (x :: xs) -> x :: take (n - 1) xs
+  
+  let rec drop (k : int)  (l : 'a list) : 'a list =
+    match (k, l) with
+    | n, xs when n <= 0 -> xs
+    | _, [] -> []
+    | n, (_ :: xs) -> drop (n - 1) xs
+  
+  let slice (l : 'a list) (i : int) (j : int) = take (j - i) (drop i l)
+  
+  let range (s : int) (e : int) : int list =
+    let rec loop acc s e =
+      if s >= e then acc
+      else loop (s :: acc) (s + 1) e 
+    in List.rev (loop [] s e)
+
+  let sum : int list -> int = List.fold_left (fun x y -> x + y) 0
+end
+  
+open List_utils
+  
+let intervals (l : 'a list) =
+  (*The set of intervals starting at position [i]*)
+  let from (i : int) (l : 'a list) =
+    let s  = slice l i (List.length l) in
+    let f acc j = ((i, i + j - 1), sum (slice s 0 j)) :: acc
+    in List.fold_left f [] (range 1 (List.length s + 1)) in
+  (*The set of all intervals ([i = 0] to [i = List.length l - 1]*)
+  List.rev (
+      List.concat (
+          List.fold_left 
+            (fun acc i -> from i l :: acc) [] (range 0 (List.length l))
+        )
+    )
+  
+let sub_array_max_sum (l : int list) : ((int * int) * int) list =
+  let t = intervals l in
+  let m = List.fold_left (fun acc (_, s) -> max acc s) min_int t in
+  List.fold_left  (fun acc (((_, _), z) as e) -> if z = m then e :: acc else acc) [] t
+In the above, the function slice works like Python's slicing operators e.g. In Python [1, 2, 3][0:2] is the list [1, 2]. In terms of slice this is slice 0 2 [1; 2; 3]. As discussed in the above text, intervals produces the set of all intervals. For example
+# intervals [1; 2; 3] ;;
+- : ((int * int) * int) list =
+[((0, 0), 1); ((0, 1), 3); ((0, 2), 6); ((1, 1), 2); ((1, 2), 5); ((2, 2), 3)]
+The first component of each pair defines the start and end indices of an interval, the second component of the pair the sum of the elements contained in the interval. 
