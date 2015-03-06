@@ -104,14 +104,33 @@ module Priority_queue = struct
   end
 end
 
-module Int_prioqueue = Priority_queue.Make (struct type t = int let compare = Pervasives.compare end)
+(*Type abbreviation*)
+type 'a queue_impl = (module Priority_queue.S with type element = 'a)
 
-let heapsort (l : int list) =
+(*[heap_sort] takes a module as a first class value and uses a locally
+  abstract type to connect it with the list element type*)
+let heap_sort (type a) (queue : a queue_impl) (l : a list) =
+  let module Queue = (val queue : Priority_queue.S with type element = a) in
   let rec loop acc h =
-    if Int_prioqueue.is_empty h then acc
+    if Queue.is_empty h then acc
     else
-      let p = (Int_prioqueue.find_min h) in
-      loop (p :: acc) (Int_prioqueue.delete_min h) in
-  List.rev (loop [] (Int_prioqueue.of_list l))
+      let p = (Queue.find_min h) in
+      loop (p :: acc) (Queue.delete_min h) in
+  List.rev (loop [] (Queue.of_list l))
 
-let l = heapsort [1; -1; 2; 0]
+(*Test*)
+
+(*Prepare an [Priority_queue.Ordered_type] module to pass as argument
+  to [Priority_queue.Make]*)
+module Int : Priority_queue.Ordered_type with type t = int = struct 
+  type t = int let compare = Pervasives.compare 
+end
+
+(*Invoke the functor to make a priority queue module*)
+module Int_prioqueue : (Priority_queue.S with type element = int) = Priority_queue.Make (Int)
+
+(*Make a first class value of the module by packing it*)
+let queue = (module Int_prioqueue : Priority_queue.S with type element = int)
+
+(*Now, pass the moduleto [heap_sort]*)
+let sorted = heap_sort queue [-1; -2; 2] (*Produces the list [-2; -1; 2]*)
