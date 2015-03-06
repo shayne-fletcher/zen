@@ -1,3 +1,35 @@
+(*{{:http://courses.cms.caltech.edu/cs11/material/ocaml/lab4/lab4.html}
+   Caltech}*)
+
+(**Priority queues over ordered types*)
+module type PRIORITY_QUEUE = sig
+
+    (**Output signature of the functor [Priority_queue.Make]*)
+    module type S = sig
+        exception Empty
+
+        type element (*Abstract type of elements of the queue*)
+        type t (*Abstract type of a queue*)
+
+        val empty : t (*The empty queue*)
+        val is_empty : t -> bool (*Check if queue is empty*)
+        val insert : t -> element -> t (*Insert item into queue*)
+        val delete_min : t -> t (*Delete the minimum element*)
+        val find_min : t -> element (*Return the minimum element*)
+        val of_list : element list -> t
+      end
+
+    (**Input signature of the function [Priority_queue.Make]*)
+    module type Ordered_type = sig
+        type t
+        val compare : t -> t -> int
+      end
+
+   (**Functor building an implementation of the priority queue struture
+      given a totally ordered type*)
+    module Make : functor (Ord : Ordered_type) -> S with type element = Ord.t
+  end
+
 let rec take (k : int) (l : 'a list) : 'a list =
   match (k, l) with
   | n, _ when n <= 0 -> []
@@ -12,23 +44,21 @@ let rec drop (k : int)  (l : 'a list) : 'a list =
 
 let slice (l : 'a list) (i : int) (j : int) = take (j - i) (drop i l)
 
-(*http://courses.cms.caltech.edu/cs11/material/ocaml/lab4/lab4.html*)
-
-module Priority_queue = struct 
+module Priority_queue : PRIORITY_QUEUE = struct 
 
   module type S = sig
-    exception Empty
+      exception Empty
 
-    type element (*Abstract type of elements of the queue*)
-    type t (*Abstract type of a queue*)
+      type element (*Abstract type of elements of the queue*)
+      type t (*Abstract type of a queue*)
 
-    val empty : t (*The empty queue*)
-    val is_empty : t -> bool (*Check if queue is empty*)
-    val insert : t -> element -> t (*Insert item into queue*)
-    val delete_min : t -> t (*Delete the minimum element*)
-    val find_min : t -> element (*Return the minimum element*)
-    val of_list : element list -> t
-  end
+      val empty : t (*The empty queue*)
+      val is_empty : t -> bool (*Check if queue is empty*)
+      val insert : t -> element -> t (*Insert item into queue*)
+      val delete_min : t -> t (*Delete the minimum element*)
+      val find_min : t -> element (*Return the minimum element*)
+      val of_list : element list -> t
+    end
 
   module type Ordered_type = sig
     type t
@@ -79,7 +109,9 @@ module Priority_queue = struct
       | (Leaf, (Node (_, _, _, _) as n)) -> n
       | ((Node (_, _, _, _) as n), Leaf) -> n
       | ((Node (e1, k1, l1, r1) as h1), (Node (e2, k2, l2, r2) as h2)) ->
-        if Elt.compare e1 e2 = (-1) then new_heap e1 l1 (merge r1 h2) else new_heap e2 l2 (merge h1 r2)
+        if Elt.compare e1 e2 = (-1) 
+        then new_heap e1 l1 (merge r1 h2) 
+        else new_heap e2 l2 (merge h1 r2)
 
     let insert (x : heap) (e : element) = merge x (Node (e, 0, Leaf, Leaf))
 
@@ -100,6 +132,8 @@ module Priority_queue = struct
       | _ ->
         let mid = (List.length l)/2 in
         merge (of_list (slice l 0 mid)) (of_list (slice l mid (List.length l)))
+    (*{{:http://bartoszmilewski.com/2014/01/21/functional-data-structures-in-c-leftist-heaps/}
+       Funcational Data Structures in C++ - Bartosz Milewski}*)
 
   end
 end
@@ -107,14 +141,14 @@ end
 (*Type abbreviation*)
 type 'a queue_impl = (module Priority_queue.S with type element = 'a)
 
-(*[heap_sort] takes a module as a first class value and uses a locally
+(*[heap_sort] takes a module as a first class value and uses a localy
   abstract type to connect it with the list element type*)
-let heap_sort (type a) (queue : a queue_impl) (l : a list) =
+let heap_sort (type a) (queue : a queue_impl) (l : a list) : a list =
   let module Queue = (val queue : Priority_queue.S with type element = a) in
   let rec loop acc h =
     if Queue.is_empty h then acc
     else
-      let p = (Queue.find_min h) in
+      let p = Queue.find_min h in
       loop (p :: acc) (Queue.delete_min h) in
   List.rev (loop [] (Queue.of_list l))
 
@@ -126,11 +160,11 @@ module Int : Priority_queue.Ordered_type with type t = int = struct
   type t = int let compare = Pervasives.compare 
 end
 
-(*Invoke the functor to make a priority queue module*)
+(*Make a priority queue module*)
 module Int_prioqueue : (Priority_queue.S with type element = int) = Priority_queue.Make (Int)
 
 (*Make a first class value of the module by packing it*)
 let queue = (module Int_prioqueue : Priority_queue.S with type element = int)
 
-(*Now, pass the moduleto [heap_sort]*)
+(*Now, pass the module to [heap_sort]*)
 let sorted = heap_sort queue [-1; -2; 2] (*Produces the list [-2; -1; 2]*)
