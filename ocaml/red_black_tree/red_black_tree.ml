@@ -1,29 +1,34 @@
+module type Ordered_type_sig = sig
+  type t
+  val compare : t -> t -> int
+end
+
+module type Set_sig = sig
+  type element
+  type t
+
+  val empty : t (*The empty set*)
+  val add : t -> element -> t (*Add an element*)
+  val fold : ('a -> element -> 'a) -> 'a -> t -> 'a (*Visit elements*)
+  val contains : t -> element -> bool (*Test for membership*)
+  val size : t -> int (*Cardinality of a set*)
+  val union : t -> t -> t (*The union of two sets*)
+  val intersection : t -> t -> t (*The intersection of two sets*)
+  val min_element : t -> element (*The minimum value of the set*)
+  val max_element : t -> element (*The maximum value of the set*)
+  val of_list : element list -> t (*Construct set from unordered list*)
+end
+
 module type SET = sig
 
   (*Input signature of the functor [Make]*)
-  module type Ordered_type = sig
-    type t
-    val compare : t -> t -> int
-  end
+  module type Ordered_type = Ordered_type_sig
 
   (*Output signature of the functor [Make]*)
-  module type S = sig
-    type element
-    type t
+  module type S = Set_sig
 
-    val empty : t (*The empty set*)
-    val add : t -> element -> t (*Add an element*)
-    val fold : ('a -> element -> 'a) -> 'a -> t -> 'a (*Visit elements*)
-    val contains : t -> element -> bool (*Test for membership*)
-    val size : t -> int (*Cardinality of a set*)
-    val union : t -> t -> t (*The union of two sets*)
-    val intersection : t -> t -> t (*The intersection of two sets*)
-    val min_element : t -> element (*The minimum value of the set*)
-    val max_element : t -> element (*The maximum value of the set*)
-    val of_list : element list -> t (*Construct set from unordered list*)
-
-  end
-
+  (*Functor building an implementation of the set structure given a
+    totally ordered type*)
   module Make : 
     functor (Ord : Ordered_type) -> S with type element = Ord.t
 
@@ -31,27 +36,8 @@ end
 
 module Set (*: SET*) = struct
 
-  module type Ordered_type = sig
-    type t
-    val compare : t -> t -> int
-  end
-
-  module type S = sig
-    type element
-    type t
-
-    val empty : t
-    val add : t -> element -> t
-    val fold : ('a -> element -> 'a) -> 'a -> t -> 'a
-    val contains : t -> element -> bool
-    val size : t -> int
-    val union : t -> t -> t
-    val intersection : t -> t -> t
-    val min_element : t -> element
-    val max_element : t -> element
-    val of_list : element list -> t
-
-  end
+  module type Ordered_type = Ordered_type_sig
+  module type S = Set_sig
 
   module Make (Ord : Ordered_type)(* : (S with type element = Ord.t)*) = struct
 
