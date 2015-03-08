@@ -34,16 +34,22 @@ module type SET = sig
 
 end
 
-module Set (*: SET*) = struct
+module Binary_search_tree : SET = struct
+
+  (*A binary search tree is a binary tree with the following
+   representation invariant: 
+
+     - For every node n, every node in the left subtree of n has a
+       value less than that of n and every node in the right subtree
+       of n has a value more than that of n.  
+  *)
 
   module type Ordered_type = Ordered_type_sig
   module type S = Set_sig
 
-  module Make (Ord : Ordered_type)(* : (S with type element = Ord.t)*) = struct
+  module Make (Ord : Ordered_type) : (S with type element = Ord.t) = struct
 
     type element = Ord.t
-
-    (*Type of a binary search tree*)
     type bst = Empty | Node of node
      and node = {value : element; left : bst; right : bst}
 
@@ -104,14 +110,110 @@ module Set (*: SET*) = struct
   end
 end
 
+module Red_black_tree (*: SET*) = struct
+
+  (*A red-black tree is a binary search tree with additional
+     representation invariants:
+
+    - No red node has a red parent;
+
+    - Every path from the root to an empty node has the same number of
+      black nodes: the black height of the tree
+
+   *)
+
+  module type Ordered_type = Ordered_type_sig
+  module type S = Set_sig
+
+  module Make (Ord : Ordered_type)(* : (S with type element = Ord.t)*) = struct
+
+    type element = Ord.t
+    type color = Red | Black
+    type tree = Empty | Node of node
+       and node = { value : element; left : tree; right : tree; color : color }
+    type t = tree
+
+    let empty : t = Empty
+
+    let rec add (s : t) (x : element) : t =
+      let make_black (s : t) : t =
+        match s with
+        | Empty -> Empty
+        | Node ({value;left;right;color} as r) -> 
+           Node {r with color = Black } in
+
+      let rotate x y z a b c d : t =
+        Node { value = y; 
+               left  = Node {color = Black; value = x; left = a; right = b};
+               right = Node {color = Black; value = z; left = c; right = d};
+               color = Red } in
+
+      let balance (s : t) : t =
+        match s with
+        | (*1*) Node {color=Black; value=z;
+                     left = 
+                       Node {color = Red; value = y;
+                             left = Node {color = Red; value = x;    
+                                          left = a; right = b};
+                             right = c};
+                     right = d} -> 
+                 rotate x y z a b c d
+        | (*2*) Node {color=Black; value = z;
+                     left = Node {color=Red; value = x;
+                         left = a; right = Node {color=Red; value = y;
+                           left = b; right = c}}; 
+                     right=d} ->
+                 rotate x y z a b c d
+        | (*3*) Node {color=Black; value=x;
+                     left = a; 
+                     right = Node {color=Red; value=z;
+                                   left = Node{color=Red; value=y;
+                                               left=b; right= c}; 
+                                   right=d}} ->
+                 rotate x y z a b c d
+        | (*4*) Node {color=Black;value=x;
+                     left=a; 
+                     right=Node{color=Red;value=y;
+                                left=b; 
+                                right=Node{color=Red;value=z;
+                                           left=c;right=d}}} ->
+                 rotate x y z a b c d
+        | _ -> s in
+
+      let rec walk (s : t) : t =
+        match s with
+        | Empty -> Node {color=Red; value=x; left=Empty; right=Empty}
+        | Node {color; value; left; right} ->
+           let cmp = compare x value in
+           if cmp = 0 then s
+           else if cmp < 0 then
+             balance (Node {color=color;
+                     value =value;
+                     left = walk left;
+                     right = right})
+           else
+             balance (Node {color = color;
+                     value = value;
+                     left = left;
+                     right = walk right}) 
+      in  make_black (walk s)
+
+    let of_list (l : element list) : t =
+      List.fold_left (fun s e -> add s e) empty l
+
+  end
+end
+
 (*Prepare an [Set.Ordered_type] module to pass as argument
   to [Set.Make]*)
-module Int : Set.Ordered_type with type t = int = struct 
+module Int : Red_black_tree.Ordered_type with type t = int = struct 
   type t = int 
   let compare = Pervasives.compare 
 end
 
-(*Make a priority queue module*)
-module Int_set = Set.Make (Int)
+(*Make a set*)
+(*module Int_set = Binary_search_tree.Make (Int)*)
 
-type 'a set = (module Set.S with type element = 'a)
+module Int_set = Red_black_tree.Make (Int)
+
+(* type 'a set = (module Set.S with type element = 'a) *)
