@@ -73,7 +73,7 @@ module Binary_search_tree : SET = struct
       match s with
       | Empty -> acc
       | Node {value; left; right} ->
-         fold f (fold f (f acc value) left) right
+        fold f (f (fold f acc left) value) right
 
     let rec contains (s : t) (e : element) =
       match s with
