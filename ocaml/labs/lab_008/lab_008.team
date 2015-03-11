@@ -1,0 +1,180 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #8
+2015-03-05 by 
+Difficulty level :
+Medium/hard
+Problem :
+Lexical trees or tries are a data structure suitable for representing dictionaries. Such a type can be defined like this
+type trie = Letter of char * bool * (trie list)
+The boolean value in the type definition is used to mark the end of a word. For example, a type trie value for the word sequence "fa, false, far, fare, fried, frieze'' would store the data in the following way
+R&D X-asset Risk/Pricing > Week #008 > trie.png
+where a '*' marks the end of a word. This week's exercise is to produce a module of lexical trees that implements the following signature.
+(**Lexical trees or 'tries' are used for the representation of
+   dictionaries*)
+module type TRIE = sig
+    type t
+    (**The type of lexical trees*)
+ 
+    val exists : t -> string -> bool
+    (**Test if a word is in the dictionary*)
+ 
+    val insert : t -> string -> t
+    (**Take a dictionary and a word, return a new dictionary that
+       additionally contains this word*)
+ 
+    val construct : string list -> t
+    (**Take a list of words and construct the corresponding
+       dictionary*)
+ 
+    val verify : t -> string list -> string list
+    (**Takes a dictionary and a list of words and returns the list of
+       words not in the dictionary*)
+ 
+    val words : t -> string list
+    (**Retrieve the list of words encoded in the dictionary*)
+ 
+    val select : t -> int -> string list
+    (**Retrieve the set of words in the dictionary of the given
+      length*)
+end
+Solutions :
+Let's start with this : as one submitter noted, there is no hard requirement that the type of tries be exactly that provided in the problem specification. Indeed, this definition is entirely equivalent.
+type trie = {
+        letter : char;
+        terminal : bool;
+        children : trie list;
+      }
+The submitter maintains this definition is syntactically more convenient for the module implementer (and of course, the choice is irrelevant to the module client as t is abstract).
+Anyhow, in a pattern that might now be becoming familiar, as is so often the case, we find ourselves here wishing to manipulate strings as lists of characters. Accordingly the functions explode and implode are ubiquitous so it makes sense to do those well.
+
+For explode, I had the following.
+let explode s =
+    let n = String.length s in
+    let rec loop acc i =
+      if i = n then List.rev acc
+      else loop (String.get s i :: acc) (i + 1) in
+    loop [] 0
+The following approach offers a nice refinement though. By reversing the direction of the loop the List.reverse at the end can be elided!
+let explode s =
+  let rec exp i l =
+  if i < 0 then l else exp (i - 1) (s.[i] :: l) in
+  exp (String.length s - 1) []
+These days, the community advice is that the function String.get as used in the first program is preferred over the projection operator s.[i] as seen here though.
+Here's implode. Not bad, there is only one memory allocation.
+let implode l =
+  let res = String.create (List.length l) in
+  let rec imp i = function
+    | [] -> res
+    | c :: l -> res.[i] <- c; imp (i + 1) l in
+  imp 0 l
+This version triggers some nasty warnings though.
+Warning 3: deprecated: String.create
+Use Bytes.create instead.
+Characters 136-148:
+          | c :: l -> res.[i] <- c; imp (i + 1) l in
+                      ^^^^^^^^^^^^
+Warning 3: deprecated: String.set
+Use Bytes.set instead.
+See, since 4.02 mutable strings have been deprecated. Here's my version of implode which correctly makes use of the Bytes module. I think also clearer in that is expressed in terms of the higher order function List.iteri.
+let implode l =
+  let n = List.length l in
+  let buf = Bytes.create n in
+  let f i c = Bytes.set buf i c in
+  List.iteri f l ; Bytes.to_string buf
+
+So, here's a basic function that creates a trie from exactly one string.
+let add t s = match t with | Letter (a, b, c) -> Letter(a, b, s::c)
+
+let string_to_trie s =
+  let l = explode s in
+  let rec aux list =
+    match list with
+    | [a] -> Letter(a, true, [])
+    | hd::tl -> add (Letter(hd, false, [])) (aux tl)
+  in aux l
+(Note : bad style - infix operators should have have white space either side e.g. hd :: tl). I guess it's "kinda" cute but somewhat obfuscated since the definition is equivalent to the following.
+let string_to_trie s =
+  let l = explode s in
+  let rec aux list =
+    match list with
+    | [a] -> Letter(a, true, [])
+    | hd :: tl -> Letter (hd, false, (aux tl) :: [])
+  in aux l
+It's missing a case too. There is no catch for the empty list which gets a warning from the compiler (and you really don't want to be ignoring warnings from an OCaml compiler (smile)).
+I've said it before and I'll say it again. == and != compare the identity of values (addresses in memory). Structural comparisons are achieved with = and <> and are almost always what you mean! Thus, the code below (although it happens to work) is technically not what the author intended.
+let exists t s =
+      let l = explode s in
+      let rec find trie list =
+        match (trie, list) with
+        | _, [] -> false (* Case for String get exhausted *)
+        | Letter(a, true, c), [k] when a == k -> true (* The only case return true *)
+        | Letter(a, b, c), lst -> if a != List.hd lst then false else List.exists (fun t -> (find t (List.tl lst))) (subtrees (Letter(a, b, c))) (* Note that if subtree is an empty list List.exists will return false, so the case of trie get exhausted is handled here also. *)
+      in
+      find t l
+In that code, subtrees is defined by let subtrees = function| Letter(a, b, c) -> c. Remembering that you can pattern match an argument in the definition of a function, I think this definition is easier to follow.
+let exists (t : trie) (w : string) : bool = 
+    let rec exists_aux ((Letter (d, e, nodes)) : trie) : (char list) -> bool = 
+      function
+      | [] -> false
+      | [h] when e -> d = h
+      | (h :: tl) -> d = h && List.exists (fun e -> exists_aux e tl) nodes in
+    explode w |> exists_aux t
+Here's insert.
+let insert (t : trie) (w : string) : trie = 
+    let rec insert_aux ((Letter (d, e, l) as n) : trie) : (char list) -> trie =
+      function  
+      | [] -> n
+      | (x :: tl) -> 
+         if x = d then insert_aux (Letter (d, tl = [], l)) tl
+         else match List.partition (fun (Letter (e, _, _)) -> e = x) l with
+           | [], _ -> Letter (d, e, (insert_aux (Letter (x, tl = [], [])) tl) :: l)
+           | [h], m -> Letter (d, e, (insert_aux h tl :: m))
+           | _ -> failwith "unexpected" in
+    explode w |> insert_aux t
+I think it's the most interesting part of the program! Do you follow how it works?
+Now, here's one way to write construct. 
+let construct str_l =
+    let rec aux trie l =
+      match l with
+      | [] -> trie
+      | hd::tl -> (aux (insert trie hd) tl)
+      in
+      aux (string_to_trie (List.hd str_l)) (List.tl str_l)
+The trouble with this though is, it's the OCaml equivalent of a for loop. It gets the job done, can't argue with that but, the reader is forced to analyze what the heck is going on. It would be much better expressed with List.fold_left (prefer algorithms to hand coded loops!). This one does that and also takes the chance to enforce the precondition that we don't stick a word into the dictionary that doesn't start with the right letter.
+let construct (words : string list) : trie =
+    let k=String.get (List.nth words 0) 0 in
+    let f (c, acc) w =
+      if String.get w 0 = c then (k, insert acc w) else failwith "Mismatch" in
+    snd @@ List.fold_left f (k, Letter (k, false, [])) words
+If you are not convinced by the above compare this
+let verify t str_l =
+      let rec aux acc trie l =
+        match l with
+        | [] -> acc
+        | hd::tl -> aux (if (exists trie hd) then acc else (hd::acc)) trie tl
+      in
+      aux [] t str_l
+with this
+let verify (t : trie) (words : string list) : string list =
+    List.fold_left (fun acc word -> if exists t word then acc else word :: acc) [] words
+Does that change your mind?
+
+I think, words is pretty easy if you think about it right.
+let words (t : trie) : string list =
+    let rec loop (path : char list) (acc : (char list) list) = function
+      | Letter (d, terminal, cs) ->
+         let path = d :: path in
+         List.fold_left (loop path) 
+            (if terminal then (path :: acc) else acc) cs
+    in (loop [] [] t) |> List.map (fun s -> implode (List.rev s))
+
+select of course is obvious once you have that.
+let select (t : trie) (i : int) : string list =
+    List.filter (fun w -> String.length w = i) (words t)
