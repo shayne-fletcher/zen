@@ -1,0 +1,470 @@
+Solutions:
+::
+
+  ;; Harvey Stein
+  ;; Trie_node: (char bool)
+  ;; Trie (trie_node subtree1 subtree2 ...)
+  ;;
+  ;; We will 
+  
+  (defun letter_value (trie_node)
+    (first trie_node))
+  
+  (defun end_of_word? (trie_node)
+    (second trie_node))
+  
+  (defun trie_node (trie)
+    (car trie))
+  
+  (defun subtries (trie)
+    (cdr trie))
+  
+  (defun top_letter (trie)
+    (letter_value (trie_node trie)))
+  
+  (defun top_end_of_word? (trie)
+    (end_of_word? (trie_node trie)))
+  
+  (defun exists (trie word)
+    (cond ((eq word "") ())
+          ((null trie) ())
+          ((eq (char word 0) (top_letter trie))
+           (if (= (length word) 1)
+               (if (top_end_of_word? trie)
+                   t
+                 ())
+             (let ((subword (subseq word 1)))
+               (loop for subtrie in (subtries trie)
+                     thereis (exists subtrie subword)))))))
+  
+  (defun word2trie (word)
+    (cond ((eq word "") ())
+          ((= (length word) 1) (list (list (char word 0) t)))
+          (t (list (list (char word 0)()) (word2trie (subseq word 1))))))
+  
+  (defun merge_tries (trie1 trie2)
+    (cond ((null trie1) trie2)
+          ((null trie2) trie1)
+          ((eq (top_letter trie1) (top_letter trie2))
+           (cons (list (top_letter trie1)
+                       (or (top_end_of_word? trie1)
+                           (top_end_of_word? trie2)))
+                 (merge_forests (subtries trie1)
+                               (subtries trie2))))))
+  
+  (defun merge_forests (f1 f2)
+    (cond ((null f1) f2)
+          ((null f2) f1)
+          ((null (cdr f1))
+           (merge_trie_into_forest (car f1) f2))
+          (t (merge_forests (cdr f1)
+                            (merge_trie_into_forest (car f1) f2)))))
+  
+  (defun merge_trie_into_forest (trie forest)
+    (cond ((null forest) (list trie))
+          ((eq (top_letter trie)
+                (top_letter (first forest)))
+           (merge_trie_into_forest (merge_tries trie (first forest))
+                                   (cdr forest)))
+          (t (cons (car forest)
+                   (merge_trie_into_forest trie (cdr forest))))))
+  
+  (defun insert (trie word)
+    (merge_tries (word2trie word) trie))
+  
+  (defun construct (words &optional (trie ()))
+    (cond ((null words) trie)
+          (t (construct (cdr words)
+                        (insert trie (car words))))))
+  
+  (defun verify (trie words)
+    (cond ((null words) ())
+          ((exists trie (car words))
+           (verify trie (cdr words)))
+          (t (cons (car words)
+                   (verify trie (cdr words))))))
+  
+  (defun words (trie)
+    (cond ((null trie) ())
+          (t (let* ((l (top_letter trie))
+                    (lstring (coerce (list l) 'string))
+                    (subwords (mapcar (lambda (w) (concatenate 'string lstring w))
+                                      (apply #'append
+                                             (mapcar #'words (subtries trie))))))
+               (if (top_end_of_word? trie)
+                   (cons lstring subwords)
+                 subwords)))))
+  
+  (defun select (trie len)
+    (cond ((null trie) ())
+          ((= len 0) ())
+          (t (let* ((l (top_letter trie))
+                    (lstring (coerce (list l) 'string))
+                    (subwords (mapcar (lambda (w) (concatenate 'string lstring w))
+                                      (apply #'append
+                                             (mapcar #'(lambda (tr)
+                                                         (select tr (1- len)))
+                                                     (subtries trie))))))
+               (if (and (= len 1) (top_end_of_word? trie))
+                   (cons lstring subwords)
+                 subwords)))))
+  
+  ;; Tests:
+  (defmacro testit (form)
+    `(format t "Testing: ~s~%~s~%" ',form ,form))
+  
+  (setq trie '((#\f ())
+               ((#\a t)
+                ((#\l ())
+                 ((#\s ())
+                  ((#\e t))))
+                ((#\r t)
+                 ((#\e t))))
+               ((#\r ())
+                ((#\i ())
+                 ((#\e ())
+                  ((#\d t))
+                  ((#\z ())
+                   ((#\e t))))))))
+  (testit trie)
+  (testit (exists trie "f"))
+  (testit (exists trie "fa"))
+  (testit (exists trie "fr"))
+  (testit (exists trie "frieze"))
+  (testit (exists trie "fried"))
+  (testit (exists trie "friedd"))
+  
+  (testit (word2trie "f"))
+  (testit (word2trie "fast"))
+  
+  (setq t2
+        (construct '("fried" "frieze" "false" "far" "fare" "faster" "fault" "fluke")))
+  
+  (testit t2)
+  
+  (testit (verify trie
+                  '("fried" "frieze" "false" "far" "fare" "faster" "fault" "fluke" "fast" "fastest")))
+  
+  (testit (verify t2
+                  '("fried" "frieze" "false" "far" "fare" "faster" "fault" "fluke" "fast" "fastest")))
+  
+  (testit (select trie 5))
+  
+  (testit (select t2 5))
+
+  (*Eugene*)
+  module type TRIE = sig    
+      type t    
+      (**The type of lexical trees*)      
+  
+      val exists : t -> string -> bool    
+      (**Test if a word is in the dictionary*)      
+  
+      val insert : t -> string -> t  
+      (**Take a dictionary and a word, return a new dictionary that
+         additionally contains this word*)      
+  
+      val construct : string list -> t
+      (**Take a list of words and construct the corresponding      
+         dictionary*)      
+  
+      val verify : t -> string list -> string list
+      (**Takes a dictionary and a list of words and returns the list of       
+         words not in the dictionary*)      
+  
+      val words : t -> string list    
+      (**Retrieve the list of words encoded in the dictionary*)      
+  
+      val select : t -> int -> string list
+      (**Retrieve the set of words in the dictionary of the given
+        length*)
+  
+  end
+  
+  module Trie : TRIE = struct
+      (* We are building an 'abstract' data type -- 
+         so it doesn't matter how we implement it as long as 
+         the result has all the desired properties  *)
+      type trie = {
+          letter : char;
+          terminal : bool;
+          children : trie list;
+        }
+      (* gives nicer accessors than the original type *)
+  
+      type t = trie list 
+      (* we'll enforce the constraint that it must be a singleton list, but not with types;
+         so t pretends he is type trie = Letter of char * bool * (trie list)
+       *)
+  
+      let (<*>) f g = fun x -> f (g x)
+      (* functions on strings. Since strings are immutable, I assume the operations below are cheap *)
+      let head = fun w -> String.get w 0
+      let tail = fun w -> String.sub w 1 (String.length w - 1)
+      let null =  ( = ) 0 <*> String.length
+      let oneletter =  ( = ) 1 <*> String.length
+      let of_char = String.make 1
+  
+      let concatMap f xs = List.concat (List.map f xs)
+  
+      (* convert a word into a trie *)
+      let rec trie_of_word = function
+        | word when null word -> failwith "null strings can't be inserted into a trie"
+        | word when oneletter word -> {
+            letter = head word; 
+            terminal = true; 
+            children = [];
+          }
+        | word -> {
+            letter = head word; 
+            terminal = false; 
+            children = [trie_of_word (tail word)];
+          }
+  
+      let rec insert' tt = function
+        | w when null w -> failwith "can't insert null string"
+        | w when List.for_all (fun t -> head w <> t.letter) tt -> (trie_of_word w) :: tt (* add a new subtree *)
+        | w -> List.map (fun t -> 
+                         if head w <> t.letter then t else {t with children = insert' t.children (tail w)}) tt 
+      let insert tt w =
+        match insert' tt w with
+        | [t] -> [t]
+        | _ -> failwith "new word must begin with the same letter as other words in the trie"
+  
+    let construct ws = List.fold_left insert [trie_of_word (List.hd ws)] (List.tl ws)
+
+    let rec exists forest w =
+      match forest, w with
+      | [t], w when oneletter w -> t.terminal && head w = t.letter
+      | [t], w -> head w = t.letter && List.exists (fun tr -> exists [tr] (tail w)) t.children
+      | _ -> failwith "trie should contain exactly one tree"
+
+    let verify t = List.filter ( not <*> exists t )
+
+    (* traverse the tree in breadth-first manner *)
+    let words = function
+      | [t] ->
+         let rec aux acc t =
+           let acc' = acc ^ of_char t.letter in
+           (if t.terminal then [acc'] else []) @ concatMap (aux acc') t.children
+         in aux "" t
+      | _ -> failwith "trie should contain exactly one tree"
+
+    let rec select forest len =
+      match forest, len with
+      | [t], len when len <= 0 -> [] 
+      | [t], 1 -> if t.terminal then [of_char t.letter] else []
+      | [t], len -> List.map (fun w -> (of_char t.letter) ^ w) (concatMap (fun t -> select [t] (len - 1)) t.children)
+      | _ -> failwith "trie should contain exactly one tree"
+
+  end
+
+  (* some testing *)
+  (*
+  # let t = Trie.construct ["FA"; "FAR"; "FARE"; "FALSE"; "FRIED"; "FRIEZE"];;
+  val t : Trie.t = <abstr>
+  # Trie.verify t  ["FA"; "FAR"; "FARE"; "FALSE"; "FRIED"; "FRIEZE"];;
+  - : string list = []
+  # Trie.verify t ["lalala"; "FA"];;
+  - : string list = ["lalala"]
+  # Trie.words t;;
+  - : string list = ["FRIEZE"; "FRIED"; "FA"; "FALSE"; "FAR"; "FARE"]
+  # Trie.select t 0;;
+  - : string list = []
+  # Trie.select t 1;;
+  - : string list = []
+  # Trie.select t 2;;
+  - : string list = ["FA"]
+  # Trie.select t 3;;
+  - : string list = ["FAR"]
+  # Trie.select t 4;;
+  - : string list = ["FARE"]
+  # Trie.select t 5;;
+  - : string list = ["FRIED"; "FALSE"]
+  # Trie.select t 6;;
+  - : string list = ["FRIEZE"]
+  # Trie.select t 7;;
+  - : string list = []
+  # Trie.select t 8;;
+  - : string list = []
+  # Trie.select t (-1);;
+  - : string list = []
+  # Trie.select t 1000000000;;
+  - : string list = []
+  # Trie.exists t "lalala";;
+  - : bool = false
+  # Trie.exists t "FARE";;
+  - : bool = true
+  # Trie.insert t "ABCD";;
+  Exception:
+  Failure "new word must begin with the same letter as other words in the trie".
+  # Trie.exists t "FACTORIAL";;
+  - : bool = false
+  # let t' = Trie.insert t "FACTORIAL";;
+  val t' : Trie.t = <abstr>
+  # Trie.exists t' "FACTORIAL";;
+  - : bool = true
+  # Trie.words t;;
+  - : string list = ["FRIEZE"; "FRIED"; "FA"; "FALSE"; "FAR"; "FARE"]
+  # Trie.words t';;
+  - : string list =
+  ["FRIEZE"; "FRIED"; "FA"; "FACTORIAL"; "FALSE"; "FAR"; "FARE"]
+  
+  *)  
+  
+  (*Sen Hn*)
+  module type TRIE = sig
+      type t
+      (**The type of lexical trees*)
+  
+      val exists : t -> string -> bool
+      (**Test if a word is in the dictionary*)
+  
+      val insert : t -> string -> t
+      (**Take a dictionary and a word, return a new dictionary that
+         additionally contains this word*)
+  
+      val construct : string list -> t
+      (**Take a list of words and construct the corresponding
+         dictionary*)
+  
+      val verify : t -> string list -> string list
+      (**Takes a dictionary and a list of words and returns the list of
+         words not in the dictionary*)
+  
+      val words : t -> string list
+      (**Retrieve the list of words encoded in the dictionary*)
+  
+      val select : t -> int -> string list
+      (**Retrieve the set of words in the dictionary of the given
+        length*)
+  end
+  
+  module Trie : TRIE = struct
+    type t = Letter of char * bool * (t list)
+    let subtrees = function| Letter(a, b, c) -> c;;
+    let add t s = match t with | Letter (a, b, c) -> Letter(a, b, s::c);;
+    let get_char = function| Letter(a, b, c) -> a;;
+  
+    let explode s =
+      let rec exp i l =
+      if i < 0 then l else exp (i - 1) (s.[i] :: l) in
+      exp (String.length s - 1) [];;
+  
+    let implode l =
+      let res = String.create (List.length l) in
+      let rec imp i = function
+        | [] -> res
+        | c :: l -> res.[i] <- c; imp (i + 1) l in
+      imp 0 l;;
+  
+    let string_to_trie s =
+      let l = explode s in
+      let rec aux list =
+        match list with
+        | [a] -> Letter(a, true, [])
+        | hd::tl -> add (Letter(hd, false, [])) (aux tl)
+      in
+      aux l;;
+  
+    let exists t s =
+      let l = explode s in
+      let rec find trie list =
+        match (trie, list) with
+        | _, [] -> false (* Case for String get exhausted *)
+        | Letter(a, true, c), [k] when a == k -> true (* The only case return true *)
+        | Letter(a, b, c), lst -> if a != List.hd lst then false else List.exists (fun t -> (find t (List.tl lst))) (subtrees (Letter(a, b, c))) (* Note that if subtree is an empty list List.exists will return false, so the case of trie get exhausted is handled here also. *)
+      in
+      find t l;;
+  
+    let insert t str =
+      if exists t str then t else begin
+        let rec ins trie lst =
+          match (trie, lst) with
+          | Letter(a, false, c) , [k] -> Letter(a, true, c)  (* String is exhausted *)
+          | Letter(a, b, []), l -> Letter(a, b, [(string_to_trie (implode (List.tl l)))]) (* trie is exhausted *)
+          | Letter(a, b, c), l when (List.hd l) == a -> if List.exists (fun x -> get_char(x) == (List.hd (List.tl l))) c then Letter(a, b, (List.map (fun x -> if (get_char x) == (List.hd (List.tl l)) then (ins x (List.tl l)) else x) c)) else begin
+                  (add (Letter(a, b, c)) (string_to_trie (implode (List.tl l))))
+                  end
+          | Letter(a, b, c), l when (List.hd l) != a -> (string_to_trie (implode l))
+        in
+        ins t (explode str)
+      end
+  
+    let construct str_l =
+      let rec aux trie l =
+        match l with
+        | [] -> trie
+        | hd::tl -> (aux (insert trie hd) tl)
+        in
+        aux (string_to_trie (List.hd str_l)) (List.tl str_l);;
+  
+    let verify t str_l =
+      let rec aux acc trie l =
+        match l with
+        | [] -> acc
+        | hd::tl -> aux (if (exists trie hd) then acc else (hd::acc)) trie tl
+      in
+      aux [] t str_l;;
+  
+    let rec words t =
+      let subword_list t_l = (List.flatten (List.map (fun x -> (words x)) t_l)) in
+      let append_word_list s w_l = (List.map (fun x -> ((Char.escaped s) ^ x)) w_l) in
+      match t with
+      | Letter(a, b, []) -> [(Char.escaped a)]
+      | Letter( a, true , c) when (List.length c != 0) -> (Char.escaped a)::(append_word_list a (subword_list c))
+      | Letter( a, false , c) when (List.length c != 0)-> (append_word_list a (subword_list c));;
+  
+    let select t s = List.filter (fun x -> (String.length x) == s) (words t)
+  
+  end;;
+  
+  # #use "test.ml";;
+  module type TRIE =
+    sig
+      type t
+      val exists : t -> string -> bool
+      val insert : t -> string -> t
+      val construct : string list -> t
+      val verify : t -> string list -> string list
+      val words : t -> string list
+      val select : t -> int -> string list
+    end
+  # open Trie;;
+  # Trie.construct ["HelloWorld"; "HelloKitty"];;
+  - : Trie.t = <abstr>
+  # let a = Trie.construct ["HelloWorld"; "HelloKItty"];;
+  val a : Trie.t = <abstr>
+  # Trie.words a;;
+  - : string list = ["HelloKItty"; "HelloWorld"]
+  # Trie.exists a "Hello";;
+  - : bool = false
+  # Trie.exists a "HelloWorld";;
+  - : bool = true
+  # Trie.exists a "HelloKItty";;
+  - : bool = true
+  # Trie.verify a ["HelloWorld"; "Hello"; "HelloMan"; "HelloDude"];;
+  - : string list = ["HelloDude"; "HelloMan"; "Hello"]
+  # Trie.words a ;;
+  - : string list = ["HelloKItty"; "HelloWorld"]
+  # let b = Trie.insert a "HelloHelloHello";;
+  val b : Trie.t = <abstr>
+  # Trie.words b;;
+  - : string list = ["HelloHelloHello"; "HelloKItty"; "HelloWorld"]
+  # Trie.insert a "Hello";;
+  - : Trie.t = <abstr>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
