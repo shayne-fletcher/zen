@@ -7,9 +7,12 @@ module type Set_sig = sig
   type element
   type t
 
+  exception Empty_set
+
   val empty : t (*The empty set*)
   val add : t -> element -> t (*Add an element*)
-  val fold : ('a -> element -> 'a) -> 'a -> t -> 'a (*Visit elements*)
+  val remove : t -> element -> t (*Remove an element*)
+  (* val fold : t -> 'a -> ('a -> element -> 'a)  -> 'a (\*Visit elements in order*\) *)
   val contains : t -> element -> bool (*Test for membership*)
   val size : t -> int (*Cardinality of a set*)
   val union : t -> t -> t (*The union of two sets*)
@@ -49,6 +52,8 @@ module Binary_search_tree : SET = struct
 
   module Make (Ord : Ordered_type) : (S with type element = Ord.t) = struct
 
+    exception Empty_set
+
     type element = Ord.t
     type bst = Empty | Node of node
      and node = {value : element; left : bst; right : bst}
@@ -66,14 +71,30 @@ module Binary_search_tree : SET = struct
            if c < 0 then  Node {r with left = add left e}
            else Node {r with right = add right e}
 
+    let rec remove (s : t) (e : element) : t =
+      (*[remove_first t] is [(t', v)] where [v] is the first value in
+        [t] and [t'] is a binary search tree with all the elements of
+        [t] except [v]*)
+      let rec remove_first (s : t) : (t * element) =
+        match s with
+        | Empty -> raise Empty_set
+        | Node {value; left=Empty; right} -> (right, value)
+        | Node {left; _} -> remove_first left in 
+      let rec remove_last (s : t) : (t * element) =
+        match s with
+        | Empty -> raise Empty_set
+        | Node {value; left; right=Empty} -> (left, value)
+        | Node {right; _} -> remove_last right in
+      failwith "bar"
+
     let of_list (l : element list) : t =
       List.fold_left (fun s e -> add s e) empty l
 
-    let rec fold (f : ('a -> element -> 'a)) (acc : 'a) (s : t) : 'a = 
+    let rec fold (s : t) (acc : 'a) (f : ('a -> element -> 'a)) : 'a =
       match s with
       | Empty -> acc
-      | Node {value; left; right} ->
-        fold f (f (fold f acc left) value) right
+      | Node {value; left; right} -> 
+        fold right (f (fold left acc f) value) f
 
     let rec contains (s : t) (e : element) =
       match s with
@@ -82,14 +103,14 @@ module Binary_search_tree : SET = struct
          let c = Ord.compare e value in
          (c = 0) || (if c < 0 then contains left e else contains right e)
 
-    let size (s : t) = fold (fun acc _ -> acc + 1) 0 s
+    let size (s : t) = fold s 0 (fun acc _ -> acc + 1)
 
-    let union (u : t) (v : t) = fold (fun acc e -> add acc e) u v
+    let union (u : t) (v : t) = fold v u (fun acc e -> add acc e)
 
     let intersection (u : t) (v : t) : t =
       let f acc e = 
         if contains v e then add acc e else acc in
-      fold f empty u
+      fold u empty f
 
     let rec min_element (s : t) : element =
       match s with
@@ -206,14 +227,17 @@ end
 
 (*Prepare an [Set.Ordered_type] module to pass as argument
   to [Set.Make]*)
+(*
 module Int : Red_black_tree.Ordered_type with type t = int = struct 
   type t = int 
   let compare = Pervasives.compare 
 end
-
+*)
+(*
 (*Make a set*)
-(*module Int_set = Binary_search_tree.Make (Int)*)
+module Int_set = Binary_search_tree.Make (Int)
 
 module Int_set = Red_black_tree.Make (Int)
 
-(* type 'a set = (module Set.S with type element = 'a) *)
+type 'a set = (module Set.S with type element = 'a)
+*)
