@@ -1,0 +1,153 @@
+==========
+ Lab #009
+==========
+
+Problem
+=======
+
+Binary search trees
+-------------------
+
+This week's problem offers a chance to gain some practical experience
+in some language concepts that might be less than familiar to the
+beginner OCaml programmer:
+
+  - Modules;
+  - Module signatures;
+  - Functors.
+
+The program to be written this week is the abstract data type of
+'sets', implemented as a data structure known as a `binary search tree
+<http://en.wikipedia.org/wiki/Binary_search_tree>`_.
+
+A binary search tree is a binary tree with the following
+representation invariant : For any node ``n``, every node in the left
+sub-tree rooted at ``n`` has a value less than that of ``n`` and every
+node in the right sub-tree rooted at ``n`` has a value more than that
+of ``n``.
+
+The running time of insertion/lookup (they have the same cost) in a
+binary search tree is proportional to the height `h` of the tree. In
+the worst case, a tree of `n` nodes is layed out a a single long
+branch so the worst case running time is `O(n)`. [Note : A perfect
+binary tree has the largest number of nodes `n` for a given height `h`
+: `n = 2^(h + 1) - 1`. Therefore `h = lg (n + 1) - 1 = O(lg n)`. It is
+possible to strengthen the invariant above to maintain so called
+"perfectly balanced" binary search trees (e.g. red-black trees) but
+this adds complexity to the implementation and we won't go so far as
+to require this feature here.]
+
+Here's the set of operations to implement summarized as an OCaml
+module signature:
+::
+
+  module type Set_sig = sig
+    type element  (*The type of elements of a set*)
+    type t (*The type of a set of elements*)
+  
+    exception Empty_set
+  
+    val empty : t (*The empty set*)
+    val add : t -> element -> t (*Add an element*)
+    val remove : t -> element -> t * element (*Remove an element*)
+    val fold : t -> 'a -> ('a -> element -> 'a)  -> 'a (*Visit elements in order*)
+    val contains : t -> element -> bool (*Test for membership*)
+    val size : t -> int (*Cardinality of a set*)
+    val union : t -> t -> t (*The union of two sets*)
+    val intersection : t -> t -> t (*The intersection of two sets*)
+    val min_element : t -> element (*The minimum value of the set*)
+    val max_element : t -> element (*The maximum value of the set*)
+    val of_list : element list -> t (*Construct set from unordered list*)
+  
+  end
+  
+Making a module
+---------------
+
+In this part of the exercise, your implementation shall be written as
+follows (that is, assumes the set will have integers as elements).
+::
+
+  module Set : (Set_sig with type element = int) =
+    struct
+     (*Your code goes here.*)
+    end
+
+Writing your code with the assumption that ``element = int`` means
+that elements will be orderable using the built-in
+``Pervasives.compare`` function and make it easy to transform later
+into a functor.
+
+Making a functor
+----------------
+
+As written above, the code is dependent on the built-in comparison
+functions. To make this more generic, we define another module 
+signature.
+::
+
+  (*Signature for an ordered type*)
+  module type Ordered_sig =
+  sig
+    type t
+    val compare : t -> t -> int
+  end
+
+The idea is that for a given values ``u, v`` of ``type t``, ``compare
+u v`` should return a value less than zero if ``u`` should be ordered
+before ``v``, zero if ``u`` and ``v`` are "equal" and a positive value
+if ``u`` should be ordered after ``v``.
+
+What you have to do now is generalize your set implementation into a
+functor that takes a module matching the ``Ordered_sig`` signature as
+its argument, and produces a set module (implemented as a binary
+search tree) which is specialized for that particular type of
+data. For instance, you can define a module of ordered strings like
+this:
+::
+
+  module Ordered_string : Ordered_sig =
+    struct
+      type t = string
+      let compare (x : t) (y : t) =
+        if x = y then 0 else if x < y then (-1) else 1
+    end
+
+Then, define your string set like this:
+::
+
+  module String_set : (Set_sig with element = string) = Set.Make (Ordered_string)
+
+To get you started, here is a skeleton of the code you can use for the
+functor definition:
+::
+
+    module type SET = 
+      sig
+
+       (*Input signature of the functor [Make]*)
+        module type Ordered_type = Ordered_type_sig
+
+       (*Output signature of the functor [Make]*)
+        module type S = Set_sig
+    
+      (*Functor building an implementation of the set structure given a
+        totally ordered type*)
+        module Make : functor (Ord : Ordered_type) -> S with type element = Ord.t
+
+    end
+
+    module Set : SET = 
+      struct
+        module type Ordered_type = Ordered_type_sig
+        module type S = Set_sig
+
+        module Make (Ord : Ord_type) : (S with type element = Ord.t) = 
+          struct
+            (*Your code goes here*)
+          end
+      end  
+
+For reference, see `Introduction to the Objective Caml Programming
+Language<http://tinyurl.com/maj5s5t>`_ by Jason Hickey, chapters 12
+and 13.
