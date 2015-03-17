@@ -1,0 +1,204 @@
+(**Doubly linked, circular list. This implementation does not admit
+   the empty list.
+ *)
+module type Doubly_linked_list_sig = 
+  sig
+
+    exception Empty
+
+    type 'a node = { 
+      mutable value : 'a;
+      mutable next : 'a node;
+      mutable prev : 'a node
+    }
+    type 'a t = 'a node
+
+    val singleton : 'a -> 'a t (*Single element list*)
+    val length : 'a t -> int (*The length of the list*)
+    val append : 'a t -> 'a -> 'a t (*Append a node*)
+    val prepend : 'a t -> 'a -> 'a t (*Prepend a node*)
+    val remove : 'a t -> unit (*Remove a node regardless of where it is*)
+    val map : ('a -> 'b) -> 'a t -> 'b t (*Compute a new list*)
+    val copy : 'a t -> 'a t (*Make a copy of a list*)
+    val promote : 'a t -> 'a t (*Swap [n] with [next n]*)
+    val demote : 'a t -> 'a t (*Swap [n] with [prev n]*)
+    val of_list : 'a list -> 'a t (*Construct from a non-empty list*)
+    val get : 'a t -> 'a (*Given a node, get the data*)
+    val set : 'a t -> 'a -> 'a node (*Set the data in a given node*)
+    val next : 'a t -> 'a t (*Get the node after the given one*)
+    val prev : 'a t -> 'a t (*Get the node before the given one*)
+    val skip : 'a t -> int -> 'a t (*The node [i] nodes after/before [n]*)
+    val fold_left : ('b -> 'a -> 'b) -> 'b -> 'a node -> 'b (*Left fold*)
+    val fold_right : ('a -> 'b -> 'b) -> 'a node -> 'b -> 'b (*Right fold*)
+    val find : ('a -> bool)  -> 'a node -> 'a node (*Find node satisfying [p]*)
+    val for_all : ('a -> bool) -> 'a node -> bool (*True if [p] for all nodes*)
+    val exists : ('a -> bool) -> 'a node -> bool (*True if [p] for some node*)
+    val to_list : 'a node -> 'a list (*Convert to a regular list*)
+
+  end
+
+module Doubly_linked_list = struct
+
+  type 'a node = { 
+    mutable value : 'a;
+    mutable next : 'a node;
+    mutable prev : 'a node
+  }
+
+  exception Empty
+
+  type 'a t = 'a node
+
+  let singleton (x : 'a) : 'a node = 
+    let rec nn = { value = x; next = nn ; prev = nn } in nn
+
+  let length (n : 'a node) : int = 
+    let rec loop (acc : int) (o : 'a node) : int =
+      if o == n then acc
+      else loop (1 + acc) o.next in
+    loop 1 n.next
+
+  let append (l : 'a node) (x : 'a) : 'a node =
+    let nn = { value = x; next = l.next; prev = l } in
+    l.next.prev <- nn;
+    l.next <- nn;
+    nn
+
+  let prepend (l : 'a node) (x : 'a) : 'a node =
+    let nn = { value = x; next = l; prev = l.prev; } in
+    l.prev.next <- nn;
+    l.prev <- nn;
+    nn
+
+  let of_list (lst : 'a list) : 'a node =
+    match lst with
+    | [] -> raise Empty
+    | h :: t ->
+       let first = singleton h in
+       let rec loop last = function
+         | [] ->
+            last.next <- first;
+            first.prev <- last;
+            first
+         | h :: t ->
+            let nn = { value = h; next = first; prev = last } in
+            last.next <- nn;
+            loop nn t 
+       in loop first t
+
+  let map (f : 'a -> 'b) (node : 'a node) : 'b node= 
+    let first = singleton (f node.value) in
+    let rec loop (last : 'b node) (n : 'a node) =
+      if n == node then
+        begin
+          first.prev <- last;
+          first
+        end
+      else
+        begin
+          let nn = {value = f n.value; next = first; prev = last} in
+          last.next <- nn;
+          loop nn n.next
+        end in
+    loop first node.next
+
+  let remove (n : 'a node) : unit =
+    if n.next == n then
+      raise Empty (*Singleton list*)
+    else
+      begin
+      (*Remove the n from the list*)
+      n.prev.next <- n.next ;
+      n.next.prev <- n.prev ;
+      (*Make the orphan a singleton*)
+      n.next <- n ;
+      n.prev <-n
+      end
+
+  let copy (n : 'a node) : 'a node = map (fun x -> x) n
+
+  let promote (n : 'a node) : unit =
+    let prev = n.prev in
+    let next = n.next in
+    if next != prev then 
+      begin
+        next.next.prev <- n;
+        n.next <- next.next;
+        n.prev <- next;
+        next.next <- n;
+        next.prev <- prev;
+        prev.next <- next
+    end
+
+  let demote (n : 'a node) : unit =
+    let next = n.next in 
+    let prev = n.prev in
+    if next != prev then 
+      begin
+        prev.prev.next <- n;
+        n.prev <- prev.prev;
+        n.next <- prev;
+        prev.prev <- n;
+        prev.next <- next;
+        next.prev <- prev
+      end
+
+  let get ({value; _} : 'a node) : 'a = value
+  let set (r : 'a node) (x : 'a) : 'a node = {r with value = x}
+
+  let next ({next; _} : 'a node) : 'a node  = next
+  let prev ({prev; _} : 'a node) : 'a node  = prev
+
+  let skip (node : 'a node) (k : int) : 'a node =
+    let rec loop k n =
+      if k = 0 then
+        n
+      else
+        if k < 0 then
+          loop (k + 1) n.prev
+        else 
+          loop (k - 1) n.next
+    in loop k node
+
+  let fold_left 
+        (f : 'b -> 'a -> 'b) 
+        (init : 'b) 
+        ({value; next; _} as node: 'a node) : 'b =
+    let acc = f init value in
+    let rec loop acc ({value; next; _} as n) =
+      if n == node then
+        acc
+      else
+        loop (f acc value) next in
+    loop acc next
+
+  let fold_right
+        (f : 'a -> 'b -> 'b) 
+        ({value; prev; _} as node: 'a node) 
+        (init : 'b) 
+      : 'b =
+    let acc = init in
+    let rec loop ({value; prev; _} as n : 'a node) (acc : 'b) =
+      if n == node then 
+        f value acc
+      else
+        loop prev (f value acc) in
+    loop prev acc
+
+  let for_all (p : 'a -> bool) (node : 'a node) : bool =
+    fold_left (fun acc x -> acc && (p x)) true node
+
+  let exists (p : 'a -> bool) (node : 'a node) : bool =
+    not (for_all (fun a -> not (p a)) node)
+
+  let find (p : 'a -> bool) (node : 'a node) : 'a node = 
+    let rec loop n =
+      if n == node then raise Not_found
+      else
+        if p n.value then n else loop n.next
+    in if p node.value then node else loop node.next
+
+  let to_list (node : 'a node) : 'a list =
+    List.rev @@ fold_left (fun acc x -> x :: acc) [] node
+
+end
