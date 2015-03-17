@@ -1,0 +1,34 @@
+
+PACKAGES := compiler-libs ppx_tools ppx_tools.metaquot
+
+OCAMLFLAGS := -bin-annot -g $(patsubst %, -package %, $(PACKAGES))
+
+OCAMLC := ocamlfind ocamlc ${OCAMLFLAGS}
+OCAMLOPT := ocamlfind ocamlopt ${OCAMLFLAGS}
+OCAMLDEP := ocamlfind ocamldep
+
+all: ppx_test
+
+ppx_test:
+	$(OCAMLOPT) -o $@ -linkpkg ppx_test.ml
+
+## Generic rules
+
+%.cmx: %.ml
+	$(OCAMLOPT) -c $<
+
+%.cmo: %.ml
+	$(OCAMLC) -c $<
+
+%.cmi: %.mli
+	$(OCAMLOPT) -c $<
+
+.PHONY: clean
+clean::
+	-rm -f *.cm* *~ *.o *.a
+
+-include .depend
+
+.PHONY: depend
+depend:
+	$(OCAMLDEP) *.ml *.mli > $@
