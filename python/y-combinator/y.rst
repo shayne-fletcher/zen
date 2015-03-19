@@ -61,9 +61,8 @@ on. The solution is to delay the evaluation until it's needed.
 
 Refactor this into two parts.
 ::
-
-  almost_fact = \
-    lambda f : lambda n : 1 if n == 0 else f (n - 1)
+  def almost_fact (f):
+    return lambda n : 1 if n == 0 else f (n - 1)
 
   def part_fact (this):
     f = lambda y : (this (this))(y)
@@ -72,23 +71,32 @@ Refactor this into two parts.
 Rephrase 'part_frac' as a lambda and change the argument name to 'x'.
 ::
 
-  almost_fact = lambda f : lambda n : 1 if n == 0 else f (n - 1)
+  def almost_fact (f):
+    return lambda n : 1 if n == 0 else f (n - 1)
+
   part_fract = lambda x : amlost_fact (lambda y : (x (x))(y))
+
   fact = part_fact (part_fact)
 
 Eliminate 'part_fact'.
 ::
 
-  almost_fact = lambda f : lambda n : 1 if n == 0 else f (n - 1)
-  fact = (lambda x : almost_fact (lambda y : (x (x))(y))) (lambda x : almost_fact (lambda y : (x (x))(y)))
+  def almost_fact (f):
+    return lambda n : 1 if n == 0 else f (n - 1)
+
+  fact = (lambda x : almost_fact (lambda y : (x (x))(y))) \
+            (lambda x : almost_fact (lambda y : (x (x))(y)))
 
 That's it, there's the Y-combinator. Generalize!
 ::
 
   def Y (f):
-   return (lambda x : f (lambda y : (x (x))(y))) (lambda x : f (lambda y : (x (x))(y)))
+   return (lambda x : f (lambda y : (x (x))(y))) \
+                  (lambda x : f (lambda y : (x (x))(y)))
 
-  almost_fact = lambda f : lambda n : 1 if n == 0 else n * f (n - 1)
+  def almost_fact (f):
+    return lambda n : 1 if n == 0 else f (n - 1)
+
   fact = Y (almost_fact)
 
 Try this on another function. Fibonacci numbers say.
@@ -96,6 +104,7 @@ Try this on another function. Fibonacci numbers say.
 
   def almost_fib (f) :
     return lambda n : 1 if n <= 2 else f (n - 1) + f (n - 2)
+
   fib = Y (almost_fib)
 
   print (str (fib (6))+"\n") #Prints '8'
