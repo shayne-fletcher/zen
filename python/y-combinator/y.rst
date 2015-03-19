@@ -1,6 +1,6 @@
-The Y combinator is a higher-order funtion. It takes a single argument
-which is a function that isn't recursive and returns a version of the
-function that is.
+(http://mvanier.livejournal.com/2897.html)
+
+The Y combinator is a higher-order funtion. It takes a single argument which is a function that isn't recursive and returns a version of the function that is.
 
 The goal here is to derive this function 'Y'.
 
@@ -40,7 +40,7 @@ in the lambda calculus.
   fact = part_fact (part_fact)
 
 We'd recover something tantalizingly close to the original factorial
-function if we factored out 'f (f)' into a function of one
+function if we factored out 'this (this)' into a function of one
 argument.
 ::
 
@@ -74,7 +74,7 @@ Rephrase 'part_frac' as a lambda and change the argument name to 'x'.
   def almost_fact (f):
     return lambda n : 1 if n == 0 else f (n - 1)
 
-  part_fract = lambda x : amlost_fact (lambda y : (x (x))(y))
+  part_fract = lambda x : almost_fact (lambda y : (x (x))(y))
 
   fact = part_fact (part_fact)
 
