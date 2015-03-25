@@ -1,3 +1,8 @@
+module type Stringable_sig = sig
+  type t
+  val to_string : t -> string
+end
+
 module type Ordered_type_sig = sig
   type t
   val compare : t -> t -> int
@@ -28,7 +33,7 @@ module type BST = sig
   (*Input signature of the functor [Make]*)
     module type Elem_type = sig
         include Ordered_type_sig
-        val to_string : t -> string
+        include Stringable_sig with type t := t
     end
 
   (*Output signature of the functor [Make]*)
