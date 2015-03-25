@@ -1,0 +1,293 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #10
+2015-03-24 by 
+Difficulty level :
+Medium
+Problem :
+Thus far, our focus has been on purely functional data structures. In general, construction of cyclical data structures requires mutability. Here is a type suitable for the representation of non-empty circular, doubly linked lists.
+type 'a node = { 
+  mutable value : 'a;
+  mutable next : 'a node;
+  mutable prev : 'a node
+}
+For example, the code to construct a list containing one element reads like this.
+let singleton (x : 'a) : 'a node = 
+  let rec nn = { value = x; next = nn ; prev = nn } in nn
+Ok, that should be enough to get you going! Here's the specification for this week's code presented as a module signature.
+(**Doubly linked, circular list. This implementation does not admit
+   the empty list.
+ *)
+module type Doubly_linked_list_sig = 
+  sig
+    type 'a t
+
+    val singleton : 'a -> 'a t (*Single element list*)
+    val length : 'a t -> int (*The length of the list*)
+    val append : 'a t -> 'a -> 'a t (*Append a node*)
+    val prepend : 'a t -> 'a -> 'a t (*Prepend a node*)
+    val remove : 'a t -> unit (*Remove a node regardless of where it is*)
+    val map : ('a -> 'b) -> 'a t -> 'b t (*Compute a new list*)
+    val copy : 'a t -> 'a t (*Make a copy of a list*)
+    val promote : 'a t -> 'a t (*Swap [n] with [next n]*)
+    val demote : 'a t -> 'a t (*Swap [n] with [prev n]*)
+    val of_list : 'a list -> 'a t (*Construct from a non-empty list*)
+    val get : 'a t -> 'a (*Given a node, get the data*)
+    val set : 'a t -> 'a -> 'a node (*Set the data in a given node*)
+    val next : 'a t -> 'a t (*Get the node after the given one*)
+    val prev : 'a t -> 'a t (*Get the node before the given one*)
+    val skip : 'a t -> int -> 'a t (*The node [i] nodes after/before [n]*)
+    val fold_left : ('b -> 'a -> 'b) -> 'b -> 'a t-> 'b (*Left fold*)
+    val fold_right : ('a -> 'b -> 'b) -> 'a t-> 'b -> 'b (*Right fold*)
+    val find : ('a -> bool)  -> 'a t-> 'a t(*Find node satisfying [p]*)
+    val for_all : ('a -> bool) -> 'a t-> bool (*True if [p] for all nodes*)
+    val exists : ('a -> bool) -> 'a t-> bool (*True if [p] for some node*)
+    val to_list : 'a t-> 'a list (*Convert to a regular list*)
+
+
+  end
+
+Some of these functions are obviously O(N) (like length, copy and fold_xxx for example, but the majority can and should be O(1).
+
+
+(*Eugene Perederey*)
+
+type 'a node = {   
+    mutable value : 'a;  
+    mutable next : 'a node;  
+    mutable prev : 'a node
+  }
+
+(**Doubly linked, circular list. This implementation does not admit   the empty list. *)
+module type Doubly_linked_list_sig =   
+  sig    
+    type 'a t
+    val singleton : 'a -> 'a t (*Single element list*)
+    val length : 'a t -> int (*The length of the list*)
+    val append : 'a t -> 'a -> 'a t (*Append a node*)
+    val prepend : 'a t -> 'a -> 'a t (*Prepend a node*)    
+    val remove : 'a t -> unit (*Remove a node regardless of where it is*)
+    val copy : 'a t -> 'a t (*Make a copy of a list*)    
+    val promote : 'a t -> 'a t (*Swap [n] with [next n]*)
+    val demote : 'a t -> 'a t (*Swap [n] with [prev n]*) 
+    val of_list : 'a list -> 'a t (*Construct from a non-empty list*)    
+    val get : 'a t -> 'a (*Given a node, get the data*)    
+    val set : 'a t -> 'a -> 'a node (*Set the data in a given node*)    
+    val next : 'a t -> 'a t (*Get the node after the given one*)    
+    val prev : 'a t -> 'a t (*Get the node before the given one*)
+    val skip : 'a t -> int -> 'a t (*The node [i] nodes after/before [n]*)    
+    val fold_left : ('b -> 'a -> 'b) -> 'b -> 'a t-> 'b (*Left fold*)    
+    val fold_right : ('a -> 'b -> 'b) -> 'a t-> 'b -> 'b (*Right fold*)    
+    val find : ('a -> bool)  -> 'a t-> 'a t(*Find node satisfying [p]*)    
+    val for_all : ('a -> bool) -> 'a t-> bool (*True if [p] for all nodes*)    
+    val exists : ('a -> bool) -> 'a t-> bool (*True if [p] for some node*)    
+    val to_list : 'a t-> 'a list (*Convert to a regular list*)    
+  end
+
+module Doubly_linked_list =
+  struct
+
+    type 'a t = 'a node
+
+    let singleton x = let rec nn = {value = x; next = nn; prev = nn} in nn
+
+    let append nn x =       
+      let mm = singleton x in
+      let p = nn.prev in
+      mm.next <- nn;
+      mm.prev <- p;
+      p.next <- mm;
+      nn.prev <- mm;
+      nn
+
+    let prepend nn x = (append nn x).prev
+
+    let remove nn = 
+      if nn.next == nn then failwith "Can't remove from a singletone"
+      else let p = nn.prev in
+           let n = nn.next in
+           p.next <- n;
+           n.prev <- p;
+           nn.next <- nn;
+           nn.prev <- nn (*point the node being removed to itself to avoid access to the list*)
+
+    let iter_forward go a nn = 
+      let rec aux acc mm = 
+        if mm.next == nn then acc
+        else aux (go acc mm) mm.next
+      in aux a nn
+
+    let iter_backward go a nn = 
+      let rec aux acc mm = 
+        if mm.prev == nn then acc
+        else aux (go acc mm) mm.prev
+      in aux a nn
+
+    let fold_left f b nn = 
+      iter_forward (fun acc node -> f acc node.value) (f b nn.value) nn.next
+
+    let fold_right f nn b =
+      let end_node = nn.prev in
+      iter_backward (fun acc node -> f node.value acc) (f end_node.value b) end_node.prev 
+
+    let map f nn = 
+      iter_forward (fun bb node -> append bb (f node.value)) (singleton (f nn.value)) nn.next
+
+    let length = fold_left (fun n _ -> n + 1) 0
+
+    let copy = map (fun x -> x)
+
+    let promote nn = let v = nn.next.value in nn.next.value <- nn.value; nn.value <- v; nn
+
+    let demote nn = let v = nn.prev.value in nn.prev.value <- nn.value; nn.value <- v; nn
+
+    let of_list = 
+      function [] -> failwith "Can't create empty list"
+             | x :: xs -> List.fold_left append (singleton x) xs
+
+    let get nn = nn.value
+
+    let set nn x = nn.value <- x
+
+    let next nn = nn.next
+
+    let prev nn = nn.prev
+
+    let rec skip nn = function
+        | 0 -> nn
+        | i when i > 0 -> skip nn.next (i - 1)
+        | i -> skip nn.prev (i + 1)
+
+    let find' pred nn =
+      let rec aux mm =
+        if pred mm.value then Some mm
+        else if mm.next == nn then None else aux mm.next        
+      in aux nn
+ 
+    let find pred nn =
+      match find' pred nn with 
+        Some m -> m | None -> failwith "No value satisfies"      
+
+    let (<*>) f g = fun x -> f (g x)   (*function composition*)                       
+
+    let for_all pred nn = match find' (not <*> pred) nn with None -> true | _ -> false
+
+    let exists pred = not <*> for_all (not <*> pred)
+
+    let to_list nn = fold_right (fun x a -> x :: a) nn []
+
+  end
+
+open Doubly_linked_list
+
+let test1 () = (* of_list, to_list *)
+  let nn = of_list [1;2;3;4;5] in
+  let xs = to_list nn in
+  List.for_all (fun x -> x) [
+                 xs = [1;2;3;4;5];
+                 nn.value = 1;
+                 nn.next.value = 2;
+                 nn.next.next.value = 3;
+                 nn.next.next.next.value = 4;
+                 nn.next.next.next.next.value = 5;
+                 nn.next.next.next.next.next.value = 1;
+                 nn.prev.value = 5;
+                 nn.prev.prev.value = 4;
+                 nn.prev.prev.prev.value = 3;
+                 nn.prev.prev.prev.prev.value = 2;
+                 nn.prev.prev.prev.prev.prev.value = 1;
+               ]
+
+let test2 () = (*length*)
+  length (of_list [1;2;3;4;5]) = 5 &&
+  length (singleton 1) = 1
+
+let test3 () = (*append*)
+  let nn = append (append (append (singleton 1) 2) 3) 4 in
+  to_list nn = [1;2;3;4]
+
+let test4 () = (*prepend*)
+  let nn = prepend (prepend (prepend (singleton 1) 2) 3) 4 in
+  to_list nn = [4;3;2;1]
+
+let test5 () = (*map*)
+  to_list (map (fun x -> x * 2) (of_list [1;2;3;4;5])) = [2;4;6;8;10]
+
+let test6 () = (* good one *)
+  let nn = of_list [1;2;3;4;5] in
+  let mm = of_list [1;2;3;4;5] in
+  let p = nn.next.next.next.next.next in
+  let q = mm.next in
+  remove p;
+  remove q;
+  to_list nn = [1;] && to_list  mm = [1;3;4;5]
+
+let test7 () = (*copy*)
+  let nn = of_list [1;2;3;] in
+  let mm = copy nn in
+  to_list mm = [1;2;3] && not (nn == mm)
+
+let test8 () = (*promote*)
+  to_list (promote (of_list [1;2])) = [2;1] &&
+    to_list (promote (of_list [1;2;3;4])) = [2;1;3;4]
+
+let test9 () = (*demote*)
+  to_list (demote (of_list [1;2])) = [2;1] &&
+    to_list (demote (of_list [1;2;3;4])) = [4;2;3;1]
+
+let even x = x mod 2 = 0
+
+let test10 () = (*find*)
+  to_list (find even (of_list [1;2;3;4;5;6;7])) = [2;3;4;5;6;7;1;]
+
+let test11 () = (*for_all*)
+  (not (for_all even (of_list [1;2;3;4;5;6;7]))) &&
+    for_all even (of_list [2;4;6])
+
+let test12 () = (*exists*)
+  exists even (of_list [1;2;3;4;5]) && 
+    not (exists even (of_list [1;3;5;]))
+
+let test13 () = (*fold_left,fold_right*)
+  fold_left (fun a x -> a ^ x) "" (of_list ["a"; "b"; "c"]) = "abc" &&
+    fold_right (fun x a -> a ^ x) (of_list ["a"; "b"; "c"]) "" = "cba"
+
+let test14 () = (*skip*)
+  let nn = of_list [1;2;3;4;5] in
+  let nn' = skip nn 0 in
+  let nn'' = skip nn 2 in
+  let nn''' = skip nn (-2) in
+  nn == nn' && nn.next.next == nn'' && nn.prev.prev == nn'''
+
+let test15 () =
+  (for_all (fun x -> x) (of_list [true;true;true;true;true;true;true;])) &&
+    not (for_all (fun x -> x) (of_list [true;false;true;true;true;true;true;]))
+
+let test () = 
+  List.fold_left (fun i t -> if t ()
+                             then Printf.printf "TEST #%d: PASS\n" i
+                             else Printf.printf "TEST #%d: FAIL\n" i;
+                             i+1) 1
+                 [
+                   test1; 
+                   test2; 
+                   test3; 
+                   test4; 
+                   test5; 
+                   test6;
+                   test7; 
+                   test8; 
+                   test9;
+                   test10;
+                   test11;
+                   test12; 
+                   test13;
+                   test14; 
+                   test15] 
+  
