@@ -6,10 +6,11 @@ module type Graph_sig = sig
   type 'a state
 
   val of_adjacency : (node * node list) list -> t
-  val breadth_first_fold : t -> node -> 'b -> ('b -> node -> 'b) -> 'b state
 
+  val breadth_first_fold : t -> node -> 'b -> ('b -> node -> 'b) -> 'b state
   val discovery_times : 'a state -> (node * int) list
   val colors : 'a state -> (node * colors) list
+  val data : 'a state -> 'a
 
 end
 
@@ -23,9 +24,7 @@ module type GRAPH = sig
     include Graph_sig
   end
 
-  module Make : functor (
-     N : sig type t val compare : t -> t -> int end) -> 
-                                        S with type node = N.t
+  module Make : functor ( N : Ord) -> S with type node = N.t
 end
 
 module Graph : GRAPH = struct
@@ -81,6 +80,8 @@ module Graph : GRAPH = struct
       done;
     !state
 
+    let data (s : 'a state) : 'a = s.acc
+
     let discovery_times (s : 'a state) : (node * int) list =
       List.rev (Node_map.fold (fun k d acc -> (k, d) :: acc) (s.d) [])
 
@@ -110,5 +111,6 @@ let g : G.t =
 let s = G.breadth_first_fold g 's' [] (fun acc x -> x :: acc)
 let times = G.discovery_times s
 let colors = G.colors s
+let l = List.rev (G.data s)
 
 (*#val l : Char_graph.node list = ['s'; 'r'; 'w'; 'v'; 'x'; 't'; 'y'; 'u']*)
