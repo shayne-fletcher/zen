@@ -1,0 +1,66 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #11
+2015-03-28 by 
+Difficulty level :
+Medium/Hard
+Problem :
+Breadth-first graph traversal algorithm.
+R&D X-asset Risk/Pricing > Week #011 > lab011-example.png
+
+The graph above has this OCaml adjacency list representation:
+let g : G.t =
+  G.of_adjacency
+    ['r', ['v'; 's']      ;
+     'v', ['r']           ;
+     's', ['r'; 'w']      ;
+     'w', ['x'; 't']      ;
+     't', ['w'; 'x'; 'u'] ;
+     'x', ['w'; 't'; 'y'] ;
+     'u', ['t'; 'y']      ;
+     'y', ['x'; 'u']      ;
+    ]
+That is, where
+module type Graph_sig = sig
+  type node
+  type t
+  type colors = White | Gray | Black
+  type 'a state
+
+
+  val of_adjacency : (node * node list) list -> t
+  val breadth_first_fold : t -> node -> 'b -> ('b -> node -> 'b) -> 'b state
+  val discovery_times : 'a state -> (node * int) list
+  val colors : 'a state -> (node * colors) list
+  val data : 'a state -> 'a
+end
+ 
+module type GRAPH = sig
+  module type Ord=sig 
+    type t val compare : t -> t -> int
+  end
+
+  module type S = sig
+    include Graph_sig
+  end
+
+
+  module Make : functor (N : Ord) -> S with type node = N.t
+end
+For example, in the top-level we can derive these facts about this graph:
+# let s : (G.node list) G.state= G.breadth_first_fold g 's' [] (fun acc x -> x :: acc);;
+val s : G.node list G.state = <abstr>
+# let times : (G.node * int) list = G.discovery_times s;;
+val times : (G.node * int) list = [('r', 1); ('s', 0); ('t', 2); ('u', 3); ('v', 2); ('w', 1); ('x', 2); ('y', 3)]
+# let colors : (G.node * G.colors) list = G.colors s;;
+val colors : (G.node * G.colors) list =
+  [('r', G.Black); ('s', G.Black); ('t', G.Black); ('u', G.Black); ('v', G.Black); ('w', G.Black); ('x', G.Black); ('y', G.Black)]
+# let l : G.node list = List.rev (G.data s);;
+val l : G.node list = ['s'; 'r'; 'w'; 'v'; 'x'; 't'; 'y'; 'u']
+Implement a module satisfying this interface. Hint : Use the OCaml Queue module.
