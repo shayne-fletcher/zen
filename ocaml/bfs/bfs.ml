@@ -40,8 +40,7 @@ module Graph : GRAPH = struct
   module Make (M : Ord) : S with type node = M.t = struct
     type node = M.t
     module Node_map : Map.S with type key = node = Map.Make (M)
-
-    type t = (node list) Node_map.t
+    type t = (node list) Node_map.t (*Adjacency list*)
 
     type colors = White | Gray | Black
 
@@ -53,11 +52,11 @@ module Graph : GRAPH = struct
     }
 
     let of_adjacency (l : (node * node list) list) : t = 
-      List.fold_right (fun (x, y) -> Node_map.add x y) l Node_map.empty
+      List.fold_right (fun ((x : node), (y : node list)) -> Node_map.add x y) l Node_map.empty
 
     let breadth_first_fold (g : t) (s : node) (init : 'b) (f : 'b -> node -> 'b) : 'b state =
       let q : (node Queue.t) = Queue.create () in
-      let v = List.fold_left (fun k (x, _) -> x :: k) [] (Node_map.bindings g) in
+      let v : node list = List.fold_left (fun k (x, _) -> x :: k) [] (Node_map.bindings g) in
       let state : 'a state ref =  ref
         {d=List.fold_right (fun x -> Node_map.add x 0) v Node_map.empty ;
          pred=Node_map.empty;
@@ -65,17 +64,17 @@ module Graph : GRAPH = struct
          acc=f init s} in
       Queue.add s q;
       while not (Queue.is_empty q) do
-        let u = Queue.peek q in
-          let f state v =
+        let u : node = Queue.peek q in
+          let f (state : 'a state) (v: node) =
             if Node_map.find v state.color = White then
               let () = Queue.add v q in
-              let t = (Node_map.find u state.d) + 1 in
+              let t : int = (Node_map.find u state.d) + 1 in
               {d = (Node_map.add v t state.d); pred=Node_map.add v u state.pred; color=Node_map.add v Gray state.color; acc = f state.acc v}
             else
               state
           in
           state := List.fold_left f (!state) (Node_map.find u g) ;
-          let _ =  Queue.pop q in
+          let _ : node =  Queue.pop q in
           state := {!state with color=Node_map.add u Black !state.color}
       done;
     !state
@@ -108,9 +107,9 @@ let g : G.t =
      'y', ['x'; 'u']      ;
     ]
 
-let s = G.breadth_first_fold g 's' [] (fun acc x -> x :: acc)
-let times = G.discovery_times s
-let colors = G.colors s
-let l = List.rev (G.data s)
+let s : (G.node list) G.state= G.breadth_first_fold g 's' [] (fun acc x -> x :: acc)
+let times : (G.node * int) list = G.discovery_times s
+let colors : (G.node * G.colors) list = G.colors s
+let l : G.node list = List.rev (G.data s)
 
 (*#val l : Char_graph.node list = ['s'; 'r'; 'w'; 'v'; 'x'; 't'; 'y'; 'u']*)
