@@ -54,7 +54,24 @@ let mk_stream : 'a. (module Stream_ops) -> (int -> 'a) -> 'a stream =
         end : Stream with type a = s
     )
 
-(*Expose the map function as a standalone value*)
+(*Stream operations as stand-alone functions*)
+
+let hd : 'a. 'a stream -> 'a =
+  fun (type s) stream ->
+    let module Stream = (val stream : Stream with type a = s) in
+    Stream.head Stream.stream
+
+let tl : 'a. 'a stream -> 'a stream =
+  fun (type s) stream ->
+    let module Stream = (val stream : Stream with type a = s) in
+    (module
+        struct
+          type a = s
+          include (Stream : Stream_ops with type 'a t = 'a Stream.t)
+          let stream = Stream.tail Stream.stream
+        end : Stream with type a = s
+    )
+
 let map : 'a. ('a -> 'b) -> 'a stream -> 'b stream =
   fun (type s) (type t) f stream ->
     let module Stream = (val stream : Stream with type a = s) in
@@ -63,9 +80,17 @@ let map : 'a. ('a -> 'b) -> 'a stream -> 'b stream =
       type a = t
       include (Stream : Stream_ops with type 'a t = 'a Stream.t)
       let stream = Stream.map f Stream.stream
-    end : Stream with type a = t)
+    end : Stream with type a = t
+    )
 
-let hd : 'a. 'a stream -> 'a =
-  fun (type s) stream ->
-    let module Stream = (val stream : Stream with type a = s) in
-    Stream.head Stream.stream
+(*e.g.
+
+  # let s = mk_stream (module Functional_stream) (fun i -> i) ;;
+  val s : int stream = <module>
+  # hd s ;;
+  - : int = 0
+  # hd (tl s) ;;
+  - : int = 1
+  # hd (tl (tl s)) ;;
+  - : int = 2
+*)

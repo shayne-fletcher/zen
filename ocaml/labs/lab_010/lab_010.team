@@ -1,17 +1,32 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #10
+2015-03-24 by 
+Difficulty level :
+Medium
+Problem :
+Thus far, our focus has been on purely functional data structures. In general, construction of cyclical data structures requires mutability. Here is a type suitable for the representation of non-empty circular, doubly linked lists.
+type 'a node = { 
+  mutable value : 'a;
+  mutable next : 'a node;
+  mutable prev : 'a node
+}
+For example, the code to construct a list containing one element reads like this.
+let singleton (x : 'a) : 'a node = 
+  let rec nn = { value = x; next = nn ; prev = nn } in nn
+Ok, that should be enough to get you going! Here's the specification for this week's code presented as a module signature.
 (**Doubly linked, circular list. This implementation does not admit
    the empty list.
  *)
 module type Doubly_linked_list_sig = 
   sig
-
-    exception Empty
-
-    type 'a node = { 
-      mutable value : 'a;
-      mutable next : 'a node;
-      mutable prev : 'a node
-    }
-    type 'a t = 'a node
+    type 'a t
 
     val singleton : 'a -> 'a t (*Single element list*)
     val length : 'a t -> int (*The length of the list*)
@@ -37,20 +52,61 @@ module type Doubly_linked_list_sig =
 
   end
 
-module Doubly_linked_list = struct
+Some of these functions are obviously O(N) (like length, copy and fold_xxx for example, but the majority can and should be O(1).
+Solution
 
+There were two submissions this week, both excellent and both submitters commented that, when you get into it, the problem is easy.
+(**Doubly linked, circular list. This implementation does not admit
+   the empty list.
+ *)
+module type Doubly_linked_list_sig = 
+  sig
+    exception Empty
+    type 'a node = { 
+      mutable value : 'a;
+      mutable next : 'a node;
+      mutable prev : 'a node
+    }
+    type 'a t = 'a node
+    val singleton : 'a -> 'a t (*Single element list*)
+    val length : 'a t -> int (*The length of the list*)
+    val append : 'a t -> 'a -> 'a t (*Append a t*)
+    val prepend : 'a t -> 'a -> 'a t (*Prepend a t*)
+    val remove : 'a t -> unit (*Remove a t regardless of where it is*)
+    val map : ('a -> 'b) -> 'a t -> 'b t (*Compute a new list*)
+    val copy : 'a t -> 'a t (*Make a copy of a list*)
+    val promote : 'a t -> 'a t (*Swap [n] with [next n]*)
+    val demote : 'a t -> 'a t (*Swap [n] with [prev n]*)
+    val of_list : 'a list -> 'a t (*Construct from a non-empty list*)
+    val get : 'a t -> 'a (*Given a t, get the data*)
+    val set : 'a t -> 'a -> 'a t (*Set the data in a given t*)
+    val next : 'a t -> 'a t (*Get the t after the given one*)
+    val prev : 'a t -> 'a t (*Get the t before the given one*)
+    val skip : 'a t -> int -> 'a t (*The t [i] ts after/before [n]*)
+    val fold_left : ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b (*Left fold*)
+    val fold_right : ('a -> 'b -> 'b) -> 'a t -> 'b -> 'b (*Right fold*)
+    val find : ('a -> bool)  -> 'a t -> 'a t (*Find t satisfying [p]*)
+    val for_all : ('a -> bool) -> 'a t -> bool (*True if [p] for all ts*)
+    val exists : ('a -> bool) -> 'a t -> bool (*True if [p] for some t*)
+    val to_list : 'a t -> 'a list (*Convert to a regular list*)
+  end
+
+
+module Doubly_linked_list = struct
   type 'a node = { 
     mutable value : 'a;
     mutable next : 'a node;
     mutable prev : 'a node
   }
-
   exception Empty
+
 
   type 'a t = 'a node
 
+
   let singleton (x : 'a) : 'a node = 
     let rec nn = { value = x; next = nn ; prev = nn } in nn
+
 
   let length (n : 'a node) : int = 
     let rec loop (acc : int) (o : 'a node) : int =
@@ -58,17 +114,20 @@ module Doubly_linked_list = struct
       else loop (1 + acc) o.next in
     loop 1 n.next
 
+
   let append (l : 'a node) (x : 'a) : 'a node =
     let nn = { value = x; next = l.next; prev = l } in
     l.next.prev <- nn;
     l.next <- nn;
     nn
 
+
   let prepend (l : 'a node) (x : 'a) : 'a node =
     let nn = { value = x; next = l; prev = l.prev; } in
     l.prev.next <- nn;
     l.prev <- nn;
     nn
+
 
   let of_list (lst : 'a list) : 'a node =
     match lst with
@@ -86,6 +145,7 @@ module Doubly_linked_list = struct
             loop nn t 
        in loop first t
 
+
   let map (f : 'a -> 'b) (node : 'a node) : 'b node= 
     let first = singleton (f node.value) in
     let rec loop (last : 'b node) (n : 'a node) =
@@ -102,6 +162,7 @@ module Doubly_linked_list = struct
         end in
     loop first node.next
 
+
   let remove (n : 'a node) : unit =
     if n.next == n then
       raise Empty (*Singleton list*)
@@ -115,7 +176,9 @@ module Doubly_linked_list = struct
       n.prev <-n
       end
 
+
   let copy (n : 'a node) : 'a node = map (fun x -> x) n
+
 
   let promote (n : 'a node) : unit =
     let prev = n.prev in
@@ -130,6 +193,7 @@ module Doubly_linked_list = struct
         prev.next <- next
     end
 
+
   let demote (n : 'a node) : unit =
     let next = n.next in 
     let prev = n.prev in
@@ -143,11 +207,18 @@ module Doubly_linked_list = struct
         next.prev <- prev
       end
 
+
   let get ({value; _} : 'a node) : 'a = value
+
+
   let set (r : 'a node) (x : 'a) : 'a node = {r with value = x}
 
+
   let next ({next; _} : 'a node) : 'a node  = next
+
+
   let prev ({prev; _} : 'a node) : 'a node  = prev
+
 
   let skip (node : 'a node) (k : int) : 'a node =
     let rec loop k n =
@@ -160,6 +231,7 @@ module Doubly_linked_list = struct
           loop (k - 1) n.next
     in loop k node
 
+
   let fold_left 
         (f : 'b -> 'a -> 'b) 
         (init : 'b) 
@@ -171,6 +243,7 @@ module Doubly_linked_list = struct
       else
         loop (f acc value) next in
     loop acc next
+
 
   let fold_right
         (f : 'a -> 'b -> 'b) 
@@ -185,11 +258,14 @@ module Doubly_linked_list = struct
         loop prev (f value acc) in
     loop prev acc
 
+
   let for_all (p : 'a -> bool) (node : 'a node) : bool =
     fold_left (fun acc x -> acc && (p x)) true node
 
+
   let exists (p : 'a -> bool) (node : 'a node) : bool =
     not (for_all (fun a -> not (p a)) node)
+
 
   let find (p : 'a -> bool) (node : 'a node) : 'a node = 
     let rec loop n =
@@ -197,8 +273,6 @@ module Doubly_linked_list = struct
       else
         if p n.value then n else loop n.next
     in if p node.value then node else loop node.next
-
   let to_list (node : 'a node) : 'a list =
     List.rev @@ fold_left (fun acc x -> x :: acc) [] node
-
 end

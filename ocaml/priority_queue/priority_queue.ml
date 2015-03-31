@@ -138,7 +138,8 @@ module Priority_queue : PRIORITY_QUEUE = struct
   end
 end
 
-(*Type abbreviation*)
+(*Type abbreviations*)
+type 'a order_impl = (module Priority_queue.Ordered_type with type t = 'a)
 type 'a queue_impl = (module Priority_queue.S with type element = 'a)
 
 (*[heap_sort] takes a module as a first class value and uses a localy
@@ -168,3 +169,32 @@ let queue = (module Int_prioqueue : Priority_queue.S with type element = int)
 
 (*Now, pass the module to [heap_sort]*)
 let sorted = heap_sort queue [-1; -2; 2] (*Produces the list [-2; -1; 2]*)
+
+(*Functions to create queue modules*)
+let mk_ord : 'a. unit -> 'a order_impl =
+  fun (type s) () ->
+    (module 
+     struct 
+       type t = s 
+       let compare = Pervasives.compare 
+     end : Priority_queue.Ordered_type with type t = s
+    )
+
+let mk_queue : 'a. 'a order_impl -> 'a queue_impl =
+  fun (type s) ord ->
+    let module Ord = (val ord : Priority_queue.Ordered_type with type t = s) in
+    (module Priority_queue.Make (Ord) : Priority_queue.S with type element = s)
+
+let mk_queue2 : 'a. unit -> 'a queue_impl =
+  fun (type s) ord ->
+    let module Ord = (val mk_ord () : Priority_queue.Ordered_type with type t = s) in
+    (module Priority_queue.Make (Ord) : Priority_queue.S with type element = s)
+
+(*For example,
+    # let s : int queue_impl = mk_queue (mk_ord ());;
+    val s : int queue_impl = <module>
+
+  # heap_sort (mk_queue2 ()) [-3; 1; 5] ;;
+  - : int list = [-3; 1; 5]
+
+*)

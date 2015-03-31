@@ -291,3 +291,199 @@ let test () =
                    test14; 
                    test15] 
   
+(*Sen Han*)
+
+module type Doubly_linked_list_sig =
+  sig
+    type 'a t
+    val singleton : 'a -> 'a t (*Single element list*)
+    val length : 'a t -> int (*The length of the list*)
+    val append : 'a t -> 'a -> 'a t (*Append a node*)
+    val prepend : 'a t -> 'a -> 'a t (*Prepend a node*)
+    val promote : 'a t -> 'a t (*Swap [n] with [next n]*)
+    val demote : 'a t -> 'a t (*Swap [n] with [prev n]*)
+    val map : ('a -> 'b) -> 'a t -> 'b t (*Compute a new list*)
+    val copy : 'a t -> 'a t (*Make a copy of a list*)
+    val remove : 'a t -> unit (*Remove a node regardless of where it is*)
+    val get : 'a t -> 'a (*Given a node, get the data*)
+    val set : 'a t -> 'a -> 'a t (*Set the data in a given node*)
+    val next : 'a t -> 'a t (*Get the node after the given one*)
+    val prev : 'a t -> 'a t (*Get the node before the given one*)
+    val skip : 'a t -> int -> 'a t (*The node [i] nodes after/before [n]*)
+    val fold_left : ('b -> 'a -> 'b) -> 'b -> 'a t-> 'b (*Left fold*)
+    val fold_right : ('a -> 'b -> 'b) -> 'a t-> 'b -> 'b (*Right fold*)
+    val find : ('a -> bool)  -> 'a t-> 'a t(*Find node satisfying [p]*)
+    val for_all : ('a -> bool) -> 'a t-> bool (*True if [p] for all nodes*)
+    val exists : ('a -> bool) -> 'a t-> bool (*True if [p] for some node*)
+    val to_list : 'a t-> 'a list (*Convert to a regular list*)
+    val of_list : 'a list -> 'a t (*Construct from a non-empty list*)
+  end
+
+module Dll : Doubly_linked_list_sig =
+  struct
+    type 'a node = {
+      mutable value : 'a;
+      mutable next: 'a node;
+      mutable prev: 'a node;
+    };;
+
+    type 'a t = 'a node;;
+
+    let singleton (x : 'a) : 'a node =
+      let rec nn = { value = x ; next = nn ; prev = nn } in nn;;
+
+    let rec length t =
+      if t.next == t then 1 else 1 + (length t.next);;
+
+    let append t n =
+      let rec find_last lst = if lst.next == lst then lst else (find_last lst.next) in
+      let last = find_last t in
+      let nn = (singleton n) in
+      last.next <- nn;
+      nn.prev <- last;
+      t;;
+
+    let promote t =
+      let nex = t.next in
+      let prev = t.prev in
+      if nex == prev then raise (Failure "Cannot promote a singleton" ) else begin
+        nex.prev <- prev;
+        prev.next <- nex;
+        t.next <- nex.next;
+        nex.next.prev <- t;
+        t.prev <- nex;
+        nex.next <- t;
+        nex
+      end
+
+    let demote t =
+      let prev = t.prev in
+      let nex = t.next in
+      if nex == prev then raise (Failure  "Cannot demmote a singleton") else begin
+        prev.prev.next <- t;
+        t.prev <- prev.prev;
+        t.next <- prev;
+        prev.prev <- t;
+        prev.next <- nex;
+        nex.prev <- prev;
+        t
+      end
+
+    let prepend t n =
+      let c = (singleton n) in
+      c.next <- t;
+      t.prev <- c;
+      c;;
+
+    let rec map f t =
+      let nn = (singleton (f t.value)) in
+      if t.next == t then nn else begin
+        let n = (map f t.next) in
+        n.prev <- nn;
+        nn.next <- n;
+        nn
+      end;;
+
+    let rec copy t = map (fun x -> x) t;;
+
+    let next t = t.next;;
+
+    let prev t = t.prev;;
+
+    let get t = t.value;;
+
+    let set t v = t.value <- v; t;;
+
+    let rec skip t =
+      function
+      | 0 -> t
+      | n when t.next == t -> raise (Failure "too large number to skip")
+      | n -> (skip t.next (n - 1));;
+
+    let rec find f t =
+      if t.next == t then begin
+        if (f t.value) then t else raise Not_found
+      end
+      else begin
+        if (f t.value) then t else (find f t.next)
+      end;;
+
+    let rec for_all f t =
+      if t.next == t then (f t.value) else (f t.value) && (for_all f t.next);;
+
+    let rec exists f t =
+      if t.next == t then (f t.value) else begin
+        if f t.value then true else (exists f t.next)
+      end;;
+
+    let rec fold_left f acc t =
+      if t.next == t then (f acc t.value) else (fold_left f (f acc t.value) t.next);;
+
+    let rec fold_right f t acc =
+      if t.next == t then (f t.value acc) else (f t.value (fold_right f t.next acc));;
+
+    let rec to_list t =
+      if t.next == t then [t.value] else t.value :: (to_list t.next);;
+
+    let remove t =
+      if t.next == t && t.prev == t then raise (Failure "Empty list")
+      else begin
+        t.prev.next <- t.next;
+        t.next.prev <- t.prev;
+        t.next <- t;
+        t.prev <- t;
+      end
+
+    let rec of_list =
+      function
+      | [] -> raise ( Failure "Empty list" )
+      | [a] -> (singleton a)
+      | hd :: tl -> (prepend (of_list tl) hd);;
+
+  end;;
+
+
+Testing Results:
+
+
+# let a = Dll.of_list [1;2;3;4;5;6;7;8;9;10];;
+val a : int Dll.t = <abstr>
+# Dll.to_list a;;
+- : int list = [1; 2; 3; 4; 5; 6; 7; 8; 9; 10]
+# Dll.length a;;
+- : int = 10
+# Dll.append a 20;;
+- : int Dll.t = <abstr>
+# Dll.to_list a;;
+- : int list = [1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 20]
+# Dll.prepend a 10;;
+- : int Dll.t = <abstr>
+# Dll.find (fun x -> x >10) a;;
+- : int Dll.t = <abstr>
+# let i = Dll.find (fun x -> x > 10) a;;
+val i : int Dll.t = <abstr>
+# Dll.to_list i;;
+- : int list = [20]
+# Dll.exists (fun x -> x > 1000) a;;
+- : bool = false
+# Dll.remove (Dll.next a);;
+- : unit = ()
+# Dll.to_list a;;
+- : int list = [1; 3; 4; 5; 6; 7; 8; 9; 10; 20]
+# Dll.for_all (fun x -> x > 0) a;;
+- : bool = true
+#     let a = Dll.of_list [1;2;3;4;5;6;7;8;9;10];;
+val a : int Dll.t = <abstr>
+# let b = Dll.map (fun x -> x * 2) a;;
+val b : int Dll.t = <abstr>
+# Dll.to_list b;;
+- : int list = [2; 4; 6; 8; 10; 12; 14; 16; 18; 20]
+# Dll.promote (Dll.next a);;
+- : int Dll.t = <abstr>
+# Dll.to_list a;;
+- : int list = [1; 3; 2; 4; 5; 6; 7; 8; 9; 10]
+# Dll.demote (Dll.next (Dll.next a));;
+- : int Dll.t = <abstr>
+# Dll.to_list a;;
+- : int list = [1; 2; 3; 4; 5; 6; 7; 8; 9; 10]
+
