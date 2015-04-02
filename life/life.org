@@ -1,0 +1,56 @@
+* Life
+** DONE Otter to the vet 9:30 <2015-04-02 Thu>
+- Vaccinations
+- Back to Bruce
+** BLAN
+*** TODO: Upgrade OUnit;
+*** TODO: Change directory structure to match new derivatives standard
+** Arahi
+*** TODO Depart Japan <2015-04-03 Fri>
+*** TODO Prepare for Request for Evidence<2015-04-02 Thu>
+- Scan documents, send to Mira, Alisa for dispatch to Fragomen
+- Scan and print greencards for Arahi to take on her journey
+** OCaml
+*** TODO Finish [Bit_set] module
+*** TODO Type equality witnesses, GADTS, type checking
+"OCaml Outlines"
+[[https://blogs.janestreet.com/why-gadts-matter-for-performance/][Why GADTs matter for performance]]
+[[http://okmij.org/ftp/Computation/Existentials.html][Representing existential data types with isomporhpic simple types]]
+[[http://www.math.nagoya-u.ac.jp/~garrigue/papers/ml2010.pdf][First-class modules and composable signatures in Objective Caml 3.12 (PDF version)]]
+[[http://okmij.org/ftp/][OKMIJ]]
+[[http://alaska-kamtchatka.blogspot.com/2010/03/gadts-for-rest-of-us.html][GADTs for the rest of us]]
+[[http://alaska-kamtchatka.blogspot.com/2009/05/rank-2-polymorphism-and-non-uniform.html][Rank-2 polymorphism and non-uniform types, revisited]]
+[[http://alaska-kamtchatka.blogspot.com/][Alaska Ataca a Kamtchatka]]
+** DONE Weekly status report <2015-04-02 Thu>
+** Commodities
+Waiting on James
+** Credit in BLAN
+Implementation in progress
+** Qfd_xva
+*** DONE Get library structure, tests, api build-system, CI set, installers set-up
+** Vol converters
+*** DONE Check-in on ETA with Rhonnie <2015-04-02 Thu>
+** Parallelization project
+Schedule development
+** Kozue
+*** TODO Send money to Mizhuo or Koz to pay AMEX <2015-04-04 Sat>
+** Ideas
+*** TODO Investigate use of Fresh Direct
+** DONE Get Juan's ACCU time in OUT<2015-04-02 Thu>
+** Juan
+- Intenionally empty
+** Dentistry
+*** DONE Talk to Dr. Marchitto's office
+*** TODO Dental appointment 9am, <2015-04-08 Wed>
+*** TODO Talk to Dr. Husa's office
+** DONE Book car for Arahi's trip to the airport, 14:30 4/3 <2015-04-02 Thu>
+** DONE Take greencard to Mira 
+   DEADLINE: <2015-04-02 Thu>
+** DONE Add names to chat
+- ANTONIO GODOY
+- JOSE MONTEIRO
+- GEISON SOUZA
+- BEATRIZ ALVAREZ
+- THIAGO SIQUEIRA
+- GASPARD MONNOYER
+- MARCELA DE SOUZA ZEBROWSKI
