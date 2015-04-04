@@ -6,8 +6,8 @@
 *** TODO: Upgrade OUnit;
 *** TODO: Change directory structure to match new derivatives standard
 ** Arahi
-*** TODO Depart Japan <2015-04-03 Fri>
-*** TODO Prepare for Request for Evidence<2015-04-02 Thu>
+*** DONE Depart Japan <2015-04-03 Fri>
+*** DONE Prepare for Request for Evidence<2015-04-02 Thu>
 - Scan documents, send to Mira, Alisa for dispatch to Fragomen
 - Scan and print greencards for Arahi to take on her journey
 ** OCaml
@@ -33,7 +33,7 @@ Implementation in progress
 ** Parallelization project
 Schedule development
 ** Kozue
-*** TODO Send money to Mizhuo or Koz to pay AMEX <2015-04-04 Sat>
+*** DONE Send money to Mizhuo or Koz to pay AMEX <2015-04-04 Sat>
 ** Ideas
 *** TODO Investigate use of Fresh Direct
 ** DONE Get Juan's ACCU time in OUT<2015-04-02 Thu>
@@ -54,3 +54,7 @@ Schedule development
 - THIAGO SIQUEIRA
 - GASPARD MONNOYER
 - MARCELA DE SOUZA ZEBROWSKI
+** Financial planning
+*** TODO Reach out to Steven
+    DEADLINE: <2015-04-06 Mon>
+    
