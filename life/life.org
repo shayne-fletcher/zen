@@ -34,27 +34,18 @@ Implementation in progress
 Schedule development
 ** Kozue
 *** DONE Send money to Mizhuo or Koz to pay AMEX <2015-04-04 Sat>
+*** DONE Get a second desk for Kozue
+Delivery should be on the 13th
 ** Ideas
 *** TODO Investigate use of Fresh Direct
-** DONE Get Juan's ACCU time in OUT<2015-04-02 Thu>
 ** Juan
-- Intenionally empty
+*** DONE Get Juan's ACCU time in OUT<2015-04-02 Thu>
 ** Dentistry
-*** DONE Talk to Dr. Marchitto's office
 *** TODO Dental appointment 9am, <2015-04-08 Wed>
 *** TODO Talk to Dr. Husa's office
-** DONE Book car for Arahi's trip to the airport, 14:30 4/3 <2015-04-02 Thu>
-** DONE Take greencard to Mira 
-   DEADLINE: <2015-04-02 Thu>
-** DONE Add names to chat
-- ANTONIO GODOY
-- JOSE MONTEIRO
-- GEISON SOUZA
-- BEATRIZ ALVAREZ
-- THIAGO SIQUEIRA
-- GASPARD MONNOYER
-- MARCELA DE SOUZA ZEBROWSKI
 ** Financial planning
 *** TODO Reach out to Steven
     DEADLINE: <2015-04-06 Mon>
-    
+** TODO Book [[http://www.amazon.com/dp/B00STRXHPQ/ref=vas_adwords_B00STRXHPQ_PS_03][Amazon desk assembly]]
+   DEADLINE: <2015-04-14 Tue>
+** TODO Buy a scanner/copier and a webcam
