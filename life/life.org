@@ -1,10 +1,7 @@
 * Life
-** DONE Otter to the vet 9:30 <2015-04-02 Thu>
-- Vaccinations
-- Back to Bruce
 ** BLAN
-*** TODO: Upgrade OUnit;
-*** TODO: Change directory structure to match new derivatives standard
+*** TODO Upgrade OUnit;
+*** DONE Change directory structure to match new derivatives standard
 ** Arahi
 *** DONE Depart Japan <2015-04-03 Fri>
 *** DONE Prepare for Request for Evidence<2015-04-02 Thu>
@@ -21,7 +18,6 @@
 [[http://alaska-kamtchatka.blogspot.com/2010/03/gadts-for-rest-of-us.html][GADTs for the rest of us]]
 [[http://alaska-kamtchatka.blogspot.com/2009/05/rank-2-polymorphism-and-non-uniform.html][Rank-2 polymorphism and non-uniform types, revisited]]
 [[http://alaska-kamtchatka.blogspot.com/][Alaska Ataca a Kamtchatka]]
-** DONE Weekly status report <2015-04-02 Thu>
 ** Commodities
 Waiting on James
 ** Credit in BLAN
@@ -44,8 +40,6 @@ Delivery should be on the 13th
 *** TODO Dental appointment 9am, <2015-04-08 Wed>
 *** TODO Talk to Dr. Husa's office
 ** Financial planning
-*** TODO Reach out to Steven
-    DEADLINE: <2015-04-06 Mon>
 ** TODO Book [[http://www.amazon.com/dp/B00STRXHPQ/ref=vas_adwords_B00STRXHPQ_PS_03][Amazon desk assembly]]
    DEADLINE: <2015-04-14 Tue>
 ** TODO Buy a scanner/copier and a webcam

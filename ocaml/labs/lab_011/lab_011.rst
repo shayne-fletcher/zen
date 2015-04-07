@@ -92,6 +92,204 @@ Implement a module satisfying this interface. Hint : Use the OCaml Queue module.
 
 Solutions:
 
+(*
+Hey Shayne,
+
+Here's my submission for this week's exercise.  I found it difficult
+to design my own data types and implement simple graph traversal, but
+it was a lot of fun to read back through graph theory.  We also got to
+learn a lot about using records and external OCaml modules.  I'm
+looking forward to see how other people implemented it!  I give the
+difficulty a 4/5, but it was probably the most fun and in-depth
+exercise so far.
+
+Thanks for keeping these OCaml exercises going -- I find them
+inspiring, and a great break from normal work to think about
+interesting problems in new ways.  I hope they can survive!  Let me
+know if you need any extra explanation on what I've done.
+
+-Jon
+*)
+
+(* Given module, was extended to get list of nodes and edges *)
+module type Graph_sig = sig
+  type node
+  type t
+  type colors = White | Gray | Black
+  type 'a state
+
+  val of_adjacency : (node * node list) list -> t
+  val breadth_first_fold : t -> node -> 'b -> ('b -> node -> 'b) -> 'b state
+  val discovery_times : 'a state -> (node * int) list
+  val colors : 'a state -> (node * colors) list
+  val data : 'a state -> 'a
+
+  (* Test helpers *)
+  val nodes : t -> node list
+  val edges : t -> (node * node) list
+end
+
+module type GRAPH = sig
+  module type Ord=sig
+    type t val compare : t -> t -> int
+  end
+
+  module type S = sig
+    include Graph_sig
+  end 
+
+  module Make (N : Ord) : S with type node = N.t
+end
+
+module Graph : GRAPH = struct
+    module type Ord = sig
+        type t
+        val compare : t -> t -> int
+    end
+
+    module type S = sig
+        include Graph_sig
+    end
+
+    module Make (N : Ord) : S with type node = N.t = struct
+
+        type node = N.t
+        type t = { nodes : node list ; edges : (node * node) list }
+        type colors = White | Gray | Black
+
+        (* Helper module for easy hashing when storing fold state *)
+        module N_map = Map.Make(N)
+
+        type 'a state = { acc    : 'a ; 
+                          colors : colors N_map.t ;
+                          times  : int N_map.t }
+
+        (* Simple comparator for storing edges sorted by first node, then second
+         * node in the underlying Graph structure *)
+        let edge_compare (l1,l2) (r1,r2) =
+            if (N.compare l1 r1 = 0) then N.compare l2 r2 else N.compare l1 r1
+
+        (* The underlying graph structure is just lists, and we're not doing any
+         * error checking for bad adjacency lists. *)
+        let of_adjacency l =
+            let rec add_helper (nodes, edges) = function
+                | [] -> (nodes, edges)
+                | (n, es)::ns -> 
+                    (* Keep things sorted at each stage using List.merge *)
+                    let cur_edges = List.map (fun e -> (n,e)) es in
+                    add_helper ((List.merge N.compare [n] nodes),
+                                (List.merge edge_compare cur_edges edges)) ns in
+            let nodes, edges = add_helper ([],[]) l in
+            { nodes = nodes ; edges = edges }
+
+        (* Helper functions in fold *)
+
+        (* Gives all nodes adjacent to the current *)
+        let get_adjacent { edges } n =
+            let node_adder n acc (l,r) = if n = l then r :: acc else acc in
+            List.rev (List.fold_left (node_adder n) [] edges)
+
+        (* Creates an initial color state for folding, all is White *)
+        let init_colors nodes = List.fold_left 
+            (fun acc n -> N_map.add n White acc) N_map.empty nodes
+
+        (* Creates an initial time state for folding, first node is at 0 *)
+        let init_times n = N_map.add n 0 N_map.empty
+
+        let breadth_first_fold g n acc f = 
+
+            (* Use a queue to know which nodes to process *)
+            let q = Queue.create () in
+            let () = Queue.push n q in
+
+            (* Helper function when going through the adjacent nodes of the
+             * visited node: only add White nodes to the process queue and 
+             * color them Gray. We bind the queue and discovery time for use
+             * with List.fold_left on the list of adjacent nodes *)
+            let node_adder q t (time_map, color_map) n = 
+                if N_map.find n color_map = White
+                then let () = Queue.push n q in 
+                    (N_map.add n t time_map, N_map.add n Gray color_map)
+                else (time_map, color_map) in
+
+            (* Pop from the queue and create the new state until we're done *)
+            let rec fold_helper g q f s =
+                match Queue.pop q with
+                | exception Queue.Empty -> s
+                | n -> 
+                    (* Set up needed values *)
+                    let acc = f s.acc n in
+                    let times = s.times in
+                    let t = N_map.find n times in
+                    let colors = N_map.add n Black s.colors in
+                    let adj = get_adjacent g n in
+                    (* Add necessary nodes to the queue and update maps *)
+                    let (times, colors) = 
+                        List.fold_left (node_adder q (t+1)) (times, colors) adj
+                    (* Recurse *)
+                    in fold_helper g q f { acc    = acc ; 
+                                           colors = colors ; 
+                                           times  = times }
+            in fold_helper g q f { acc    = acc ; 
+                                   colors = init_colors g.nodes ;
+                                   times  = init_times n }
+
+
+        let data { acc } = acc
+
+        let colors { colors } = 
+            N_map.fold (fun k v acc -> (k,v)::acc) colors []
+
+        let discovery_times { times } = 
+            N_map.fold (fun k v acc -> (k,v)::acc) times []
+
+        (* Test helpers *)
+        let nodes { nodes } = nodes
+        let edges { edges } = edges
+
+    end
+end
+
+(* Testing *)
+module G : Graph.S with type node = Char.t = Graph.Make (Char)
+let g : G.t = G.of_adjacency
+  [ 'r', ['v' ; 's']       ;
+    'v', ['r']             ;
+    's', ['r' ; 'w']       ;
+    'w', ['x' ; 't']       ;
+    't', ['w' ; 'x' ; 'u'] ;
+    'x', ['w' ; 't' ; 'y'] ;
+    'u', ['t' ; 'y']       ;
+    'y', ['x' ; 'u']       ;
+  ]
+
+let () = print_endline "Node list"
+let ns = G.nodes g
+let () = List.iter (Printf.printf "%c,") ns
+let () = print_endline ""
+
+let () = print_endline "Edge list"
+let es = G.edges g
+let () = List.iter (fun (n1,n2) -> Printf.printf "%c -> %c\n" n1 n2) es
+
+let () = print_endline "Fold result"
+let s = G.breadth_first_fold g 's' [] (fun acc x -> x :: acc)
+let d = List.rev (G.data s)
+let () = List.iter (Printf.printf "%c\n") d
+
+let c = G.colors s
+let () = print_endline "Colors"
+let string_of_color = function
+    | G.White -> "White"
+    | G.Black -> "Black"
+    | G.Gray -> "Gray"
+let () = List.iter (fun (n,c) -> Printf.printf "(%c, %s)\n" n (string_of_color c)) c
+
+let t = G.discovery_times s
+let () = print_endline "Discovery times"
+let () = List.iter (fun (n,t) -> Printf.printf "(%c,%d)\n" n t) t
+
+
 (*Eugene Perederey*)
 
 module type Graph_sig = 
@@ -204,3 +402,157 @@ let times : (G.node * int) list = G.discovery_times s;;
 let colors : (G.node * G.colors) list = G.colors s;;
 
 let l : G.node list = List.rev (G.data s);;
+
+(*Sen Han*)
+
+module type Graph_sig = sig
+  type node
+  type t
+  type colors = White | Gray | Black
+  type 'a state
+  val of_adjacency : (node * node list) list -> t
+  val breadth_first_fold : t -> node -> 'b -> ('b -> node -> 'b) -> 'b state
+  val discovery_times : 'a state -> (node * int) list
+  val colors : 'a state -> (node * colors) list
+  val data : 'a state -> 'a
+end;;
+
+module type GRAPH = sig
+  module type Ord=sig
+    type t
+    val compare : t -> t -> int
+  end
+
+  module type S = sig
+    include Graph_sig
+  end
+
+  module Make : functor(N : Ord) -> S with type node = N.t
+end;;
+
+module Graph : GRAPH = struct
+
+  module type Ord=sig
+    type t
+    val compare : t -> t -> int
+  end
+
+  module type S = sig
+    include Graph_sig
+  end
+
+  module Make (N: Ord) : ( S with type node = N.t) =
+    struct
+
+      module Node_map = Map.Make(N)
+
+      type node = N.t
+
+      type t = (node list) Node_map.t
+
+      type colors = White | Gray | Black
+
+      type 'a state = {
+        discovery_times: int Node_map.t;
+        colors: colors Node_map.t;
+        acc: 'a
+      }
+
+      let  rec of_adjacency =
+        function
+          | [] -> Node_map.empty
+          | (key, neighbours) :: tl -> Node_map.add key neighbours (of_adjacency tl)
+
+      let state_init (g : t) (init_acc: 'b ) : 'b state= {
+        discovery_times = Node_map.map (fun x -> -1) g;
+        colors = Node_map.map (fun x -> White) g;
+        acc = init_acc;
+      }
+
+      let set_color (state : 'b state) (n : node)  (color: colors) : 'b state =
+        { state with colors = (Node_map.add n color state.colors) }
+
+      let visit (state : 'b state) (n : node) (f : 'b -> node -> 'b) : ('b state) =
+        { state with acc = (f state.acc n) ;
+        colors = (Node_map.add n Black state.colors) }
+
+      let unvisited state n =
+        match (Node_map.find n state.colors) with
+        | White -> true
+        | _ -> false
+
+      let on_queue current_time queue state n =
+        if (unvisited state n) then begin
+        Queue.add n queue;
+        { (set_color state n Gray) with discovery_times = (Node_map.add n current_time state.discovery_times) }
+        end else state
+
+      let breadth_first_fold (g : t)  (s : node)  (ac : 'b)  (func : ('b -> node -> 'b)) : 'b state=
+        let q = (Queue.create ()) in
+        let first_state = (on_queue 0 q (state_init g ac) s) in
+        let rec traverse (queue : node Queue.t) (state : 'b state) (graph : t) (f: ('b -> node -> 'b)) : ('b state) = if (Queue.is_empty queue) then state else begin
+            let cur = Queue.take queue in
+            let cur_state = visit state cur f in
+            let current_time = ((Node_map.find cur state.discovery_times) + 1) in
+            let cur_state = List.fold_left (fun acc x -> on_queue current_time queue acc x ) cur_state (Node_map.find cur graph) in
+            (traverse queue cur_state graph f)
+          end
+        in
+        (traverse q first_state g func )
+
+      let discovery_times ( state : 'a state ) : ( (node * int) list ) =
+        List.rev (Node_map.fold (fun key value acc -> (key, value)::acc ) state.discovery_times [])
+
+      let colors (state : 'a state) : ((node * colors) list ) =
+        List.rev (Node_map.fold (fun key value acc -> (key, value)::acc ) state.colors [])
+
+      let data (state : 'a state) : 'a = state.acc
+
+    end
+end;;
+
+bash-4.2$ ocamlc graph.ml
+bash-4.2$ ocaml
+        MLFi version 4.03.0+dev6-2015-01-20
+
+# #load "graph.cmo";;
+# open Graph;;
+# module G : Graph.S with type node = Char.t = Graph.Make (Char);;
+module G :
+  sig
+    type node = Char.t
+    type t
+    type colors = White | Gray | Black
+    type 'a state
+    val of_adjacency : (node * node list) list -> t
+    val breadth_first_fold :
+      t -> node -> 'b -> ('b -> node -> 'b) -> 'b state
+    val discovery_times : 'a state -> (node * int) list
+    val colors : 'a state -> (node * colors) list
+    val data : 'a state -> 'a
+  end
+# let g : G.t =
+  G.of_adjacency
+    ['r', ['v'; 's']      ;
+     'v', ['r']           ;
+     's', ['r'; 'w']      ;
+     'w', ['x'; 't']      ;
+     't', ['w'; 'x'; 'u'] ;
+     'x', ['w'; 't'; 'y'] ;
+     'u', ['t'; 'y']      ;
+     'y', ['x'; 'u']      ;
+    ];;
+val g : G.t = <abstr>
+# let s : (G.node list) G.state= G.breadth_first_fold g 's' [] (fun acc x -> x :: acc);;
+val s : G.node list G.state = <abstr>
+# let times : (G.node * int) list = G.discovery_times s;;
+val times : (G.node * int) list =
+  [('r', 1); ('s', 0); ('t', 2); ('u', 3); ('v', 2); ('w', 1); ('x', 2);
+   ('y', 3)]
+# let colors : (G.node * G.colors) list = G.colors s;;
+val colors : (G.node * G.colors) list =
+  [('r', G.Black); ('s', G.Black); ('t', G.Black); ('u', G.Black);
+   ('v', G.Black); ('w', G.Black); ('x', G.Black); ('y', G.Black)]
+# let l : G.node list = List.rev (G.data s);;
+val l : G.node list = ['s'; 'r'; 'w'; 'v'; 'x'; 't'; 'y'; 'u']
+
