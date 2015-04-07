@@ -556,3 +556,83 @@ val colors : (G.node * G.colors) list =
 # let l : G.node list = List.rev (G.data s);;
 val l : G.node list = ['s'; 'r'; 'w'; 'v'; 'x'; 't'; 'y'; 'u']
 
+(*Jim Coakley*)
+
+module type Graph_sig = sig
+    type node
+    type t
+    type color = White | Gray | Black
+    type 'a state
+ 
+    val of_adjacency : (node * node list) list -> t
+    val breadth_first_fold : t -> node -> 'b -> ('b -> node -> 'b) -> 'b state
+    val discovery_times : 'a state -> (node * int) list
+    val colors : 'a state -> (node * color) list
+    val data : 'a state -> 'a
+    val string_of_color : color -> string
+end
+ 
+module Graph = struct
+    module type Ord = sig
+        type t val compare : t -> t -> int
+    end
+ 
+    module type S = sig
+        include Graph_sig
+    end
+ 
+    module Make (N : Ord) : S with type node = N.t = struct
+        module Nodemap = Map.Make (N)
+        type node = N.t
+        type t = (node list) Nodemap.t
+        type color = White | Gray | Black
+
+        type 'a state = {
+            t : int;
+            d : int Nodemap.t;
+            colors : color Nodemap.t;
+            acc : 'a;
+        }
+
+        let string_of_color = function
+        | White -> "White"
+        | Gray -> "Gray"
+        | Black -> "Black"
+        
+        let of_adjacency l = List.fold_right (fun (x, y) -> Nodemap.add x y) l Nodemap.empty
+        
+        let breadth_first_fold g startnode acc fn =
+            let initialstate = {
+                t = 0;
+                d = Nodemap.add startnode 0 Nodemap.empty; (* starting node discovered by default *)
+                colors = Nodemap.add startnode Gray (Nodemap.fold (fun k _ acc -> Nodemap.add k White acc) g Nodemap.empty); (* starting node is gray already *)
+                acc = acc
+            }
+            in let q = Queue.create ()
+            in 
+            Queue.add startnode q; (* Add the starting node to prime the queue *)
+            let rec visit state =  (* Helper function to repeatedly take nodes off the queue and do stuff to them *)
+                let currnode = Queue.take q
+                in let graystate = List.fold_left (* Fold over all the nodes adjacent to current node. Add them to the queue and mark them as gray *)
+                    (fun state' n ->
+                        if Nodemap.find n state'.colors = White then ( (Queue.add n q); { state' with d = (Nodemap.add n state'.t state'.d); colors = (Nodemap.add n Gray state'.colors) } )
+                        else (state') )
+                    { state with acc = (fn state.acc currnode); t = state.t + 1 } (* Increase we process a node off the queue *)
+                    (Nodemap.find currnode g)
+                in let donestate = { graystate with colors = (Nodemap.add currnode Black graystate.colors) } (* Mark current node as black *)
+                in if Queue.is_empty q then (donestate) else (visit donestate)
+            in let finalstate = visit initialstate
+            in finalstate
+
+        let discovery_times state = 
+            List.rev (Nodemap.fold (fun k v acc -> (k, v)::acc) state.d [])
+        
+        let colors state = 
+            List.rev (Nodemap.fold (fun k v acc -> (k, v)::acc) state.colors [])
+        
+        let data state = 
+            state.acc
+    end
+end
+
+
