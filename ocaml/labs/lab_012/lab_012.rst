@@ -1,0 +1,60 @@
+Guassian elimination is an algorithm for solving the linear equation
+`Ax = b`.
+
+We'll use ``type 'a array`` to represent the quantities in the above
+equation. Note that despite ``type 'a array `` being a mutable data
+structure in OCaml, it is possible (perhaps not advisable) to write
+the algorithm in a purely functional style and that's the objective
+here.
+
+Specifically, the idea is to view an expression like ``[|a; b; c|]``
+as a row vector and an expression like ``[|[|a|]; [|b|]; [|c|]|]`` as
+a column vector. A matrix we'll represent as an array of row vectors.
+
+Given these definitions
+::
+
+  val scale_row : float array -> float -> float array
+  val subtract_rows : float array -> float array -> float array
+
+that's enough to proceed directly to forward elmination of an
+augmented coefficient matrix (the part of the algorithm that puts the
+system in "row echelon form"):
+::
+
+  val elimination_phase : float array array -> float array array
+
+Now, with a suitable definition for a vector dot product (``fold``
+anyone?),
+::
+
+  val dot : float array -> float array -> float
+
+then the back substitution phase of the algorithm follows easily
+::
+
+  val back_substitution_phase : float array array -> float array array
+
+(the result is a column vector of course, the "solution" to the
+system).
+
+Putting the pieces together we can write the Gauss elimination
+algorithm then as
+::
+
+  let gauss (A : float array array) : float array array = 
+           A |> elmination_phase |> back_substitution_phase
+
+For example, you should for
+::
+
+        6   -4     1
+  A =  -4    6    -1
+        1   -4     6
+
+and
+::
+
+  b = (-14, 36, 6)^T
+
+that a solution is given by (10, 22, 14)^T.
