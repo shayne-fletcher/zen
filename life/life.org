@@ -8,7 +8,7 @@
 - Scan documents, send to Mira, Alisa for dispatch to Fragomen
 - Scan and print greencards for Arahi to take on her journey
 ** OCaml
-*** TODO Finish [Bit_set] module
+*** DONE Finish [Bit_set] module
 *** TODO Type equality witnesses, GADTS, type checking
 "OCaml Outlines"
 [[https://blogs.janestreet.com/why-gadts-matter-for-performance/][Why GADTs matter for performance]]
@@ -18,6 +18,7 @@
 [[http://alaska-kamtchatka.blogspot.com/2010/03/gadts-for-rest-of-us.html][GADTs for the rest of us]]
 [[http://alaska-kamtchatka.blogspot.com/2009/05/rank-2-polymorphism-and-non-uniform.html][Rank-2 polymorphism and non-uniform types, revisited]]
 [[http://alaska-kamtchatka.blogspot.com/][Alaska Ataca a Kamtchatka]]
+sexp
 ** Commodities
 Waiting on James
 ** Credit in BLAN
@@ -37,9 +38,9 @@ Delivery should be on the 13th
 ** Juan
 *** DONE Get Juan's ACCU time in OUT<2015-04-02 Thu>
 ** Dentistry
-*** TODO Dental appointment 9am, <2015-04-08 Wed>
+*** DONE Dental appointment 9am, <2015-04-08 Wed>
 *** TODO Talk to Dr. Husa's office
 ** Financial planning
-** TODO Book [[http://www.amazon.com/dp/B00STRXHPQ/ref=vas_adwords_B00STRXHPQ_PS_03][Amazon desk assembly]]
+** DONE Book [[http://www.amazon.com/dp/B00STRXHPQ/ref=vas_adwords_B00STRXHPQ_PS_03][Amazon desk assembly]]
    DEADLINE: <2015-04-14 Tue>
 ** TODO Buy a scanner/copier and a webcam
