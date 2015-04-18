@@ -98,8 +98,7 @@ module Directed_graph : DIRECTED_GRAPH = struct
 
     let transpose (g : t) : t = 
       let bindings : (node * node list) list = Node_map.bindings g in
-      let keys : node list =
-        List.fold_left (fun acc (k, _) -> k :: acc) [] bindings in
+      let keys : node list = List.fold_left (fun acc (k, _) -> k :: acc) [] bindings in
       let edges_from (v : node) : node list =
         List.fold_left (fun acc (u, edges) -> 
           if List.mem v edges then u :: acc else acc ) [] bindings in
@@ -131,5 +130,21 @@ let g : G.t =
   ]
 let h : (char * char list) list = G.to_adjacency g
 let i = G.to_adjacency (G.transpose g)
+
 let string_of_char (c : char) : string = Bytes.to_string (Bytes.make 1 c)
 let digraph : string = G.to_dot_digraph string_of_char g
+
+(*Can't do this in the top-level*)
+
+let open_write name buf=
+  let ch = open_out name in
+  output ch buf 0 (String.length buf) ; close_out ch
+
+let s = Filename.temp_file "" ".dot"
+let () = open_write s digraph
+(*
+let pid = Unix.create_process "dot.exe" [|"dot.exe"; "-Tpng"; "-O"; s|] Unix.stdin Unix.stdout Unix.stderr
+let _ = Unix.waitpid [] pid
+*)
+let _ = Unix.create_process "dotty.exe" [|"dotty.exe"; s|] Unix.stdin Unix.stdout Unix.stderr
+
