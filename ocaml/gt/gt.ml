@@ -330,5 +330,3 @@ let g : G.t =
   ]
 let h : (char * char list) list = G.to_adjacency g
 let i = G.to_adjacency (G.transpose g)
-
-
