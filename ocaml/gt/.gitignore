@@ -1,4 +1,6 @@
 doc
+*\#*
+*.cma
 *.cmxa
 *.lib
 *.cmo

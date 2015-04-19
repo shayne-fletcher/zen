@@ -279,6 +279,40 @@ module type DIRECTED_GRAPH = sig
   end
 end
 
+module Detail = struct
+  module Seq : sig
+    val range : int -> int -> int list
+    val zip : 'a list -> 'b list -> ('a * 'b) list
+  end = struct 
+    let range (s : int) (e : int) : int list = 
+      let rec aux (acc : int list) (s : int) (e : int) = 
+        if s >= e then acc
+        else aux (s :: acc) (s + 1) e
+      in List.rev (aux [] s e)
+
+    let rec zip (xs : 'a list) (ys : 'b list) : ('a * 'b) list = 
+      match xs, ys with
+      | ([], _) -> []
+      | (_, []) -> []
+      | (x :: xs, y :: ys) -> (x, y) :: zip xs ys
+  end
+
+  module Perm : sig
+    val sorted_ascending_permutation : 'a list -> int list
+    val sorted_descending_permutation : 'a list -> int list
+  end = struct
+    let sorted_ascending_permutation (s : 'a list) : int list =
+      let compare (f, u) (g, v) = if f < g then -1 else if f = g then 0 else 1 in
+      let f acc (_, u) = u :: acc in
+      List.rev (List.fold_left f [] (List.sort compare (Seq.zip s (Seq.range 0 (List.length s)))))
+
+    let sorted_descending_permutation (s : 'a list) : int list =
+      let compare (f, u) (g, v) = if f < g then -1 else if f = g then 0 else 1 in
+      let f acc (_, u) = u :: acc in
+      List.fold_left f [] (List.sort compare (Seq.zip s (Seq.range 0 (List.length s))))
+  end
+end
+
 (**[Directed_graph] implements [DIRECTED_GRAPH]*)
 module Directed_graph : DIRECTED_GRAPH = struct
 
@@ -312,21 +346,3 @@ module Directed_graph : DIRECTED_GRAPH = struct
 
   end
 end
-
-(*Test*)
-module G : Directed_graph.S with type node = Char.t = Directed_graph.Make (Char)
-
-let g : G.t =
-  G.of_adjacency
-  [
-    'a', ['b']           ;
-    'b', ['e'; 'f'; 'c'] ;
-    'c', ['d'; 'g']      ;
-    'd', ['c'; 'h']      ;
-    'e', ['a'; 'f']      ;
-    'f', ['g']           ;
-    'g', ['f'; 'h']      ;
-    'h', ['h']           ;
-  ]
-let h : (char * char list) list = G.to_adjacency g
-let i = G.to_adjacency (G.transpose g)
