@@ -300,6 +300,7 @@ module Detail = struct
   module Perm : sig
     val sorted_ascending_permutation : 'a list -> int list
     val sorted_descending_permutation : 'a list -> int list
+    val apply_permutation : 'a list -> int list -> 'a list
   end = struct
     let sorted_ascending_permutation (s : 'a list) : int list =
       let compare (f, u) (g, v) = if f < g then -1 else if f = g then 0 else 1 in
@@ -310,6 +311,11 @@ module Detail = struct
       let compare (f, u) (g, v) = if f < g then -1 else if f = g then 0 else 1 in
       let f acc (_, u) = u :: acc in
       List.fold_left f [] (List.sort compare (Seq.zip s (Seq.range 0 (List.length s))))
+
+    let apply_permutation (s : 'a list) (p : int list) : 'a list =
+      let f acc i = (List.nth s i) :: acc in
+      List.rev (List.fold_left f [] p)
+
   end
 end
 
