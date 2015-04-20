@@ -72,8 +72,11 @@ module type Graph_sig = sig
      a specific source node*)
   val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a state -> 'a state
 
-  (**Depth-first search order graph traversal over a subset of nodes*)
-  val dfs_traverse_subset : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
+  (**Depth-first search order graph traversal given sources nodes*)
+  val dfs_traverse : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
+
+  (**[dfs_trees g vs fn init] folds over the depth-first forest of [g]*)
+  val dfs_trees_fold : t -> node list -> ('a -> node list -> 'a) -> 'a -> 'a
 
 end
 
@@ -129,7 +132,8 @@ module type GRAPH=sig
     val value_of_state : 'a state -> 'a
     val predecessor_subgraph : 'a state -> (node * node) list
     val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a state -> 'a state
-    val dfs_traverse_subset : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
+    val dfs_traverse : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
+    val dfs_trees_fold : t -> node list -> ('a -> node list -> 'a) -> 'a -> 'a
     val vertices : t -> node list
     val of_adjacency : (node * node list) list -> t
     val to_adjacency : t -> (node * node list) list
@@ -209,15 +213,31 @@ module Graph : GRAPH = struct
         t , {d; f=(Node_map.add u t f); pred;
              color=Node_map.add u Black color; acc}
       in
-      (snd (dfs_visit 0 c init))
+       if Node_map.find c init.color = White 
+       then
+         (snd (dfs_visit 0 c init))
+       else init
 
-    let dfs_traverse_subset
+    let dfs_traverse 
         (g : t) 
-        (vs : node list)
+        (vs : node list) 
         (fn : 'a -> node -> 'a) 
         (init : 'a state) : 'a state =
       let f (acc : 'a state) (u : node) : 'a state = dfs_fold g u fn acc in
       List.fold_left f init vs
+
+    let dfs_trees_fold
+        (g : t) 
+        (vs : node list)
+        (fn : 'a -> node list -> 'a) 
+        (init : 'a) : 'a = 
+      let f ((s : (node list) state), (acc : 'a)) 
+                 (u : node) : (node list state * 'a) =
+        let s : (node list) state = dfs_fold g u (fun acc v -> v :: acc) s in
+        let tree : node list = List.rev s.acc in
+        ({s with acc = []}, if List.length tree = 0 then acc else fn acc tree) in 
+      let ((_: (node list) state), (trees : 'a)) = List.fold_left f ((initial_state g []), init) vs in
+      trees
 
     let of_adjacency (l : (node * node list) list) : t =
       List.fold_right (fun ((x : node), (y : node list)) -> Node_map.add x y) l Node_map.empty
@@ -268,7 +288,8 @@ module type DIRECTED_GRAPH = sig
     val value_of_state : 'a state -> 'a
     val predecessor_subgraph : 'a state -> (node * node) list
     val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a state -> 'a state
-    val dfs_traverse_subset : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
+    val dfs_traverse : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
+    val dfs_trees_fold : t -> node list -> ('a -> node list -> 'a) -> 'a -> 'a
     val vertices : t -> node list
     val of_adjacency : (node * node list) list -> t
     val to_adjacency : t -> (node * node list) list

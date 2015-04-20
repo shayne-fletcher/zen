@@ -1,4 +1,4 @@
-rm *.opt *.cmx *.cmxa
+rm *.opt *.cmx *.cmxa *.cma
 
 ocamlc -c gt.ml
 ocamlc -verbose -o graph.cma -a gt.cmo
