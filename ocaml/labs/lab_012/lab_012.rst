@@ -58,3 +58,340 @@ and
   b = (-14, 36, 6)^T
 
 that a solution is given by (10, 22, 14)^T.
+
+Solutions:
+
+::
+
+  (*Joel Bjornson*)
+  (*
+   * Tested on OCaml version 4.
+   * Roughly following description of the algorithm at: http://en.wikipedia.org/wiki/Gaussian_elimination
+   * The efficiency could likely be improved by avoiding allocation of temporary 
+   * arrays and use in-place mutatation (while still keeping the external interface immutable).
+   *
+   * Difficulty: 3/5
+   *)
+  
+  module Utils = struct
+  
+      (* Function composition. *)
+      let (>>) f g x = g @@ f x
+  
+      (* Generate a range of integers. *)
+      let (--) (i: int) (j: int) : int list = 
+          let rec go n acc =
+              if n < i then acc else go (n-1) (n :: acc)    
+          in go j []
+  end
+  
+  open Utils
+  
+  type row  = float array
+  
+  type matrix = row array
+  
+  (* Multiply a row vector with a scalar. *)
+  let scale_row n = Array.map (( *. ) n)
+  
+  (* Addition and subtract_vecions for row vectors. *)
+  let add_rows r1 r2 = Array.mapi (fun ix x -> x +. Array.get r2 ix) r1
+  let subtract_rows r1 r2 = add_rows r1 @@ scale_row (-1.) r2
+  
+  (* Dot product for two row vectors. *)
+  let dot r1 r2 = 
+      let ixs = 0 -- (Array.length r1  - 1) in
+      List.fold_left (fun s ix -> s +. r1.(ix) *. r2.(ix)) 0. ixs
+  
+  (* Swaps two rows. *)
+  let swap_rows i j m =
+      Array.init (Array.length m) (fun r -> 
+          let r' =  if r = i then j else if r = j then i else r in
+          Array.get m r' 
+      )
+  
+  (* Eliminate to row-echelon form. *)
+  let elimination_phase m =
+      let solve_step m r_ix =
+          let pivot_row = m.(r_ix) in
+          let p_elem = m.(r_ix).(r_ix) in
+          (* Check if absolute value of pivot element is larger than zero. *)
+          if abs_float p_elem > 0. then
+              m
+              |> Array.mapi (fun i row ->
+                  if i > r_ix then
+                      let v = Array.get row r_ix in
+                      let delta = scale_row (v /. p_elem) pivot_row in
+                      subtract_rows row delta
+                  else
+                      row
+              )
+          else
+              (* Find another row with non-zero element and swap *)
+              let res =
+                  Array.to_list m
+                  |> List.mapi (fun i row -> (i,row))
+                  |> List.drop r_ix
+                  |> List.drop_while (fun (i,row) -> abs_float (row.(r_ix)) = 0.)
+              in
+              match res with
+              | []         -> failwith "Unsolvable"
+              | (i,_) :: _ -> solve_step (swap_rows r_ix i m) r_ix
+      in
+      let nr = Array.length m in
+      List.fold_left solve_step m (0 -- (nr -1))
+  
+  (* Accumulate solutions by back-substitution. *)
+  let back_substitute_phase m =
+      let nr = Array.length m in
+      let acc ss row =
+          let ns = List.length ss in
+          let s_ix = nr - ns - 1 in
+          let p = row.(s_ix) in
+          let xs = Array.sub row (s_ix + 1) ns in
+          let k = row.(nr) -. (dot xs (Array.of_list ss)) in
+          let s = (1. /. p) *. k in
+          s :: ss
+      in
+      Array.fold_left acc [] @@ Array.rev m
+  
+  let solve = elimination_phase >> back_substitute_phase 
+  
+  (* Examples *)
+  let r1 = 
+      solve
+          [|
+              [|  2.;  1. ; -1. ;    8. |];
+              [| -3.; -1. ;  2. ;  -11. |];
+              [| -2.;  1. ;  2. ;   -3. |];
+  
+          |]
+  ;;
+  
+  let r2 =
+      solve 
+          [|
+              [| 1. ; 1.;  1.  ; 6.  |];
+              [| 0. ; 2.;  5. ; -4.; |];
+              [| 2. ; 5.; -1.  ; 27.; |]
+          |]
+  ;;
+  let r3 =
+      solve 
+          [|
+              [| 0. ; 1. ; 1. |];
+              [| 1. ; 1. ; -1. |];
+          |]
+  ;;
+  
+
+  (*Sen Han*)
+
+  let scale_row row factor =
+    let length = Array.length row in
+    let result = Array.make length 1.0 in
+    for i = 0 to length - 1 do result.(i) <- (row.(i) *. factor) done;
+    result;;
+  
+  let subtract_rows r1 r2 =
+    let length = Array.length r1 in
+    for i = 0 to length - 1 do r1.(i) <- r1.(i) -. r2.(i) done;;
+  
+  let dot r1 r2 =
+    let rec dot_aux acc l1 l2 =
+      match (l1, l2) with
+      | ([], []) -> acc
+      | (hd1::tl1, hd2::tl2) -> (dot_aux ((hd1 *. hd2) +. acc) tl1 tl2)
+    in
+    dot_aux 0.0 (Array.to_list r1) (Array.to_list r2);;
+  
+  let get (x: int) (y: int) (matrix: float array array) : float =  (Array.get (Array.get matrix x) y);;
+  let set (x: int) (y: int) (value: float) (matrix: float array array) : unit = (Array.set (Array.get matrix x) y value);;
+  
+  let sort (matrix : float array array) : unit =
+    let rec index_of_first_none_zero arr cur =
+      match arr.(cur) with
+      | 0.0 -> index_of_first_none_zero arr (cur + 1)
+      | _ -> cur
+    in
+    (Array.stable_sort (fun x y -> ((index_of_first_none_zero x 0) - (index_of_first_none_zero y 0)) ) matrix);;
+  
+  let print_array arr =
+    let length = Array.length arr in
+    for i = 0 to length - 1 do print_float arr.(i); print_char ' ' done;;
+  
+  let print_matrix (matrix : float array array) : unit =  Array.iter (fun x -> print_array x; print_char '\n' ) matrix;;
+  
+  let pivot_elimination (pivot: int) (matrix : float array array) : unit =
+    let length = Array.length matrix in
+    let pivot_row = (Array.get matrix pivot) in
+    for row = pivot + 1 to length - 1 do begin
+      let ratio =  (get row pivot matrix) /. (get pivot pivot matrix) in
+      let scaled_row = (scale_row pivot_row ratio) in
+      subtract_rows (Array.get matrix row) scaled_row
+    end done;;
+  
+  let elimination_phase (matrix : float array array) : (float array array) =
+    let rec aux matrix cur =
+      if cur < (Array.length matrix) then begin
+        sort matrix;
+        if (get cur cur matrix) <> 0.0 then pivot_elimination cur matrix else raise (Failure "No real solution");
+        (aux matrix (cur + 1))
+      end
+    in
+    (aux matrix 0);
+    matrix;;
+  
+  let back_substitution_phase (matrix: float array array) : (float array) =
+    let row_length = Array.length matrix.(0) in
+    let rec substitute rows_list cur =
+      match rows_list with
+      | [row] -> [|row.(row_length - 1) /. row.(cur)|]
+      | row::tl -> let solutions = (substitute tl (cur + 1)) in
+             let current_solution = (row.(row_length - 1) -. (dot (Array.sub row (cur+1) (row_length - cur - 2) ) solutions)) /. row.(cur) in
+              Array.append [|current_solution|] solutions
+    in
+    substitute (Array.to_list matrix) 0;;
+  
+  let gaussian (matrix: float array array) : (float array) = matrix |> elimination_phase |> back_substitution_phase;;
+  
+  let matrix1 = [|
+    [|1.0;1.0;1.0;-1.0|];
+    [|2.0;2.0;5.0;-8.0|];
+    [|4.0;4.0;8.0;-14.0|];
+  |];;
+  
+  let matrix2 = [|
+    [|6.0;-4.0;1.0;-14.0|];
+    [|-4.0;6.0;-4.0;36.0|];
+    [|1.0;-4.0;6.0;6.0|]
+  |];;
+  
+  print_string "Test 1.: solve a linear system \n";;
+  let solutions = gaussian matrix2;;
+  print_array solutions;;
+  print_char '\n';;
+  
+  print_string "Test 2. : no real solutions \n";;
+  let solutions = gaussian matrix1;;
+  print_array solutions;;
+  
+  Test 1.: solve a linear system
+  10. 22. 14.
+  Test 2. : no real solutions
+  Exception: Failure "No real solution".
+  
+  (* Jon Cinque
+    Here's my submission for this week's exercise.  Working with
+    arrays was an interesting departure from lists, and matrix algebra
+    is always fun.  It took me awhile to figure out what exactly was
+    meant by back substitution since we could just as easily reverse
+    the first elimination phase, but after Googling around I figured
+    it out.  I'd give the difficulty a 2/5.
+  *)
+  (* Simple base functions for Gaussian elimination *)
+  let scale_row (row : float array) (scale : float) : float array = 
+      Array.map (fun f -> f *. scale) row
+  
+  let subtract_rows (row1 : float array) (row2 : float array) : float array =
+      Array.mapi (fun i f -> f -. row2.(i)) row1
+  
+  let dot (v1 : float array) (v2 : float array) : float =
+      Array.mapi (fun i f -> f *. v2.(i)) v1 |> Array.fold_left (+.) 0.
+  
+  (* To avoid writing "Array.length - 1" all over the place *)
+  let last_index (input_array : 'a array) = Array.length input_array - 1
+  
+  (* Helper when mapping through arrays, bind the first two parameters so that the
+   * third one can be passed in by Array.map *)
+  let eliminate_helper (reduce_index : int) 
+                       (top_row : float array)
+                       (iter_row : float array) = 
+      let scale = iter_row.(reduce_index) /. top_row.(reduce_index) in
+      scale_row top_row scale |> subtract_rows iter_row
+  
+  (* Currently assumes that there are no zeroes in the coefficient matrix *)
+  let elimination_phase (coef_matrix : float array array) : float array array =
+      (* Main work to eliminate from the top row down, while this is purely 
+       * functional, it is NOT tail-recursive because of the calls to "sub",
+       * "map", and "append" *)
+      let rec eliminate (index : int) (matrix : float array array) =
+          if Array.length matrix = 1 then matrix
+          else begin
+              let top_row = matrix.(0) in
+              let rest = Array.sub matrix 1 (last_index matrix) in
+              let reduced = Array.map (eliminate_helper index top_row) rest in
+              eliminate (index + 1) reduced |> Array.append [|top_row|]
+          end in
+      eliminate 0 coef_matrix
+  
+  (* Just a copy of elimination phase which goes backwards as an alternative
+   * implementation instead of using back substitution *)
+  let back_elimination_phase (coef_matrix : float array array) 
+                                          : float array array =
+      let rec eliminate (index : int) (matrix : float array array) =
+          let bottom_row = matrix.(last_index matrix) in
+          let normalized_row = scale_row bottom_row (1. /. bottom_row.(index)) in
+          if Array.length matrix = 1 then [| normalized_row |]
+          else begin
+              let rest = Array.sub matrix 0 (last_index matrix) in
+              let reduced = Array.map (eliminate_helper index bottom_row) rest in
+              Array.append (eliminate (index - 1) reduced) [| normalized_row |]
+          end in
+      eliminate (last_index coef_matrix.(0) - 1) coef_matrix
+  
+  (* Starts from the bottom to substitute all results into the equation, only
+   * possible for matrices in echelon form *)
+  let back_substitution_phase (coef_matrix : float array array) 
+                                           : float array array =
+      let fold_helper (row : float array) 
+                      ((index, result) : int * (float array)) = 
+          (* Dot the current result vector with the "equation" to get the
+           * equation with substituted values, subtract it from the "right side" 
+           * of the equation, then divide by the coefficient for the new value *)
+          let substituted = dot (Array.sub row 0 (last_index row)) result in
+          let right = row.(last_index row) in
+          let coef = row.(index) in
+          let () = result.(index) <- (right -. substituted) /. coef in
+          (index - 1, result) in
+      (* Construct a result vector from scratch *)
+      let zeroes = Array.make (Array.length coef_matrix) 0. in
+      (* Fold over the coefficient matrix and build up the result vector *)
+      let (_, result) = Array.fold_right fold_helper coef_matrix 
+                        (last_index coef_matrix, zeroes) in
+      Array.map (fun x -> [| x |]) result
+  
+  let gauss (a : float array array) : float array array =
+      a |> elimination_phase |> back_substitution_phase
+  
+  (* Testing *)
+  let v1 = [| 4. ; 3. ; 2. |]
+  let v2 = [| 2. ; 1. ; 5. |]
+  let () = Printf.printf "%f\n" @@ dot v1 v2
+  
+  let a = [| 
+      [|  6. ; -4. ;  1. ; -14. |] ;
+      [| -4. ;  6. ; -4. ;  36. |] ;
+      [|  1. ; -4. ;  6. ;   6. |] ;
+  |]
+  
+  (* Helper to print matrices *)
+  let matrix_printer a =
+      print_string "[ ";
+      Array.iter (fun v -> print_string "[ "; 
+                           Array.iter (Printf.printf "%f ") v;
+                           print_endline " ]") a;
+      print_endline " ]"
+  let () = matrix_printer a
+  
+  (* Test using elimination phases *)
+  let e = elimination_phase a
+  let () = matrix_printer e
+  
+  let b = back_elimination_phase e
+  let () = matrix_printer b
+  
+  (* Test using full gaussian elimination *)
+  let g = gauss a
+  let () = matrix_printer g
+  
