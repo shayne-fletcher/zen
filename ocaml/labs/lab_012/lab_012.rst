@@ -395,3 +395,148 @@ Solutions:
   let g = gauss a
   let () = matrix_printer g
   
+  (*David Levy -- Rust*)
+
+  Here's my submission for the Gaussian elimination exercise, in Rust.
+  I rate this a 2/5 since it's pretty straightforward, both
+  theory-wise and implementation-wise.  As I mentioned, I had to use
+  mutation quite a bit due to Rust's safety rules.  I could've
+  completely re-organized it to make it look more functional (with
+  immutable data and such), but it would've been non-idiomatic and
+  slower (since Rust doesn't have TCO).
+  
+  -------------------------------
+  
+  //NOTE: this could probably look a lot better without all the
+  //      mutation!
+  use std::iter;
+  use std::ops::{Deref, DerefMut};
+  
+  #[derive(Clone, Debug)]
+  pub struct Row(pub Vec<f64>);
+  
+  impl Row {
+      pub fn as_ref (&self) -> &Vec<f64> {
+          let &Row(ref vec) = self;
+          vec
+      }
+  
+      /// Multiply this row by a scaling factor
+      ///
+      /// val scale_row : float array -> float -> float array
+      pub fn scale (&mut self, factor: f64) {
+  
+          *self = Row(self
+              .iter_mut()                 // iterate through self
+              .map(|x| (*x) * factor)    // multiply by the factor
+              .collect())
+      }
+  
+      /// Subtract a row from this row
+      ///
+      /// val subtract_rows : float array -> float array -> float array
+      pub fn subtract (&mut self, other: &Row) {
+  
+          *self = Row(self
+              .iter_mut()                 // iterate through self
+              .zip(other.iter())          // iterate through other
+              .map(|(x, &y)| (*x) - y)    // perform the subtraction
+              .collect())
+      }
+  
+      /// Add a row to this row
+      pub fn add (&mut self, other: &Row) {
+  
+          *self = Row(self
+              .iter_mut()                 // iterate through self
+              .zip(other.iter())          // iterate through other
+              .map(|(x, &y)| (*x) + y)    // perform the addition
+              .collect())
+      }
+  
+      /// Dot-product this row with another row, returning the result
+      ///
+      /// val dot : float array -> float array -> float
+      pub fn dot_product (&self, other: &Row) -> f64 {
+  
+          self
+              .iter()
+              .zip(other.iter())
+              .map(|(x, y)| x * y)
+              .fold(0.0, |x, y| x + y)
+      }
+  
+  }
+  
+  impl Deref for Row {
+      type Target = Vec<f64>;
+      fn deref<'a> (&'a self) -> &'a Vec<f64> {
+          self.as_ref()
+      }
+  }
+  impl DerefMut for Row {
+      fn deref_mut<'a> (&'a mut self) -> &'a mut Vec<f64> {
+          let &mut Row(ref mut vec) = self;
+          vec
+      }
+  }
+  
+  pub struct Matrix {
+      pub rows: Vec<Row>,
+  }
+  
+  impl Matrix {
+  
+      /// Convert this matrix to row echelon form
+      ///
+      /// val elimination_phase : float array array -> float array array
+      pub fn to_row_echelon (mut self) -> Matrix {
+          for index in 0..self.rows.len() {
+              let mut column = index;
+              while self.rows[index][column] == 0.0 {
+                  column += 1;
+              }
+              let pivot = self.rows[index][column];
+  
+              self.rows[index].scale(1.0 / pivot);
+  
+              // for all rows that aren't this row, perform a scale
+              // and subtraction
+              for row_index in index + 1..self.rows.len() {
+                  let factor  = self.rows[row_index][column];
+                  let mut sub = self.rows[index].clone();
+  
+                  sub.scale(factor);
+                  self.rows[row_index].subtract(&sub);
+              }
+          }
+  
+          Matrix {
+              rows: self.rows,
+          }
+      }
+  
+      /// Solve this matrix (assuming it's in row echelon form)
+      ///
+      /// val back_substitution_phase : float array array -> float array array
+      pub fn solve (self) -> Row {
+          let mut solution = Row(iter::repeat(0.0).take(self.rows.len()).collect());
+  
+          let coeffs = self.rows
+              .iter()
+              .map(|x| Row(x[..x.len() - 1].to_vec()))
+              .collect::<Vec<_>>();
+          let b = Row(self.rows
+              .iter()
+              .map(|x| x[x.len() - 1])
+              .collect::<Vec<_>>());
+  
+          for index in (0..coeffs.len()).rev() {
+              solution[index] = (b[index] - coeffs[index].dot_product(&solution)) / coeffs[index][index];
+          }
+  
+          solution
+      }
+  
+  }
+  
