@@ -14,6 +14,7 @@ module Dotfile = struct
 end
 
 open Gt
+open Dotfile
 
 module G : Directed_graph.S with type node = Char.t = Directed_graph.Make (Char)
 
@@ -29,8 +30,6 @@ let g : G.t =
     'g', ['f'; 'h']      ;
     'h', ['h']           ;
   ]
-
-open Dotfile
 
 let s = Filename.temp_file "" ".dot"
 let () = 

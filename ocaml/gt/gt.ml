@@ -93,6 +93,9 @@ module type Directed_graph_sig = sig
   (**The transpose of a directed graph*)
   val transpose : t -> t
 
+  (**Find strongly connected components*)
+  val strongly_connected_components : t -> (node list) list 
+
   (**{3 Rendering a directed graph}*)
 
   (**A "dotty" compatible string rendering of a directed graph*)
@@ -296,6 +299,7 @@ module type DIRECTED_GRAPH = sig
     val to_dot_graph : (node -> string) -> t -> string
     (*[DIRECTED_GRAPH] types and functions*)
     val transpose : t -> t
+    val strongly_connected_components : t -> (node list) list
     val to_dot_digraph : (node -> string) -> t -> string
   end
 end
@@ -365,11 +369,26 @@ module Directed_graph : DIRECTED_GRAPH = struct
           (Node_map.empty) (vertices g) in
       tr
 
+    let strongly_connected_components (g : t) : (node list) list =
+      let s : unit state = initial_state g () in
+      let ts : (node * int) list = finishing_of_state (dfs_traverse g (vertices g) (fun _ _ -> ()) s) in
+      let gt : t = transpose g in
+      let cmp (x : node * int) (y : node * int) : int =
+        let fx, fy = snd x, snd y in
+        if fx < fy then -1 else if fx = fy then 0 else 1 in
+      let vs : node list = List.map (fun e -> fst e) (List.rev (List.sort cmp ts)) in
+      List.rev (dfs_trees_fold gt vs (fun acc tree -> tree :: acc) [])
+
     (*A 'dot' representation of a graph*)
     let to_dot_digraph (string_of_node : node -> string) (g : t) : string =
+      let components: (node list) list = strongly_connected_components g in
+      let f (l : node list) : string =
+        "{rank=same; "^(String.concat " " (List.map string_of_node l))^"}" in
+      let rank=String.concat "\n" (List.map f components) in
       let f (acc : string) ((key : node), (edges : node list)) : string =
         acc ^ (String.concat "" (List.map (fun v -> Printf.sprintf "%s -> %s;" (string_of_node key) (string_of_node v)) edges)) in
-      Printf.sprintf "digraph { %s }\n" (List.fold_left f "" (Node_map.bindings g))
+      let s = Printf.sprintf "digraph { %s %s }\n" rank (List.fold_left f "" (Node_map.bindings g)) in
+      Printf.printf "%s" s ; s
 
   end
 end
