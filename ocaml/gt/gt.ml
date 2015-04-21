@@ -1,121 +1,46 @@
-(**Root module, [Gt]*)
-
-(**An abbreviation for the map ordered type module signature*)
 module type Ord = Map.OrderedType
 
-(**Suitable for graphs without concern for whether they are directed
-   or undirected*)
 module type Graph_sig = sig
 
-  (**{2 Data structures} *)
-
-  (**{3 Graph representation} *)
-
-  (**The type of a vertex*)
   type node
-
-  (**The type of graphs*)
   type t
 
-  (**{3 Data structures for traversals}*)
+  type colors = | White | Gray| Black
 
-  (**Represents the visitation state of a vertex*)
-  type colors = 
-  | White  (**Not visited*)
-  | Gray  (**Visited not finished*)
-  | Black (**Finished*)
-
-  (**Traversal state : discovery/finishing times, colors. This is a
-     polymorphic record type making it useful for computing values of
-     user defined types via folds*)
   type 'a state
 
-  (**{2 Functions}*)
-
-  (**{3 Adjacency list functions} *)
-
-  (**Adjacency list to graph representation*)
   val of_adjacency : (node * node list) list -> t
-
-  (**Graph to adjacency list representation*)
   val to_adjacency : t -> (node * node list) list
-
-  (**{3 Pretty-print functions} *)
-
-  (**Produce a "dotty" compatible string rendering of a graph
-     (considered undirected)*)
   val to_dot_graph : (node -> string) -> t -> string
-
-  (**{3 Functions of traversal states} *)
-
-  (**A pre-traversal state*)
   val initial_state : t -> 'a -> 'a state
-    
-  (**Colors*)
   val colors_of_state : 'a state -> (node * colors) list
-
-  (**Discovery times*)
   val discovery_of_state : 'a state -> (node * int) list
-
-  (**Finishing times*)
   val finishing_of_state : 'a state -> (node * int) list
-
-  (**Predecssor sub-graph*)
   val predecessor_subgraph : 'a state -> (node * node) list
-
-  (**Value*)
   val value_of_state : 'a state -> 'a
-
-  (**{3 Depth-first-search order graph traversal algorithms}*)
-
-  (**Depth-first search order graph traversal over nodes reachable from
-     a specific source node*)
+  val bfs_fold : t -> node -> ('b -> node -> 'b) -> 'b state -> 'b state
   val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a state -> 'a state
-
-  (**Depth-first search order graph traversal given sources nodes*)
   val dfs_traverse : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
-
-  (**[dfs_trees g vs fn init] folds over the depth-first forest of [g]*)
   val dfs_trees_fold : t -> node list -> ('a -> node list -> 'a) -> 'a -> 'a
 
 end
 
-(**A module type of directed graphs*)
 module type Directed_graph_sig = sig
 
-  (**Satisfies the module type of graphs*)
   include Graph_sig
 
-  (**{2 Functions on directed graphs}*)
-
-  (**{3 Compute a transpose}*)
-
-  (**The transpose of a directed graph*)
   val transpose : t -> t
-
-  (**Find strongly connected components*)
   val strongly_connected_components : t -> (node list) list 
-
-  (**{3 Rendering a directed graph}*)
-
-  (**A "dotty" compatible string rendering of a directed graph*)
   val to_dot_digraph : (node -> string) -> t -> string
+
 end
 
-(**The module type of a module containing a functor called [Make] that
-   takes an ordered type module to a graph module*)
 module type GRAPH=sig
 
-  (**Module type [S] is the module type of graph modules without
-     concern for "directedness". In this restricted view, the types
-     [node] and [t] are abstract*)
   module type S = sig
     include Graph_sig
   end
 
-  (**[Make] is a functor from modules of ordered types to graph
-     modules. We allow the abstractions to be visible in this
-     signature to allow for later composition of modules*)
   module Make : functor (M : Ord) -> sig
     type node = M.t
     module Node_map : Map.S with type key = node
@@ -132,8 +57,9 @@ module type GRAPH=sig
     val colors_of_state : 'a state -> (node * colors) list
     val discovery_of_state : 'a state -> (node * int) list
     val finishing_of_state : 'a state -> (node * int) list
-    val value_of_state : 'a state -> 'a
     val predecessor_subgraph : 'a state -> (node * node) list
+    val value_of_state : 'a state -> 'a
+    val bfs_fold : t -> node -> ('b -> node -> 'b) -> 'b state -> 'b state
     val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a state -> 'a state
     val dfs_traverse : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
     val dfs_trees_fold : t -> node list -> ('a -> node list -> 'a) -> 'a -> 'a
@@ -141,22 +67,18 @@ module type GRAPH=sig
     val of_adjacency : (node * node list) list -> t
     val to_adjacency : t -> (node * node list) list
     val to_dot_graph : (node -> string) -> t -> string
+
   end
 end
 
-(**[Graph] implements [GRAPH]*)
 module Graph : GRAPH = struct
 
-  (*Output signature of the functor [Make]*)
   module type S = sig
-    include Graph_sig (*Restricted to a view where [node] and [t] are abstract*)
+    include Graph_sig
   end
 
-  (*Functor building an implementation of the graph structure given a
-    totally ordered type*)
   module Make (M : Ord) = struct
 
-    (*Concrete definitions of the data types required by [GRAPH]*)
     type node = M.t
     module Node_map : Map.S with type key = node = Map.Make (M)
     type t = (node list) Node_map.t
@@ -169,15 +91,13 @@ module Graph : GRAPH = struct
       acc : 'a ; (*user specified type used by 'fold'*)
     }
 
-    (*The functions contained in functor [Make]*)
-
     let vertices (g : t) : node list =
       List.fold_left (fun acc (k, _) -> k :: acc) [] (Node_map.bindings g)
 
     let initial_state (g : t) (init : 'a) : 'a state =
       let v : node list = vertices g in
-      {d=Node_map.empty;
-       f=Node_map.empty;
+      {d=List.fold_right (fun x -> Node_map.add x min_int) v Node_map.empty ;
+       f=List.fold_right (fun x -> Node_map.add x max_int) v Node_map.empty ;
        pred=Node_map.empty;
        color=List.fold_right (fun x->Node_map.add x White) v Node_map.empty;
        acc=init}
@@ -197,6 +117,27 @@ module Graph : GRAPH = struct
       let f (acc : (node * node) list) (binding : (node * node)) : (node * node) list =
         binding :: acc in
       List.fold_left f [] (Node_map.bindings s.pred)
+
+    let bfs_fold (g : t) (s : node) (f : 'b -> node -> 'b) (init : 'b state) : 'b state =
+      let q : (node Queue.t) = Queue.create () in
+      let v : node list = List.fold_left (fun k (x, _) -> x :: k) [] (Node_map.bindings g) in
+      let state : 'b state ref = ref {init with acc = f init.acc s} in
+      Queue.add s q;
+      while not (Queue.is_empty q) do
+        let u : node = Queue.peek q in
+          let f (state : 'a state) (v: node) =
+            if Node_map.find v state.color = White then
+              let () = Queue.add v q in
+              let t : int = (Node_map.find u state.d) + 1 in
+              {f = Node_map.empty; d = (Node_map.add v t state.d); pred=Node_map.add v u state.pred; color=Node_map.add v Gray state.color; acc = f state.acc v}
+            else
+              state
+          in
+          state := List.fold_left f (!state) (Node_map.find u g) ;
+          let _ : node =  Queue.pop q in
+          state := {!state with color=Node_map.add u Black !state.color}
+      done;
+    !state
 
     let dfs_fold (g : t) (c : node) (fn : 'a -> node -> 'a) (init : 'a state) : 'a state =
       let rec dfs_visit t u {d; f; pred; color; acc} =
@@ -258,21 +199,13 @@ module Graph : GRAPH = struct
   end
 end
 
-(**The module type of a module containing a functor that takes an
-   ordered type module to a directed graph module*)
 module type DIRECTED_GRAPH = sig
 
-  (**Module type [S] is the module type of directed graph modules. In
-     this restricted view, the types [node] and [t] are abstract*)
   module type S = sig
     include Directed_graph_sig
   end
 
-  (**[Make] is a functor from modules of ordered types to directed
-     graph modules. We allow the abstractions to be visible in this
-     signature to allow for later composition of modules*)
   module Make : functor (M : Ord) -> sig
-    (*[GRAPH] types and functions*)
     type node = M.t
     module Node_map : Map.S with type key = node
     type t = node list Node_map.t
@@ -284,12 +217,14 @@ module type DIRECTED_GRAPH = sig
       color : colors Node_map.t ; (*vertex colors*)
       acc : 'a ; (*user specified type used by 'fold'*)
     }
+
     val initial_state : t -> 'a -> 'a state
     val colors_of_state : 'a state -> (node * colors) list
     val discovery_of_state : 'a state -> (node * int) list
     val finishing_of_state : 'a state -> (node * int) list
     val value_of_state : 'a state -> 'a
     val predecessor_subgraph : 'a state -> (node * node) list
+    val bfs_fold : t -> node -> ('b -> node -> 'b) -> 'b state -> 'b state
     val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a state -> 'a state
     val dfs_traverse : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
     val dfs_trees_fold : t -> node list -> ('a -> node list -> 'a) -> 'a -> 'a
@@ -297,63 +232,19 @@ module type DIRECTED_GRAPH = sig
     val of_adjacency : (node * node list) list -> t
     val to_adjacency : t -> (node * node list) list
     val to_dot_graph : (node -> string) -> t -> string
-    (*[DIRECTED_GRAPH] types and functions*)
     val transpose : t -> t
     val strongly_connected_components : t -> (node list) list
     val to_dot_digraph : (node -> string) -> t -> string
   end
+
 end
 
-module Detail = struct
-  module Seq : sig
-    val range : int -> int -> int list
-    val zip : 'a list -> 'b list -> ('a * 'b) list
-  end = struct 
-    let range (s : int) (e : int) : int list = 
-      let rec aux (acc : int list) (s : int) (e : int) = 
-        if s >= e then acc
-        else aux (s :: acc) (s + 1) e
-      in List.rev (aux [] s e)
-
-    let rec zip (xs : 'a list) (ys : 'b list) : ('a * 'b) list = 
-      match xs, ys with
-      | ([], _) -> []
-      | (_, []) -> []
-      | (x :: xs, y :: ys) -> (x, y) :: zip xs ys
-  end
-
-  module Perm : sig
-    val sorted_ascending_permutation : 'a list -> int list
-    val sorted_descending_permutation : 'a list -> int list
-    val apply_permutation : 'a list -> int list -> 'a list
-  end = struct
-    let sorted_ascending_permutation (s : 'a list) : int list =
-      let compare (f, u) (g, v) = if f < g then -1 else if f = g then 0 else 1 in
-      let f acc (_, u) = u :: acc in
-      List.rev (List.fold_left f [] (List.sort compare (Seq.zip s (Seq.range 0 (List.length s)))))
-
-    let sorted_descending_permutation (s : 'a list) : int list =
-      let compare (f, u) (g, v) = if f < g then -1 else if f = g then 0 else 1 in
-      let f acc (_, u) = u :: acc in
-      List.fold_left f [] (List.sort compare (Seq.zip s (Seq.range 0 (List.length s))))
-
-    let apply_permutation (s : 'a list) (p : int list) : 'a list =
-      let f acc i = (List.nth s i) :: acc in
-      List.rev (List.fold_left f [] p)
-
-  end
-end
-
-(**[Directed_graph] implements [DIRECTED_GRAPH]*)
 module Directed_graph : DIRECTED_GRAPH = struct
 
-  (*Output signature of the functor [Make]*)
   module type S = sig
-    include Directed_graph_sig(*Restricted to a view where [node] and [t] are abstract*)
+    include Directed_graph_sig
   end
 
-  (*Functor building an implementation of the directed graph structure
-    given a totally ordered type*)
   module Make (M : Ord) = struct
     include Graph.Make (M)
 
@@ -379,7 +270,6 @@ module Directed_graph : DIRECTED_GRAPH = struct
       let vs : node list = List.map (fun e -> fst e) (List.rev (List.sort cmp ts)) in
       List.rev (dfs_trees_fold gt vs (fun acc tree -> tree :: acc) [])
 
-    (*A 'dot' representation of a graph*)
     let to_dot_digraph (string_of_node : node -> string) (g : t) : string =
       let components: (node list) list = strongly_connected_components g in
       let f (l : node list) : string =
