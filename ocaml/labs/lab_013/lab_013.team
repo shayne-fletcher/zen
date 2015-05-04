@@ -1,0 +1,19 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #13
+2015-05-04 by 
+Difficulty level :
+Medium/Hard
+Problem :
+The idea of this exercise is to implement the front end of an interpreter for a simplified dialect of the Scheme programming language. This will provide an introduction to 
+Lexer generators;
+Parser generators;
+S-expressions;
+Abstract syntax trees (ASTs).
+This particular problem is provided in a stream of "labs" for a Caltech course in OCaml programming. See here for the details of the exercise. Supporting files for the lab are provided here. The actual amount of code you are expected to write is small (less than 80 lines). This exercise isn't too hard but quite rewarding!
