@@ -13,7 +13,7 @@ let rec mul (x : num) (y : num) : num =
   | (_, Z) -> Z
   | (S Z, x) -> x
   | (x, S Z) -> x
-  | (S m, n) -> mul (add n n) m
+  | (S m, n) -> add (mul m n) n
 */
 
 //"c:/program files (x86)/Microsoft Visual Studio 12.0/vc/vcvarsall.bat" x64
