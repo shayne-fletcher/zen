@@ -45,31 +45,60 @@ int to_int (num const& i) {
   return boost::apply_visitor (to_int_visitor (), i);
 }
 
+num from_int (int i) {
+  if (i == 0){
+    return Z {};
+  }
+  else{
+    return S {from_int (i - 1)};
+  }
+}
+
 num add (num l, num r);
 
 struct add_visitor : boost::static_visitor<num> {
   num operator () (Z, S s) const { return s; }
   num operator () (S s, Z) const { return s; }
-  num operator () (S s, S t) const { return S{add (s.i, t)}; }
-
-  template <class U, class V> 
-    num operator ()(U, V) const { throw std::runtime_error("bah"); }
+  num operator () (Z, Z) const { return Z {}; }
+  num operator () (S s, S t) const { return S { add (s.i, t) }; }
 };
 
 num add (num l, num r) {
   return boost::apply_visitor (add_visitor (), l, r);
 }
 
-template <class T> num succ (T const& x) { return S{x}; }
+num succ (num x) { return S{x}; }
+
+struct prd_visitor : boost::static_visitor<num>{
+  num operator () (Z z) const { return z; }
+  num operator () (S s) const { return s.i; }
+};
+
+num prd (num x) {
+  return boost::apply_visitor(prd_visitor (), x);
+}
+
+num sub (num x, num y);
+
+struct sub_visitor : boost::static_visitor<num> {
+  num operator () (Z, Z) const { return Z {}; }
+  num operator () (Z, S) const { return Z {}; }
+  num operator () (S m, Z) const { return m; }
+  num operator () (S m, S n) const { return sub (m.i, prd (n)); }
+};
+
+num sub (num x, num y) { return boost::apply_visitor (sub_visitor (), x, y); }
 
 int main () {
 
-  num zero = Z{};
+  num zero = Z {};
   num one = succ (zero);
   num two = succ (succ (zero));
   num three = succ (succ (succ (zero)));
 
   std::cout << to_int (add (two, three)) << std::endl;
+
+  std::cout << to_int (sub (from_int (23), from_int (12))) << std::endl;
 
   return 0;
 }
