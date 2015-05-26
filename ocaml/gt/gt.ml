@@ -6,18 +6,18 @@ module type Graph_sig = sig
   type t
 
   type colors = | White | Gray| Black
-
   type 'a state
 
-  val of_adjacency : (node * node list) list -> t
-  val to_adjacency : t -> (node * node list) list
-  val to_dot_graph : (node -> string) -> t -> string
   val initial_state : t -> 'a -> 'a state
   val colors_of_state : 'a state -> (node * colors) list
   val discovery_of_state : 'a state -> (node * int) list
   val finishing_of_state : 'a state -> (node * int) list
-  val predecessor_subgraph : 'a state -> (node * node) list
+  val predecessor_subgraph_of_state : 'a state -> (node * node) list
   val value_of_state : 'a state -> 'a
+
+  val of_adjacency : (node * node list) list -> t
+  val to_adjacency : t -> (node * node list) list
+  val to_dot_graph : (node -> string) -> t -> string
   val bfs_fold : t -> node -> ('b -> node -> 'b) -> 'b state -> 'b state
   val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a state -> 'a state
   val dfs_traverse : t -> node list -> ('a -> node -> 'a) -> 'a state -> 'a state
@@ -47,17 +47,17 @@ module type GRAPH=sig
     type t = node list Node_map.t
     type colors = White | Gray | Black
     type 'a state = {
-      d : int Node_map.t ; (*discovery time*)
-      f : int Node_map.t ; (*finishing time*)
-      pred : node Node_map.t ; (*predecessor*)
-      color : colors Node_map.t ; (*vertex colors*)
-      acc : 'a ; (*user specified type used by 'fold'*)
+      d : int Node_map.t ;
+      f : int Node_map.t ;
+      pred : node Node_map.t ;
+      color : colors Node_map.t ;
+      acc : 'a ;
     }
     val initial_state : t -> 'a -> 'a state
     val colors_of_state : 'a state -> (node * colors) list
     val discovery_of_state : 'a state -> (node * int) list
     val finishing_of_state : 'a state -> (node * int) list
-    val predecessor_subgraph : 'a state -> (node * node) list
+    val predecessor_subgraph_of_state : 'a state -> (node * node) list
     val value_of_state : 'a state -> 'a
     val bfs_fold : t -> node -> ('b -> node -> 'b) -> 'b state -> 'b state
     val dfs_fold : t -> node -> ('a -> node -> 'a) -> 'a state -> 'a state
@@ -67,7 +67,6 @@ module type GRAPH=sig
     val of_adjacency : (node * node list) list -> t
     val to_adjacency : t -> (node * node list) list
     val to_dot_graph : (node -> string) -> t -> string
-
   end
 end
 
@@ -84,11 +83,11 @@ module Graph : GRAPH = struct
     type t = (node list) Node_map.t
     type colors = White | Gray | Black
     type 'a state = {
-      d : int Node_map.t ; (*discovery time*)
-      f : int Node_map.t ; (*finishing time*)
-      pred : node Node_map.t ; (*predecessor*)
-      color : colors Node_map.t ; (*vertex colors*)
-      acc : 'a ; (*user specified type used by 'fold'*)
+      d : int Node_map.t ;
+      f : int Node_map.t ;
+      pred : node Node_map.t ;
+      color : colors Node_map.t ;
+      acc : 'a ;
     }
 
     let vertices (g : t) : node list =
@@ -113,14 +112,13 @@ module Graph : GRAPH = struct
 
     let value_of_state (s : 'a state) : 'a = s.acc
 
-    let predecessor_subgraph (s : 'a state) : (node * node) list =
+    let predecessor_subgraph_of_state (s : 'a state) : (node * node) list =
       let f (acc : (node * node) list) (binding : (node * node)) : (node * node) list =
         binding :: acc in
       List.fold_left f [] (Node_map.bindings s.pred)
 
     let bfs_fold (g : t) (s : node) (f : 'b -> node -> 'b) (init : 'b state) : 'b state =
       let q : (node Queue.t) = Queue.create () in
-      let v : node list = List.fold_left (fun k (x, _) -> x :: k) [] (Node_map.bindings g) in
       let state : 'b state ref = ref {init with acc = f init.acc s} in
       Queue.add s q;
       while not (Queue.is_empty q) do
@@ -211,11 +209,11 @@ module type DIRECTED_GRAPH = sig
     type t = node list Node_map.t
     type colors = White | Gray | Black
     type 'a state = {
-      d : int Node_map.t ; (*discovery time*)
-      f : int Node_map.t ; (*finishing time*)
-      pred : node Node_map.t ; (*predecessor*)
-      color : colors Node_map.t ; (*vertex colors*)
-      acc : 'a ; (*user specified type used by 'fold'*)
+      d : int Node_map.t ;
+      f : int Node_map.t ;
+      pred : node Node_map.t ;
+      color : colors Node_map.t ;
+      acc : 'a ;
     }
 
     val initial_state : t -> 'a -> 'a state
@@ -249,16 +247,12 @@ module Directed_graph : DIRECTED_GRAPH = struct
     include Graph.Make (M)
 
     let transpose (g : t) : t =
-      (*Find the nodes 'u' that 'v' such that an edge (u, v)
-        exists. In the transposed graph exists the edge (v, u)*)
-      let edges_from (v : node) : node list =
-        List.fold_left (fun acc (u, edges) ->
-          if List.mem v edges then u :: acc else acc ) [] (Node_map.bindings g) in
-      let tr : t = 
-        List.fold_left 
-          (fun (acc : t) (v : node) -> Node_map.add v (edges_from v) acc)  
-          (Node_map.empty) (vertices g) in
-      tr
+      let acc : t = List.fold_left (fun (acc : t) (u : node) -> Node_map.add u [] acc) Node_map.empty (vertices g) in
+      let f (acc : t) (u : node) : t =
+        let h (acc : t) (v : node) =
+          Node_map.add v (u :: (Node_map.find v acc)) acc
+        in List.fold_left h acc (Node_map.find u g) in
+      List.fold_left f acc (vertices g)
 
     let strongly_connected_components (g : t) : (node list) list =
       let s : unit state = initial_state g () in
