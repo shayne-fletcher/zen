@@ -17,3 +17,156 @@ Parser generators;
 S-expressions;
 Abstract syntax trees (ASTs).
 This particular problem is provided in a stream of "labs" for a Caltech course in OCaml programming. See here for the details of the exercise. Supporting files for the lab are provided here. The actual amount of code you are expected to write is small (less than 80 lines). This exercise isn't too hard but quite rewarding!
+
+Solutions :
+This problem unlike some of the earlier labs, requires something of an investment to get your "head into" (although, when you've done that, there is surprisingly little code to write!). Accordingly, big shout out to the 3 submitters for this exercise - well done!
+
+This is one of those programs, that like algebra, is either right or it isn't. Further, when it is right, there is little room for variability amongst the solutions (so that makes writing this summary easy for me (smile) ).
+
+Without further ado, here we go then. Here's the essence of the lexer:
+  {
+  open Parser
+  }
+
+  ...
+
+  let whitespace = [' ' '\t' '\r' '\n']
+  let integer    = '-'? ['0' - '9']+
+  let id_chars   = ['a' - 'z' '+' '-' '*' '/' '=' '<' '>' '!']
+  let identifier = id_chars id_chars*
+  let commentline= ';' [^ '\n']* '\n'
+  
+  ...
+
+  rule lex = parse
+    | whitespace+                 { lex lexbuf }
+    | commentline                 { lex lexbuf }
+    | "("                         { TOK_LPAREN }
+    | ")"                         { TOK_RPAREN }
+    | "#u"                          { TOK_UNIT }
+    | "#t"                     { TOK_BOOL true }
+    | "#f"                    { TOK_BOOL false }
+    | integer as i { TOK_INT (int_of_string i) }
+    | identifier as s               { TOK_ID s }
+    | eof                            { TOK_EOF }
+    | _ { raise (Failure ("unrecognized token: " ^ (Lexing.lexeme lexbuf))) }
+  
+
+Notice the extension to the whitespace rule : I put a '\r' in there so the program would work correctly on Windows.
+
+Next, a version of the parser.
+
+  parse:
+    | TOK_EOF                             { None }
+    | sexpr                               { Some $1 }
+  
+  sexpr:
+    | atom                                { Sexpr.Expr_atom $1 }
+    | slist                               { Sexpr.Expr_list $1 }
+  
+  atom:  
+    | TOK_UNIT                            { Sexpr.Atom_unit }
+    | TOK_BOOL                            { Sexpr.Atom_bool $1 }
+    | TOK_INT                             { Sexpr.Atom_int $1 }
+    | TOK_ID                              { Sexpr.Atom_id $1 }
+  
+  slist:
+    | TOK_LPAREN sexpr_list TOK_RPAREN    { $2 }
+  
+  sexpr_list:
+    | /* empty */                         { [] }
+    | sexpr sexpr_list                    { $1 :: $2 }
+
+That looks fine to me. I'm a bit old-school in that I still prefer to see ';' to terminate the rules e.g.
+
+r :
+  | a { ... }
+  | b { ... }
+  ; /*This is what I mean*/   
+but as the earlier snippet shows, that is apparently not required in ocamlyacc. One thing I might say is that I believe it's generally advised that you should prefer left-recursive rules in ocamlyacc - better stack usage. So, my grammar reads,
+slist:
+   | TOK_LPAREN sexpr_list TOK_RPAREN
+                              { List.rev $2 }
+   ;
+sexpr_list:
+   | /**/                              { [] }
+   | sexpr_list sexpr            { $2 :: $1 }
+   ;
+
+
+Most participants in the production of the AST from s-expressions wrote according to this kind of pattern:
+
+  let rec ast_of_sexpr sx = ast_of_expr sx
+  
+  and ast_of_expr ex = match ex with
+      | S.Expr_atom a -> ast_of_atom a
+      | S.Expr_list (S.Expr_atom a :: tl) ->
+        begin match a with
+          | S.Atom_id ("define") -> ast_of_define tl
+          | S.Atom_id ("if") -> ast_of_if tl
+          | S.Atom_id ("lambda") -> ast_of_lambda tl
+          | _ -> ast_of_apply (S.Expr_atom a :: tl)
+        end
+      | _ -> failwith "bad expression"
+  
+  and ast_of_atom a = match a with
+      | S.Atom_unit -> Expr_unit
+      | S.Atom_bool b -> Expr_bool b
+      | S.Atom_int i -> Expr_int i
+      | S.Atom_id id -> Expr_id id
+  
+  and  ast_of_define tl = match tl with
+    | S.Expr_atom (S.Atom_id id) :: body :: [] ->
+      Expr_define (id, ast_of_expr body)
+    | _ -> failwith "bad define"
+  
+  and ast_of_if tl = match tl with
+    | e1 :: e2 :: e3 :: body ->
+      let e1' = ast_of_expr e1 in
+      let e2' = ast_of_expr e2 in
+      let e3' = ast_of_expr e3 in
+      Expr_if (e1', e2', e3')
+    | _ -> failwith "bad if"
+  
+  and ast_of_lambda tl =
+    let id_of_expr a = match a with
+      | S.Expr_atom (S.Atom_id id) -> id
+      | _ -> failwith "invalid id"
+    in match tl with
+      | S.Expr_list l1 :: ex ->
+        let ids = List.map id_of_expr l1 in
+        let body = List.map ast_of_expr ex in
+        Expr_lambda (ids, body)
+      | _ -> failwith "bad lambda"
+  
+  and ast_of_apply tl = match tl with
+    | fn :: args ->
+      let fn' = ast_of_expr fn in
+      let args' = List.map ast_of_expr args in
+      Expr_apply (fn', args')
+    | _ -> failwith "bad apply"
+
+By comparison, mine was more direct but I judge it less pretty.
+  let rec ast_of_sexpr (sx : Sexpr.expr) : expr =
+    let raise_syntax_error () = failwith "Syntax error" in
+    match sx with
+    | Sexpr.Expr_atom a -> 
+      begin
+        match a with
+        | Sexpr.Atom_unit -> Expr_unit
+        | Sexpr.Atom_bool b -> Expr_bool b
+        | Sexpr.Atom_int i -> Expr_int i
+        | Sexpr.Atom_id s -> Expr_id s
+      end
+    | Sexpr.Expr_list el -> 
+      begin
+        match el with
+        | [Sexpr.Expr_atom (Sexpr.Atom_id t); cond; then_; else_] when t  = "if" ->
+          Expr_if (ast_of_sexpr cond, ast_of_sexpr then_, ast_of_sexpr else_)
+        | [Sexpr.Expr_atom (Sexpr.Atom_id t); Sexpr.Expr_atom (Sexpr.Atom_id tag); body] when t = "define" ->
+          Expr_define (tag, ast_of_sexpr body)
+        | Sexpr.Expr_atom (Sexpr.Atom_id t) :: Sexpr.Expr_list arglist :: body when t = "lambda" -> 
+          Expr_lambda (List.map (function | Sexpr.Expr_atom (Sexpr.Atom_id s) -> s | _ -> raise_syntax_error ()) arglist, (List.map ast_of_sexpr body))
+        | func :: args -> Expr_apply ((ast_of_sexpr func), (List.map ast_of_sexpr args))
+        | _ -> raise_syntax_error ()
+      end
