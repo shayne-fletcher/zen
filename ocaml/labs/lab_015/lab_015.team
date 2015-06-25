@@ -1,0 +1,64 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #15
+2015-06-16 by 
+Difficulty level :
+Easy/Medium
+Problem :
+This week, we'll do a little numerical analysis, something a little "financial".
+
+Write a program that implements the celebrated Black & Scholes formula for European style options (ignoring dividends). To achieve this, you will require a function to approximate the standard normal cumulative distribution function. One approximation is given by equation 26.2.17 of Abramowitz and Stegun and has been in use since around 1955. Another approximation due to Moro in 1995 is given in code in this article. Yet another approach for the adventurous is to reflect an existing C++ implementation into OCaml. 
+
+Give the results of your function for both a "call" and a "put" given parameters spot = 42, strike = 40, r = 0.1 vol = 0.21, t = 0.5 where r is a flat continuously compounded interest rate to maturity, vol a root-mean-square lognormal volatility, t the time to expiry.
+
+Solutions
+There were two submissions for this lab. Here's the first.
+let cdf (x: float) =
+  let pi = acos (-1.) in
+  let rec aux vl sum = function
+    | n when n <= 100 ->
+      let vl = (vl *. x *. x) /. (2. *. (float n) +. 1.) in
+      aux vl (sum +. vl) (n + 1)
+    | _               -> sum  in
+  let sum = aux x x 1 in
+  0.5 +. (sum /. sqrt (2. *. pi)) *. exp ( -.(x *. x) /. 2.)
+
+
+type option_type = | Call | Put
+
+let black_sholes ~option_type ~spot ~strike ~r ~vol ~t =
+  let vt = vol *. (sqrt t) in
+  let sk = log @@ spot /. strike in
+  let v2 = (vol *. vol) /. 2. in
+  let d1 = (1. /. vt) *. (sk +. (r +. v2) *. t) in
+  let d2 = d1 -. vt in 
+  let er = exp (-.r *. t) in
+  match option_type with
+  | Call  ->    cdf d1 *. spot -. cdf d2 *. strike *. er
+  | Put   ->    cdf (-.d2) *. strike *. er -. cdf (-.d1) *. spot
+This program produces 4.7594223928715387 for the call and 0.8085993729 for the put respectively. These numbers are in close agreement with the results given here. The second solution reads as follows.
+let norm_cdf ( x : float ) : float =
+  let pi = 3.1415926535 in
+  let b1 = 0.319381530 in
+  let b2 = -0.356563782 in
+  let b3 = 1.781477937 in
+  let b4 = -1.821255978 in
+  let b5 = 1.330274429 in
+  let x_abs = abs_float x in
+  let p = 0.2316419 in
+  let t = 1.0 /. (1.0 +. (p *. x_abs)) in
+  let z_x =  (1.0 /. (sqrt (2.0 *. pi )))  *. (exp ( ( -.(x_abs ** 2.0) )  /. 2.0 ) ) in
+  let b_chain = ( b1 *. t ) +. ( b2 *. (t**2.0) ) +. ( b3 *. ( t**3.0 ) ) +. ( b4 *. ( t ** 4.0 ) ) +. ( b5 *. ( t ** 5.0 ) ) in
+  1.0 -. z_x *. b_chain;;
+
+let black_scholes ~spot ~strike ~r ~vol ~t ~cp =
+  let d1 = (log (spot/.strike) +. (r +. 0.5*.(vol*.vol))*.t)/.(vol*.(sqrt t)) in
+  let d2 = d1 -. vol*.(sqrt t) in
+  cp*.spot*.(norm_cdf (cp*.d1)) -. cp*.strike*.(exp ((~-.r)*.t))*.(norm_cdf (cp*.d2));;
+Something is up with the given definition of norm_cdf though - the program doesn't give a reasonable price for the put. Replacing the call to norm_cdf with cdf from the first program recovers the expected value.

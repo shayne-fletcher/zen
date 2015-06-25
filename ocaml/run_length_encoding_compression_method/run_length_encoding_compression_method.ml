@@ -1,6 +1,6 @@
 module F = struct
 
-  type 'a t = | S of 'a | C of (int * 'a)
+  type 'a t = | S of 'a | C of int * 'a
 
   let rle (bytes : 'a list) : 'a t list =
     let f (acc : 'a t list) (b : 'a) : 'a t list =

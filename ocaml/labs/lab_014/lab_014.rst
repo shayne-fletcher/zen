@@ -1,0 +1,188 @@
+This problem comes from the famous "99 problems in Prolog". Firstly, write a function that packs consecutive duplicates of list elements into sublists. For example, given
+::
+
+  let x = pack ['a';'a';'a';'a';'b';'c';'c';'a';'a';'d';'e';'e';'e';'e']
+
+then, ``x = [['a';'a';'a';'a'];['b'];['c';'c'];['a';'a'];['d'];['e';'e';'e';'e']]``. Next, use the result of this problem to implement the so-called run-length encoding data compression method where consecutive duplicates of elements are encoded as terms ``(n, e)`` where ``n`` is the number of occurences of the element ``e``. For example, 
+::
+
+  let y = encode (pack ['a';'a';'a';'a';'b';'c';'c';'a';'a';'d';'e';'e';'e';'e'])
+
+then, ``y = [(4, 'a'); (2, 'c'); (2, 'a'), (1, d); (4, 'e')]``.
+
+ 
+::
+
+  (*Me*)
+
+  let pack (x : char list) : char list list =
+    let f (acc : char list list) (c : char) : char list list =
+      match acc with
+      | (((b :: _) as hd) :: tl) when c = b-> (c :: hd) :: tl
+      |  _ -> [c] :: acc
+    in List.fold_left f [] x
+  
+  let encode (x : char list list) : (int * char) list =
+    let f (acc : (int * char) list) (l : char list) : (int * char) list =
+      (List.length l, List.hd l) :: acc
+    in List.fold_left f [] x
+    
+  let decode (data : (int * char) list) =
+    let repeat ((n : int), (c : char)) : char list =
+      let rec aux acc i = if i = 0 then acc else aux (c :: acc) (i - 1) in
+      aux [] n in
+    let f (acc : char list) (elem : (int * char)) : char list =
+      acc @ (repeat elem) in
+    List.fold_left f [] data
+
+  (*Viet Li*)  
+
+  (* Packing function *)
+  let pack_aux a b = match a with | [] -> [[b]]
+      | (h :: _) as h1 :: t -> if h = b then (b :: h1) :: t else [b] :: h1 :: t
+      | _ -> failwith "Invalid input"
+  let pack l = List.rev @@ List.fold_left pack_aux [] l
+  
+  (* Encoding function *)
+  let encode_aux acc = function | h :: _ as l -> (List.length l, h) :: acc | _ -> failwith "Invalid input"
+  let encode l = List.rev @@ List.fold_left encode_aux [] l
+  
+  (* Decoding function *)
+  let rec generate acc (count, v) = if count > 0 then generate (v :: acc) (count - 1, v) else acc
+  let decode l = List.rev @@ List.fold_left generate [] l
+  
+
+  (*Eugene Perederey*)
+
+  let rec partition pred = function
+    | [] -> ([], [])
+    | (x :: xs) when pred x -> let pass, fail = partition pred xs in
+                               (x :: pass, fail)
+    | fail -> ([], fail)
+  
+  let rec pack = function
+    | [] -> []
+    | (x :: xs) -> let g, gs = partition (fun y -> y = x) xs in
+                   (x :: g) :: pack gs
+  
+  let encode = List.map (fun g -> List.length g, List.hd g)
+
+  let rec repeat c = function | n when n <= 0 -> [] | n  -> c :: repeat c (n - 1)
+
+  let decode gs = List.concat (List.map (fun (n, c) -> repeat c n) gs)
+
+  (*Harvey Stein*)
+
+  (defun rle (l)
+    (cond ((null l) ())
+          ((null (cdr l)) `((1 ,(car l))))
+          (t (rle-aux (cdr l) (car l) 1))))
+  
+  (defun rle-aux (l item n)
+    (cond ((null l) `((,item ,n)))
+          (t (if (eq (car l) item)
+                 (rle-aux (cdr l) item (1+ n))
+               (cons (list n item) (rle-aux (cdr l) (car l) 1))))))
+
+  Here's a tighter version - Used a local function & cleaned up the conditonals...:
+  
+  [34]> (defun rle (l)
+    (labels ((rle-aux (l item n)
+                    (cond ((null l) `((,n ,item)))
+                          ((eq (car l) item)
+                           (rle-aux (cdr l) item (1+ n)))
+                          (t (cons `(,n ,item) (rle-aux (cdr l) (car l) 1))))))
+      (cond ((null l) ())
+            (t (rle-aux (cdr l) (car l) 1)))))
+  
+  
+    RLE
+    [35]> (rle2 '())
+    
+    NIL
+    [36]> (rle2 '(d))
+    
+    ((1 D))
+    [37]> (rle2 '(d d))
+    
+    ((2 D))
+    [38]> (rle2 '(a a a b  c c c d d d d d e))
+    
+    ((3 A) (1 B) (3 C) (5 D) (1 E))
+    [39]> 
+    
+ (*Joel Bjornson*)
+
+  (* Helper.  *)
+  let replicate (n: int) (x: 'a) : 'a list =
+    let rec aux xs = function
+      | 0 -> xs 
+      | n -> aux (x :: xs) (n - 1)
+    in
+    aux [] n
+  
+  (* Encode list. *)
+  let encode xs =
+    let accum x gs =
+      match gs with
+      | []            -> 
+        [(1,x)]
+      | (n,c) :: gss  ->
+        if c = x then 
+          (n + 1, c) :: gss
+        else
+          (1, x) :: gs
+    in
+    List.fold_right accum xs []
+  
+  (* Decode list. *)
+  let decode xs =
+    List.map (fun (n,c) -> replicate n c) xs |> List.concat  
+
+ (*Gen Suzuki*)
+
+  let pack list =
+    let group_consecutive_duplicates groups element =
+      let first_group = List.hd groups in
+      match first_group with
+      | []       -> [[ element ]]
+      | hd :: tl -> if hd = element
+                    then [ element :: first_group ] @ List.tl groups
+                    else [ element ] :: groups in
+    List.rev (List.fold_left group_consecutive_duplicates [[]] list)
+  
+  let encode list =
+    let count sublist = (List.length sublist, List.hd sublist) in
+    List.map count list
+  
+  let decode list =
+    let rec expand (n_times, value) =
+      match n_times with
+      | 0 -> []
+      | 1 -> [ value ]
+      | _ -> value :: expand ((n_times - 1), value) in
+    List.flatten (List.map expand list)
+
+  (*Sen Han*)
+
+  # let pack ( lst : 'a list ) : ( (int * 'a) list) =
+    let sorted = List.sort (fun x y -> if x < y then 1 else -1) lst in
+    let rec group =
+      function
+      | [] -> [[]]
+      | [l] ->  [[l]]
+      | hd :: tl -> let grouped = group tl in
+                   if hd = (List.hd (List.hd grouped) )
+                   then (hd::(List.hd grouped))::(List.tl grouped)
+                   else [hd] :: grouped
+    in
+    let count (lst : 'a list list) : ( (int * 'a) list) =
+      List.map (fun sublist -> (  ( List.length sublist ), List.hd sublist) ) lst
+    in
+    (count (group lst));;                            
+  val pack : 'a list -> (int * 'a) list = <fun>
+  # pack ['a'; 'a'; 'a'; 'a'; 'b'; 'c'; 'c'; 'a'; 'a'; 'd'; 'e';
+  'e'; 'e'; 'e']
+      ;;
+  - : (int * char) list =
+  [(4, 'a'); (1, 'b'); (2, 'c'); (2, 'a'); (1, 'd'); (4, 'e')]

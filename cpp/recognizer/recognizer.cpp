@@ -1,5 +1,5 @@
-//"c:/program files (x86)/Microsoft Visual Studio 12.0/vc/vcvarsall.bat" x64
-//cl /Ferecognizer.exe /Zi /MDd /EHsc /I d:/boost_1_55_0 recognizer.cpp
+//"c:/program files (x86)/Microsoft Visual Studio 14.0/vc/vcvarsall.bat" x64
+//cl /Ferecognizer.exe /Zi /MDd /EHsc /I d:/boost_1_56_0 recognizer.cpp
 
 #include <boost/variant.hpp>
 #include <boost/variant/apply_visitor.hpp>
@@ -121,7 +121,7 @@ recognizer<typename boost::range_value<C>::type> string_ (C s)
   std::accumulate (
       boost::begin (s)
     , boost::end (s)
-    , std::back_inserter (rs)
+o    , std::back_inserter (rs)
     , [](it_t dst, value c) -> it_t 
       { *dst++ = char_ (c); return dst; });
 
