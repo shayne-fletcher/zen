@@ -1,0 +1,18 @@
+// /home/fletch/project/felix.git/build/release/host/bin/flx --test=/home/fletch/project/felix.git/build/release cma.flx
+
+fun cumulative_moving_average (l : list[double]) : double = {
+  var f = fun (s : double, var i : int) (x : double) : double * int = {
+    ++i;
+    return (s + ((x - s) / (double)i), i);
+  };
+  
+  return (fold_left f (0.0, 0) l) .0 ;
+}
+
+proc main () {
+
+  println$ str (cumulative_moving_average (list[double](1.0, 2.0, 3.0, 4.0))) ;
+
+}
+
+main () ;
