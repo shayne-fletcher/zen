@@ -1,0 +1,154 @@
+(*Eugene Peredery*)
+(* Section 1: baseline *)
+let explode s = 
+  let result = ref [] in
+  String.iter (fun c -> result := c :: !result) s;
+  List.rev !result
+
+let rec startswith = function
+  | [], _ -> true
+  | _, [] -> false
+  | (x :: xs), (w :: ws) when x = w -> startswith (xs, ws)
+  | _ -> false
+
+let endswith xs ws = 
+  startswith (List.rev xs, List.rev ws)
+
+(* non-recursive ugly implementation *)
+let suffixes xs = 
+  List.fold_left 
+    (fun ((s :: ss) as acc) _ -> (List.tl s) :: acc) [xs] xs
+
+let inits' xs = List.map List.rev (suffixes (List.rev xs))
+
+(* a little better, but not tail recursive *)
+let rec inits = function [] -> [[]]
+                   | (c :: rest) ->
+                      [[]] @ List.map (fun t -> c :: t) (inits rest)
+
+let matches (ws : string) (l : string) : int list =
+  List.map (List.length)
+           (List.filter (endswith (explode ws))
+                        (inits (explode l)))
+
+(* Section 2: KMP algorithm (kill me please) *)
+let kmp_table (needle : string) : int array =
+  let tab = Array.make (String.length needle) 0 in  
+  let rec loop pos cnd =
+    if pos >= String.length needle then ()
+    else
+      if String.get needle (pos - 1) = String.get needle cnd
+      then (
+        tab.(pos) <- cnd + 1;
+        loop (pos + 1) (cnd + 1))
+      else if cnd > 0 then loop pos tab.(cnd)
+      else (
+        tab.(pos) <- 0;
+        loop (pos + 1) cnd
+      ) in
+  tab.(0) <- -1;
+  tab.(1) <- 0;
+  loop 2 0;
+  tab
+
+let kmp_search (needle : string) (haystack : string) : int =
+  let tab = kmp_table needle in
+  let rec loop m i =
+    if m + i - 1 >= String.length haystack then String.length haystack
+    else
+      if String.get needle i = String.get haystack (m + i)
+      then if i = String.length needle - 1 then m
+           else loop m (i + 1)
+      else
+        if tab.(i) > -1 then
+          loop (m + i - tab.(i)) tab.(i)
+        else
+          loop (m + 1) 0
+  in loop 0 0
+
+let matches' (needle : string) (haystack : string) : int list =
+  let rec aux i result =
+    let text = String.sub haystack i (String.length haystack - i) in
+    if String.length text < String.length needle
+    then List.rev result
+    else
+      let j = kmp_search needle text in
+      if j = String.length text
+      then List.rev result
+      else aux (i + j + 1) ((i + j) :: result)        
+  in
+  List.map (fun i -> i + String.length needle) (
+             if String.length needle = 1 (* a special case, KMP doesn't handle this *)
+             then 
+               let result = ref [] in
+               String.iteri (fun i c -> if c = String.get needle 0 then result := i :: !result) haystack;
+               List.rev !result
+             else
+               aux 0 [])
+
+(* Section 3: for fun and no profit, let's implement search with suffix tree.
+ * I actually prefer suffix arrays, but arrays are a pain to deal with in OCaML -- let's keep it pure. *)
+module CharMap = Map.Make(Char)
+
+type suffix_tree = Leaf | Forest of suffix_tree CharMap.t 
+
+(* bucket chains by the first letter *)
+let bucket cs = 
+  let go b = function
+    | [] ->  CharMap.add '$' [[]] b
+    | (c :: chain) ->
+       let chains = 
+         try 
+           CharMap.find c b
+         with 
+           Not_found -> [] in
+       CharMap.add c (chain :: chains) b in
+  List.fold_left go CharMap.empty cs
+
+let is_empty = function [] -> true | _ -> false
+
+let rec mktree chains = 
+  let bs = bucket chains in (* produces of map from char to list of chains hanging from it *)
+  Forest (CharMap.map (fun chains ->
+                        match List.partition is_empty chains with
+                        | [], [] -> failwith "no chains hanging from the current symbol -- impossible"
+                        | [], nonempty -> mktree nonempty
+                        | dollar, nonempty -> (match mktree nonempty with
+                                               | Leaf -> Leaf
+                                               | Forest f -> Forest (CharMap.add '$' Leaf f))) bs)
+
+let rec all_suffixes = 
+  function Leaf -> [[]]
+         | Forest f -> 
+            let cons c xs = c :: xs in
+            let suffs_down = CharMap.map all_suffixes f in
+            CharMap.fold (fun c suffixes acc -> (List.map (cons c) suffixes) @ acc) suffs_down [] 
+
+let matches'' (needle : string) (haystack : string) : int list =
+  (* 1. find the tree at which the needle ends *)
+  let rec find_tree needle t =
+    match needle, t with
+    | [], _ -> Some t
+    | (c :: cs), Leaf -> None
+    | (c :: cs), (Forest f) -> (try
+                                   find_tree cs (CharMap.find c f)
+                                 with
+                                   Not_found -> None) in
+  (* 2. find all suffixes prefixed with needle *)
+  match find_tree (explode needle) (mktree (suffixes (explode haystack))) with
+  | None -> []
+  | Some t -> List.map (fun suff -> String.length haystack - List.length suff + 1) (all_suffixes t)
+
+let test_matches () =
+  let rec all_same lists =
+    if List.for_all is_empty lists
+    then true
+    else if List.for_all (fun l -> not (is_empty l)) lists
+    then all_same (List.map List.tl lists)
+    else false in
+  let result_simple = matches "abcab" "ababcabcab" in
+  let result_kmp = matches' "abcab" "ababcabcab" in
+  let result_suffix = matches'' "abcab" "ababcabcab" in
+  if all_same [result_simple; result_kmp; result_suffix]
+  then Printf.printf "PASS\n" 
+  else Printf.printf "FAIL\n" 
