@@ -1,0 +1,27 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #16
+2015-07-06 by 
+Difficulty level :
+Easy/Medium
+Problem :
+This week we're going to implement "find" functionality such as you'd expect in any modern text editor. You understand what I mean – On Windows, this is more often than not bound to the key combination CTRL-F. The problem description as given here is based on the book, "Pearls of Functional Algorithm Design" by Richard Bird. Specifically chapter 16.  "The Boyer-Moore algorithm".
+
+A string matching problem is one in which one finds all occurrences of a non-empty string (the pattern) in some other string (the text). A specification for the problem can be stated like this:
+
+let matches (ws : string) (l : string) : int list = 
+  List.map (List.length) 
+     (List.filter (endswith (explode ws)) (inits (explode l)))
+The function explode transforms a string into a list of characters. The function inits returns a list of the prefixes of the text in order of increasing length. The expression endswith ws xs tests whether the pattern ws is a suffix of xs. Finally, the value matches ws xs is a list of integers p such that ws is a suffix of take p xs.  For example:
+# let n = matches "abcab" "ababcabcab";;
+val n : int list = [7; 10]
+That is, matches ws xs returns a list of integers p such that ws appears in xs ending at position p (counting positions from 1).
+
+Note that the specification given above is just that... a specification. There are better (functionally equivalent) ways to define matches such that it is fast (c.f. Boyer-Moore algorithm, Knuth-Morris-Pratt algorithm). I won't insist that your solution be optimal for this exercise but won't discourage you if you want to do the research on how to make it so!
+ 
