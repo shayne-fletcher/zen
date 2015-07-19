@@ -1,0 +1,187 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\renewcommand{\familydefault}{\sfdefault}
+
+\title{``Boyer-Moore'' string matching (``scanning'') in C++ }
+
+\begin{document}
+\maketitle
+
+\section{The scan left function}
+
+\subsection{scan left}
+
+\verb|scanl| is a polymorphic function of type \((\beta \to \alpha \to
+\beta) \to \beta \to [\alpha] \to \beta\) for type variables,
+\(\alpha\) and \(\beta\). It is defined by the following equations.
+\begin{align*}
+scanl\;f\;z\;[\;\;] &= [z] \\
+scanlf\;z\;(x : xs) &= z : scanl\;f\;(f\;z\;x)\;xs
+\end{align*}
+%%\begin{verbatim}
+%% let rec scanl (f : 'b -> 'a -> 'b) 
+%%   (z : 'b) (xs : 'a list) : 'b list =
+%%   z :: match xs with
+%%        | [] -> []
+%%        | (x :: xs) -> scanl f (f z x) xs
+%% \end{verbatim}
+%%\end{verbatim}
+In C++, lists are replaced with iterators.
+\begin{verbatim}
+template <
+  class F, class AccT, class InT, class OutT>
+OutT scan_left (F f, AccT z, InT begin, InT end, OutT out) {
+  *out++ = z;
+  if (begin == end) return out;
+  auto const& x = *begin;
+
+  return scan_left (f, f (z, x), std::next (begin), end, out);
+}
+\end{verbatim}
+
+\section{The string matching problem}
+
+\subsection{matches}
+A string matching problem is one in which one finds all occurrences of
+a non-empty string (the pattern) in some other string (the text). A
+specification for the problem can be stated like this:
+
+\begin{equation}\label{equation:specification}
+matches\;ws =map\;len \cdot filter\;(endswith\;ws) \cdot inits
+\end{equation}
+
+The function \(inits\) returns a list of the prefixes of the text in
+order of increasing length. The expression \(endswith\;ws\;xs\) tests
+whether the pattern \(ws\) is a suffix of \(xs\). Finally, the value
+\(matches\;ws\;xs\) is a list of integers \(p\) such that \(ws\) is a
+suffix of \(take\; p\;xs\).  For example:
+\(matches\;"abcab"\;"ababcabcab"\) is the list \([7, 10]\).  That is,
+\(matches\;ws\;xs\) returns a list of integers \(p\) such that \(ws\)
+appears in \(xs\) ending at position \(p\) (counting positions from
+\(1\)).
+
+\subsection{filter}
+In C++, \(filter\) can be written like this.
+\begin{verbatim}
+template <class PredT, class RngT, class OutT>
+OutT filter (PredT p, RngT xs, OutT out) {
+  return std::accumulate (
+      std::begin (xs), std::end (xs), out, 
+      [&p](auto dst, auto const& x) { 
+           return p (x) ? *dst++ = x : dst;
+      }
+  );
+}
+\end{verbatim}
+%% \subsection{inits}
+%% \verb|inits| itself can be implemented in terms of \verb|scanl|
+%% \begin{align*}
+%% inits = scanl\;snoc\;[\;]
+%% \end{align*}
+%% where
+%% \begin{align*}
+%% snoc\;x\;a = x\;@\;[a]
+%% \end{align*}
+%% \begin{verbatim}
+%% let inits (xs : char list) : char list list = 
+%%   scanl (fun x a -> x @ [a]) [] xs
+%% \end{verbatim}
+%% This alternative definition shows early motivation for the scan lemma.
+%% \begin{verbatim}
+%% let inits (xs : char list) : char list list = 
+%%   let f (h :: tl) c = (c :: h) :: h :: tl in
+%%   List.rev @@ List.map (List.rev) (List.fold_left f [[]] xs)
+%% \end{verbatim}
+
+\subsection{endswith}
+We define \(endswith\;ws = (reverse\;ws\sqsubseteq)\cdot reverse\)
+where \( \sqsubseteq \) is the \(prefix\) relation given by the
+equations
+\begin{gather*}
+[\;]\;\sqsubseteq us = true \\
+(u:us) \sqsubseteq [\;] = false \\
+(u:us) \sqsubseteq (v:vs) = (u = v \land us \sqsubseteq vs)
+\end{gather*}
+Here's the \(prefix\) function realized in C++.
+\begin{verbatim}
+template <class InT1, class InT2>
+bool prefix (InT1 lb, InT1 le, InT2 rb, InT2 re) {
+  if (lb == le) return true;
+  if (rb == re) return false;
+
+  return *lb == *rb && 
+         prefix (std::next (lb), le, std::next (rb), re);
+}
+\end{verbatim}
+%% \begin{align*}
+%%   endswith\;ws\;xs  = reverse\;ws \sqsubseteq reverse\; xs
+%% \end{align*}
+
+\section{The Boyer-Moore solution}
+\subsection{Theory}
+This identity is called ``the scan lemma''.
+\begin{equation}
+map\;(foldl\;op\;e) \cdot inits = scanl\;op\;e
+\end{equation}
+This equation is important because the left hand side has complexity
+\(O(N^{2})\) whereas the right-hand-side, \(O(N)\). It admits
+restating equation \ref{equation:specification} as:
+\begin{gather}
+matches\;ws = map\;fst \cdot filter ((sw \sqsubseteq) \cdot snd)\;scanl\; step\;(0, []) \nonumber\\
+sw = reverse\;ws
+\end{gather}
+This is the called the basic ``Boyer-Moore'' algorithm. It is in this
+form that we present the C++ formulation.
+\begin{verbatim}
+template <class OutT>
+OutT matches (std::string const& ws, std::string const& s, OutT dst) {
+  typedef std::pair<int, std::deque<char>> acc_t;
+
+  auto step = [](acc_t p, char x) -> acc_t {
+    ++p.first;
+    p.second.push_front (x);
+
+    return p;
+  };
+
+  std::deque<acc_t> buf;
+  scan_left (
+      step
+    , std::make_pair(0, std::deque<char>())
+    , s.begin ()
+    , s.end ()
+    , std::back_inserter(buf));
+
+  std::string sw(ws.rbegin (), ws.rend ());
+  auto pred = [&sw] (auto p) -> bool { 
+    return prefix (
+      sw.begin (), sw.end ()
+    , p.second.begin (), p.second.end ()); 
+  };
+  std::deque<acc_t> temp;
+  filter (pred, buf, std::back_inserter (temp));
+
+  return std::transform (
+     temp.begin (), temp.end (), dst, 
+     [](acc_t const& p) -> int {  return p.first; });
+}
+\end{verbatim}
+\section{Testing}
+Here's a little test driver.
+\begin{verbatim}
+int main () {
+
+  std::list<int> where;
+  matches ("abcab", "ababcabcab", std::back_inserter (where));
+
+  std::for_each (where.begin (), where.end ()
+   , [](int i) -> void { std::cout << i << ", "; }
+   );  
+
+  return 0;
+}
+\end{verbatim}
+This program should print ``7, 10''.
+\end{document}
