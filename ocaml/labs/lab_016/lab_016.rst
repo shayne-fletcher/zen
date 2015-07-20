@@ -152,3 +152,78 @@ let test_matches () =
   if all_same [result_simple; result_kmp; result_suffix]
   then Printf.printf "PASS\n" 
   else Printf.printf "FAIL\n" 
+
+(*Hengchu Zhang*)
+
+-- The inits function returns a list
+-- of all prefixes of the input string.
+inits :: [a] -> [[a]]
+inits xs = zipWith take [0..n] (replicate (n+1) xs)
+  where n = length xs
+ 
+-- The ends with function checks if pattern
+-- is a suffix of str.
+endswith :: (Eq a) => [a] -> [a] -> Bool
+endswith pattern str = 
+  (lengthP <= lengthS) && endswith' pattern str
+  where lengthP = length pattern
+        lengthS = length str
+        endswith' p s = take lengthP (reverse s) == reverse p
+ 
+matches :: (Eq a) => [a] -> [a] -> [Int]
+matches ws l = map length $ filter (endswith ws) (inits l)
+
+(*Joel Bornson*)
+
+open Printf
+open Lazy
+ 
+(* 
+ * KMP Pattern search automata. A state contains a boolean value
+ * indicating whether a match was found or not, and a transition 
+ * function.
+ *)
+type pattern = Step of bool * (char -> pattern)
+let is_match (Step (b, _)) = b
+let next c (Step (_, next)) = next c
+let step b f = Step (b, f)
+let rec const b = Step (b, fun _ -> const b)
+ 
+(* Evaluates a pattern automata *)
+let run pattern text =
+  let accum (pattern,ix,acc) c =
+    let pattern = next c pattern in
+    let acc = if is_match pattern then (ix :: acc) else acc in
+    (pattern, ix + 1, acc)
+  in
+  let (_,_,acc) = List.fold_left accum (pattern, 1, []) text in
+  List.rev acc
+ 
+(* 
+ * Given a character list, builds the pattern automata.  
+ *) 
+let make_pattern cs =
+  let rec pattern = lazy (gen pattern cs)
+  and gen curr_pattern = function 
+    | []      ->
+      const true
+    | [c]     ->
+      Step (false, fun x ->
+        let next_pattern = force curr_pattern in
+        if x = c then 
+          step true (fun _ -> next_pattern) 
+        else 
+          next_pattern
+      )
+    | c :: cs ->
+      let next_pattern = lazy (next c @@ force curr_pattern) in
+      let cont_pattern = lazy (gen next_pattern cs) in
+      let next x = 
+        force @@ if x = c then cont_pattern else curr_pattern
+      in
+      step false next
+  in
+  force pattern
+ 
+(* Search *)
+let search cs = run_pattern @@ make_pattern cs

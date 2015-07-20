@@ -4,7 +4,7 @@
 \usepackage{amssymb}
 \renewcommand{\familydefault}{\sfdefault}
 
-\title{``Boyer-Moore'' string matching (``scanning'') in C++ }
+\title{String matching}
 
 \begin{document}
 \maketitle
@@ -17,7 +17,7 @@
 \beta) \to \beta \to [\alpha] \to \beta\) for type variables,
 \(\alpha\) and \(\beta\). It is defined by the following equations.
 \begin{align*}
-scanl\;f\;z\;[\;\;] &= [z] \\
+scanl\;f\;z\;[] &= [z] \\
 scanlf\;z\;(x : xs) &= z : scanl\;f\;(f\;z\;x)\;xs
 \end{align*}
 %%\begin{verbatim}
@@ -130,10 +130,11 @@ This equation is important because the left hand side has complexity
 restating equation \ref{equation:specification} as:
 \begin{gather}
 matches\;ws = map\;fst \cdot filter ((sw \sqsubseteq) \cdot snd)\;scanl\; step\;(0, []) \nonumber\\
-sw = reverse\;ws
+sw = reverse\;ws \nonumber\\
+step\;(n, sx)\;x = (n + 1, x:sx)
 \end{gather}
-This is the called the basic ``Boyer-Moore'' algorithm. It is in this
-form that we present the C++ formulation.
+This is the called the basic ``Boyer-Moore'' algorithm. That's what
+we'll implement in C++.
 \begin{verbatim}
 template <class OutT>
 OutT matches (std::string const& ws, std::string const& s, OutT dst) {
