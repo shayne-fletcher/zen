@@ -227,3 +227,63 @@ let make_pattern cs =
  
 (* Search *)
 let search cs = run_pattern @@ make_pattern cs
+
+(*Sen Han*)
+
+
+Not really finished the Boyer-More. I just implemented the bad_char_rule function but not even applied it yet. 
+It just use the basic string matching rather than the boyer-moore algorithm. 
+
+Just want to submit something in. Since the answer has not been published. 
+
+open Map;;
+
+module RuleCharMap = Map.Make(Char);;
+module RuleStringMap = Map.Make(String);;
+
+
+let explode s =
+  let rec exp i l =
+    if i < 0 then l else exp (i - 1) (s.[i] :: l) in
+    exp (String.length s - 1) []
+
+let take l n =
+  let rec aux acc l i = if i = 0 then acc
+    else (aux ((List.hd l)::acc) (List.tl l) (i - 1))
+  in
+  (List.rev (aux [] l n));;
+
+let bad_char_rule l =
+  let rec aux rules lst i=
+    match lst with
+    | [] -> rules
+    | hd :: tl -> (aux (RuleCharMap.add hd i rules) tl (i + 1))
+  in
+  aux RuleCharMap.empty l 0;;
+
+
+let endswith str1 str2 =
+  let rec ends s1 s2=
+    if ((List.length s1) = 0) && ((List.length s2) <> 0) then true
+    else if ((List.length s1) <> 0) && ((List.length s2) = 0) then false
+    else if ((List.length s1) = 0) && ((List.length s2) = 0) then true
+    else begin if (List.hd s1) = (List.hd s2) then (ends (List.tl s1) (List.tl s2)) else false end
+  in
+  ends (List.rev str1) (List.rev str2);;
+
+let inits str =
+  let rec aux acc str =
+    match str with
+    | [] -> acc
+    | hd :: tl -> (aux (tl :: acc) tl)
+  in
+  List.map (List.rev) (aux [(List.rev str)] (List.rev str));;
+
+let search pattern str =
+  let matches = List.filter (endswith (explode pattern)) (inits (explode str)) in
+  List.map (List.length) matches;;
+
+Testing Results:
+
+# search "abcab" "ababcabcab";;
+- : int list = [7; 10]
