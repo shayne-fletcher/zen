@@ -206,14 +206,12 @@ loop:
   goto loop;
 }
 \end{verbatim}
-What we've done so far is address stack overflow issues but we still
-have a problem with ridiculous memory consumption. This program will
-exhaust all available memory given this amount of
-input. \verb|scan_left| is producing a list of \verb|scan_left| of
-\verb|deque<char>| of lengths $1 \dots N$ where $N$ is the string
-length. There's no need to be allocating memory and copying this
-data. We can simply reference the character ranges in the source
-string using iterators.
+The next thing problem to overcome is ridiculous memory
+consumption. Basically, the \verb|scan_leftl| is foolishly producing a
+list of \verb|scan_left| of \verb|deque<char>| of lengths $1\dotsN$
+where $N$ is the string length. This is unecessary of course since we
+can simply reference the character ranges in the source string using
+iterators.
 \begin{verbatim}
 template <class OutT>
 OutT matches (std::string const& ws, std::string const& s, OutT dst) {
@@ -278,12 +276,13 @@ OutT matches2 (std::string const& ws, std::string const& s, OutT dst) {
 }
 \end{verbatim}
 
-
 \begin{thebibliography}{9}
-\bibitem{pearls} 
-Richard Bird,
-\textit{Pearls of Functional Algorithm Design}. 
-Cambridge University Press, 2010.
+\bibitem{latexcompanion} 
+Michel Goossens, Frank Mittelbach, and Alexander Samarin. 
+\textit{The \LaTeX\ Companion}. 
+Addison-Wesley, Reading, Massachusetts, 1993.
 \end{thebibliography}
+
+\end{document}
 
 \end{document}

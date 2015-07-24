@@ -12,18 +12,6 @@
 #include <fstream>
 #include <sstream>
 
-template <
-  class F, class AccT, class InT, class OutT>
-OutT scan_left (F f, AccT z, InT begin, InT end, OutT out) {
-loop:
-  *out++ = z;
-  if (begin == end) return out;
-  auto const& x = *begin;
-  z = f (z, x);
-  ++begin;
-  goto loop;
-}
-
 /*
 template <
   class F, class AccT, class InT, class OutT>
@@ -35,6 +23,18 @@ OutT scan_left (F f, AccT z, InT begin, InT end, OutT out) {
   return scan_left (f, f (z, x), std::next (begin), end, out);
 }
 */
+
+template <
+  class F, class AccT, class InT, class OutT>
+OutT scan_left (F f, AccT z, InT begin, InT end, OutT out) {
+loop:
+  *out++ = z;
+  if (begin == end) return out;
+  auto const& x = *begin;
+  z = f (z, x);
+  ++begin;
+  goto loop;
+}
 
 template <class InT1, class InT2>
 bool prefix (InT1 lb, InT1 le, InT2 rb, InT2 re) {
@@ -60,9 +60,7 @@ OutT matches (std::string const& ws, std::string const& s, OutT dst) {
   std::size_t num_chars=s.size();
 
   auto step = [num_chars,&s](acc_t p, char x) -> acc_t {
-
     ++p.first;
-
     std::string::const_reverse_iterator rbegin = s.rbegin ();
     std::advance (rbegin, num_chars - p.first);
     p.second = std::make_pair (rbegin, s.rend ());
@@ -70,34 +68,54 @@ OutT matches (std::string const& ws, std::string const& s, OutT dst) {
     return p;
   };
 
-  std::deque<acc_t> buf;
+  std::deque<acc_t> buf1;
   scan_left (
       step
     , std::make_pair (0, std::make_pair (s.rend (), s.rend()))
     , s.begin ()
     , s.end ()
-    , std::back_inserter (buf));
+    , std::back_inserter (buf1));
 
   std::string sw(ws.rbegin (), ws.rend ());
   auto pred = [num_chars, &sw, &s] (auto p) -> bool { 
-    std::string::const_reverse_iterator rbegin = s.rbegin ();
-    std::advance (rbegin, num_chars - p.first);
-
-    return prefix (sw.begin (), sw.end (), rbegin, s.rend ()); 
+    return prefix (sw.begin (), sw.end (), p.second.first, p.second.second); 
   };
 
-  std::deque<acc_t> temp;
-  filter (pred, buf, std::back_inserter (temp));
-  temp.swap (buf);
+  std::deque<acc_t> buf2;
+  filter (pred, buf1, std::back_inserter (buf2));
+  buf2.swap (buf1);
 
-  return std::transform (
-     buf.begin (), buf.end (), dst, 
-     [](acc_t const& p) -> int {  return p.first; });
-
-      //return std::copy (buf.begin (), buf.end (), dst);
+  return std::transform (buf1.begin (), buf1.end (), 
+           dst, [](acc_t const& p) -> int {  return p.first; });
 }
 
-int test_war_and_peace () {
+template <class OutT>
+OutT matches2 (std::string const& ws, std::string const& s, OutT dst) {
+  std::string sw (ws.rbegin (), ws.rend ());
+  std::size_t num_chars=s.size ();
+  for (std::size_t i = 0; i < num_chars; ++i) {
+    std::string::const_reverse_iterator rbegin = s.rbegin ();
+    std::advance (rbegin, num_chars - i);
+    if (prefix (sw.begin (), sw.end (), rbegin, s.rend ()))  {
+      *dst++ = i;
+    }
+  }
+
+  return dst;
+}
+
+int test_basic () {
+  std::list<int> where;
+  matches ("abcab", "ababcabcab", std::back_inserter (where));
+
+  std::for_each (where.begin (), where.end ()
+   , [](int i) -> void { std::cout << i << ", "; }
+   );  
+
+  std::cout << std::endl;
+}
+
+int test_war_and_peace_matches () {
 
   std::ifstream ifs("war_and_peace");
   std::string text;
@@ -119,21 +137,43 @@ int test_war_and_peace () {
    , [](int i) -> void { std::cout << i << ", "; }
   );  
 
+  std::cout << std::endl;
+
+  return 0;
+}
+
+int test_war_and_peace_matches2 () {
+
+  std::ifstream ifs("war_and_peace");
+  std::string text;
+  ifs.seekg (0, std::ios::end);
+  text.reserve (ifs.tellg());
+  ifs.seekg (0, std::ios::beg);
+  text.assign(
+   (std::istreambuf_iterator<char>(ifs))
+   , std::istreambuf_iterator<char>());
+
+  std::cout << "File read. Searching..." << std::endl;
+
+  std::list<int> where;
+  matches2 ("people", text, std::back_inserter (where));
+  
+  std::cout << "There are " << where.size () << " occurences : ";
+  
+  std::for_each (where.begin (), where.end ()
+   , [](int i) -> void { std::cout << i << ", "; }
+  );  
+
+  std::cout << std::endl;
+
   return 0;
 }
 
 int main () {
 
-  test_war_and_peace ();
-
-  /*
-  std::list<int> where;
-  matches ("abcab", "ababcabcab", std::back_inserter (where));
-
-  std::for_each (where.begin (), where.end ()
-   , [](int i) -> void { std::cout << i << ", "; }
-   );  
-  */
+  test_basic ();
+  test_war_and_peace_matches ();
+  test_war_and_peace_matches2 ();
 
   return 0;
 }
