@@ -104,7 +104,7 @@ equations
 (u:us) \sqsubseteq [\;] = false \\
 (u:us) \sqsubseteq (v:vs) = (u = v \land us \sqsubseteq vs)
 \end{gather*}
-Here's the \(prefix\) function realized in C++.
+So, here's \(prefix\).
 \begin{verbatim}
 template <class InT1, class InT2>
 bool prefix (InT1 lb, InT1 le, InT2 rb, InT2 re) {
@@ -128,12 +128,15 @@ map\;(foldl\;op\;e) \cdot inits = scanl\;op\;e
 This equation is important because the left hand side has complexity
 \(O(N^{2})\) whereas the right-hand-side, \(O(N)\). It admits
 restating equation \ref{equation:specification} as:
-\begin{gather}
+\begin{gather}\label{equation:matches}
 matches\;ws = map\;fst \cdot filter ((sw \sqsubseteq) \cdot snd)\;scanl\; step\;(0, []) \nonumber\\
 sw = reverse\;ws \nonumber\\
 step\;(n, sx)\;x = (n + 1, x:sx)
 \end{gather}
-This is the called the basic ``Boyer-Moore'' algorithm. Here's an implmentation.
+This is the called the basic ``Boyer-Moore'' algorithm. It is not hard
+to see why this formula works. Translating to code, here's one
+implementation.
+
 \begin{verbatim}
 template <class OutT>
 OutT matches (std::string const& ws, std::string const& s, OutT dst) {
@@ -169,7 +172,7 @@ OutT matches (std::string const& ws, std::string const& s, OutT dst) {
 }
 \end{verbatim}
 \section{Testing}
-Try a basic test.
+This code can be quickly tested with a program like the following.
 \begin{verbatim}
 int main () {
 
@@ -183,16 +186,19 @@ int main () {
   return 0;
 }
 \end{verbatim}
-This program should print ``7, 10''.
+The program should print ``7, 10'' for this input.
 
 \section{War and Peace}
 
-We can try the Boyer-Moore as implemented above in earnest by trying
-to find all occurence of the string ``people'' in the text of the book
-``War and Peace'' by Tolstoy. When we do, we'll immediately encounter
-the first problem - stack overflow. I'd expect the compiler to
-optimize the tail-call in \verb|scan_left| but alas it does not. We
-can take matters into our own hands like so :
+\subsection{Stack overflow}
+We can try our program in earnest by trying to find all occurence of
+the string ``people'' in the text of the book ``War and Peace'' by
+Tolstoy. When we do, we'll immediately realize the shortcomings of our
+program in the face of ``large'' inputs. the first problem is stack
+overflow. It would seem that the \verb|scan_left| is not getting the
+tail-call optimization applied to it. We take matters into our own
+hands with this alternative implmentation.
+
 \begin{verbatim}
 template <
   class F, class AccT, class InT, class OutT>
@@ -206,14 +212,12 @@ loop:
   goto loop;
 }
 \end{verbatim}
-What we've done so far is address stack overflow issues but we still
-have a problem with ridiculous memory consumption. This program will
-exhaust all available memory given this amount of
-input. \verb|scan_left| is producing a list of \verb|scan_left| of
-\verb|deque<char>| of lengths $1 \dots N$ where $N$ is the string
-length. There's no need to be allocating memory and copying this
-data. We can simply reference the character ranges in the source
-string using iterators.
+
+\subsection{Memory consumption}
+The stack overflow problem fixed then next challenge is to address
+impossible memory consumption. The solution here is to avoid copying
+data by referencing character ranges in the source string using
+iterators instead.
 \begin{verbatim}
 template <class OutT>
 OutT matches (std::string const& ws, std::string const& s, OutT dst) {
@@ -253,14 +257,13 @@ OutT matches (std::string const& ws, std::string const& s, OutT dst) {
            dst, [](acc_t const& p) -> int {  return p.first; });
 }
 \end{verbatim}
-That's enough to solve the memory problems and now we can get an
-answer to the war and peace problem (582 occurrences by the way) but
-we can do better. As we've now realized that we can construct
-references to the character ranges via iterators, we realize that this
-can be done on demand. Therefore, we can represent the entire
-computation as a simple loop over the text eliminating
-\verb|scan_left| and \verb|filter| from the code entirely. Of course,
-they are still there but now only conceptually!
+
+\subsection{The ``final'' version}
+Now as we've realized references to the character ranges via
+iterators, we observe that this such references can be produced on
+demand. Accordingly the entire computation as a simple loop eliminates
+\verb|scan_left|, \verb|filter|, \verb|transform| and lambda functions
+entirely!
 \begin{verbatim}
 template <class OutT>
 OutT matches2 (std::string const& ws, std::string const& s, OutT dst) {
@@ -277,8 +280,9 @@ OutT matches2 (std::string const& ws, std::string const& s, OutT dst) {
   return dst;
 }
 \end{verbatim}
-
-
+This program is able to find the 582 occurrences of ``people'' in
+``War and Peace'' in times typical of around $\frac{6}{100}$ of a
+second.
 \begin{thebibliography}{9}
 \bibitem{pearls} 
 Richard Bird,

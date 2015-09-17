@@ -1,6 +1,8 @@
 //"c:/program files (x86)/Microsoft Visual Studio 14.0/vc/vcvarsall.bat" x64
 //cl /F16777216 /Fescan_left.exe /F16777216 /Zi /MDd /EHsc /I d:/boost_1_56_0 scan_left.cpp
 
+#include <boost/timer.hpp>
+
 #include <iostream>
 #include <iterator>
 #include <vector>
@@ -158,22 +160,27 @@ int test_war_and_peace_matches2 () {
   std::list<int> where;
   matches2 ("people", text, std::back_inserter (where));
   
-  std::cout << "There are " << where.size () << " occurences : ";
+  // std::cout << "There are " << where.size () << " occurences : ";
   
-  std::for_each (where.begin (), where.end ()
-   , [](int i) -> void { std::cout << i << ", "; }
-  );  
+  // std::for_each (where.begin (), where.end ()
+  //  , [](int i) -> void { std::cout << i << ", "; }
+  // );  
 
-  std::cout << std::endl;
+  // std::cout << std::endl;
 
   return 0;
 }
 
 int main () {
 
-  test_basic ();
-  test_war_and_peace_matches ();
-  test_war_and_peace_matches2 ();
+  //test_basic ();
+  //test_war_and_peace_matches ();
+
+  boost::timer t;
+  for (std::size_t i = 0; i < 10; ++i)
+    test_war_and_peace_matches2 ();
+  double elapsed = t.elapsed ();
+  std::cout << "time taken : " << elapsed/10.0 << " second\n";
 
   return 0;
 }
