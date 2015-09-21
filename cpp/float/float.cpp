@@ -13,6 +13,7 @@
 #include <boost/variant.hpp>
 #include <boost/variant/apply_visitor.hpp>
 
+struct _neg;
 struct _fix;   
 struct _add;   
 struct _sub; 
@@ -25,6 +26,7 @@ struct _market;
 
 std::ostream& operator << (std::ostream& os, _const const& e);
 std::ostream& operator << (std::ostream& os, _market const& e);
+std::ostream& operator << (std::ostream& os, _neg const& e);
 std::ostream& operator << (std::ostream& os, _fix const& e);
 std::ostream& operator << (std::ostream& os, _add const& e);
 std::ostream& operator << (std::ostream& os, _sub const& e);
@@ -37,6 +39,7 @@ using expression =
   boost::variant<
       _const
     , _market 
+    , boost::recursive_wrapper<_neg>
     , boost::recursive_wrapper<_fix>
     , boost::recursive_wrapper<_add>
     , boost::recursive_wrapper<_sub>
@@ -48,6 +51,7 @@ using expression =
 
 struct _const { double f; };
 struct _market { std::string tag; };
+struct _neg { expression f; }  ;
 struct _fix { std::string d; expression f; };
 struct _add { expression lhs; expression rhs; };
 struct _sub { expression lhs; expression rhs; };
@@ -59,6 +63,7 @@ struct _min { expression lhs; expression rhs; };
 std::ostream& operator << (std::ostream& os, _const const& e) { return os << e.f; }
 std::ostream& operator << (std::ostream& os, _market const& e) {return os << "market(\"" << e.tag << "\")"; }
 std::ostream& operator << (std::ostream& os, _fix const& e) { return os << "fix(" << e.d << ", " << e.f << ")"; }
+std::ostream& operator << (std::ostream& os, _neg const& e) { return os << "-(" << e.f << ")"; }
 std::ostream& operator << (std::ostream& os, _add const& e) { return os << e.lhs << " + " << e.rhs; }
 std::ostream& operator << (std::ostream& os, _sub const& e) { return os << e.lhs << " - " << e.rhs; }
 std::ostream& operator << (std::ostream& os, _mul const& e) { return os << e.lhs << " * " << e.rhs; }
@@ -67,6 +72,18 @@ std::ostream& operator << (std::ostream& os, _max const& e) { return os << "max 
 std::ostream& operator << (std::ostream& os, _min const& e) { return os << "min (" << e.lhs << ", " << e.rhs << ")"; }
 
 namespace detail {
+
+  struct neg_visitor :
+    boost::static_visitor<expression> {
+    expression operator()(_const lhs) const {
+      return _const {-lhs.f};
+    }
+
+    template <class T> 
+    expression operator ()(T const& x) const { 
+      _neg res; res.f = x; return res; 
+    }
+  };
 
   template <class Op>
   struct binop_visitor 
@@ -84,6 +101,10 @@ namespace detail {
   };
 
 }//namespace detail
+
+expression operator - (expression const& x) {
+  return boost::apply_visitor (detail::neg_visitor (), x);
+}
 
 expression operator + (expression const& lhs, expression const& rhs) {
   return boost::apply_visitor (detail::binop_visitor<_add> (
@@ -114,7 +135,6 @@ expression min (expression const& lhs, expression const& rhs) {
   return boost::apply_visitor (
      detail::binop_visitor<_min> ([](double x, double y) -> double { return (std::min) (x, y); })
      , lhs, rhs);
-
 }
 
 expression fix (std::string const& d, expression const& x);
@@ -127,6 +147,7 @@ namespace detail {
     expression operator ()(_const const& x) const { return x; }
     expression operator ()(_market const& x) const {  _fix res; res.d = d; res.f = x; return res; }
     expression operator ()(_fix const& x) const { return x; }
+    expression operator ()(_neg const& x) const { return x; }
     expression operator ()(_add const& x) const { _add res; res.lhs = fix (d, x.lhs); res.rhs = fix (d, x.rhs); return res; }
     expression operator ()(_sub const& x) const { _sub res; res.lhs = fix (d, x.lhs); res.rhs = fix (d, x.rhs); return res; }
     expression operator ()(_mul const& x) const { _mul res; res.lhs = fix (d, x.lhs); res.rhs = fix (d, x.rhs); return res; }
@@ -173,6 +194,7 @@ namespace detail {
           _market const& m = boost::get<_market>(x.f);
           return m.tag == std::get<0>(f) && x.d == std::get<1>(f); });
       if (buf.empty ()) return x; return _const { std::get<2>(buf.front())}; }
+    expression operator ()(_neg const& x) const { expression f = simplify (fs, x); return -f; }
     expression operator ()(_add const& x) const { expression lhs = simplify (fs, x.lhs), rhs = simplify (fs, x.rhs); return lhs + rhs; }
     expression operator ()(_sub const& x) const { expression lhs = simplify (fs, x.lhs), rhs = simplify (fs, x.rhs); return lhs - rhs; }
     expression operator ()(_mul const& x) const { expression lhs = simplify (fs, x.lhs), rhs = simplify (fs, x.rhs); return lhs * rhs; }
