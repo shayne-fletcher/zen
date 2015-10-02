@@ -209,3 +209,124 @@ let test () =
 ;;
 
 test();
+
+(*Enrique Naudon*)
+
+(**
+ *  Fixings environment
+ **)
+
+module Env = Map.Make(
+  struct
+    type t = string * string
+    let compare (l1, l2) (r1, r2) =
+      let lhs = l1 ^ l2 in
+      let rhs = r1 ^ r2 in
+      String.compare lhs rhs
+  end
+) ;;
+
+let env_of_list l =
+  let fn f (ticker, date, value) =
+    Env.add (ticker, date) value f
+  in List.fold_left fn Env.empty l
+;;
+
+
+(**
+ *  Abstract syntax tree
+ **)
+
+type operation = 
+  | Add
+  | Subtract
+  | Multiply
+  | Divide
+;;
+
+type expression =
+  | Constant of float
+  | Market of string
+  | Fixed of string * expression
+  | Operation of operation * expression *expression
+;;
+
+let const f = Constant(f) ;;
+let market t = Market(t) ;;
+let fix(d, e) = Fixed(d, e) ;;
+let ( + ) (l: expression) (r: expression) = Operation(Add, l, r) ;;
+let ( - ) (l: expression) (r: expression) = Operation(Subtract, l, r) ;;
+let ( * ) (l: expression) (r: expression) = Operation(Multiply, l, r) ;;
+let ( / ) (l: expression) (r: expression) = Operation(Divide, l, r) ;;
+
+
+(** 
+ *  Simplify
+ **)
+
+(* Internal implementation of simplify *)
+let rec simplify_impl env date exp =
+
+  (* Remove 'Market' IFF we can find a value *)
+  let simp_market env date t = match date with
+    | Some d ->
+      begin try 
+        Constant(Env.find (t, d) env)
+        with
+          | Not_found -> Market(t)
+          (* Let other exceptions propagate *)
+      end
+    | None -> Market(t)
+  in
+
+  (* Remove 'Fixed' IFF we can reduce to a constant *)
+  let simp_fixed env date (d, e) =
+    let e' = simplify_impl env (Some d) e in
+    match e' with
+      | Constant (f) -> e'
+      | _ -> Fixed(d, e')
+  in
+
+  (* Evaluate 'Operation' IFF both operands are constants *)
+  let simp_operation env date (op, e1, e2) =
+    let e1' = simplify_impl env date e1 in
+    let e2' = simplify_impl env date e2 in
+    match (e1', e2') with
+      | Constant(f1), Constant(f2) ->
+        begin match op with
+          | Add -> Constant (f1 +. f2)
+          | Subtract -> Constant (f1 -. f2)
+          | Multiply -> Constant (f1 *. f2)
+          | Divide -> Constant (f1 /. f2)
+        end
+      | _, _ -> Operation(op, e1', e2')
+  in
+
+  (* Body of simplify_impl *)
+  match exp with
+  | Constant(f) -> exp
+  | Market(t) -> simp_market env date t
+  | Fixed(d, e) -> simp_fixed env date (d, e)
+  | Operation(op, e1, e2) -> simp_operation env date (op, e1, e2)
+;;
+
+(* Pretty wrapper for simplify *)
+let simplify fix exp =
+  let env = env_of_list fix in
+  simplify_impl env None exp
+;;
+
+
+(**
+ *  Test stuff
+ **)
+let ticker = "IBM US Equity" in
+let ibm = market ticker in
+let s =
+  fix ("2015-09-30", (ibm / fix ("2015-09-17", ibm) - const (1.0)))
+in
+let f =
+  [(ticker, "2015-09-30", 0.12); (ticker, "2015-09-17", 0.1)]
+in
+
+simplify f s
