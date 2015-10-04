@@ -1,5 +1,19 @@
 //"c:/program files (x86)/Microsoft Visual Studio 14.0/vc/vcvarsall.bat" x64
 //cl /Fel.exe /Zi /MDd /EHsc /I d:/boost_1_59_0 l2.cpp
+/*
+@inproceedings{Wadler:1995:MFP:647698.734146,
+ author = {Wadler, Philip},
+ title = {Monads for Functional Programming},
+ booktitle = {Advanced Functional Programming, First International Spring School on Advanced Functional Programming Techniques-Tutorial Text},
+ year = {1995},
+ isbn = {3-540-59451-5},
+ pages = {24--52},
+ numpages = {29},
+ url = {http://dl.acm.org/citation.cfm?id=647698.734146},
+ acmid = {734146},
+ publisher = {Springer-Verlag},
+ address = {London, UK, UK},
+*/
 
 #include <list>
 #include <iterator>
@@ -8,23 +22,22 @@
 #include <iostream>
 
 /*
-  The list monad.
-
-  let unit : 'a -> 'a t = fun a -> [a]
-
-  let rec ( * ) : 'a t -> ('a -> 'b t) -> 'b t =
-    fun l -> fun k ->
-      match l with | [] -> [] | (h :: tl) -> k h @ tl * k
-
+  The list monad
 */
 
 //The unit list containing 'a'
-
+/*
+  let unit : 'a -> 'a t = fun a -> [a]
+*/
 template <class A> 
 std::list<A> unit (A const& a) { return std::list<A> (1u, a); }
 
-//The list monad 'bind' operator
-
+//The 'bind' operator
+/*
+  let rec ( * ) : 'a t -> ('a -> 'b t) -> 'b t =
+    fun l -> fun k ->
+      match l with | [] -> [] | (h :: tl) -> k h @ tl * k
+*/
 template <class A, class F>
 typename std::result_of<F(A)>::type 
 operator * (std::list<A> a, F k) {
@@ -40,28 +53,26 @@ operator * (std::list<A> a, F k) {
   return res;
 }
 
+//'join' concatenates a list of lists
 /*
     let join : 'a t t z = z * fun m -> m
 */
-
-//'join' concatenates a list of lists
-
 template <class A>
 std::list <A> join (std::list<std::list<A>> const& z) {
   return z * [](auto m) { return m; };
 }
 
+//'map' is the equivalent of 'std::transform'
 /*
     let map : ('a -> b') -> 'a t -> 'b t =
       fun f -> fun m -> m * fun a -> unit (f a)
 */
-
-//'map' is the equivalent of 'std::transform'
-
 template <class A, class F>
 std::list<A> map (F f, std::list<A> const& m) {
   return m * [=](auto a) { return unit (f (a)); };
 }
+
+//-- That's it, the rest is just tests.
 
 namespace std {
 
