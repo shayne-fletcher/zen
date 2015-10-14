@@ -49,11 +49,13 @@ class _market (_float):
 class _max (_float):
   def __init__ (self, lhs, rhs) : 
       self.lhs = lhs; self.rhs = rhs
-  def __str__ (self) : return "max(" + str (self.lhs) + ", " + str (self.rhs) + ")"
+  def __str__ (self) : 
+    return "max(" + str (self.lhs) + ", " + str (self.rhs) + ")"
 class _min (_float):
   def __init__ (self, lhs, rhs) : 
       self.lhs = lhs; self.rhs = rhs
-  def __str__ (self): return "min(" + str (self.lhs) + ", " + str (self.rhs) + ")"
+  def __str__ (self): 
+    return "min(" + str (self.lhs) + ", " + str (self.rhs) + ")"
 
 def visit (f, acc, xpr):
   if isinstance (xpr, _const) : return f._const (acc, xpr)
@@ -73,20 +75,31 @@ const = lambda c : _const (c)
 market = lambda s : _market (s)
 max_ = lambda a, b : _max (a, b)
 min_ = lambda a, b : _min (a, b)
+
 def fix (d, x):
 
-    class __fix_visitor:
-        def __init__ (self, d) : self.d = d
-        def _const (self, _, xpr) : return xpr
-        def _market (self, _, xpr) : return _fix (self.d, xpr)
-        def _fix (self, _, xpr) : return xpr
-        def _neg (self, _, xpr) : return _neg (visit (self, _, xpr.f))
-        def _add (self, _, xpr) : return _add (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-        def _sub (self, _, xpr) : return _sub (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-        def _mul (self, _, xpr) : return _mul (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-        def _div (self, _, xpr) : return _div (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-        def _max (self, _, xpr) : return _max (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-        def _min (self, _, xpr) : return _min (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+  class __fix_visitor:
+    def __init__ (self, d) : 
+      self.d = d
+    def _const (self, _, xpr) : 
+      return xpr
+    def _market (self, _, xpr) : 
+      return _fix (self.d, xpr)
+    def _fix (self, _, xpr) : return xpr
+    def _neg (self, _, xpr) : 
+      return _neg (visit (self, _, xpr.f))
+    def _add (self, _, xpr) : 
+      return _add (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _sub (self, _, xpr) : 
+      return _sub (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _mul (self, _, xpr) : 
+      return _mul (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _div (self, _, xpr) : 
+      return _div (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _max (self, _, xpr) : 
+      return _max (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _min (self, _, xpr) : 
+      return _min (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
 
     return visit (__fix_visitor (d), None, x)
 
@@ -99,13 +112,20 @@ def simplify (fs, x):
     def _fix (self, _, xpr) : 
       fs = [f for f in self.fs if f[0] == xpr.f.tag and f[1] == xpr.d]
       return xpr if len (fs) == 0 else _const (fs[0][2])
-    def _neg (self, _, xpr) : return _neg (visit (self, _, xpr.f))
-    def _add (self, _, xpr) : return _add (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-    def _sub (self, _, xpr) : return _sub (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-    def _mul (self, _, xpr) : return _mul (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-    def _div (self, _, xpr) : return _div (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-    def _max (self, _, xpr) : return _max (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
-    def _min (self, _, xpr) : return _min (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _neg (self, _, xpr) : 
+      return _neg (visit (self, _, xpr.f))
+    def _add (self, _, xpr) : 
+      return _add (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _sub (self, _, xpr) : 
+      return _sub (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _mul (self, _, xpr) : 
+      return _mul (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _div (self, _, xpr) : 
+      return _div (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _max (self, _, xpr) : 
+      return _max (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
+    def _min (self, _, xpr) : 
+      return _min (visit (self, _, xpr.lhs), visit (self, _, xpr.rhs))
 
   class _simplify_visitor:
     def _const (self, _, xpr) : 
@@ -136,4 +156,5 @@ def simplify (fs, x):
       l = visit (self, _, xpr.lhs); r = visit (self, _, xpr.rhs)
       return xpr if not _isconst([l, r]) else const (min (l.f, r.f))
 
-  return visit (_simplify_visitor (), None, visit (_apply_fixings_visitor (fs), None, x))
+  return visit ( \
+    _simplify_visitor (), None, visit (_apply_fixings_visitor (fs), None, x))
