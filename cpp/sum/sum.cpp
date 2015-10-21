@@ -1,65 +1,15 @@
 //"c:/program files (x86)/Microsoft Visual Studio 14.0/vc/vcvarsall.bat" x64
 //cl /Feu.exe /Zi /MDd /EHsc /I d:/boost_1_59_0 u.cpp
 
-#include <boost/core/enable_if.hpp>
-#include <boost/mpl/and.hpp>
-#include <boost/type_traits/is_same.hpp>
+#include "and.hpp"
+#include "recursive_wrapper.hpp"
 
+#include <type_traits>
 #include <cstddef>
 #include <string>
 #include <iostream>
 
-template <class T>
-class recursive_wrapper;
-
-template <class T>
-struct is_recursive_wrapper : boost::mpl::false_ {};
-
-template <class T>
-struct is_recursive_wrapper<recursive_wrapper<T>> : boost::mpl::true_ {};
-
-template <typename T>
-struct unwrap_recursive {
-    typedef T type;
-};
-
-template <typename T>
-struct unwrap_recursive< recursive_wrapper<T> > {
-  typedef T type;
-};
-
-template <class T>
-class recursive_wrapper {
-private:
-  T* p_;
-  recursive_wrapper& assign (T const& rhs) { this->get() = rhs; return *this; }
-
-public:
-  typedef T type;
-
-  template <class... Args> recursive_wrapper (Args&&... args) : p_(new T (std::forward<Args>(args)...)) {}
-  recursive_wrapper (recursive_wrapper const& rhs) : p_ (new T (rhs.get ())) {}
-  recursive_wrapper (T const& rhs) : p_ (new T (rhs)) {}
-  recursive_wrapper(recursive_wrapper&& rhs) : p_ (new T (std::move (rhs.get ()))) {}
-  recursive_wrapper(T&& rhs) : p_ (new T (std::move (rhs))) {}
-  ~recursive_wrapper() {  delete p_; }
-
-  recursive_wrapper& operator=(recursive_wrapper const& rhs){ return assign (rhs.get()); }
-  recursive_wrapper& operator=(T const& rhs) { return assign (rhs); }
-  void swap(recursive_wrapper& rhs) noexcept { std::swap (p_, rhs.p_); }
-  recursive_wrapper& operator=(recursive_wrapper&& rhs) noexcept { swap (rhs); return *this; }
-  recursive_wrapper& operator=(T&& rhs) { get() = std::move (rhs); return *this; }
-
-  T& get() { return *get_pointer(); }
-  T const& get() const { return *get_pointer(); }
-  T* get_pointer() { return p_; }
-  T const* get_pointer() const { return p_; }
-};
-
-template <typename T>
-inline void swap(recursive_wrapper<T>& lhs, recursive_wrapper<T>& rhs) noexcept {
-  lhs.swap(rhs);
-}
+namespace foo {
 
 template <std::size_t I, class T, class... Ts>
 struct index_of_impl;
@@ -109,26 +59,31 @@ struct recursive_union<T, Ts...> {
   recursive_union () 
   {}
 
+  //Match on 'T'
   template <class... Args>
   explicit recursive_union (constructor<T>, Args&&... args) 
     : v (std::forward<Args>(args)...)
   {}
 
+  //'U' is not 'T' but 'T' is a recursive wrapper and 'U' is the type
+  //contained in 'T'
   template <class U, class... Args,
-    typename boost::enable_if<
-      boost::mpl::and_<
-        is_recursive_wrapper<T>
-      , boost::is_same<U, typename unwrap_recursive<T>::type>>, int>::type = 0
+  typename std::enable_if<
+     and_<
+      is_recursive_wrapper<T>
+    , std::is_same<U, typename unwrap_recursive<T>::type>>::value, int>::type = 0
   >
   explicit recursive_union (constructor<U>, Args&&... args)
   : v (std::forward<Args>(args)...)
   {}
 
+  //'U' is not 'T' and 'T' is not a recursive wrapper or, 'U' is not
+  //the type contained in 'T'.
   template <class U, class... Args,
-    typename boost::disable_if<
-      boost::mpl::and_<
-        is_recursive_wrapper<T>
-      , boost::is_same<U, typename unwrap_recursive<T>::type>>, int>::type = 0
+  typename std::enable_if<
+    !and_<
+      is_recursive_wrapper<T>
+    , std::is_same<U, typename unwrap_recursive<T>::type>>::value, int>::type = 0
   >
   explicit recursive_union (constructor<U> t, Args&&... args)
     : r (t, std::forward<Args>(args)...)
@@ -218,10 +173,12 @@ public:
 
 };
 
+}//namespace foo
+
 struct E_const;
 struct E_add;
 
-using expression = sum_type<E_const, recursive_wrapper<E_add>>;
+using expression = foo::sum_type<E_const, foo::recursive_wrapper<E_add>>;
 
 struct E_const { 
   int i; 
@@ -236,9 +193,9 @@ struct E_add {
 int main () {
 
   expression xpr(
-     constructor<E_add>()
-   , expression (constructor<E_const>(), 2)
-   , expression (constructor<E_const>(), 3));
+      foo::constructor<E_add>()
+    , expression (foo::constructor<E_const>(), 2)
+    , expression (foo::constructor<E_const>(), 3));
 
   return 0;
 }
