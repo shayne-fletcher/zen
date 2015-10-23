@@ -16,15 +16,18 @@ struct is_recursive_wrapper : std::false_type {};
 template <class T>
 struct is_recursive_wrapper<recursive_wrapper<T>> : std::true_type {};
 
-template <typename T>
+template <class T>
 struct unwrap_recursive {
     typedef T type;
 };
 
-template <typename T>
+template <class T>
 struct unwrap_recursive< recursive_wrapper<T> > {
   typedef T type;
 };
+
+template <class T>
+using unwrap_recursive_t = typename unwrap_recursive<T>::type;
 
 template <class T>
 class recursive_wrapper {

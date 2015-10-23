@@ -13,7 +13,7 @@ struct and_ : std::true_type {
 
 template <class T, class... Ts>
 struct and_<T, Ts...> 
-  : std::conditional<T::value, and_<Ts...>, std::false_type>::type {
+  : std::conditional_t<T::value, and_<Ts...>, std::false_type> {
 };
 
 }//namespace foo
