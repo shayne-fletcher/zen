@@ -76,10 +76,43 @@ public:
     return *this;
   }
 
+  template <class R, class... Fs>
+  R match(Fs&&... fs) const {
+    using indicies = mk_range<0, sizeof... (Ts) - 1>;
+
+    return union_visitor<R, indicies, Ts...>::visit (
+                  data, cons, std::forward<Fs>(fs)...);
+  }
+
+  template <class R, class... Fs>
+  R match(Fs&&... fs) {
+    using indicies = mk_range<0, sizeof... (Ts) - 1>;
+
+    return union_visitor<R, indicies, Ts...>::visit (
+                  data, cons, std::forward<Fs>(fs)...);
+  }
+
+  template <class... Fs>
+  void match(Fs&&... fs) const {
+    using indicies = mk_range<0, sizeof... (Ts) - 1>;
+
+    union_visitor<void, indicies, Ts...>::visit (
+                  data, cons, std::forward<Fs>(fs)...);
+  }
+
+  template <class... Fs>
+  void match(Fs&&... fs) {
+    using indicies = mk_range<0, sizeof... (Ts) - 1>;
+
+    union_visitor<void, indicies, Ts...>::visit (
+                  data, cons, std::forward<Fs>(fs)...);
+  }
+
 };
 
 }//namespace foo
 
+/*
 struct E_const;
 struct E_add;
 
@@ -101,6 +134,51 @@ int main () {
       foo::constructor<E_add>()
     , expression (foo::constructor<E_const>(), 2)
     , expression (foo::constructor<E_const>(), 3));
+
+  return 0;
+}
+*/
+
+struct Foo {};
+struct Bar {};
+
+std::ostream& operator<<(std::ostream& os, Foo const&) {
+  return os << "Foo" << std::endl;
+}
+
+std::ostream& operator<<(std::ostream& os, Bar const&) {
+  return os << "Bar" << std::endl;
+}
+
+int main () {
+  using t = foo::sum_type<Foo, Bar>;
+
+  t foo{foo::constructor<Foo>()};
+  t bar{foo::constructor<Bar>()};
+
+ foo.match (
+     [] (Foo f) -> void { std::cout << f; },
+     [] (Bar b) -> void { std::cout << b; }
+   );
+
+ bar.match (
+     [] (Foo f) -> void { std::cout << f; },
+     [] (Bar b) -> void { std::cout << b; }
+   );
+
+  auto i =
+    foo.match<int> (
+      [] (Foo) -> int {  return 1; },
+      [] (Bar) -> int {  return 2; }
+    );
+  std::cout << i << std::endl;
+
+  auto j =
+    bar.match<int> (
+      [] (Foo) -> int {  return 1; },
+      [] (Bar) -> int {  return 2; }
+    );
+  std::cout << j << std::endl;
 
   return 0;
 }

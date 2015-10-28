@@ -4,68 +4,26 @@
 #include "and.hpp"
 #include "recursive_wrapper.hpp"
 #include "constructor.hpp"
+//#include "is_callable.hpp"
+#include "range.hpp"
+#include "is_callable.hpp"
 
 #include <cstddef>
+#include <stdexcept>
 #include <type_traits>
 
 namespace foo {
 
-//union_indexer
-
 template <class ...>
 struct recursive_union {}; //fwd. decl.
-
-/*
-  let rec drop l i =
-    if i = 0 then l else
-    match l with
-     | [] -> []
-     | (h :: tl) -> drop tl (i - 1)
-*/
-
-template <std::size_t I, class T, class... Ts>
-struct union_indexer {
-
-  static auto ref (recursive_union<T, Ts...>& u) 
-    /*-> decltype (union_indexer<I - 1, Ts...>::ref (u.r))*/ {
-    return union_indexer<I - 1, Ts...>::ref (u.r)
-  }
-
-  static auto ref (recursive_union<T, Ts...> const& u) 
-    /*-> decltype (union_indexer<I - 1, Ts...>::ref (u.r))*/ {
-    return union_indexer<I - 1, Ts...>::ref (u.r)
-  }
-
-  static auto ptr (recursive_union<T, Ts...> const& u) 
-    /*-> decltype (union_indexer<I - 1, Ts...>::ptr (u.r))*/ {
-    return union_indexer<I - 1, Ts...>::ptr (u.r)
-  }
-
-};
-
-template <class T, class... Ts>
-struct union_indexer<0, T, Ts...> {
-
-  static T& ref (recursive_union<T, Ts...>& u) {
-    return u.v;
-  }
-
-  static T const& ref (recursive_union<T, Ts...>& u) {
-    return u.v;
-  }
-
-  static T* ptr (recursive_union<T, Ts...>& u) {
-    return std::addressof (u.v);
-  }
-
-};
-
-//-- 
 
 //union_visitor  
 
 template <class T>
 struct overload_tag {};
+
+template <class R, class T, class...>
+struct union_visitor;
 
 template <class R, class T, class...>
 struct union_visitor {
@@ -79,6 +37,15 @@ struct union_visitor {
     return std::forward<F>(f)(t);
   }
 
+  //'F' is not callable on 'T const&'
+  template <
+    class F, class O, class... Fs,
+    class = typename std::enable_if<!is_callable<F, T>::value>::type
+    >
+  static R visit (overload_tag<O> o, T const& t, F&&, Fs&&... fs) {
+    return union_visitor::visit (o, t, std::forward<Fs>(fs)...);
+  }
+
   //'F' is callable on 'T&'
   template <
     class O, class F, class... Fs,
@@ -88,28 +55,19 @@ struct union_visitor {
     return std::forward<F>(f)(t);
   }
 
-  //'F' is not callable on 'T const&'
-  template <
-    class O, class F, class... Fs,
-    class = typename std::enable_if<!is_callable<F, T>::value>::type
-    >
-  static R visit (overload_tag<O>, Tconst& t, F&& f, Fs&&...) {
-    return union_visitor::visiit (o, t, std::forward<Fs>(fs)...);
-  }
-
   //'F' is not callable on 'T&'
   template <
-    class O, class F, class... Fs,
+    class F, class O, class... Fs,
     class = typename std::enable_if<!is_callable<F, T>::value>::type
     >
-  static R visit (overload_tag<O>, T& t, F&& f, Fs&&...) {
+  static R visit (overload_tag<O> o, T& t, F&&, Fs&&... fs) {
     return union_visitor::visit (o, t, std::forward<Fs>(fs)...);
   }
 
 };
 
 template <class T, class... Ts>
-struct union_visitor<void T, Ts...> {
+struct union_visitor<void, T, Ts...> {
 
   //'F' is callable on 'T const&'
   template <
@@ -120,6 +78,15 @@ struct union_visitor<void T, Ts...> {
     std::forward<F>(f)(t);
   }
 
+  //'F' is not callable on 'T const&'
+  template <
+    class F, class O, class... Fs,
+    class = typename std::enable_if<!is_callable<F, T>::value>::type
+    >
+  static void visit (overload_tag<O> o, T const& t, F&&, Fs&&... fs) {
+    union_visitor::visit (o, t, std::forward<Fs>(fs)...);
+  }
+
   //'F' is callable on 'T&'
   template <
     class O, class F, class... Fs,
@@ -129,51 +96,119 @@ struct union_visitor<void T, Ts...> {
     std::forward<F>(f)(t);
   }
 
-  //'F' is not callable on 'T const&'
-  template <
-    class O, class F, class... Fs,
-    class = typename std::enable_if<!is_callable<F, T>::value>::type
-    >
-  static void visit (overload_tag<O>, Tconst& t, F&& f, Fs&&...) {
-    union_visitor::visiit (o, t, std::forward<Fs>(fs)...);
-  }
-
   //'F' is not callable on 'T&'
   template <
-    class O, class F, class... Fs,
+    class F, class O, class... Fs,
     class = typename std::enable_if<!is_callable<F, T>::value>::type
     >
-  static void visit (overload_tag<O>, T& t, F&& f, Fs&&...) {
+  static void visit (overload_tag<O> o, T& t, F&&, Fs&&...fs) {
     union_visitor::visit (o, t, std::forward<Fs>(fs)...);
+  }
+};
+
+struct invalid_sum_type_access : std::logic_error {
+
+  explicit invalid_sum_type_access (std::string const& what)
+    : logic_error (what)
+  {}
+
+  explicit invalid_sum_type_access (std::string&& what)
+    : logic_error (std::move (what))
+  {}
+
+  explicit invalid_sum_type_access (char const* what)
+    : logic_error (what)
+  {}
+
+};
+
+template <class R, class... Ts>
+struct union_visitor<R, range<>, Ts...> {
+
+  template <class... Fs>
+  static R visit (recursive_union<Ts...> const&, std::size_t, Fs&&...) {
+    throw invalid_sum_type_access{""};
+  }
+
+  template <class... Fs>
+  static R visit (recursive_union<Ts...>&, std::size_t, Fs&&...) {
+    throw invalid_sum_type_access{""};
+  }
+};
+
+template <class... Ts>
+struct union_visitor<void, range<>, Ts...> {
+
+  template <class... Fs>
+  static void visit (recursive_union<Ts...> const&, std::size_t, Fs&&...) {
+    throw invalid_sum_type_access{""};
+  }
+
+  template <class... Fs>
+  static void visit (recursive_union<Ts...>&, std::size_t, Fs&&...) {
+    throw invalid_sum_type_access{""};
+  }
+};
+
+template <class R, std::size_t I, std::size_t... Is, class T, class... Ts>
+struct union_visitor<R, range<I, Is...>, T, Ts...> {
+
+  template <class... Fs>
+  static R visit (
+    recursive_union<T, Ts...> const& u, std::size_t i, Fs&&... fs) {
+    if (i == I) {
+      overload_tag<T> o{};
+      return union_visitor<R, T>::visit(o, u.v, std::forward<Fs>(fs)...);
+    }
+    else {
+      return union_visitor<R, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+    }
+  }
+
+  template <class... Fs>
+  static R visit (
+    recursive_union<T, Ts...>& u, std::size_t i, Fs&&... fs) {
+    if (i == I) {
+      overload_tag<T> o{};
+      return union_visitor<R, T>::visit(o, u.v, std::forward<Fs>(fs)...);
+    }
+    else {
+      return union_visitor<R, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+    }
+  }
+
+};
+
+template <std::size_t I, std::size_t... Is, class T, class... Ts>
+struct union_visitor<void, range<I, Is...>, T, Ts...> {
+
+  template <class... Fs>
+  static void visit (
+    recursive_union<T, Ts...> const& u, std::size_t i, Fs&&... fs) {
+    if (i == I) {
+      overload_tag<T> o{};
+      union_visitor<void, T>::visit(o, u.v, std::forward<Fs>(fs)...);
+    }
+    else {
+      union_visitor<void, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+    }
+  }
+
+  template <class... Fs>
+  static void visit (recursive_union<T, Ts...>& u, std::size_t i, Fs&&... fs) {
+    if (i == I) {
+      overload_tag<T> o{};
+      union_visitor<void, T>::visit (o, u.v, std::forward<Fs>(fs)...);
+    }
+    else {
+      union_visitor<void, range<Is...>, Ts...>::visit (u.r, i, std::forward<Fs>(fs)...);
+    }
   }
 
 };
 
 //--
 
-//seq - a number sequence
-
-template <std::size_t...>
-struct seq {};
-
-namespace detail {
-
-template <std::size_t Z, st::size_t N, std::size_t... S>
-struct gen_seq_impl : gen : seq_impl <Z, N - 1, N, S...>{};
-
-template <std::size_t Z, std::size_t... S> 
-struct gen_seq_impl <Z, Z, S, ...>{
-  using type = seq<Z, S...>;
-};
-
-//Generate a sequence of numbers
-
-template <std::size_t Z, std::size_t N>
-using gen_seq = typename detail::gen_seq_impl<Z, N>::type;
-
-}//namespace detail
-
-//--
 
 //recursive_union
 
