@@ -49,17 +49,17 @@ struct E_div {
 };
 
 std::ostream& operator << (std::ostream& os, xpr_t const& e) {
-  e.match (
 
-    [&](E_const e) { os << e.i;  },
-    [&](E_mul e) { os << e.l << "*" << e.r;  },
-    [&](E_div e) { os << e.l << "/" << e.r;  },
-    [&](E_add e) { os << e.l << " + " << e.r;  },
-    [&](E_sub e) { os << e.l << " - " << e.r;  }
+  return e.match<std::ostream&> (
 
+    [&](E_const const& e) -> auto& { return os << e.i;  },
+    [&](E_mul const& e) -> auto& { return os << e.l << "*" << e.r;  },
+    [&](E_div const& e)-> auto&  { return os << e.l << "/" << e.r;  },
+    [&](E_add const& e) -> auto& { return os << e.l << " + " << e.r;  },
+    [&](E_sub const&e)-> auto& { return os << e.l << " - " << e.r;  }
   );
 
-  return os;
+  //  return os;
 }
 
 int main () {
