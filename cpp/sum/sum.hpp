@@ -74,21 +74,21 @@ public:
     return *this;
   }
 
-  // template <class R, class... Fs>
-  // R match(Fs&&... fs) const {
-  //   using indicies = mk_range<0, sizeof... (Ts) - 1>;
+  template <class R, class... Fs>
+  R match(Fs&&... fs) const {
+    using indicies = mk_range<0, sizeof... (Ts) - 1>;
 
-  //   return union_visitor<R, indicies, Ts...>::visit (
-  //                 data, cons, std::forward<Fs>(fs)...);
-  // }
+    return union_visitor<R, indicies, Ts...>::visit (
+                  data, cons, std::forward<Fs>(fs)...);
+  }
 
-  // template <class R, class... Fs>
-  // R match(Fs&&... fs) {
-  //   using indicies = mk_range<0, sizeof... (Ts) - 1>;
+  template <class R, class... Fs>
+  R match(Fs&&... fs) {
+    using indicies = mk_range<0, sizeof... (Ts) - 1>;
 
-  //   return union_visitor<R, indicies, Ts...>::visit (
-  //                 data, cons, std::forward<Fs>(fs)...);
-  // }
+    return union_visitor<R, indicies, Ts...>::visit (
+                  data, cons, std::forward<Fs>(fs)...);
+  }
 
   template <class... Fs>
   void match(Fs&&... fs) const {
@@ -98,13 +98,13 @@ public:
                   data, cons, std::forward<Fs>(fs)...);
   }
 
-  // template <class... Fs>
-  // void match(Fs&&... fs) {
-  //   using indicies = mk_range<0, sizeof... (Ts) - 1>;
-  //  
-  //   union_visitor<void, indicies, Ts...>::visit (
-  //                 data, cons, std::forward<Fs>(fs)...);
-  // }
+  template <class... Fs>
+  void match(Fs&&... fs) {
+    using indicies = mk_range<0, sizeof... (Ts) - 1>;
+   
+    union_visitor<void, indicies, Ts...>::visit (
+                  data, cons, std::forward<Fs>(fs)...);
+  }
 
 };
 

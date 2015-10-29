@@ -4,7 +4,6 @@
 #include "and.hpp"
 #include "recursive_wrapper.hpp"
 #include "constructor.hpp"
-//#include "is_callable.hpp"
 #include "range.hpp"
 #include "is_callable.hpp"
 
@@ -25,252 +24,289 @@ struct overload_tag {};
 template <class R, class T, class...>
 struct union_visitor;
 
-// template <class R, class T, class...>
-// struct union_visitor {
-//
-//   //'F' is callable on 'T const&'
-//   template <
-//     class O, class F, class... Fs,
-//     class = typename std::enable_if<is_callable<F, T>::value>::type
-//     >
-//   static R visit (overload_tag<O>, T const& t, F&& f, Fs&&...) {
-//     return std::forward<F>(f)(t);
-//   }
-//
-//   //'F' is not callable on 'T const&'
-//   template <
-//     class F, class O, class... Fs,
-//     class = typename std::enable_if<!is_callable<F, T>::value>::type
-//     >
-//   static R visit (overload_tag<O> o, T const& t, F&&, Fs&&... fs) {
-//     return union_visitor::visit (o, t, std::forward<Fs>(fs)...);
-//   }
-//
-//   //'F' is callable on 'T&'
-//   template <
-//     class O, class F, class... Fs,
-//     class = typename std::enable_if<is_callable<F, T>::value>::type
-//     >
-//   static R visit (overload_tag<O>, T& t, F&& f, Fs&&...) {
-//     return std::forward<F>(f)(t);
-//   }
-//
-//   //'F' is not callable on 'T&'
-//   template <
-//     class F, class O, class... Fs,
-//     class = typename std::enable_if<!is_callable<F, T>::value>::type
-//     >
-//   static R visit (overload_tag<O> o, T& t, F&&, Fs&&... fs) {
-//     return union_visitor::visit (o, t, std::forward<Fs>(fs)...);
-//   }
-//
-// };
+//Result type 'R'
+template <class R, class T, class... Ts>
+struct union_visitor<R, T, Ts...> {
 
+  using result_type = R;
+
+  //For 'F' callable with 'T const&'
+  template <
+    class O, class F, class... Fs,
+    class = typename std::enable_if<is_callable<F, T>::value>::type
+    >
+  static result_type visit (overload_tag<O>, T const& t, F&& f, Fs&&...) {
+    return std::forward<F>(f)(t);
+  }
+
+  //For 'F' not callable with 'T const&'
+  template <
+    class F, class O, class... Fs,
+    class = typename std::enable_if<!is_callable<F, T>::value>::type
+    >
+  static result_type visit (overload_tag<O> o, T const& t, F&&, Fs&&... fs) {
+    return union_visitor::visit (o, t, std::forward<Fs>(fs)...);
+  }
+
+  //For 'F' callable with 'T&'
+  template <
+    class O, class F, class... Fs,
+    class = typename std::enable_if<is_callable<F, T>::value>::type
+    >
+  static result_type visit (overload_tag<O>, T& t, F&& f, Fs&&...) {
+    return std::forward<F>(f)(t);
+  }
+
+  //For 'F' not callable with 'T&'
+  template <
+    class F, class O, class... Fs,
+    class = typename std::enable_if<!is_callable<F, T>::value>::type
+    >
+  static result_type visit (overload_tag<O> o, T& t, F&&, Fs&&...fs) {
+    return union_visitor::visit (o, t, std::forward<Fs>(fs)...);
+  }
+};
+
+//Result type 'void'
 template <class T, class... Ts>
 struct union_visitor<void, T, Ts...> {
 
+  using result_type = void;//result type of 'visit'
+
+  //For 'F' callable with 'T const&'
   template <
     class O, class F, class... Fs,
     class = typename std::enable_if<is_callable<F, T>::value>::type
     >
-  static void visit (overload_tag<O>, T const& t, F&& f, Fs&&...) {
+  static result_type visit (overload_tag<O>, T const& t, F&& f, Fs&&...) {
     std::forward<F>(f)(t);
   }
 
+  //For 'F' not callable with 'T const&'
   template <
     class F, class O, class... Fs,
     class = typename std::enable_if<!is_callable<F, T>::value>::type
     >
-  static void visit (overload_tag<O> o, T const& t, F&&, Fs&&... fs) {
+  static result_type visit (overload_tag<O> o, T const& t, F&&, Fs&&... fs) {
     union_visitor::visit (o, t, std::forward<Fs>(fs)...);
   }
 
+  //For 'F' callable with 'T&'
   template <
     class O, class F, class... Fs,
     class = typename std::enable_if<is_callable<F, T>::value>::type
     >
-  static void visit (overload_tag<O>, T& t, F&& f, Fs&&...) {
+  static result_type visit (overload_tag<O>, T& t, F&& f, Fs&&...) {
     std::forward<F>(f)(t);
   }
 
+  //For 'F' not callable with 'T&'
   template <
     class F, class O, class... Fs,
     class = typename std::enable_if<!is_callable<F, T>::value>::type
     >
-  static void visit (overload_tag<O> o, T& t, F&&, Fs&&...fs) {
+  static result_type visit (overload_tag<O> o, T& t, F&&, Fs&&...fs) {
     union_visitor::visit (o, t, std::forward<Fs>(fs)...);
   }
 };
 
+//For invalid index
 struct invalid_sum_type_access : std::logic_error {
-
   explicit invalid_sum_type_access (std::string const& what)
     : logic_error (what)
   {}
-
   explicit invalid_sum_type_access (std::string&& what)
     : logic_error (std::move (what))
   {}
-
   explicit invalid_sum_type_access (char const* what)
     : logic_error (what)
   {}
-
 };
 
+//'Ts' return type 'R'
 template <class R, class... Ts>
 struct union_visitor<R, range<>, Ts...> {
 
+  using result_type = R;//result type of 'visit'
+
   template <class... Fs>
-  static R visit (recursive_union<Ts...> const&, std::size_t, Fs&&...) {
+  static result_type visit (recursive_union<Ts...> const&, std::size_t, Fs&&...) {
     throw invalid_sum_type_access{""};
   }
 
   template <class... Fs>
-  static R visit (recursive_union<Ts...>&, std::size_t, Fs&&...) {
+  static result_type visit (recursive_union<Ts...>&, std::size_t, Fs&&...) {
     throw invalid_sum_type_access{""};
   }
 };
 
+//'Ts' return type void
 template <class... Ts>
 struct union_visitor<void, range<>, Ts...> {
 
+  using result_type = void;//the result 'visit'
+
   template <class... Fs>
-  static void visit (recursive_union<Ts...> const&, std::size_t, Fs&&...) {
+  static result_type visit (recursive_union<Ts...> const&, std::size_t, Fs&&...) {
     throw invalid_sum_type_access{""};
   }
 
   template <class... Fs>
-  static void visit (recursive_union<Ts...>&, std::size_t, Fs&&...) {
+  static result_type visit (recursive_union<Ts...>&, std::size_t, Fs&&...) {
     throw invalid_sum_type_access{""};
   }
 };
 
-//'T', return type 'R'
+//'T', 'Ts', return type 'R'
 template <class R, std::size_t I, std::size_t... Is, class T, class... Ts>
 struct union_visitor<R, range<I, Is...>, T, Ts...> {
 
+  using type = T; //the type of the value
+  using result_type = R; //result type of 'visit'
+
+  //'const' overload ('recursive_union<type, Ts...> const& u')
   template <class... Fs>
-  static R visit (
-    recursive_union<T, Ts...> const& u, std::size_t i, Fs&&... fs) {
+  static result_type visit (
+    recursive_union<type, Ts...> const& u, std::size_t i, Fs&&... fs) {
     if (i == I) {
-      overload_tag<T> o{};
-      return union_visitor<R, T>::visit(o, u.v, std::forward<Fs>(fs)...);
+      //'u' is not a reference (no call 'get ()')
+      overload_tag<type> o{};
+      return union_visitor<result_type, T>::visit(o, u.v, std::forward<Fs>(fs)...);
     }
     else {
-      return union_visitor<R, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+      return union_visitor<result_type, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
     }
   }
 
+  //'non-const' overload ('recursive_union<T, Ts...>& u')
   template <class... Fs>
-  static R visit (
+  static result_type visit (
     recursive_union<T, Ts...>& u, std::size_t i, Fs&&... fs) {
     if (i == I) {
+      //'u' is not a reference (no call 'get ()')
       overload_tag<T> o{};
-      return union_visitor<R, T>::visit(o, u.v, std::forward<Fs>(fs)...);
+      return union_visitor<result_type, T>::visit(o, u.v, std::forward<Fs>(fs)...);
     }
     else {
-      return union_visitor<R, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+      return union_visitor<result_type, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
     }
   }
 };
 
-//'recursive_wrapper<T>', return type 'R'
+//U='recursive_wrapper<T>', 'Ts', return type 'R'
 template <class R, std::size_t I, std::size_t... Is, class T, class... Ts>
 struct union_visitor<R, range<I, Is...>, recursive_wrapper<T>, Ts...> {
 
+  using type = T; //the type held by the value
+  using U = recursive_wrapper<type>;//the type of the value
+  using result_type = R;//the type returned by 'visit'
+  
+  //'const' overload ('recursive_union<recursive_wrapper<type>, Ts...> const& u')
   template <class... Fs>
-  static R visit (
-    recursive_union<recursive_wrapper<T>, Ts...> const& u, std::size_t i, Fs&&... fs) {
+  static result_type visit (
+     recursive_union<U, Ts...> const& u, std::size_t i, Fs&&... fs) {
     if (i == I) {
-      overload_tag<T> o{};
-      return union_visitor<R, T>::visit(o, u.v.get (), std::forward<Fs>(fs)...);
+      //'u' is of type recursive_wrapper<type>, call 'get ()'
+      overload_tag<type> o{};
+      return union_visitor<result_type, type>::visit(o, u.v.get (), std::forward<Fs>(fs)...);
     }
     else {
-      return union_visitor<R, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+      return union_visitor<result_type, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
     }
   }
 
+  //'non-const' overload ('recursive_union<U, Ts...>& u')
   template <class... Fs>
-  static R visit (
-    recursive_union<T, Ts...>& u, std::size_t i, Fs&&... fs) {
+  static result_type visit (
+    recursive_union<U, Ts...>& u, std::size_t i, Fs&&... fs) {
     if (i == I) {
-      overload_tag<T> o{};
-      return union_visitor<R, T>::visit(o, u.v.get (), std::forward<Fs>(fs)...);
+      //'u' is of type recursive_wrapper<type>, call 'get ()'
+      overload_tag<type> o{};
+      return union_visitor<result_type, T>::visit(o, u.v.get (), std::forward<Fs>(fs)...);
     }
     else {
-      return union_visitor<R, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+      return union_visitor<result_type, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
     }
   }
 };
 
-//'T'
+//'T', 'Ts', return type 'void'
 template <std::size_t I, std::size_t... Is, class T, class... Ts>
 struct union_visitor<void, range<I, Is...>, T, Ts...> {
 
-  //Overload for recursive_union<T, Ts...> const& u
+  using type = T; //the type of the value
+  using result_type = void; //result type of 'visit'
+
+  //'const' overload ('recursive_union<type, Ts...> const& u')
   template <class... Fs>
-  static void
+  static result_type
   visit (
-    recursive_union<T, Ts...> const& u, std::size_t i, Fs&&... fs) {
+    recursive_union<type, Ts...> const& u, std::size_t i, Fs&&... fs) {
     if (i == I) {
-      overload_tag<T> o{};
-      union_visitor<void, T>::visit(o, u.v, std::forward<Fs>(fs)...);
+      //'u' is not a reference (no call 'get ()')
+      overload_tag<type> o{};
+      union_visitor<result_type, type>::visit(o, u.v, std::forward<Fs>(fs)...);
     }
     else {
-      union_visitor<void, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+      union_visitor<result_type, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
     }
   }
 
-  //Overload for recursive_union<T, Ts...>& u
+  //'non-const' overload ('recursive_union<T, Ts...>& u')
   template <class... Fs>
-  static void
+  static result_type
   visit (
     recursive_union<T, Ts...>& u, std::size_t i, Fs&&... fs) {
     if (i == I) {
-      overload_tag<T> o{};
-      union_visitor<void, T>::visit(o, u.v, std::forward<Fs>(fs)...);
+      //'u' is not a reference (no call 'get ()')
+      overload_tag<type> o{};
+      union_visitor<result_type, type>::visit(o, u.v, std::forward<Fs>(fs)...);
     }
     else {
-      union_visitor<void, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+      union_visitor<result_type, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
     }
   }
 
 };
 
-//'recursive_wrapper<T>', return type 'void'
+//U='recursive_wrapper<T>', 'Ts', return type 'void'
 template <std::size_t I, std::size_t... Is, class T, class... Ts>
 struct union_visitor<void, range<I, Is...>, recursive_wrapper<T>, Ts...> {
 
-  //Overload for recursive_union<T, Ts...> const& u
+  using type = T; //the type held by the value
+  using U = recursive_wrapper<type>;//the type of the value
+  using result_type = void;//the type returned by 'visit'
+
+  //'const' overload ('recursive_union<recursive_wrapper<type>, Ts...> const& u')
   template <class... Fs>
-  static void
-  visit (
-    recursive_union<recursive_wrapper<T>, Ts...> const& u, std::size_t i, Fs&&... fs) {
+  static result_type visit (
+    recursive_union<U, Ts...> const& u, std::size_t i, Fs&&... fs) {
     if (i == I) {
-      overload_tag<T> o{};
-      union_visitor<void, T>::visit(o, u.v.get (), std::forward<Fs>(fs)...);
+
+      //'u' is of type recursive_wrapper<type>, call 'get ()'
+      overload_tag<type> o{};
+      union_visitor<void, type>::visit(o, u.v.get (), std::forward<Fs>(fs)...);
+
     }
     else {
-      union_visitor<void, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
+      union_visitor<void, range<Is...>, Ts...>::visit (u.r, i, std::forward<Fs>(fs)...);
     }
   }
 
-  //Overload for recursive_union<T, Ts...>& u
+  //'non-const' overload ('recursive_union<U, Ts...>& u')
   template <class... Fs>
-  static void
-  visit (
-    recursive_union<recursive_wrapper<T>, Ts...>& u, std::size_t i, Fs&&... fs) {
+  static result_type visit (
+    recursive_union<U, Ts...>& u, std::size_t i, Fs&&... fs) {
     if (i == I) {
-      overload_tag<T> o{};
-      union_visitor<void, T>::visit(o, u.v.get (), std::forward<Fs>(fs)...);
+      //'u' is of type recursive_wrapper<type>, call 'get ()'
+      overload_tag<type> o{};
+      union_visitor<void, type>::visit(o, u.v.get (), std::forward<Fs>(fs)...);
     }
     else {
       union_visitor<void, range<Is...>, Ts...>::visit(u.r, i, std::forward<Fs>(fs)...);
     }
   }
 };
-
 
 //--
 
