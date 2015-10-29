@@ -68,12 +68,14 @@ int main () {
   xpr_t n{
     foo::constructor<E_add>{}
     , xpr_t {foo::constructor<E_const>(), 2}
-    , xpr_t {foo::constructor<E_const>(), 3}};
+    , xpr_t {foo::constructor<E_const>(), 3}
+  };
   //d=5
   xpr_t d{foo::constructor<E_const>{}, 5};
   //xpr = 2 + 3/5
   xpr_t xpr = xpr_t{foo::constructor<E_div>{}, n, d};
 
+  //print
   std::cout << xpr << std::endl;
 
   return 0;
