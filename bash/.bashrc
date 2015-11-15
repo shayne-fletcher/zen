@@ -200,4 +200,4 @@
 . $HOME/.msenv14
 OCAMLLIB="C:\ocaml\lib"; export OCAMLLIB
 PATH="`cygpath -p 'C:\python35;C:\ocaml\bin'`":$PATH; export PATH
-
+PATH=c:/project/felix.git/build/release/host/lib/rtl:c:/project/felix.git/build/release/host/bin:$PATH; export PATH
