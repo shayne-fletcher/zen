@@ -24,4 +24,5 @@ let newton
 (*Approximate sqrt 2 with P = 1, Q = 1, m/n = 1/2*)
 let _ = 
   let sqrt2 = sqrt 2.0 in
-  newton 1.0 1.0 1 2 (fun i x -> fabs (x -. sqrt2) <= 0.0001)
+  newton 1.0 (~-.0.5) 1 2 (fun i x -> fabs (2.0 *. x -. sqrt2) <= 0.0001)
+(*Terminates after 8 terms*)
