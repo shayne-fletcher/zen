@@ -3,6 +3,7 @@
 let map : ('a -> 'b) -> ('a list -> 'b list) = fun f -> fun l -> List.map f l
 let unit : ('a -> 'a list) = fun x -> x :: []
 let join : ('a list list) -> 'a list = fun ls -> List.concat ls
+let ( * ) : 'a list -> ('a -> 'b list) -> 'b list = fun a -> fun k -> join ((map k) a)
 
 (*Theorems for free*)
 
@@ -28,7 +29,7 @@ let (j :  ('a -> 'b) -> 'a list list -> 'b list) = fun f -> fun ls -> join (map 
   (3) [t | (p, q)] = join [[t | q] | p]
 *)
 
-(*e.g. [(x, y) | x <- [1, 2], y <- [3, 4]] 
+(*e.g. [(x, y) | x <- [1; 2], y <- [3; 4]] 
    = {(3)}
      join [[t | y <- [3; 4]] | x <- [1; 2]]
    = {(2)}
@@ -38,6 +39,54 @@ let (j :  ('a -> 'b) -> 'a list list -> 'b list) = fun f -> fun ls -> join (map 
 *)
 let l = join (map (fun x -> map (fun y -> (x, y))[3; 4]) [1; 2])
 (*That is, 'val l : (int * int) list = [(1, 3); (1, 4); (2, 3); (2, 4)]'*)
+
+(*Using join z = z * id
+*)
+let l' = (map (fun x -> map (fun y -> (x, y))[3; 4]) [1; 2]) * (fun x -> x)
+(*
+  Using map f m = m * \a.unit (f a) we have
+
+  map (fun y -> (x, y))[3; 4] = [3; 4] * (fun y -> unit (x, y))
+*)
+let l'' = map (fun x -> [3; 4] * (fun y -> unit (x, y))) [1; 2] * (fun x -> x)
+(* and applying the same rule to the outer map
+
+  map (fun x -> [3; 4] * (fun y -> unit (x, y))) [1; 2] =
+  [1; 2] * (fun a -> unit ((fun x -> [3; 4] * (fun y -> unit (x, y))) a)
+*)
+let l''' = [1; 2] * (fun a -> unit ((fun x -> [3; 4] * (fun y -> unit (x, y))) a)) * (fun x -> x)
+
+(*
+   Rephrase the comprehension rules in terms of bind:
+
+  (1') [t | x <- u] = u * (fun x -> unit t)
+
+    Proof:
+
+    [t | x <- u] 
+      = {2}
+        map (fun x -> t) u
+      =  {defn. : map f m = m * fun a -> unit (f a)} 
+        u * (fun x -> unit ((fun x -> t) x))
+      = {simplifying}
+        u * fun x -> unit t
+
+  (2') [t | (p, q)] = p * fun x -> q * fun y -> unit t
+    
+   Proof:
+
+     [t | (p, q)]
+     = {3}
+       join [[t | q] | p]
+     = {(1')}
+       join [(q * (fun y -> unit t)) | p]
+     = {2}
+       join (map (fun x -> (q * (fun y -> unit t))) p)
+     = {defn. : a * k = join ((map k) a)}
+       p * fun x -> q * (fun y -> unit t)
+
+*)
+
 
 (*From (i).. (iv) and (1).. (3) further laws can be derived*)
 (*
@@ -61,8 +110,8 @@ let (join : ('a id) id -> 'a id) = fun x -> x
 (*
    It seems:
 
-    - join xs = xs * id
     - a * k = join ((map k) a)
+    - join z = z * \m.m (i.e. join z = z * id)
 
    Confirm!
 
