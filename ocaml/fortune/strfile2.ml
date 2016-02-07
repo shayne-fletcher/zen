@@ -36,10 +36,14 @@ let strfile (f : string) : unit =
      output_binary_int oc !shortlen;
      output_binary_int oc 0 (*flags*);
      close_out_noerr oc
-  | x ->  
+  | Sys_error s -> 
+     Printf.printf "Error : %s" s
      close_in_noerr ic;
      close_out_noerr oc;
-     raise x
+  | x ->  
+     Printf.printf "Error : Unexpected" s
+     close_in_noerr ic;
+     close_out_noerr oc;
 
 let usage_msg : string = "Usage : strfile sourcefile"
 
