@@ -1,0 +1,243 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #20
+2016-02-08 by 
+Difficulty level :
+Easy
+Problem :
+
+R&D Derivatives Data > Week #020 > fortune.png
+
+fortune is a simple program that displays a pseudorandom message from a database of quotations that first appeared in Version 7 Unix. An example fortunes database is attached to this page. The problem this week is to implement a version of the fortune program. In fact, to do this, you will need to implement two programs : strfile and fortune. The former creates a (binary) index of the database, the latter retrieves a random entry from the database via the index.
+ 
+Solutions :
+First up, let's deal with strfile. Here was one submission.
+open Printf
+
+let read_file path =
+        let f = open_in path in
+        let len = in_channel_length f in
+        let s = Bytes.create len in
+        really_input f s 0 len;
+        close_in f;
+        s;;
+
+let inc_first index =
+        let ( pos, len ) = List.hd index in
+        ( pos, len + 1 ) :: List.tl index;;
+
+(* build a list like [ ( pos, len ) ] *)
+(* if we encounter % at the start of a line, prepend ( pos + 1, 0 ) *)
+(* otherwise increment the first element's len *)
+let rec build_fortunes_index fortunes pos index lastnl =
+        let next = pos + 1 in
+        if pos < String.length fortunes then
+                if lastnl && String.get fortunes pos == '%' then
+                        build_fortunes_index fortunes next ( ( next, 0 ) :: index ) false
+                else
+                        let nl = String.get fortunes pos == '\n' in
+                        build_fortunes_index fortunes next ( inc_first index ) nl
+        else
+                index;;
+
+(* write index to f in a random-access friendly format *)
+(* would be nicer to write them as binary uint32_t *)
+let rec dump_index f index =
+        match index with
+                [ ] -> ()
+                | ( pos, len ) :: rest ->
+                        fprintf f "%08d %08d\n" pos len;
+                        dump_index f rest;;
+let main =
+        let fortunes = read_file "fortunes" in
+        let index = build_fortunes_index fortunes 0 [ ( 0, 0 ) ] false in
+        (* filter out any 0-length fortunes *)
+        let index' = List.filter ( fun ( _, len ) -> len > 0 ) index in
+        let f = open_out "index" in
+        dump_index f index';
+        close_out f;;
+main
+Fair effort.
+
+This version though differs from the specification of strfile in significant ways : it writes text rather than binary, it  lacks the required header and writes pairs where each pair indicates where an entry starts and how long it is.
+While still not being entirely conformant to the specification (it is conformant in what it does implement but is feature incomplete) this next version addresses these noted differences (as an aside, it also demonstrates use of the Arg module to demonstrate one approach to command line handling for system script-like programs such as these).
+let rdstr (ic : in_channel) : string =
+  let ls = [] in
+  let rec loop ls =
+    let l = input_line ic in
+    match l with
+    | "%" -> ls
+    | _ -> loop (l :: ls) in
+  String.concat "\n" @@ List.rev (loop ls)
+
+let strfile (f : string) : unit =
+  let numstr = ref 0
+  and longlen = ref 0
+  and shortlen = ref 0 in
+  
+  let ic = open_in f in
+  let oc = open_out_bin (f ^ ".dat") in
+  seek_out oc (5 * 4); (*Skip over the header*)
+  output_binary_int oc 0;
+  try
+    let rec loop () =
+      let str = rdstr ic in
+      let numchars  = String.length str in
+      output_binary_int oc (pos_in ic);
+      numstr := !numstr + 1; 
+      longlen := max !longlen numchars; 
+      shortlen := min !shortlen numchars;
+      loop ()
+    in loop ()
+  with
+  | End_of_file -> 
+     close_in_noerr ic;
+     seek_out oc 0;
+     output_binary_int oc 1; (*version*)
+     output_binary_int oc !numstr;
+     output_binary_int oc !longlen;
+     output_binary_int oc !shortlen;
+     output_binary_int oc 0 (*flags*);
+     close_out_noerr oc
+  | Sys_error s -> 
+     (* Printf.printf "Error : %s" s *)
+     close_in_noerr ic;
+     close_out_noerr oc;
+  | x ->  
+     (* Printf.printf "Error : Unexpected" *)
+     close_in_noerr ic;
+     close_out_noerr oc
+
+let usage_msg : string = "Usage : strfile sourcefile"
+let src : string ref = ref ""
+let dst : string ref = ref ""
+let version : bool ref = ref false
+
+let read_args () : unit =
+   let specification =
+    [("-v", Arg.Set version, "Print the version number"); ]
+  in begin
+    Arg.parse specification
+      (fun s -> 
+         if !src = "" then src := s 
+         else dst := s)
+      usage_msg;
+  end
+
+let () =
+  read_args ();
+  if !version then begin
+    Printf.printf "1.0.0";
+    ignore @@ exit 0
+  end;
+  let f = !src in
+  match f with
+  | "" -> Printf.printf "Missing argument 'sourcefile'"
+  | _  when not ((fun x -> (Sys.file_exists x)&& not (Sys.is_directory x)) f)
+         -> Printf.printf "File \"%s\" does not exist or is a directory\n" f
+  | _ -> strfile f
+
+On to fortune.
+
+This implementation is the companion to the first strfile provided above.
+open Printf
+
+(* "%8d %8d\n" is 18 chars *)
+let index_entry_len = 18;;
+
+let read_part_of_channel f pos len =
+        let s = Bytes.create len in
+        seek_in f pos;
+        ignore ( input f s 0 len );
+        s;;
+
+let parse_pos_len entry n =
+        let pos = String.sub entry 0 8 in
+        let len = String.sub entry 9 8 in
+        ( int_of_string pos, int_of_string len );;
+
+let get_random_fortune fortunes index =
+        let num_fortunes = in_channel_length index / index_entry_len in
+        let n = Random.int num_fortunes in
+        let entry = read_part_of_channel index ( n * index_entry_len ) index_entry_len in
+        let ( pos, len ) = parse_pos_len entry n in
+        read_part_of_channel fortunes pos len;;
+
+let main =
+        Random.self_init ();
+        let index = open_in "index" in
+        let fortunes = open_in "fortunes" in
+        let fortune = get_random_fortune fortunes index in
+        printf "%s\n" fortune;
+        close_in index;
+        close_in fortunes;;
+
+main
+Here's the companion implementation to the second strfile.
+let rdstr (ic : in_channel) : string =
+  let ls = [] in
+  let rec loop ls =
+    let l = input_line ic in
+    match l with
+    | "%" -> ls
+    | _ -> loop (l :: ls) in
+  String.concat "\n" @@ List.rev (loop ls)
+
+let fortune (f : string) (g : string) : unit =
+  let bc = open_in_bin g in
+  try
+    ignore (input_binary_int bc); (*version*)
+    let numstrs = input_binary_int bc in
+    ignore (input_binary_int bc); (*longest*)
+    ignore (input_binary_int bc); (*shortest*)
+    ignore (input_binary_int bc); (*flags*)
+    Random.self_init ();
+    seek_in bc (((5 + Random.int numstrs)) * 4);
+    let start = input_binary_int bc in
+    close_in bc;
+    let ic = open_in f in
+    try
+      seek_in ic start;
+      Printf.printf "%s" (rdstr ic);
+      close_in ic
+    with e ->
+      close_in_noerr ic;
+      raise e
+  with
+  | e ->
+    close_in_noerr bc;
+    raise e
+
+let () = fortune "fortunes" "fortunes.dat"
+Here's another interesting (partial) submission.
+-1@"\n"/:1_*1?{(1_&x~\:(),"%")_x}@0:`:fortunes;
+This version is in the K programming language (it doesn't bother with building an index). I can't make head or tail of that and thus am happy with the author's following translation into ML (smile)
+let at a i     = Array.map (Array.get a) i;;
+let drop n a   = Array.sub a n (Array.length a - n);;
+let join d a   = String.concat d (Array.to_list a);;
+let map2 f a b = Array.mapi (fun i ae -> f ae b.(i)) a;;
+let each_prior f a = map2 f a (Array.append [|0|] (Array.sub a 0 (Array.length a - 1)));;
+let deltas a   = each_prior (-) a;;
+let cut p a    = map2 (Array.sub a) p (drop 1 (deltas (Array.append p [|Array.length a|])));;
+let rande a    = a.(Random.int (Array.length a));;
+let raze a     = Array.fold_left Array.append [||] a;;
+let smatch x y = 0 = String.compare x y;;
+let read f     = let try_read c = try Some (input_line c) with End_of_file -> None in
+                 let ic = open_in f in
+                 let rec loop acc = match try_read ic with
+                     Some s -> loop (s::acc)
+                   | None   -> close_in ic; Array.of_list (List.rev acc) in loop [];;
+let where a    = raze (Array.mapi (fun i e -> if e then [|i|] else [||]) a);;
+
+let lines = read "fortunes" in
+  Printf.printf "%s\n"
+    (join "\n" (drop 1 (rande (cut (drop 1 (where (Array.map (smatch "%") lines)))
+                                   lines))));;
+I think Harvey Stein produced an elisp version but its lost in the mists of IB - perhaps he can be persuaded to attach it here in a child page.
+Thanks for participating in this 20th edition. That's 5 months of weekly exercises!
