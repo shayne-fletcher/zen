@@ -241,3 +241,77 @@ let lines = read "fortunes" in
                                    lines))));;
 I think Harvey Stein produced an elisp version but its lost in the mists of IB - perhaps he can be persuaded to attach it here in a child page.
 Thanks for participating in this 20th edition. That's 5 months of weekly exercises!
+
+One last solution from Sen Han
+
+###################################
+strfile.ml
+cat strfile.ml
+open Stream;;
+open String;;
+
+let each_with_index stream func =
+  let rec walk strm i =
+    (func (Stream.next strm) i);
+    (walk strm  (i + 1))
+  in
+  walk stream 0;;
+
+let strfile(in_chan : in_channel) (out_chan : out_channel)  =
+  let in_stream = Stream.of_channel in_chan in
+  let f s i =
+    if s = '%' then begin
+      (output_binary_int out_chan i);
+    end
+  in
+  try
+    each_with_index in_stream f;
+  with Failure -> ();;
+
+let () =
+  let db_filename = Sys.argv.(1) in
+  let index_filename = (String.concat "" [db_filename; ".dat"]) in
+  (strfile (open_in db_filename) (open_out index_filename));;
+
+
+######################################################################
+fortune.ml
+open Random;;
+
+let get_fortune db pos=
+  (seek_in db (pos + 1));
+  let rec do_until s func =
+    let l = input_line db  in
+    if l <> s then begin
+      (func l);
+      (do_until s func);
+    end
+  in
+  do_until "%" print_string;
+  print_char '\n';;
+
+
+let fetch_index i_channel =
+  let rec get index channel =
+    try
+      (get ((input_binary_int channel)::index) channel)
+    with End_of_file -> index
+  in
+  Array.of_list (get [] i_channel);;
+
+
+let() =
+  Random.self_init();
+  let db_channel = open_in Sys.argv.(1) in
+  let index_channel = open_in (String.concat "" [Sys.argv.(1); ".dat"]) in
+  let index = fetch_index index_channel in
+  get_fortune db_channel index.( (Random.int (Array.length index)));;
+
+#############################################################
+Makefile
+
+fortunes_index:
+        ocaml strfile.ml fortunes
+random_fortune:
+        ocaml fortune.ml fortunes
+
