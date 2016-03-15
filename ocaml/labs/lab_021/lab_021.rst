@@ -1,0 +1,119 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #021
+2016-03-10 by 
+Difficulty level :
+Hard
+Problem :
+Back in the midsts of time on the OCaml newsgroup, the following challenge was issued: Is it possible in OCaml to implement a universal type, into which any other type can be embedded? More concretely, is it possible to implement the following signature?
+module type Univ = sig
+  type t
+  val embed : unit -> (¦Á -> t) * (t -> ¦Á option)
+end
+The idea is that  t  is the universal type and that  embed ()  returns a pair  (inj, prj) , which inject to and project from the universal type. Projection is partial (returns an  ¦Á option ) because injection is not surjective.
+It turns out a type like this has useful applications by the way. You can use them to build heterogenous lists for example. So there it is, the problem for this week. Here's some code you can use to test your solution. 
+module Test (M : Univ) = struct
+  let ((of_int : int -> M.t), (to_int : M.t -> int option)) = M.embed ()
+  let ((of_string : string -> M.t), (to_string : M.t -> string option)) = M.embed ()
+  let r : M.t ref = ref (of_int 13)
+  let () = begin
+    assert (to_int !r = Some 13);
+    assert (to_string !r = None);
+    r := of_string "foo";
+    assert (to_int !r = None);
+    assert (to_string !r = Some "foo");
+   end
+end
+By the way, solutions involving  Obj.magic  or any other unsafe features are inadmissible. 
+
+  Need a hint?
+ 
+ 
+How much do you know about the predefined OCaml type  exn ? The type is very distinguished. It is an  extensible  sum type : the set of values of the type can be extended by adding new constructors. An exception is a full-fledged language value.
+Solution(s) :
+Here's the "original" solution to the problem credited to Alain Frisch in response to the mailing list challenge.
+module U : Univ = struct
+  type t = (unit -> unit) * (unit -> unit)
+  let embed () =
+    let r = ref None in
+    let put x = (fun () -> r := Some x), (fun () -> r := None) in
+    let get (f, g) = f (); let res = !r in g (); res in
+    put, get
+end
+So, the idea here is, employ a reference cell,  compute a polymorphic function that evaluates to a couple of closures that manipulate the reference cell. Simple (smile) There is a problem with thread-safety with this solution of course and further, careful consideration in the construction of this solution is required to avoid space leaks.
+
+A better solution relies on the exn (builtin type of OCaml exceptions - an extensible "sum") type, local modules and locally abstract types (at least that second feature wasn't available until 3.12). There were two submissions along these lines, they are equivalent to each other (one is a little more "sophisticated").  I'll give them both. Here's the first (credit Mathias),
+
+module U : Univ =struct
+    type t = exn
+    let embed (type u) () =
+        let module M =
+        struct
+            exception Foo of u
+            let insert a =
+                Foo a
+            let extract a =
+                match a with
+                    | Foo x -> Some x
+                    | _ -> None
+        end
+        in (M.insert, M.extract)
+end
+and here's the second (credit Joel).
+module Univ_impl : Univ = struct
+
+  type t = exn
+  module type T = sig type t end
+
+  module Box (T : T) = struct
+    exception Box of T.t
+    let box (x: T.t) = Box x
+    let unbox (b: t) =
+      match b with
+      | Box x -> Some x
+      | _     -> None
+  end
+
+  let embed (type a) () : (a -> t) * (t -> a option) =
+    let module B = Box (struct type t = a end) in
+    (B.box, B.unbox)
+end
+Here's another variant, this one also is credited to Alain. This one is just a little more sophisticated than the two variants preceding in that it exploits first class modules (but of course, the core idea is the same).
+module U : Univ = struct
+  type t = exn
+
+  module type S = sig 
+    type t 
+    exception E of t 
+  end
+
+  type 'a prop = (module S with type t = 'a)
+
+  let create : unit -> 'a prop =
+    fun (type s) () ->
+      let module M = struct 
+        type t = s 
+        exception E of t
+      end in
+      (module M : S with type t = s)
+
+  let inj (type s) (p : s prop) (x : s) : t =
+   let module M = (val p : S with type t = s) in
+   M.E x
+
+  let proj (type s) (p : s prop) (y : t) : s option =
+    let module M = (val p : S with type t = s) in
+    match y with
+    | M.E x -> Some x 
+    | _ -> None
+
+  let embed () : ('a -> t) * (t -> 'a option) = 
+    let p = create () in 
+    inj p, proj p
+end
