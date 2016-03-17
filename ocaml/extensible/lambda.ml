@@ -33,15 +33,14 @@ let string_of_impl (string_of_rec : 'a -> string) : 'a impl -> string =
 
 let rec string_of_t : t -> string = fun v -> string_of_impl string_of_t v
 
-let eval_lambda eval_rec 
+let eval_impl eval_rec 
     (env : (string *
               ([> 
                  `Abs of string * 'a 
                | `App of 'a * 'a 
                | `Var of string ] as 'a))
        list) : 'a impl -> 'a = function
-    | #Var.t as v ->
-      Var.eval_var env v
+    | #Var.t as v -> Var.eval_impl env v
     | `App (u, v) ->
       let v' = eval_rec env v in
       begin match eval_rec env u with
@@ -53,4 +52,4 @@ let eval_lambda eval_rec
       `Abs (s', eval_rec ((s, `Var s') :: env) u)
 
 let rec eval (env : (string * t) list) : t -> t = 
-  eval_lambda eval env
+  eval_impl eval env

@@ -1,4 +1,4 @@
-rm -f *~ *.exe *.cmi *.cmo lexer.ml parser.mli parser.ml
+rm -f *~ *.exe *.cmi *.cmo *lexer.ml *parser.mli *parser.ml
 
 ocamlc -c var.ml
 ocamlc -c lambda.ml

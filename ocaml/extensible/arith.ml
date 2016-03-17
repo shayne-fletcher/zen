@@ -31,12 +31,12 @@ module Detail = struct
       | `Mult (e1, e2) -> `Mult (f e1, f e2)
 end
 
-let eval_arith eval_rec env (e : 'a impl) : 'a =
+let eval_impl eval_rec env (e : 'a impl) : 'a =
   match Detail.map_arith (eval_rec env) e with
-  | #Var.t as v -> Var.eval_var env v
+  | #Var.t as v -> Var.eval_impl env v
   | `Add (`Num m, `Num n) -> `Num (m + n)
   | `Mult (`Num m, `Num n) -> `Num (m * n)
   | e -> e
 
 let rec eval (env : (string * t) list) : 'a -> 'a  =
-  eval_arith eval env
+  eval_impl eval env

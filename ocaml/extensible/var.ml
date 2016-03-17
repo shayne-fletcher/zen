@@ -8,7 +8,7 @@ let string_of_impl (_ : 'a -> string) : 'a impl -> string = function
 
 let rec string_of_t : t -> string = fun v -> string_of_impl string_of_t v
 
-let eval_var 
+let eval_impl
     (env : (string * ([> `Var of string ] as 'a)) list) 
     (`Var s as v : 'a impl) : 'a =
   try
