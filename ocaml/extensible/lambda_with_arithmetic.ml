@@ -1,8 +1,7 @@
-type t = Types.Lambda_with_arithmetic.t
+let to_bytes : Types.Lambda.t -> string = 
+  Types.Lambda.string_of_lambda
 
-let to_bytes = Types.Lambda_with_arithmetic.string_of_t
-
-let parse (lexbuf : Lexing.lexbuf) : t =
+let parse (lexbuf : Lexing.lexbuf) : Types.Lambda.t =
   try 
     Parser.main Lexer.token lexbuf
   with 
@@ -18,7 +17,7 @@ let parse (lexbuf : Lexing.lexbuf) : t =
               "file \"\", line %d, character %d\nError : Syntax error \"%s\"" line cnum tok))
     end
 
-let from_bytes ?(file : string = "<string>") (str : string) =
+let from_bytes ?(file : string = "<string>") (str : string) : Types.Lambda.t =
   let set_filename lexbuf name =
     let open Lexing in
     lexbuf.lex_curr_p <-  {
@@ -46,9 +45,7 @@ let safe_proc ?finally f =
   with exn -> handle_interpreter_error ?finally exn
 
 let reduce buf =
-  let t = 
-    Types.Lambda_with_arithmetic.eval [] (from_bytes (Buffer.contents buf)) in
-  to_bytes t
+  to_bytes (Types.Lambda.eval1 [] (from_bytes (Buffer.contents buf)))
 
 let main =
   let initial_capacity = 4*1024 in
@@ -67,8 +64,7 @@ let main =
               if l.[len-1] = (char_of_int 7) then Buffer.clear buf
               else
                 let _ = Buffer.add_string buf l in
-                let s = reduce buf in
-                Buffer.clear buf; print_endline s
+                Buffer.clear buf; print_endline (reduce buf)
       in (safe_proc ~finally:(fun () -> Buffer.clear buf) f)
     done
   with
