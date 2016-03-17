@@ -1,0 +1,35 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #022
+2016-03-17 by 
+Difficulty level :
+Hard
+Problem :
+Polymorphic variants in OCaml exist to permit a more flexible use of variants. This exercise illustrates the expressive power of polymorphic variants with respect to traditional variants.
+The code provided with this exercise provides a complete implementation of an interactive REPL for a basic ¦Ë calculus interpreter. Here's a tiny example session:
+  d:\lab_022>.\lambda.exe
+  ? (\p x y.p x y) (\x y. x) a b
+  a
+  ? (\p x y.p x y) (\x y. y) a b
+  b
+(¦Ëx y. x is a ¦Ë calculus encoding of the boolean value true, ¦Ëx y. y an encoding of the boolean value false and ¦Ëp x y. p x y an encoding of "if ... then... else".)
+The module Var defines a basic language containing only variables. 
+type ¦Á impl = [`Var of string]
+Evaluation for this language is achieved by looking in an environment for a binding associated to the variable name leaving it "as is" if there is none.
+The module Lambda extends this basic language to define the ¦Ë calculus.
+type ¦Á impl = [¦Á Var.impl | `Abs of string * ¦Á | `App of ¦Á * ¦Á]
+The type ¦Á impl is carefully defined to be open recursive (sub-terms of of type ¦Á) and open recursion is employed in eval_impl so as to be able to extend this definition later. Finally in module Lambda, the function eval builds a specific evaluator for the language by closing the recursion. This function closes the recursion at both the runtime and type levels : both input and output types are type t =  ¦Á impl as ¦Á.
+In a similar fashion as in the Lambda module, the module Arith builds on the base language of variables to define the language of additive and multiplicative expressions.
+The exercise is to write the code that combines the language of arithmetic expressions with the language of ¦Ë calculus. This code goes in the module Lambda_with_arithmetic. A parser for this language is provided in the files  'lambda_with_arithmetic_lexer.mll' and 'lambda_with_arithmetic.mly' and a REPL in 'lambda_with_arithmetic_repl.ml'. Here's an example session with the completed product:
+d:\lab022>.\lambda_with_arithmetic.exe
+? (\p x y.p x y) (\x y. x) a b
+a
+? (\x y. x * y) ((\x y. x + y) 2 3) 5
+25
+A build script is provided. You'll need to un-comment a region in it when it comes time to build your "lambda-calculus with arithmetic" interpreter.
