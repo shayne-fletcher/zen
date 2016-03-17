@@ -1,77 +1,56 @@
-type t = Types.Lambda_with_arithmetic.t
+type 'a impl = ['a Var.impl | `Abs of string * 'a | `App of 'a * 'a]
+type t = 'a impl as 'a
 
-let to_bytes = Types.Lambda_with_arithmetic.string_of_t
+let mk_app : 'a * 'b -> [> `App of 'a * 'b] = 
+  fun (u, v) -> `App (u, v)
+let mk_abs : string * 'b -> [> `Abs of string * 'b] = 
+  fun (s, t) -> `Abs (s, t) 
 
-let parse (lexbuf : Lexing.lexbuf) : t =
-  try 
-    Parser.main Lexer.token lexbuf
-  with 
-  | Parsing.Parse_error ->
-    begin
-      let curr = lexbuf.Lexing.lex_curr_p in
-      let line = curr.Lexing.pos_lnum in
-      let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
-      let tok = Lexing.lexeme lexbuf in
-      raise 
-        (Failure
-           (Printf.sprintf 
-              "file \"\", line %d, character %d\nError : Syntax error \"%s\"" line cnum tok))
-    end
+module Detail = struct
+  let gen_sym =
+    let n = ref 0 in
+    fun () -> incr n; "_" ^ string_of_int !n
 
-let from_bytes ?(file : string = "<string>") (str : string) =
-  let set_filename lexbuf name =
-    let open Lexing in
-    lexbuf.lex_curr_p <-  {
-      lexbuf.lex_curr_p with pos_fname = name
-    } in
-  let lexbuf = Lexing.from_string str in
-  set_filename lexbuf file ;
-  parse lexbuf
+  let rec strip (bs : string list) t =
+    match t with 
+    | `Abs (b, t) -> strip (b :: bs) t
+    | _ as u -> (List.rev bs, u)
 
-let prompt (continuing:bool) =
-  (print_string (if (not continuing)
-    then "? " else "... ");(flush stdout))
-let read (continuing:bool)=prompt continuing; input_line stdin
+end (*module Detail*)
 
-let handle_interpreter_error ?(finally=(fun () -> ())) ex =
-  match ex with
-  | Failure s -> finally () ; (Printf.printf "%s\n" s)
-  | Stack_overflow -> finally () ; Printf.printf "Stack overflow\n"
-  | Division_by_zero -> finally () ; Printf.printf "Division by zero\n"
-  | End_of_file -> finally (); raise ex
-  | _  as e -> finally (); Printf.printf "Unknown exception : %s\n" (Printexc.to_string e) ; raise e
+let string_of_impl (string_of_rec : 'a -> string) : 'a impl -> string = 
+  function
+  | #Var.t as v -> Var.string_of_impl string_of_rec v
+  | `App (u, v) -> 
+    "("^(string_of_rec u) ^ ") (" ^ (string_of_rec v)^")"
+  | `Abs _ as t -> 
+    match (Detail.strip [] t) with
+    | (b :: bs, u)  ->
+      let binder = 
+        "\\" ^ b ^ (List.fold_right  (fun z b -> " " ^ z ^ b) bs ". ") in
+      binder ^ (string_of_rec u)
+    | ([], _) -> assert false
 
-let safe_proc ?finally f =
-  try f ()
-  with exn -> handle_interpreter_error ?finally exn
+let rec string_of_t : t -> string = fun v -> string_of_impl string_of_t v
 
-let reduce buf =
-  let t = 
-    Types.Lambda_with_arithmetic.eval [] (from_bytes (Buffer.contents buf)) in
-  to_bytes t
+let eval_lambda eval_rec 
+    (env : (string *
+              ([> 
+                 `Abs of string * 'a 
+               | `App of 'a * 'a 
+               | `Var of string ] as 'a))
+       list) : 'a impl -> 'a = function
+    | #Var.t as v ->
+      Var.eval_var env v
+    | `App (u, v) ->
+      let v' = eval_rec env v in
+      begin match eval_rec env u with
+      | `Abs (s, body) -> eval_rec [s, v'] body
+      | u' -> `App (u', v')
+      end
+    | `Abs (s, u) ->
+      let s' = Detail.gen_sym () in
+      `Abs (s', eval_rec ((s, `Var s') :: env) u)
 
-let main =
-  let initial_capacity = 4*1024 in
-  let buf = Buffer.create initial_capacity in
-  try 
-    while true do
-      let f () =
-        let l = read ((Buffer.length buf)!=0) in
-        let len = String.length l in
-        if len > 0 then
-          if l.[0] = '%' then ()
-          else
-            if l.[len - 1] = '\\' then
-              (Buffer.add_string buf ((String.sub l 0 (len-1))^"\n"))
-            else
-              if l.[len-1] = (char_of_int 7) then Buffer.clear buf
-              else
-                let _ = Buffer.add_string buf l in
-                let s = reduce buf in
-                Buffer.clear buf; print_endline s
-      in (safe_proc ~finally:(fun () -> Buffer.clear buf) f)
-    done
-  with
-  | End_of_file -> print_string "\n"
-
-
+let rec eval (env : (string * t) list) : t -> t = 
+  eval_lambda eval env
