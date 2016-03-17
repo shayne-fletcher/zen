@@ -9,7 +9,7 @@ ocamlc -c arith.ml
 ocamlc -c lambda_with_arithmetic.ml
 ocamlc -c lambda_with_arithmetic_parser.mli lambda_with_arithmetic_parser.ml
 ocamlc -c lambda_with_arithmetic_lexer.ml
-ocamlc -c parse.ml
+ocamlc -c repl.ml
 ocamlc -c lambda_with_arithmetic_repl.ml
 
 ocamlc -o lambda_with_arithmetic.exe \
@@ -19,5 +19,5 @@ ocamlc -o lambda_with_arithmetic.exe \
   lambda_with_arithmetic.cmo \
   lambda_with_arithmetic_parser.cmo \
   lambda_with_arithmetic_lexer.cmo \
-  parse.cmo \
+  repl.cmo \
   lambda_with_arithmetic_repl.cmo
