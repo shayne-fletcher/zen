@@ -22,6 +22,5 @@ let eval_impl eval_rec
     | #Lambda.impl as x -> Lambda.eval_impl eval_rec env x
     | #Arith.impl as x -> Arith.eval_impl eval_rec env x
 
-
 let rec eval (env : (string * t) list) : t -> t =
   eval_impl eval env
