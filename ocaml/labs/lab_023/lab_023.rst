@@ -1,0 +1,23 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #023
+2016-03-30 by 
+Difficulty level :
+Easy
+Problem :
+This one is inspired by one of those classic "99 problems in Prolog". What we are looking for here are two functions that satisfy these signatures.
+val rotate_left : int -> ¦Á list -> ¦Á list
+val rotate_right : int -> ¦Á list -> ¦Á list 
+rotate_left n rotates a list n places to the left, rotate_right n rotates a list n places to the right. Examples:
+# rotate_left 3 ['a';'b';'c';'d';'e';'f';'g';'h'] ;;
+- : char list = ['d'; 'e'; 'f'; 'g'; 'h'; 'a'; 'b'; 'c']
+
+# rotate_left (-2) ['a';'b';'c';'d';'e';'f';'g';'h'] ;;
+- : char list = ['g'; 'h'; 'a'; 'b'; 'c'; 'd'; 'e'; 'f']
+Of course, rotate_left and rotate_right are inverse functions of each other so we expect, for any int x and list l, rotate_right x @@ rotate_left x l = rotate_left x @@ rotate_right x l = l.
