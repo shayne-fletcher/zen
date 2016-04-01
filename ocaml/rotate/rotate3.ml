@@ -128,7 +128,7 @@ let rotate_right (n : int) : 'a list -> 'a list = rotate_left (-n)
 
   ```
     let fibonnaci_sequence = 
-      let rec fib a b = Cons (a, lazy (fib b (a + b))) in
+      let rec fib a b = Cons (a, fun () -> fib b (a + b))) in
     fib 0 1
 
   ```
@@ -145,7 +145,7 @@ let rotate_right (n : int) : 'a list -> 'a list = rotate_left (-n)
 
   ```
     let natural_numbers =
-      let rec loop x = Cons (x, lazy (loop (x + 1))) in
+      let rec loop x = Cons (x, fun () -> loop (x + 1)) in
       loop 0
 
   Neato.
