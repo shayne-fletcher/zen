@@ -1,3 +1,12 @@
+(*Joel Bjornson*)
+
+rotateLeft n xs 
+ | n >= 0     = take (length xs) $ drop n $ concat $ repeat xs
+ | otherwise  = rotateLeft (length xs + n) xs
+
+rotateRight n = rotateLeft (-n)
+
+
 (*Matthias Gaunard*)
 
 let rotate_left n l =
