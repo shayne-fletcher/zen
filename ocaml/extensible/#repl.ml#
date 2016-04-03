@@ -1,7 +1,7 @@
 let parse 
-    (pe : 'a -> Lexing.lexbuf -> 'b) 
-    (le : 'a)
-    (lexbuf : Lexing.lexbuf)  : 'b =
+    (pe : &alpha; -> Lexing.lexbuf -> &beta;) 
+    (le : &alpha;)
+    (lexbuf : Lexing.lexbuf)  : &beta; =
   try 
     pe le lexbuf
   with 
@@ -18,8 +18,8 @@ let parse
     end
 
 let from_bytes ?(file : string = "<string>") (str : string) 
-    (pe : 'a -> Lexing.lexbuf -> 'b) 
-    (le : 'a)
+    (pe : &alpha; -> Lexing.lexbuf -> &beta;) 
+    (le : &alpha;)
      =
   let set_filename lexbuf name =
     let open Lexing in
@@ -51,20 +51,20 @@ let safe_proc ?finally f =
   with exn -> handle_interpreter_error ?finally exn
 
 let reduce 
-    (eval : 'a list -> 'b -> 'c)
-    (pe : 'd -> Lexing.lexbuf -> 'b)
-    (le : 'd)
-    (to_bytes : 'c -> 'e) 
-    (buf : Buffer.t) : 'e =
+    (eval : &alpha; list -> &beta; -> &gamma;)
+    (pe : &delta; -> Lexing.lexbuf -> &beta;)
+    (le : &delta;)
+    (to_bytes : &gamma; -> &epsilon;) 
+    (buf : Buffer.t) : &epsilon; =
   let t = 
     eval [] (from_bytes (Buffer.contents buf) pe le) in
   to_bytes t
 
 let repl
-    (eval : 'a list -> 'b -> 'c)
-    (pe : 'd -> Lexing.lexbuf -> 'b)
-    (tok : 'd)
-    (to_bytes : 'c -> 'e) : unit = 
+    (eval : &alpha; list -> &beta; -> &gamma;)
+    (pe : &delta; -> Lexing.lexbuf -> &beta;)
+    (le : &delta;)
+    (to_bytes : &gamma; -> &epsilon;) : unit = 
   let initial_capacity = 4*1024 in
   let buf = Buffer.create initial_capacity in
   try 
@@ -81,7 +81,7 @@ let repl
               if l.[len-1] = (char_of_int 7) then Buffer.clear buf
               else
                 let _ = Buffer.add_string buf l in
-                let s = reduce eval pe tok to_bytes buf in
+                let s = reduce eval pe le to_bytes buf in
                 Buffer.clear buf; print_endline s
       in (safe_proc ~finally:(fun () -> Buffer.clear buf) f)
     done

@@ -1,0 +1,17 @@
+type &alpha; impl = [`Var of string]
+type t = &alpha; impl as &alpha;
+
+let mk_var : string -> [> `Var of string] = fun s -> `Var s
+
+let string_of_impl (_ : &alpha; -> string) : &alpha; impl -> string = function 
+  | `Var s -> s
+
+let rec string_of_t : t -> string = fun v -> string_of_impl string_of_t v
+
+let eval_impl
+    (env : (string * ([> `Var of string ] as &alpha;)) list) 
+    (`Var s as v : &alpha; impl) : &alpha; =
+  try
+    List.assoc s env
+  with
+  | Not_found -> v
