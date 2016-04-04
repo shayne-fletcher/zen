@@ -21,3 +21,190 @@ rotate_left n rotates a list n places to the left, rotate_right n rotates a list
 # rotate_left (-2) ['a';'b';'c';'d';'e';'f';'g';'h'] ;;
 - : char list = ['g'; 'h'; 'a'; 'b'; 'c'; 'd'; 'e'; 'f']
 Of course, rotate_left and rotate_right are inverse functions of each other so we expect, for any int x and list l, rotate_right x @@ rotate_left x l = rotate_left x @@ rotate_right x l = l.
+Solutions :
+Mathias Gaunard provided this solution.
+let rotate_left n l =
+  let rec rotate_left_impl n l l2 =
+    match l with
+        [] -> l2
+      | hd::tail ->
+          if n == 0 then l @ l2
+          else (rotate_left_impl (n - 1) tail (l2 @ [hd]))
+      in
+      rotate_left_impl (if n < 0 then ((List.length l) + n) else n) l []
+
+let rotate_right n l = rotate_left (-n) l
+My own was (maybe more efficient but) way more verbose.
+let rec drop (k : int) (l : ¦Á list) : ¦Á list =
+  match k, l with
+  | i, _ when i <= 0 -> l
+  | _, [] -> []
+  | _, (_ :: xs) -> drop (k - 1) xs
+
+let rec take (k : int) (l : ¦Á list) : ¦Á list =
+  match k, l with
+  | i, _ when i <= 0 -> []
+  | _, [] -> []
+  | _, (x :: xs)  -> x :: take (k - 1) xs
+
+let split_at (n : int) (l : ¦Á list) : ¦Á list * ¦Á list = 
+  (take n l), (drop n l)
+
+let rec rotate_left (n : int) (l : ¦Á list) : ¦Á list =
+  match n with
+  | _ when n = 0 -> l
+  | _ when n < 0 ->  rotate_right (-n) l
+  | _ -> 
+    let m : int = List.length l in
+    let k : int = n mod m in
+    let (l : ¦Á list), (r : ¦Á list) = split_at k l in 
+    r @ l
+
+and rotate_right (n : int) (l : ¦Á list) : ¦Á list =
+  match n with
+  | _ when n = 0 -> l
+  | _ when n < 0 ->  rotate_left (-n) l
+  | _ -> 
+    let m : int = List.length l in
+    let k : int = m - n mod m in
+    let (l : ¦Á list), (r : ¦Á list) = split_at k l in 
+    r @ l
+Harvey Stein provided a few variants in Lisp.
+;;; Slow, easy version:
+(defun rotate-left-one (lst)
+  (append (cdr lst) (list (car lst))))
+(defun rotate-right-one (lst)
+  (append (last lst) (butlast lst)))
+(defun rotate (n lst)
+  (cond ((>= n 1)
+         (dotimes (i n) (setq lst (rotate-right-one lst))))
+        ((<= n -1)
+         (dotimes (i (- n)) (setq lst (rotate-left-one lst)))))
+  lst)
+(defun rotate-right (n lst)
+  (rotate n lst))
+(defun rotate-left (n lst)
+  (rotate (- n) lst))
+
+;;; Mostly faster version (slower for n=1).
+(defun rotate-fast2 (n lst)
+  (if (= n 0)
+      lst
+    (let* ((l (length lst))
+           (n (mod n l)))
+      (cond ((>= n 1)
+             (append (last lst n) (butlast lst n)))
+            (t lst)))))
+
+;;; Avoid rescanning list by consing up beginning
+(defun rotate-fast3 (n lst)
+  (if (= n 0)
+      lst
+    (let* ((l (length lst))
+           (n (mod n l)
+      (cond ((>= n 1)
+             (rot n () lst))
+            (t lst)))))))
+
+(defun rot (n s e)
+  (cond ((= n 0) (append e (reverse s)))
+        (t (rot (- n 1) (cons (car e) s) (cdr e)))))
+Joel Bjornson presented this Haskell solution.
+rotateLeft n xs  
+ | n >= 0     = take (length xs) $ drop n $ concat $ repeat xs
+ | otherwise  = rotateLeft (length xs + n) xs
+
+rotateRight n = rotateLeft (-n)
+This last one intrigued me so I set out to emulate it in OCaml.
+(*The type of streams*)
+type ¦Á stream =  Nil | Cons of ¦Á * ¦Á stream Lazy.t
+
+(*Functions to get the head and tail of a stream*)
+let hd = function | Nil -> failwith "hd" | Cons (h, _) -> h
+let tl = function | Nil -> failwith "tl" | Cons (_, t) -> Lazy.force t
+
+(*Factory function that given a value [x] computes the infinite stream
+  [< x; x; x; ....  >]*)
+let rec repeat (x : ¦Á) : ¦Á stream = 
+  Cons (x, lazy (repeat x))
+
+(*Factory function to compute a stream from a list*)
+let from_list (l : ¦Á list) : ¦Á stream =
+  List.fold_right (fun x s -> Cons (x, lazy s)) l Nil
+
+(* For eager lists, we can write a function that appends two lists
+   'join' like this.
+   ```
+     let rec join l m =
+       match l with
+       | [] -> m
+       | h :: t -> h :: (join t m)
+   ```
+   This generalizes naturally to streams.
+*)
+let rec join (l : ¦Á stream) (m : ¦Á stream) =
+  match l with
+  | Nil -> m
+  | Cons (h, t) -> Cons (h, lazy (join (Lazy.force t) m))
+
+(* For eager lists, we can write 'flatten' in terms of 'join'
+   ```
+     let rec flatten : 'a list list -> 'a list = function
+     | [] -> []
+     | (h :: tl) -> join h (flatten tl)
+   ```
+
+   Emboldened by our earlier success we might try to generalize it to
+   streams like this.
+   ```
+     let rec flatten (l : ¦Á stream stream) : ¦Á stream =
+     match l with
+     | Nil -> lazy Nil
+     | Cons (l, r) ->  join l (flatten (Lazy.force r))
+   ```
+
+   Sadly, no. This definition results in stack overflow.
+   There is an alternative eager phrasing of 'flatten' we might try.
+   ```
+     let rec flatten = function
+       | [] -> []
+       | [] :: t -> flatten t
+       | (x :: xs) :: t -> x :: (flatten (xs :: t))
+   ```
+   
+   Happy to say, this one generalizes and gets around the eager
+   evaluation problem that causes the unbounded recursion.
+*)
+
+let rec flatten : ¦Á stream stream -> ¦Á stream = function
+  | Nil -> Nil
+  | Cons (Nil, t) -> flatten (Lazy.force t)
+  | Cons (Cons (x, xs), t) -> 
+    Cons (x, lazy (flatten (Cons (Lazy.force xs, t))))
+
+(*'take' and 'drop' are straight forward generalizations of their
+  eager counterparts*)
+let rec drop (n : int) (lst : ¦Á stream ) : ¦Á stream = 
+  match (n, lst) with
+  | (n, _) when n < 0 -> invalid_arg "negative index in drop"
+  | (n, xs) when n = 0 -> xs
+  | (_, Nil) -> Nil
+  | (n, Cons (_, t)) -> drop (n - 1) (Lazy.force t)
+
+let rec take (n : int) (lst : ¦Á stream) : ¦Á list = 
+  match (n, lst) with
+  | (n, _) when n < 0 -> invalid_arg "negative index in take"
+  | (n, _) when n = 0 -> []
+  | (_, Nil) -> []
+  | (n, Cons (h, t)) -> h :: (take (n - 1) (Lazy.force t))
+
+(*Which brings us to the 'rotate' functions given to us by Joel*)
+
+let rec rotate_left (k : int) (l : ¦Á list) : ¦Á list =
+  let n = List.length l in
+  if k >= 0 then
+    l |> from_list |> repeat |> flatten |> drop n |> take n
+  else rotate_left (n + k) l
+
+let rotate_right (n : int) : ¦Á list -> ¦Á list = rotate_left (-n)
+
