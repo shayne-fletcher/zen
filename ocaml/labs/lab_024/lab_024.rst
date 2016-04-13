@@ -1,0 +1,20 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #24
+2016-04-13 by 
+Difficulty level :
+Easy
+Problem :
+This is an "oldie but a goodie". It's super easy.
+
+A dictionary is a data structure that represents a map from keys to values. It can be characterized by the following signature:
+val empty : ('a, 'b) dict
+val insert : ('a, 'b) dict -> 'a -> 'b -> ('a, 'b) dict
+val find : ('a, 'b) dict -> 'a -> 'b option
+The question is, can this (purely functional) data structure be encoded using only functions? If no, why not? If yes, how?
