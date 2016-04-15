@@ -177,4 +177,69 @@ module Make (S : STRING) (C : CONTROL) = struct
       raise Out_of_bounds;
     safe_iter_range f ofs len t
 
+  let rec print (fmt : Format.formatter) : t -> unit  = function
+    | Str (s, ofs, len) -> S.print fmt (S.sub s ofs len)
+    | App (t1, t2, _, _) -> print fmt t1; print fmt t2
+
+  let rec set_rec (i : int) (c : char) : t -> t = function
+    | Str (s, ofs, len) when i = 0 ->
+      app (singleton c, Str (s, ofs + 1, len - 1))
+    | Str (s, ofs, len) when i = len - 1 ->
+      app (Str (s, ofs, len - 1), singleton c)
+    | Str (s, ofs, len) ->
+      app (Str (s, ofs, i), app (singleton c, Str (s, ofs + i + 1, len - i - 1)))
+    | App (t1, t2, _, _) ->
+      let n1 = length t1 in
+      if i < n1 then
+        app (set_rec i c t1, t2)
+      else
+        app (t1, set_rec (i - n1) c t2)
+
+  let set (t : t) (i : int) (c : char ) : t =
+    let n = length t in
+    if i < 0 || i >= n then raise Out_of_bounds;
+    set_rec i c t
+
+  let rec delete_rec (i : int) : t -> t = function
+    | Str (_, _, 1) -> assert (i = 0); empty
+    | Str (s, ofs, len) when i = 0 ->
+      Str (s, ofs + 1, len - 1)
+    | Str (s, ofs, len) when i = len - 1 ->
+      Str (s, ofs, len - 1)
+    | Str (s, ofs, len) ->
+      app (Str (s, ofs, i), Str (s, ofs + i + 1, len - i - 1))
+    | App (t1, t2, _, _) ->
+      let n1 = length t1 in
+      if i < n1 then
+        app (delete_rec i t1, t2)
+      else
+        app (t1, delete_rec (i - n1) t2)
+
+  let delete (t : t) (i : int) : t =
+    let n = length t in
+    if i < 0 || i >= n then raise Out_of_bounds;
+    delete_rec i t
+
+  let rec insert_rec (i : int) (r : t) : t -> t = function
+    | Str _ as s when i = 0 ->
+      app (r, s)
+    | Str (_, _, len) as s when i = len ->
+      app (s, r)
+    | Str (s, ofs, len) ->
+      Str (s, ofs, i) ++ r ++ Str (s, ofs + 1, len - i)
+    | App (t1, t2, _, _) ->
+      let n1 = length t1 in
+      if i < n1 then
+        app (insert_rec i r t1, t2)
+      else
+        app (t1, insert_rec (i - n1) r t2)
+
+  let insert (t : t) (i : int) (r : t) : t =
+    let n = length t in
+    if i < 0 || i > n then raise Out_of_bounds;
+    insert_rec i r t
+
+  let insert_char (t : t) (i : int) (c : char) : t =
+    insert t i (singleton c)
+
 end
