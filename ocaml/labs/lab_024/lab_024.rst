@@ -18,3 +18,39 @@ val empty : ('a, 'b) dict
 val insert : ('a, 'b) dict -> 'a -> 'b -> ('a, 'b) dict
 val find : ('a, 'b) dict -> 'a -> 'b option
 The question is, can this (purely functional) data structure be encoded using only functions? If no, why not? If yes, how?
+Solutions(s) :
+Michail Denchev reminds us just how succinct OCaml can be.
+let empty = function _ -> None
+let insert d k v = function | x when x = k -> Some v | x -> d x
+let find d k = d k
+Sen Han (and Joel Bjornson) adhere to the maxim "Explicit is better than implicit". 
+module type Dictionary =
+  sig
+    type (¦Á, ¦Â) dict
+
+    val empty : (¦Á, ¦Â) dict
+    val insert : (¦Á, ¦Â) dict -> ¦Á -> ¦Â -> (¦Á, ¦Â) dict
+    val find : (¦Á, ¦Â) dict -> ¦Á -> ¦Â option
+ 
+    exception NotFound
+  end
+ 
+module FuncDictionary : Dictionary =
+  struct
+    type (¦Á, ¦Â) dict = ¦Á -> ¦Â
+
+    exception NotFound
+ 
+    let empty = fun _ -> raise NotFound
+ 
+    let insert (d : (¦Á, ¦Â) dict) (k : ¦Á) (v : ¦Â) : (¦Á, ¦Â) dict =
+      fun k2 ->
+        if k2 = k then v else d k2
+ 
+    let find (d : (¦Á, ¦Â) dict) (k : ¦Á) : ¦Â option =
+      try
+        Some (d k)
+      with
+      | NotFound -> None
+  end
+
