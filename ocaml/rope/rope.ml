@@ -242,4 +242,35 @@ module Make (S : STRING) (C : CONTROL) = struct
   let insert_char (t : t) (i : int) (c : char) : t =
     insert t i (singleton c)
 
+  module Cursor = struct
+ 
+    type path =
+      | Top
+      | Left of path * t
+      | Right of t * path
+
+    type cursor = {
+      rpos : int; (*position of the cursor relative to the current leaf*)
+      lofs : int; (*offset of the current leaf wrt the whole rope*)
+      leaf : t; (*the leaf i.e. Str (s, ofs, len)*)
+      path : path; (*context = zipper*)
+    }
+    (*Invariant : 
+        0 <= rpos <= len
+        rpos = len iff we are located at the end of the whole rope
+     *)
+
+    let position (c : cursor) : int = c.lofs + c.rpos
+
+    (*cursor -> rope*)
+    let rec unzip (t : t) : path -> t = function
+      | Top -> t
+      | Left (p, tr) -> unzip (app (t, tr)) p
+      | Right (tl, p) -> unzip (app (tl, t)) p
+
+    let to_rope (c : cursor) : t =
+      unzip c.leaf c.path
+
+  end
+
 end
