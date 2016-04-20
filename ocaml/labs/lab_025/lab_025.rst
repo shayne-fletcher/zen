@@ -1,0 +1,134 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #25
+2016-04-20 by 
+Difficulty level :
+Medium
+Problem :
+Given a recursive algebraic datatype T(ƒ¿) , there is associated with it a derivative type ÝT(ƒ¿) called it's "zipper". This type is convenient when writing programs that traverse T values arbitrarily and update their contents, especially in functional programming languages.
+Consider the ƒ¿ list datatype for example. It is easy to write a function that updates a list in a purely functional way:
+let rec list_set (l : ƒ¿ list) (i : int) (v : ƒ¿) : ƒ¿ list =
+  assert (i >= 0);
+  match l with
+  | [] -> failwith "list_set"
+  | (_ :: tl) when i = 0 -> v :: tl
+  | (h :: tl) -> h :: list_set tl (i - 1) v
+The trouble with this function though is that it is wasteful of memory in that it must constantly allocate new list nodes. In the presence of multiple updates in a specific region of the list, it also wastes time since it constantly has to crawl to find the right position in the list, then crawl back creating new nodes. If the intent is to make several close-by changes, this is very wasteful. It would be better if we could crawl forward along the list to a certain point then make multiple updates before crawling back and allocating new nodes. This is what a list zipper allows us to do.
+A list zipper can be represented as a pair of lists.
+type ƒ¿ t = Z of ƒ¿ list * ƒ¿ list
+The type encapsulates the notion of a cursor. The cursor is thought of as being at a specific position in the list. Nodes to the left are stored in the first field of the pair (in reverse order), nodes to the right in the second. Using this model we can implement moving forward or backward through the list and updating the value at the cursor. Multiple operations to the same area of the list only require a small bit of crawling and relatively few allocations. In fact, every individual operation takes constant time and constant allocations. As long as you don't need to move the cursor much, there is a significant gain over the naive method of updating lists.
+Here's a complete implementation.
+  type ƒ¿ t = Z of ƒ¿ list * ƒ¿ list
+ 
+  let empty : ƒ¿ t = Z ([], [])
+ 
+  let from_list : ƒ¿ list -> ƒ¿ t = 
+    fun l -> Z ([], l)
+ 
+  let to_list : ƒ¿ t -> ƒ¿ list = 
+    function | Z (ls, rs) -> List.rev ls @ rs
+ 
+  let go_right : ƒ¿ t -> ƒ¿ t = function
+    | Z (ls, h :: tl) -> Z (h :: ls, tl)
+    | z -> z
+ 
+  let go_left : ƒ¿ t -> ƒ¿ t = function
+    | Z (h :: tl, rs) -> Z (tl, h :: rs)
+    | z -> z
+ 
+  let insert (a : ƒ¿) : ƒ¿ t -> ƒ¿ t = function
+    | Z (ls, rs) -> Z (ls, a :: rs)
+ 
+  let delete : ƒ¿ t -> ƒ¿ t = function
+    | Z (ls, _ :: rs) -> Z (ls, rs)
+    | z -> z
+ 
+  let replace (l : ƒ¿ t) (a : ƒ¿) : ƒ¿ t =
+    match l with
+    | Z (ls, _ :: rs)  -> Z (ls, a :: rs)
+    | z -> z
+
+Now,  here's a type definition for a binary tree.
+type ƒ¿ tree = E | N of ƒ¿ tree * ƒ¿ * ƒ¿ tree
+The zipper for a binary search tree is in effect a list of trees.
+type 'a path =
+  | Root
+  | Left of ƒ¿ * ƒ¿ tree * ƒ¿ path
+  | Right of ƒ¿ tree * ƒ¿ * ƒ¿ path
+ 
+type ƒ¿ cursor = ƒ¿ tree * ƒ¿ path
+The cursor in this case points to the sub-tree of interest (the focus) and the path through the tree to get to that point. The path represents the context of the sub-tree of interest.
+exception Top
+exception Bottom
+ 
+let make_tree : ƒ¿ tree * ƒ¿ * ƒ¿ tree -> ƒ¿ tree = 
+  fun (l, v, r) -> N (l, v, r)
+ 
+let move_left : ƒ¿ cursor -> ƒ¿ cursor = fun (tree, path) ->
+  match tree with
+  | E -> raise Bottom
+  | N (l, v, r) -> (l, Left (v, r, path))
+ 
+let move_right : ƒ¿ cursor -> ƒ¿ cursor = fun (tree, path) ->
+  match tree with
+  | E -> raise Bottom
+  | N (l, v, r) -> (r, Right (l, v, path))
+ 
+let move_up : ƒ¿ cursor -> ƒ¿ cursor = fun (tree, path) ->
+  match path with
+  | Root -> raise Top
+  | Left (v, r, tail) -> (make_tree (tree, v, r), tail)
+  | Right (l, v, tail) -> (make_tree (l, v, tree), tail)
+ 
+let of_tree : ƒ¿ tree -> ƒ¿ cursor = function
+  | E -> failwith "of_tree"
+  | N (l, v, r) as n -> (n, Root)
+ 
+let rec to_tree : ƒ¿ cursor -> ƒ¿ tree = function
+  | (t, Root) -> t
+  | (l, Left (v, r, path)) ->
+    to_tree (make_tree (l, v, r), path)
+  | (r, Right (l, v, path)) ->
+    to_tree (make_tree (l, v, r), path)
+ 
+let replace : ƒ¿ cursor -> ƒ¿ tree -> ƒ¿ cursor =
+  fun c t -> 
+    match c with
+    | _, Root -> (t, Root)
+    | (_, Left (v, r, path)) -> (t, Left (v, r, path))
+    | (_, Right (l, v, path)) ->  (t, Right (l, v, path))
+ 
+let delete : ƒ¿ cursor -> ƒ¿ cursor =  fun c -> replace c E
+
+In terms of the above data-type, write the following functions:
+  val most_left : 'a tree -> 'a cursor
+  val most_right : 'a tree -> 'a cursor
+  val first_leaf : 'a tree -> 'a cursor
+  val next_leaf : 'a cursor -> 'a cursor
+  val collect_leaves : 'a tree -> 'a list
+most_left t computes the left-most node in t, most_right t the right-most. For example, given the tree
+       1
+     2
+   3
+most_left returns a cursor pointing at the node labeled 3, most_right a cursor pointing at the node labeled 1 whereas, given the tree
+       1
+         2
+           3
+most_left finds the node labeled 1 and most_right the node labeled 3.
+first_leaf t finds the first leaf node in t in a left-to-right sense. For example, the first leaf in
+       1
+     2   3
+   4
+is the node labeled 4.
+next_leaf c finds the "next" leaf from the leaf represented by the cursor c. For example, in
+       1
+     2   3
+   4   5
+next (first_leaf t) computes the node labeled 5.
+Finally, collect_leaves t finds all of the leaf node values of t in order. For example, given the above tree, collect_leaves t is the list [4; 5; 3].

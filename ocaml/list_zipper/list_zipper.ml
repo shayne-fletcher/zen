@@ -10,6 +10,7 @@ module type Z_sig = sig
 
     val insert : 'a -> 'a t -> 'a t
     val delete : 'a t -> 'a t
+    val replace : 'a t -> 'a -> 'a t
 
 end
 
@@ -38,6 +39,11 @@ module Z : Z_sig = struct
 
   let delete : 'a t -> 'a t = function
     | Z (ls, _ :: rs) -> Z (ls, rs)
+    | z -> z
+
+  let replace (l : 'a t) (a : 'a) : 'a t =
+    match l with
+    | Z (ls, _ :: rs)  -> Z (ls, a :: rs)
     | z -> z
 
 end

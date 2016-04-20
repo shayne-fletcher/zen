@@ -40,18 +40,84 @@ let rec to_tree : 'a cursor -> 'a tree = function
   | (r, Right (l, v, path)) ->
     to_tree (make_tree (l, v, r), path)
 
+let replace : 'a cursor -> 'a tree -> 'a cursor =
+  fun c t -> 
+    match c with
+    | _, Root -> (t, Root)
+    | (_, Left (v, r, path)) -> (t, Left (v, r, path))
+    | (_, Right (l, v, path)) ->  (t, Right (l, v, path))
+
+let delete : 'a cursor -> 'a cursor =  fun c -> replace c E
+
+let most_left (t : 'a tree) : 'a cursor = 
+  let rec left : 'a cursor -> 'a cursor = function
+    | E, p -> failwith "left"
+    | (N (E, _, _), p) as c -> c
+    | N (l, x, r), p -> left (l, Left (x, r, p))in
+  left (t, Root)
+
+let most_right (t : 'a tree) : 'a cursor = 
+  let rec right : 'a cursor -> 'a cursor = function
+    | E, p -> failwith "right"
+    | N (_, _, E), p as c -> c
+    | N (l, x, r), p -> right (r, Right (l, x, p)) in
+  right (t, Root)
+
+let first_leaf (t : 'a tree) : 'a cursor =
+  let rec search = function
+    | E, p -> failwith "first_leaf"
+    | (N (E, _, E), p) as c -> c
+    | N (E, x, r), p -> search (r, Right (E, x, p))
+    | N (l, x, r), p -> search (l, Left (x, r, p))
+  in search (of_tree t)
+
+let next_leaf ((t, p) : 'a cursor) : 'a cursor =
+  let rec down (p : 'a path) : 'a tree -> 'a cursor = function
+    | E -> raise Bottom
+    | N (E, _, E) as leaf -> (leaf, p)
+    | N (E, x, r) -> down (Right (E, x, p)) r
+    | N (l, x, r) -> down (Left (x, r, p)) l
+  in
+  let rec up (t : 'a tree) : 'a path -> 'a cursor = function
+    | Root -> raise Top
+    | Left (x, E, p) -> up (make_tree (t, x, E)) p
+    | Left (x, r, p) -> down (Right (t, x, p)) r
+    | Right (l, x, p) -> up (make_tree (l, x, t)) p
+  in
+  up t p
+    
+let collect_leaves (t : 'a tree) : 'a list =
+  let rec aux acc ((N(_, x, _), p) as c) =
+    let leaves = x :: acc in   
+    try
+      aux leaves (next_leaf c)
+    with _ -> leaves in
+  List.rev@@ aux [] (first_leaf t)
+  
 (*
-let t = 
-  make_tree ( 
-      make_tree ( 
-          make_tree (E, 3, E), 2, 
-          make_tree(
-              make_tree (E, 5, E), 4, 
-              make_tree (E, 6, E))), 1,  
-      make_tree (E, 7, make_tree (E, 8, E)))
-
-let c = move_right (move_left (of_tree t))
-
-let () = assert (to_tree c = t)
- *)
+       1
+     2   3
+   4   5
+*)
+let t =  make_tree (make_tree (
+  make_tree (E, 4, E), 2, make_tree (E, 5, E)), 1, make_tree (E, 3, E))
+(*
+       1
+     2   3
+   4
+*)
+let t = make_tree (make_tree (
+  make_tree (E, 4, E), 2, E), 1, make_tree (E, 3, E))
+(*
+       1
+         2
+           3
+*)
+let t = make_tree (E, 1, make_tree (E, 2, make_tree (E, 3, E)))
+(*
+       1
+     2
+   3
+*)
+let t = make_tree(make_tree (make_tree (E, 3, E), 2, E), 1, E)
 

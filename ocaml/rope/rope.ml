@@ -251,18 +251,13 @@ module Make (S : STRING) (C : CONTROL) = struct
 
     type cursor = {
       rpos : int; (*position of the cursor relative to the current leaf*)
-      lofs : int; (*offset of the current leaf wrt the whole rope*)
+      lofs : int; (*offset {in chars} of the current leaf wrt the whole rope*)
       leaf : t; (*the leaf i.e. Str (s, ofs, len)*)
       path : path; (*context = zipper*)
     }
-    (*Invariant : 
-        0 <= rpos <= len
-        rpos = len iff we are located at the end of the whole rope
-     *)
 
     let position (c : cursor) : int = c.lofs + c.rpos
 
-    (*cursor -> rope*)
     let rec unzip (t : t) : path -> t = function
       | Top -> t
       | Left (p, tr) -> unzip (app (t, tr)) p
@@ -270,6 +265,106 @@ module Make (S : STRING) (C : CONTROL) = struct
 
     let to_rope (c : cursor) : t =
       unzip c.leaf c.path
+
+    let create (r : t) (i : int) : cursor = 
+      let rec zip (lofs : int) (p : path) : t -> cursor = function
+        | Str (_, _, len) as leaf ->
+          assert (lofs <= i && i <= lofs + len);
+          { rpos = i - lofs; lofs = lofs; leaf = leaf; path = p}
+        | App (t1, t2, _, _) ->
+          let n1 = length t1 in
+          if i < lofs + n1 then
+            zip lofs (Left (p, t2)) t1
+          else 
+            zip (lofs + n1) (Right (t1, p)) t2 in
+      if i < 0 || i > length r then raise Out_of_bounds;
+      zip 0 Top r
+
+    let get (c : cursor) : char =
+      match c.leaf with
+      | Str (s, ofs, len) ->
+        let i = c.rpos in
+        if i = len then raise Out_of_bounds;
+        S.get s (ofs + i)
+      | App _ -> assert false
+
+    let set (c : cursor) (x : char) =
+      match c.leaf with
+      | Str (s, ofs, len) ->
+        let i = c.rpos in
+        if i = len then raise Out_of_bounds;
+        let leaf = Str (S.singleton x, 0, 1) in
+        if i = 0 then
+          if len = 1 then
+            { c with leaf = leaf }
+          else
+            { c with
+              leaf = leaf;
+              path = Left (c.path, Str (s, ofs + 1, len - 1)) }
+        else if i = len - 1 then
+          {
+            lofs = c.lofs + len - 1;
+            rpos = 0;
+            leaf = leaf;
+            path = Right (Str (s, ofs, len - 1), c.path)
+          }
+        else
+          {
+            lofs = c.lofs + i;
+            rpos = 0;
+            leaf = leaf;
+            path = Left (Right (Str (s, ofs, i), c.path), 
+                         Str (s, ofs + i + 1, len - i - 1))
+          }
+      | App _ -> assert false
+
+    let rec concat_path (p1 : path) (p2 : path) : path = 
+      match p1 with
+      | Top -> p2
+      | Left (p, r) -> Left (concat_path p p2, r)
+      | Right (l, p) -> Right (l, concat_path p p2)
+
+    let insert (c : cursor) (r : t) : cursor = 
+      match c.leaf with
+      | Str (s, ofs, len) ->
+        let i = c.rpos in
+        let cr = create r 0 in
+        if i = 0 then
+          {
+            cr with
+              lofs = c.lofs;
+              path = concat_path cr.path (Left (c.path, c.leaf))
+          }
+        else if i = len then
+          {
+            cr with
+              lofs = c.lofs + len;
+              path = concat_path cr.path (Right (c.leaf, c.path))
+          }
+        else 
+          {
+            cr with
+              lofs = c.lofs + i;
+              path = concat_path cr.path 
+                (Left (Right (Str (s, ofs, i), c.path),
+                 Str (s, ofs + i, len - i)))
+          }
+      | App _ -> assert false
+
+    let insert_char (c : cursor) (x : char) : cursor =
+      insert c (of_string (S.singleton x))
+
+    let next_leaf (c : cursor) : cursor =
+      let lofs = c.lofs + length c.leaf in
+      let rec down (p : path) : t -> cursor = function
+        | Str _ as leaf -> { rpos = 0; lofs = lofs; leaf = leaf; path = p }
+        | App (t1, t2, _, _) -> down (Left (p, t2)) t1
+      in
+      let rec up (t : t) : path -> cursor = function
+        | Top -> raise Out_of_bounds
+        | Right (l, p) -> up (mk_app l t) p
+        | Left (p, r) -> down (Right (t, p)) r in
+      up c.leaf c.path
 
   end
 
