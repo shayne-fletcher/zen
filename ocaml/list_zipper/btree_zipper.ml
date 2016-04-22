@@ -64,12 +64,12 @@ let most_right (t : 'a tree) : 'a cursor =
   right (t, Root)
 
 let first_leaf (t : 'a tree) : 'a cursor =
-  let rec search = function
+  let rec down : 'a cursor -> 'a cursor = function
     | E, p -> failwith "first_leaf"
     | (N (E, _, E), p) as c -> c
-    | N (E, x, r), p -> search (r, Right (E, x, p))
-    | N (l, x, r), p -> search (l, Left (x, r, p))
-  in search (of_tree t)
+    | N (E, x, r), p -> down (r, Right (E, x, p))
+    | N (l, x, r), p -> down (l, Left (x, r, p))
+  in down (of_tree t)
 
 let next_leaf ((t, p) : 'a cursor) : 'a cursor =
   let rec down (p : 'a path) : 'a tree -> 'a cursor = function
@@ -86,6 +86,29 @@ let next_leaf ((t, p) : 'a cursor) : 'a cursor =
   in
   up t p
     
+let last_leaf (t : 'a tree) : 'a cursor =
+  let rec down : 'a cursor -> 'a cursor = function
+    | E, p -> failwith "last_leaf"
+    | (N (E, _, E), p) as c -> c
+    | N (l, x, E), p -> down (l, Left (x, E, p))
+    | N (l, x, r), p -> down (r, Right (l, x, p))
+  in down (of_tree t)
+
+let prev_leaf ((t, p) : 'a cursor) : 'a cursor =
+  let rec down (p : 'a path) : 'a tree -> 'a cursor = function
+    | E -> raise Bottom
+    | N (E, _, E) as leaf -> (leaf, p)
+    | N (l, x, E) -> down (Left (x, E, p)) l
+    | N (l, x, r) -> down (Right (l, x, p)) r
+  in
+  let rec up (t : 'a tree) : 'a path -> 'a cursor = function
+    | Root -> raise Top
+    | Right (E, x, p) -> up (make_tree (E, x, t)) p
+    | Right (l, x, p) -> down (Left (x, t, p)) l
+    | Left (x, r, p) -> up (make_tree (t, x, r)) p
+  in 
+  up t p
+
 let collect_leaves (t : 'a tree) : 'a list =
   let rec aux acc ((N(_, x, _), p) as c) =
     let leaves = x :: acc in   

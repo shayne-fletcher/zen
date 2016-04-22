@@ -1,6 +1,8 @@
 let dup (x : 'a) : 'a * 'a = (x, x)
 
-let prod (f : 'c -> 'a) (g : 'c -> 'b) : 'c -> ('a * 'b) = fun x -> (f x, g x)
+type ('a, 'b) product = 'a * 'b
+
+let prod (f : 'c -> 'a) (g : 'c -> 'b) : 'c -> ('a, 'b) product = fun x -> (f x, g x)
 
 let twist ((x : 'a), (y : 'b)) : ('b * 'a) = y, x
 
@@ -13,3 +15,4 @@ let co_product (f : 'a -> 'c) (g : 'b -> 'c) : ('a, 'b) sum -> 'c =  function | 
 let curry (f : 'a * 'b -> 'c) : 'a -> 'b -> 'c = fun x -> fun y -> f (x, y)
 
 let uncurry (f : 'a -> 'b -> 'c) : 'a * 'b -> 'c = fun (x, y) -> f x y
+

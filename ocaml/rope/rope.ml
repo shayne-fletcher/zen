@@ -366,6 +366,23 @@ module Make (S : STRING) (C : CONTROL) = struct
         | Left (p, r) -> down (Right (t, p)) r in
       up c.leaf c.path
 
+    let rec move_forward_rec (c : cursor) (n : int) : cursor =
+      match c.leaf with
+      | Str (_, _, len) ->
+        let rpos' = c.rpos + n in
+        if rpos' < len then
+          { c with rpos = rpos' }
+        else if rpos' = len then begin
+          try next_leaf c with Out_of_bounds -> { c with rpos = rpos' }
+        end else (*rpos' > len*)
+          let c = next_leaf c in
+          move_forward_rec c (rpos' - len)
+      | App _ -> assert false
+
+    let move_forward (c : cursor) (n : int) : cursor =
+      if n < 0 then invalid_arg "Rope.move_forward";
+      if n = 0 then c else move_forward_rec c n
+
   end
 
 end
