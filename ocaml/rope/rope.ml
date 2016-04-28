@@ -383,6 +383,76 @@ module Make (S : STRING) (C : CONTROL) = struct
       if n < 0 then invalid_arg "Rope.move_forward";
       if n = 0 then c else move_forward_rec c n
 
+    let prev_leaf (c : cursor) : cursor  =
+      let rec down (p : path) : t -> cursor = function
+        | Str (_, _, len) as leaf ->
+          {rpos = len; lofs = c.lofs - len; leaf = leaf; path = p}
+        | App (t1, t2, _, _) -> down (Right (t1, p)) t2
+      in
+      let rec up (t : t) : path -> cursor = function
+        | Top -> raise Out_of_bounds
+        | Right (l, p) -> down (Left (p, t)) l
+        | Left (p, r) -> up (mk_app t r) p
+      in 
+      up c.leaf c.path
+
+    let rec move_backward_rec (c : cursor) (n : int) : cursor = 
+      match c.leaf with
+      | Str (_, _, len) ->
+        let rpos' = c.rpos - n in
+        if rpos' >= 0 then
+          { c with rpos = rpos'}
+        else (*rpos' < 0*)
+          let c = prev_leaf c in
+          move_backward_rec c (-rpos')
+      |  App _ -> 
+        assert false
+
+    let move_backward (c : cursor) (n : int) : cursor =
+      if n < 0 then invalid_arg "Rope.move_backward";
+      if n = 0 then c else move_backward_rec c n
+
+    let move (c : cursor) (n : int) : cursor =
+      if n = 0 then c
+      else if n > 0 then move_forward_rec c n
+      else move_backward_rec c (-n)
+
+    let rec leftmost (lofs : int) (p : path) : t -> cursor = function
+      | Str _ as leaf -> { rpos = 0; lofs = lofs; leaf = leaf; path = p; }
+      | App (t1, t2, _, _) -> leftmost lofs (Left (p, t2)) t1
+
+    let delete (c : cursor) : cursor  = 
+      match c.leaf with
+      | Str (s, ofs, len) ->
+        let i = c.rpos in
+        if i = len then raise Out_of_bounds;
+        if i = 0 then
+          if len = 1 then 
+            begin
+              match c.path with
+              | Top -> { c with leaf = empty }
+              | Left (p, t) ->
+                (*leftmost c.lofs p r*)
+                let r = to_rope { c with leaf = t; path = p} in
+                create r c.lofs
+              | Right (t, p) ->
+                let r = to_rope { c with leaf = t; path = p } in
+                create r c.lofs
+            end
+          else
+            {c with leaf = Str (s, ofs + 1, len - 1)}
+        else if i = len - 1 then
+          next_leaf { c with leaf = Str (s, ofs, len - 1) }
+        else
+          {
+            lofs = c.lofs + i;
+            rpos = 0;
+            leaf = Str (s, ofs + i + 1, len - i -1);
+            path = Right (Str (s, ofs, i), c.path)
+          }
+      | App _ -> assert false
+        
+
   end
 
 end
