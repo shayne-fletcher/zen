@@ -7,4 +7,4 @@ let multiples_of (l : int list) (n : int) : int list=
       then i :: acc else acc) (i + 1) in
   loop [] 1
 (*Sum of the numbers less than 1000 that are multiples of 3 or 5*)
-let sum :int = List.fold_left (fun x y -> x + y) 0 (multiples_of [3; 5] 1000)
+let sum : int = List.fold_left (fun x y -> x + y) 0 (multiples_of [3; 5] 1000)

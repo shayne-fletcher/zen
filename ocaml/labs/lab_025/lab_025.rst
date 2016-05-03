@@ -11,9 +11,9 @@ Weekly Exercises : #25
 Difficulty level :
 Medium
 Problem :
-Given a recursive algebraic datatype T(ƒ¿) , there is associated with it a derivative type İT(ƒ¿) called it's "zipper". This type is convenient when writing programs that traverse T values arbitrarily and update their contents, especially in functional programming languages.
-Consider the ƒ¿ list datatype for example. It is easy to write a function that updates a list in a purely functional way:
-let rec list_set (l : ƒ¿ list) (i : int) (v : ƒ¿) : ƒ¿ list =
+Given a recursive algebraic datatype T(†á) , there is associated with it a derivative type ’¢ßT(†á) called its "zipper". This type is convenient when writing programs that traverse T values arbitrarily and update their contents, especially in functional programming languages.
+Consider the †á list datatype for example. It is easy to write a function that updates a list in a purely functional way:
+let rec list_set (l : †á list) (i : int) (v : †á) : †á list =
   assert (i >= 0);
   match l with
   | [] -> failwith "list_set"
@@ -21,97 +21,97 @@ let rec list_set (l : ƒ¿ list) (i : int) (v : ƒ¿) : ƒ¿ list =
   | (h :: tl) -> h :: list_set tl (i - 1) v
 The trouble with this function though is that it is wasteful of memory in that it must constantly allocate new list nodes. In the presence of multiple updates in a specific region of the list, it also wastes time since it constantly has to crawl to find the right position in the list, then crawl back creating new nodes. If the intent is to make several close-by changes, this is very wasteful. It would be better if we could crawl forward along the list to a certain point then make multiple updates before crawling back and allocating new nodes. This is what a list zipper allows us to do.
 A list zipper can be represented as a pair of lists.
-type ƒ¿ t = Z of ƒ¿ list * ƒ¿ list
+type †á t = Z of †á list * †á list
 The type encapsulates the notion of a cursor. The cursor is thought of as being at a specific position in the list. Nodes to the left are stored in the first field of the pair (in reverse order), nodes to the right in the second. Using this model we can implement moving forward or backward through the list and updating the value at the cursor. Multiple operations to the same area of the list only require a small bit of crawling and relatively few allocations. In fact, every individual operation takes constant time and constant allocations. As long as you don't need to move the cursor much, there is a significant gain over the naive method of updating lists.
 Here's a complete implementation.
-  type ƒ¿ t = Z of ƒ¿ list * ƒ¿ list
+  type †á t = Z of †á list * †á list
  
-  let empty : ƒ¿ t = Z ([], [])
+  let empty : †á t = Z ([], [])
  
-  let from_list : ƒ¿ list -> ƒ¿ t = 
+  let from_list : †á list -> †á t = 
     fun l -> Z ([], l)
  
-  let to_list : ƒ¿ t -> ƒ¿ list = 
+  let to_list : †á t -> †á list = 
     function | Z (ls, rs) -> List.rev ls @ rs
  
-  let go_right : ƒ¿ t -> ƒ¿ t = function
+  let go_right : †á t -> †á t = function
     | Z (ls, h :: tl) -> Z (h :: ls, tl)
     | z -> z
  
-  let go_left : ƒ¿ t -> ƒ¿ t = function
+  let go_left : †á t -> †á t = function
     | Z (h :: tl, rs) -> Z (tl, h :: rs)
     | z -> z
  
-  let insert (a : ƒ¿) : ƒ¿ t -> ƒ¿ t = function
+  let insert (a : †á) : †á t -> †á t = function
     | Z (ls, rs) -> Z (ls, a :: rs)
  
-  let delete : ƒ¿ t -> ƒ¿ t = function
+  let delete : †á t -> †á t = function
     | Z (ls, _ :: rs) -> Z (ls, rs)
     | z -> z
  
-  let replace (l : ƒ¿ t) (a : ƒ¿) : ƒ¿ t =
+  let replace (l : †á t) (a : †á) : †á t =
     match l with
     | Z (ls, _ :: rs)  -> Z (ls, a :: rs)
     | z -> z
 
 Now,  here's a type definition for a binary tree.
-type ƒ¿ tree = E | N of ƒ¿ tree * ƒ¿ * ƒ¿ tree
+type †á tree = E | N of †á tree * †á * †á tree
 The zipper for a binary search tree is in effect a list of trees.
-type 'a path =
+type †á path =
   | Root
-  | Left of ƒ¿ * ƒ¿ tree * ƒ¿ path
-  | Right of ƒ¿ tree * ƒ¿ * ƒ¿ path
+  | Left of †á * †á tree * †á path
+  | Right of †á tree * †á * †á path
  
-type ƒ¿ cursor = ƒ¿ tree * ƒ¿ path
+type †á cursor = †á tree * †á path
 The cursor in this case points to the sub-tree of interest (the focus) and the path through the tree to get to that point. The path represents the context of the sub-tree of interest.
 exception Top
 exception Bottom
  
-let make_tree : ƒ¿ tree * ƒ¿ * ƒ¿ tree -> ƒ¿ tree = 
+let make_tree : †á tree * †á * †á tree -> †á tree = 
   fun (l, v, r) -> N (l, v, r)
  
-let move_left : ƒ¿ cursor -> ƒ¿ cursor = fun (tree, path) ->
+let move_left : †á cursor -> †á cursor = fun (tree, path) ->
   match tree with
   | E -> raise Bottom
   | N (l, v, r) -> (l, Left (v, r, path))
  
-let move_right : ƒ¿ cursor -> ƒ¿ cursor = fun (tree, path) ->
+let move_right : †á cursor -> †á cursor = fun (tree, path) ->
   match tree with
   | E -> raise Bottom
   | N (l, v, r) -> (r, Right (l, v, path))
  
-let move_up : ƒ¿ cursor -> ƒ¿ cursor = fun (tree, path) ->
+let move_up : †á cursor -> †á cursor = fun (tree, path) ->
   match path with
   | Root -> raise Top
   | Left (v, r, tail) -> (make_tree (tree, v, r), tail)
   | Right (l, v, tail) -> (make_tree (l, v, tree), tail)
  
-let of_tree : ƒ¿ tree -> ƒ¿ cursor = function
+let of_tree : †á tree -> †á cursor = function
   | E -> failwith "of_tree"
   | N (l, v, r) as n -> (n, Root)
  
-let rec to_tree : ƒ¿ cursor -> ƒ¿ tree = function
+let rec to_tree : †á cursor -> †á tree = function
   | (t, Root) -> t
   | (l, Left (v, r, path)) ->
     to_tree (make_tree (l, v, r), path)
   | (r, Right (l, v, path)) ->
     to_tree (make_tree (l, v, r), path)
  
-let replace : ƒ¿ cursor -> ƒ¿ tree -> ƒ¿ cursor =
+let replace : †á cursor -> †á tree -> †á cursor =
   fun c t -> 
     match c with
     | _, Root -> (t, Root)
     | (_, Left (v, r, path)) -> (t, Left (v, r, path))
     | (_, Right (l, v, path)) ->  (t, Right (l, v, path))
  
-let delete : ƒ¿ cursor -> ƒ¿ cursor =  fun c -> replace c E
+let delete : †á cursor -> †á cursor =  fun c -> replace c E
 
 In terms of the above data-type, write the following functions:
-  val most_left : 'a tree -> 'a cursor
-  val most_right : 'a tree -> 'a cursor
-  val first_leaf : 'a tree -> 'a cursor
-  val next_leaf : 'a cursor -> 'a cursor
-  val collect_leaves : 'a tree -> 'a list
+  val most_left : †á tree -> †á cursor
+  val most_right : †á tree -> †á cursor
+  val first_leaf : †á tree -> †á cursor
+  val next_leaf : †á cursor -> †á cursor
+  val collect_leaves : †á tree -> †á list
 most_left t computes the left-most node in t, most_right t the right-most. For example, given the tree
        1
      2
@@ -132,3 +132,73 @@ next_leaf c finds the "next" leaf from the leaf represented by the cursor c. For
    4   5
 next (first_leaf t) computes the node labeled 5.
 Finally, collect_leaves t finds all of the leaf node values of t in order. For example, given the above tree, collect_leaves t is the list [4; 5; 3].
+Solution(s) :
+One of those weeks where this isn't much "room to move" (smile)
+let most_left (t : †á tree) : †á cursor = 
+  let rec left : †á cursor -> †á cursor = function
+    | E, p -> failwith "left"
+    | (N (E, _, _), p) as c -> c
+    | N (l, x, r), p -> left (l, Left (x, r, p))in
+  left (t, Root)
+
+let most_right (t : †á tree) : †á cursor = 
+  let rec right : †á cursor -> †á cursor = function
+    | E, p -> failwith "right"
+    | N (_, _, E), p as c -> c
+    | N (l, x, r), p -> right (r, Right (l, x, p)) in
+  right (t, Root)
+
+let first_leaf (t : †á tree) : †á cursor =
+  let rec down : †á cursor -> †á cursor = function
+    | E, p -> failwith "first_leaf"
+    | (N (E, _, E), p) as c -> c
+    | N (E, x, r), p -> down (r, Right (E, x, p))
+    | N (l, x, r), p -> down (l, Left (x, r, p))
+  in down (of_tree t)
+
+let next_leaf ((t, p) : †á cursor) : †á cursor =
+  let rec down (p : †á path) : †á tree -> †á cursor = function
+    | E -> raise Bottom
+    | N (E, _, E) as leaf -> (leaf, p)
+    | N (E, x, r) -> down (Right (E, x, p)) r
+    | N (l, x, r) -> down (Left (x, r, p)) l
+  in
+  let rec up (t : †á tree) : †á path -> †á cursor = function
+    | Root -> raise Top
+    | Left (x, E, p) -> up (make_tree (t, x, E)) p
+    | Left (x, r, p) -> down (Right (t, x, p)) r
+    | Right (l, x, p) -> up (make_tree (l, x, t)) p
+  in
+  up t p
+    
+let last_leaf (t : †á tree) : †á cursor =
+  let rec down : †á cursor -> †á cursor = function
+    | E, p -> failwith "last_leaf"
+    | (N (E, _, E), p) as c -> c
+    | N (l, x, E), p -> down (l, Left (x, E, p))
+    | N (l, x, r), p -> down (r, Right (l, x, p))
+  in down (of_tree t)
+
+let prev_leaf ((t, p) : †á cursor) : †á cursor =
+  let rec down (p : †á path) : †á tree -> †á cursor = function
+    | E -> raise Bottom
+    | N (E, _, E) as leaf -> (leaf, p)
+    | N (l, x, E) -> down (Left (x, E, p)) l
+    | N (l, x, r) -> down (Right (l, x, p)) r
+  in
+  let rec up (t : †á tree) : †á path -> †á cursor = function
+    | Root -> raise Top
+    | Right (E, x, p) -> up (make_tree (E, x, t)) p
+    | Right (l, x, p) -> down (Left (x, t, p)) l
+    | Left (x, r, p) -> up (make_tree (t, x, r)) p
+  in 
+  up t p
+
+let collect_leaves (t : †á tree) : †á list =
+  let rec aux acc ((N(_, x, _), p) as c) =
+    let leaves = x :: acc in   
+    try
+      aux leaves (next_leaf c)
+    with _ -> leaves in
+  List.rev@@ aux [] (first_leaf t)
+Credits go out to Sen Han, Joel Bjornson and Ruka Murugan!
