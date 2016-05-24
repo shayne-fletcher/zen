@@ -7,11 +7,11 @@ module type STREAM = sig
   val tl : 'a t -> 'a t
   val iter : ('a -> unit) -> 'a t -> unit
   val cons : 'a * (unit -> 'a t) -> 'a t
+  val uncons : 'a t -> ('a * 'a t)
   val of_list : 'a list -> 'a t
   val to_list : 'a t -> 'a list
 
-  val print : (Format.formatter -> 'a -> unit) -> 
-                     (Format.formatter) -> 'a t -> unit
+  val print : (Format.formatter -> 'a -> unit) -> (Format.formatter) -> 'a t -> unit
 end
 
 module Stream : STREAM = struct
@@ -31,6 +31,8 @@ module Stream : STREAM = struct
 
   let tl : 'a t -> 'a t = 
     function | Nil -> failwith "tl" | Cons (_, t) -> t ()
+
+  let uncons : 'a t -> ('a * 'a t) = fun s -> (hd s, tl s)
 
   let rec iter : ('a -> unit) -> 'a t -> unit =
     fun f -> function | Nil -> () | Cons (h, t) -> f h; iter f (t ())
@@ -105,8 +107,7 @@ module Slice : SLICE = functor (S : STREAM) -> struct
   let slice_one (x : int) : stream =
     S.cons (x, fun () -> S.empty)
   
-  let rec slice_from_counted 
-      (first : int) (count : int) : stream =
+  let rec slice_from_counted (first : int) (count : int) : stream =
     if count <= 0 then S.empty else
       S.cons (
         first
