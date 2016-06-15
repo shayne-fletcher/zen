@@ -42,12 +42,14 @@ auto papp = [](auto f) {
 
 int main () {
 
+  auto pair = &std::make_pair<int, int>;
+
   {
   //Given `f`, `g` functions in one argument and point `(x, y)`,
   //compute `(f x, g y)`
   auto succ= [](int x){ return x + 1; };
   auto pred= [](int x){ return x - 1; };
-  auto p  = (pc (papp ^ pu)) (succ) (pred) (std::make_pair (1, 2));
+  auto p  = (pc (papp ^ pu)) (succ) (pred) (pair (1, 2));
   std::cout << p.first << ", " << p.second << std::endl;
   }
 
@@ -56,7 +58,7 @@ int main () {
   //y')`, compute `(f x x', g y y')`
   auto add = [](int x) { return [=](int y) { return x + y; }; };
   auto sub = [](int x) { return [=](int y) { return x - y; }; };
-  auto p = pc (papp ^ papp ^ pu) (add) (sub) (std::make_pair(1, 2))(std::make_pair (3, 4));
+  auto p = pc (papp ^ papp ^ pu) (add) (sub) (pair(1, 2)) (pair (3, 4));
   std::cout << p.first << ", " << p.second << std::endl;
   }
 
