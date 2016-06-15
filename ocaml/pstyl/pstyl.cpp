@@ -7,6 +7,8 @@
 //       .
 //       .
 //       .
+//See Oleg Kiselyov's notes at
+//http://okmij.org/ftp/Computation/extra-polymorphism.html.
 
 #include <utility>
 #include <iostream>
