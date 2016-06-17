@@ -147,7 +147,7 @@ let pu x = x
 (*The argument `f` in the below is for the sake of value restriction*)
 let pair_map_1 f = pc (papp ** pu) (f : 'a -> 'b)
 let pair_map_2 f = pc (papp ** papp ** pu) (f : 'a -> 'b -> 'c)
-let pair_map_3 f = pc (papp ** papp ** papp ** pu) f(f : 'a -> 'b -> 'c -> 'd)
+let pair_map_3 f = pc (papp ** papp ** papp ** pu) (f : 'a -> 'b -> 'c -> 'd)
 
 (*Let's do the math. Start with [pair_map_1]
 
@@ -170,38 +170,40 @@ let pair_map_3 f = pc (papp ** papp ** papp ** pu) f(f : 'a -> 'b -> 'c -> 'd)
     \f g. \(x, y). (f x, g y)
   that is,
 
-    pair_map_1 = pc (papp ** pu) = \f g (x, y) = (f x, g y).
+    pair_map_1 = pc (papp ** pu) = \f g (x, y). (f x, g y).
   ]}
 
   The type can be read off from the above equation as
   [{
-    val pair_map_1 = ('a -> 'b) -> ('c->'d) -> ('a * 'c) -> 'b * 'd
+    val pair_map_1 = ('a -> 'b) -> ('c -> 'd) -> 'a * 'c -> 'b * 'd
   }]
 
   On to [pair_map_2].
   [{
     pc (papp ** papp ** pu) =
-    (\k f g. k (a, b)) (papp ** papp ** pu) =
-    \a b. (papp ** papp ** pu) (a, b)
+    (\k f g. k (f, g)) (papp ** papp ** pu) =
+    \f g. (papp ** papp ** pu) (f, g)
   }]
 
   where
   [{
     papp ** papp ** pu = papp ** (papp ** pu) =
-    papp ** (\x y. pu (papp x y)) =
-    papp ** (\x y. papp x y) = 
-    \x' y'.(\x y. papp x y) (papp x' y')
+    papp ** (\a' b'. pu (papp a' b')) =
+    papp ** (\a' b'. papp a' b') = 
+    \a b.(\a' b'. papp a' b') (papp a b)
   {]
 
   So, 
   [{
     pc (papp ** papp ** pu) = 
-    \a b. (papp ** papp ** pu) (a, b) =
-    \a b. (\x' y'. (\x y. papp x y) (papp x' y')) (a, b) =
-    \a b. (\ x y. papp x y) (papp a b) =
-    \(f, g) (s, t). (\x y. papp (x y) (f s, g t) =
-    \(f, g) (s, t). \(u, v). papp (f s, g t) (u, v) =
-    \(f, g) (s, t). \(u, v). (f s u, g t v)
+    \f g. (papp ** papp ** pu) (f, g) =
+    \f g. (\a b.(\a' b'. papp a' b') (papp a b)) (f, g) =
+    \f g. (\b. (\a' b'. papp a' b') (papp (f, g) b)) =
+    \f g. \(x, y). \a' b'. (papp a' b') (papp (f, g) (x, y)) =
+    \f g. \(x, y). \a' b'. (papp a' b') (f x, g y) =
+    \f g. \(x, y). \b'. papp (f x, g y) b' =
+    \f g. \(x, y). \(x', y'). papp (f x, g y) (x', y') =
+    \f g. \(x, y). (x', y'). (f x x', g y y')
   }]
 
   that is, a function in two binary functions and two pairs e.g
