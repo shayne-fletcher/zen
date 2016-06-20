@@ -1,12 +1,13 @@
-// This is an exercise in mapping over pairs, generic in the datatypes
-// and number of arguments involved.
+//This is an exercise in mapping over pairs, generic in the datatypes
+//and number of arguments involved.
 //
 //    [pair_map_1 f g (x, y) = (f x, g y)]
 //    [pair_map_2 f g (x, y) (x', y') = (f x x', g y y')]
 //    [pair_map_3 f g (x, y) (x', y') (x'', y'') = (f x x' x'', g y y' y'')]
-//       .
-//       .
-//       .
+//                           .
+//                           .
+//                           .
+//
 //See Oleg Kiselyov's notes at
 //http://okmij.org/ftp/Computation/extra-polymorphism.html.
 
