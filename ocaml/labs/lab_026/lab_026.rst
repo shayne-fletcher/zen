@@ -1,0 +1,93 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #26
+2016-06-09 by 
+Difficulty level :
+Medium
+Problem :
+This is a pencil and paper exercise. The idea is to take on the role of the compiler and perform the value calculations and type derivations by hand. Treat them as mathematical proofs (show your workings!)
+Derive the type of each of the following functions:
+
+let z = fun k Å® k []
+let s n k x = n (fun v Å® k (x :: v))
+let p a = a (fun x Å® x)
+ 
+Derive the type of each of the following function applications:
+
+p z
+p (s z)
+p (s (s z))
+
+ Reduce each of the expressions given in (2) to beta normal form.
+ 
+ Describe the (pseudo -) expression p (si z) in plain English. What does it represent?
+Solutions :
+
+Assume [] to be of type Éø list. Since k is applied to [] then k must have type Éø list Å® É¿ for some type É¿. Now z is a function in k returning through invocation of k that is, z is of type (Éø list Å® É¿) Å® É¿.
+ 
+x is "consed" onto v so, v has type Éø list for some Éø and x therefore types to Éø. k is then applied to the value of Éø list yielding a value of type É¿ (say) so k is of type Éø list Å® É¿. Summarizing we have:
+val x : Éø
+val v : Éø list
+val k : Éø list Å® É¿
+n is applied to a function taking an Éø list Å® É¿ so n has type (Éø list Å® É¿) Å® É¡ for some É¡ and so finally we may write
+val s : ((Éø list Å® É¿) Å® É¡) Å® (Éø list Å® É¿) Å® Éø Å® É¡
+
+
+Let x have type Éø. Then a must have type (Éø  Å® Éø) Å® É¿, so p has type ((Éø  Å® Éø) Å® É¿) Å® É¿.
+ 
+
+Given,
+val z : (Éø list Å® É¿) Å® É¿
+val p : ((Éø  Å® Éø) Å® É¿) Å® É¿
+by unification, it must be Éø list.
+
+Given,
+val z : (Éø list Å® É¿) Å® É¿
+val s : ((Éø list Å® É¿) Å® É¡) Å® (Éø list Å® É¿) Å® Éø Å® É¡
+val p : ((Éø  Å® Éø) Å® É¿) Å® É¿
+consider the expression s z. By unification we have É¿ = É¡ and s z = (Éø list Å® É¿) Å® Éø Å® É¿.  So now we have the equations
+s z : (Éø list Å® É¿) Å® (Éø Å® É¿)
+p   : ((É¡ Å® É¡) Å® Å›) Å® Å›
+(we engaged in an Éø conversion for p in the above in order to avoid confusion). Now, by unification we see that É¡ = É¿ = Éø list, Å› = Éø Å® Éø list and therefore p (s z) has type Éø Å® Éø list.
+
+ Given,
+s z : (Éø list Å® É¿) Å® (Éø Å® É¿)
+s   : ((Éø list Å® É¿) Å® É¡) Å® (Éø list Å® É¿) Å® Éø Å® É¡
+we have É¡ = Éø Å® É¿ and s (s z) = (Éø list Å® É¿) Å® Éø Å® (Éø Å® É¿). That is,
+s (s z) : (Éø list Å® É¿) Å® Éø Å® (Éø Å® É¿)
+p       : ((É¡ Å® É¡) Å® Å›) Å® Å›
+providing, É¡ = É¿ = Éø list, Å› = (Éø Å® (Éø Å® Éø list)) and finally p (s (s z)) is revealed to have type Éø Å® Éø Å® Éø list.
+
+
+
+
+p z = z (fun x Å® x) = (fun k Å® k []) (fun x Å® x) = []
+
+
+p (s z) = (s z) (fun x Å® x)
+        = (fun k x Å® z (fun v Å® k (x :: v))) (fun x Å® x)
+        = fun x Å® z (fun v Å® x :: v)
+        = fun x Å® (fun k Å® k []) (fun v Å® x :: v)
+        = fun x Å® (fun v Å® x :: v) []
+        = fun x Å® [x]
+
+
+p (s (s z)) 
+        = (fun k' x' Å® (s z) (fun v' Å® k' (x' :: v'))) (fun x Å® x) 
+        = fun x' Å® (s z) (fun v' Å® x' :: v')
+        = fun x' Å® fun k x Å® z (fun v Å® k (x :: v))) (fun v' Å® x' :: v')
+        = fun x' Å® fun x Å® z (fun v Å® (fun v' Å® x' :: v') (x :: v))
+        = fun x' Å® fun x Å® (fun k Å® k []) (fun v Å® (fun v' Å® x' :: v') (x :: v))
+        = fun x' Å® fun x Å® (fun v Å® (fun v' Å® x' :: v') (x :: v)) []
+        = fun x' Å® fun x Å® (fun v' Å® x' :: v') [x]
+        = fun x' Å® fun x Å® [x'; x]
+
+p (si z) is a function in i arguments which returns those arguments in a list.
+ 
+For further reading, see this (http://okmij.org/ftp/Computation/extra-polymorphism.html) page.

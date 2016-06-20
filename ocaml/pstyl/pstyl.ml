@@ -106,7 +106,7 @@ let p a = a (fun x -> x)
        ]}
     
        providing ['c] = ['b] = ['a list], ['d] = ('a -> ('a -> 'a list))
-       and finally, [p (s s z)] has type ['a -> 'a -> 'a list].
+       and finally, [p (s (s z))] has type ['a -> 'a -> 'a list].
 
        Here we go with computing the value:
        {[
