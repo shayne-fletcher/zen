@@ -66,6 +66,10 @@ let rec term_trav ~f ~g ~x ~v = function
     f (a, res)
   | Var b -> v b
 
+let rec term_map (f : 'a -> 'c) (g : 'b -> 'd) : ('a, 'b) term -> ('c, 'd) term = function
+  | Term (a, cs) -> Term (f a, List.map (term_map f g) cs)
+  | Var n -> Var (g n)
+
 let vars (t : ('a, 'b) term) : 'b list = 
   term_trav ~f:snd ~g:union ~x:[] ~v:(fun x -> [x]) t
 
@@ -143,3 +147,40 @@ let instance : ('a, int) term scheme -> ('a, int) term = function
   | For_all (gvars, t) ->
     let renaming = List.map (fun n -> (n, Var (new_int ()))) gvars in
     apply_substitution renaming t
+
+(*Utilities*)
+
+(*Now we have type schemes available in type environments (and thus we
+  have quantified variables), we must be careful not to substitute them
+  when a substitution is applied. The following function removes a
+  variable from the definition domain of a substitution.*)
+let rec subst_but (v : 'a) : ('a * 'b) list -> ('a * 'b) list = function
+  | [] -> []
+  | (v1, t1) :: subst ->
+    if v1 = v then subst_but v subst
+    else (v1, t1) :: (subst_but v subst)
+
+(*If we iterate this process over a list of variables, we remove a set
+  of variables from the definition domain of a substitution like this*)
+let rec subst_minus (subst : ('a * 'b) list) (vars : 'a list) : ('a * 'b) list =
+  match vars with 
+  | [] -> subst
+  | v :: vs -> subst_minus (subst_but v subst) vs
+
+(*Now we can apply a substitution to a type environment*)
+(*
+val subst_env :
+  (int * ('a, int) term) list ->
+  ('b * ('a, int) term scheme) list -> ('b * ('a, int) term scheme) list =
+*)
+let subst_env subst env =
+ List.map 
+   (fun (k, For_all (gvars, t)) ->
+     (k, For_all (gvars, apply_substitution (subst_minus subst gvars) t))) env
+
+(*In order to translate terms into types, we first need to change the
+  variables of integer types into strings of characters.*)
+let make_string_vars (t : ('a, int) term) : ('a, string) term =
+  let var_of_int n = 
+    "v" ^ (string_of_int n) in
+  term_map (fun x -> x) var_of_int t
