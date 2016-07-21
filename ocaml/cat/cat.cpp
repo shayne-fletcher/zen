@@ -119,7 +119,7 @@ auto co_product = [=](auto f) {
   };
 };
 //For objects X, Y and Z, `f` : X -> Z, `g` : Y -> Z, the mediating
-//arrow from X + Y.
+//arrow from X + Y to Z.
 
 //--
 
