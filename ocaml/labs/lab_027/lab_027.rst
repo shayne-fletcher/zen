@@ -1,0 +1,44 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #27
+2016-06-09 by 
+Difficulty level :
+Easy
+Problem :
+This week we'll model some very simple category theoretic problems in OCaml. This whole exercise should only require about 7 lines of code!
+ 
+Assuming types (objects) ¦Á and ¦Â define an OCaml type suitable for describing the binary product ¦Á x ¦Â
+
+Write the function (morhphism) dup which, given it's argument x computes the product instance (x, x).
+
+ENG Derivatives Library > Week #27 > 20160722_113026.jpg
+
+
+Given a pair (x, y) we can compute a new pair (y, x). Call this function twist.
+
+ENG Derivatives Library > Week #27 > 20160722_113034.jpg
+
+
+Given morphisms f : U ¡ú R and g : V ¡ú S we can compute a new function, U * V ¡ú R * S from f and g. Write this function, call it ravel.
+
+ENG Derivatives Library > Week #27 > 20160722_152404.jpg
+ 
+If X * Y denotes a product with projections ¦Ðx and  ¦Ðy, then, for every object Z and pair of morphisms f : Z ¡ú X, g: Z ¡ú Y there exists a unique morphism <f, g> : Z ¡ú X * Y. Write an OCaml definition for it. Call the function product.
+ 
+ENG Derivatives Library > Week #27 > 20160722_113347.jpg
+
+
+Assuming types (objects) ¦Á and ¦Â define an OCaml type suitable for describing the binary sum ¦Á + ¦Â
+
+If X + Y denotes a sum with injections ix and  iy, then, for every object Z and pair of morphisms f : X ¡ú Z, g: Y ¡ú Z there exists a unique morphism [f, g] : X + Y ¡ú Z. Write an OCaml definition for it. Call the function coproduct.
+
+ENG Derivatives Library > Week #27 > 20160722_113542.jpg
+
+
+ 
