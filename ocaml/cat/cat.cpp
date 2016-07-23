@@ -92,10 +92,15 @@ template <class A, class B>
 using sum = pgs::sum_type<Left<A>, Right<B>>;
 template <class> struct sum_fst_type;
 template <class A, class B>
-  struct sum_fst_type<sum<A, B>> { typedef A type; };
+  struct sum_fst_type<sum<A, B>> { using type = A; };
 template <class S> struct sum_snd_type;
 template <class A, class B>
-  struct sum_snd_type<sum<A, B>> { typedef B type; };
+  struct sum_snd_type<sum<A, B>> { using type = B; };
+
+template <class S>
+using sum_fst_t = typename sum_fst_type<S>::type;
+template <class S>
+using sum_snd_t = typename sum_snd_type<S>::type;
 
 //The coproduct of morphisms [`f, `g`] (see
 //https://en.wikipedia.org/wiki/Coproduct)
@@ -103,8 +108,8 @@ template <class S>
 auto co_product = [=](auto f) {
   return [=](auto g) {
     return [=](S const& s) {
-      using A = typename sum_fst_type<S>::type;
-      using B = typename sum_snd_type<S>::type;
+      using A = sum_fst_t<S>;
+      using B = sum_snd_t<S>;
       using lres_t = decltype (f (std::declval<A>()));
       using rres_t = decltype (g (std::declval<B>()));
       static_assert (
