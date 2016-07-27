@@ -1,4 +1,4 @@
-(**Code implementing substitutions on terms with variables*)
+(**Substitutions on terms with variables*)
 
 (**{%html:
    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js">
@@ -203,3 +203,32 @@ let rec subst_but (v : 'b) : ('b * _) list -> ('b * _) list = function
 let rec subst_minus (s : ('b * _) list) : 'b list -> ('b * _) list = function
   | [] -> s
   | (v :: tl) -> subst_minus (subst_but v s) tl
+
+(**{2 Unification}*)
+
+(**[unify_one s t] attempts to find a unifier for the terms [s] and
+   [t]*)
+let rec unify_one 
+    (s : ('a, 'b) term) 
+    (t : ('a, 'b) term) : ('b * ('a, 'b) term) list = 
+  match (s, t) with
+  | Var x, Var y -> if x = y then [] else [(x, Var y)]
+  | Term (f, sc), Term (g, tc) ->
+    if f = g && List.length sc = List.length tc then
+      let (ts : (('a, 'b) term * ('a, 'b) term) list) = List.combine sc tc in
+      unify ts
+    else failwith "unify_one : head symbol conflict"
+  | Var x, (Term (_, _) as t)
+  | (Term (_, _) as t), Var x ->
+    if occurs x t then failwith "unify_one : circularity"
+    else [x, t]
+(**[unify s] attempts to find a unifier satisfying all pairs in the
+   list [s]*)
+and unify (s : (('a, 'b) term * ('a, 'b) term) list) : 
+                                 ('b * ('a, 'b) term) list =
+  match s with
+  | [] -> []
+  | (x, y) :: t ->
+    let t2 = unify t in
+    let t1 = unify_one (apply_subst t2 x) (apply_subst t2 y) in
+    t1 @ t2

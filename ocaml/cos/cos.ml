@@ -1,23 +1,6 @@
+open Term
+
 (*Functions on lists*)
-
-(*[unique l] is the list [l] with duplicates removed*)
-let unique l =
-  let rec loop acc = function
-    | [] -> List.rev acc
-    | (h :: tl) -> loop (if List.mem h acc then acc else h :: acc) tl
-  in loop [] l
-
-(*[subtract l m] returns the list l where all elements structurally
-  equal to one in m have been removed*)
-let subtract (l : 'a list) (m : 'a list) : 'a list =
-  let rec loop acc = function
-  | [] -> List.rev acc
-  | (h :: tl) -> loop (if List.mem h m then acc else h :: acc) tl in
-  loop [] l
-
-(*[union l m] appends before [m] all the elements of [l] that are not
-  structurally equal to an element of [m]*)
-let union (l : 'a list) (m : 'a list)  = (subtract l m) @ m
 
 (*[flat_map f l] is (f l1) @ (f l2) @ ... @ (f l n)*)
 let rec flat_map f = function
@@ -54,34 +37,6 @@ type ml_exp =
 | Ml_letrec of string * ml_exp * ml_exp
 
 (*[('a, 'b) term] will underly resentation of types*)
-
-type ('a, 'b) term = 
-| Term of 'a * ('a, 'b) term list
-| Var of 'b
-
-let rec term_trav ~f ~g ~x ~v = function
-  | Term (a, tl) -> 
-    let l = List.map (term_trav ~f ~g ~x ~v) tl in
-    let res = List.fold_right g l x in
-    f (a, res)
-  | Var b -> v b
-
-let rec term_map (f : 'a -> 'c) (g : 'b -> 'd) : ('a, 'b) term -> ('c, 'd) term = function
-  | Term (a, cs) -> Term (f a, List.map (term_map f g) cs)
-  | Var n -> Var (g n)
-
-let vars (t : ('a, 'b) term) : 'b list = 
-  term_trav ~f:snd ~g:union ~x:[] ~v:(fun x -> [x]) t
-
-let occurs (v : 'b) (t : ('a, 'b) term) : bool = List.mem v (vars t)
-
-let apply_substitution subst t = 
-  term_trav 
-    ~f:(fun (f, l) -> Term (f, l)) 
-    ~g:(fun x acc -> x::acc) 
-    ~x:[] 
-    ~v:(fun s -> try List.assoc s subst with _ -> Var s) 
-    t
 
 (*Factory functions for terms*)
 
@@ -146,28 +101,11 @@ let generalize (env : ('a * ('b, int) term scheme) list) (t : ('c, int) term ) :
 let instance : ('a, int) term scheme -> ('a, int) term = function
   | For_all (gvars, t) ->
     let renaming = List.map (fun n -> (n, Var (new_int ()))) gvars in
-    apply_substitution renaming t
+    apply_subst renaming t
 
 (*Utilities*)
 
-(*Now we have type schemes available in type environments (and thus we
-  have quantified variables), we must be careful not to substitute them
-  when a substitution is applied. The following function removes a
-  variable from the definition domain of a substitution.*)
-let rec subst_but (v : 'a) : ('a * 'b) list -> ('a * 'b) list = function
-  | [] -> []
-  | (v1, t1) :: subst ->
-    if v1 = v then subst_but v subst
-    else (v1, t1) :: (subst_but v subst)
-
-(*If we iterate this process over a list of variables, we remove a set
-  of variables from the definition domain of a substitution like this*)
-let rec subst_minus (subst : ('a * 'b) list) (vars : 'a list) : ('a * 'b) list =
-  match vars with 
-  | [] -> subst
-  | v :: vs -> subst_minus (subst_but v subst) vs
-
-(*Now we can apply a substitution to a type environment*)
+(*Apply a substitution to a type environment*)
 (*
 val subst_env :
   (int * ('a, int) term) list ->
@@ -176,7 +114,7 @@ val subst_env :
 let subst_env subst env =
  List.map 
    (fun (k, For_all (gvars, t)) ->
-     (k, For_all (gvars, apply_substitution (subst_minus subst gvars) t))) env
+     (k, For_all (gvars, apply_subst (subst_minus subst gvars) t))) env
 
 (*In order to translate terms into types, we first need to change the
   variables of integer types into strings of characters.*)
