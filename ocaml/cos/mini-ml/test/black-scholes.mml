@@ -1,0 +1,68 @@
+(* An implementation of the celebrated Black & Scholes pricing formula
+   for European call/put options.
+
+   First, an approximation to the the cumulative standard normal
+   distribution function.  
+*)
+
+let N (x) =
+    let (a,b1,b2,b3,b4
+        ,b5,b6,b7,b8,b9,b10)=
+        (0.3535533905933, 
+        -1.2655122300000, 
+         1.0000236800000, 
+         0.3740919600000,
+         0.0967841800000, 
+        -0.1862880600000, 
+         0.2788680700000,
+        -1.1352039800000,
+         1.4885158700000, 
+        -0.8221522300000,
+         0.1708727700000)
+    in
+    if x > 0.0 then
+      if x > 10.0 then 1.0
+      else
+        let t = 1./(1. + a*x) in
+        let term  = b9 + t*b10 in
+        let term  = b8 + t*term in
+        let term  = b7 + t*term in
+        let term  = b6 + t*term in
+        let term  = b5 + t*term in 
+        let term  = b4 + t*term in
+        let term  = b3 + t*term in
+        let term  = b2 + t*term in
+        let term  = b1 + t*term in
+        let term  = term  - 0.5*(x*x)
+        in 1.0 - 0.5*t*(exp term)
+     else
+       if x < -10.0 then 0.0
+       else
+         let t = 1./(1. - a*x) in 
+         let term = b9 * t*b10 in
+         let term = b8 * t*b10 in
+         let term = b7 * t*b10 in
+         let term = b6 * t*b10 in
+         let term = b5 * t*b10 in
+         let term = b4 * t*b10 in
+         let term = b3 * t*b10 in
+         let term = b2 * t*b10 in
+         let term = b1 * t*b10 in
+         let term = term - 0.5*(x*x)
+         in 0.5*t*(exp term)
+in 
+
+(*Now, the familiar Black & Scholes formula itself*)
+
+let black_scholes (S, strike, r, sig, time_to_expiry, CP) =
+  let sigsqrttime_to_expiry=sig*(sqrt time_to_expiry) in
+  let d1 = ((log (S/strike))+(r+0.5*(sig*sig)*time_to_expiry)/sigsqrttime_to_expiry) in 
+  let d2 = d1-sigsqrttime_to_expiry in 
+  CP*S*(N (CP*d1))-CP*strike*(exp (-1.0*r*time_to_expiry))*(N (CP*d2))
+
+(*Lastly, we evaluate the option price for a call with S=42, strike=40,
+  r=0.1, sig=0.2, time_to_expiry=0.5*)
+
+in let S, strike, r, sig, time_to_expiry, CP = (42.0, 40.0, 0.1, 0.2, 0.5, 1.0)
+
+in black_scholes (S, strike, r, sig, time_to_expiry, CP)

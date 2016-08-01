@@ -1,0 +1,13 @@
+(*Compute the machine epsilon, that is the difference between 1.0 and
+  the next float*)
+
+let epsilon () =
+  let rec aux x =
+    let x' = x / 2.0 in
+    if x' + 1.0 > 1.0 then aux x'
+    else x
+  in aux 1.0
+;
+
+epsilon () (* Should be around ~ 2.2^10-16 on a 64-bit machine*)
+

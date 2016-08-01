@@ -1,0 +1,18 @@
+let rec fold f, e, t =
+  if len t = 0 then e
+  else fold (f, f (e, hd t), tl t)
+;
+
+let range s, e =
+  if s >= e then 
+  ()
+  else
+    let rec loop (t, k) =
+      if k = e then t
+      else loop (t + (k,), (k + 1))
+    in loop ((s,), s + 1)
+;
+
+(*Sum of the first 100 positive integers*)
+
+fold ((fun (x, y) -> x + y),  0, range (1, 101))
