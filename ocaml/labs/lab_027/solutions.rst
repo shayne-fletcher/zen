@@ -37,3 +37,17 @@ type ('a, 'b) sum = { run : 'c. ('a -> 'c) -> ('b -> 'c) -> 'c }
 a)
 let coproduct (s: ('a, 'b) sum) (f ,g) = s.run f g
 
+(*
+
+let int_val : (int,float) sum = { run = fun f _ -> f 42 }
+
+let float_val : (int,float) sum = { run = fun _ g -> g 54.}
+
+e.g. 
+
+  coproduct ({run = fun f _ -> f 42}) (string_of_int , string_of_float)
+
+  let to_string 
+  (f : int -> string) 
+  (g : float -> string) (s: (int,float) sum) = coproduct s (f,g)
+*)

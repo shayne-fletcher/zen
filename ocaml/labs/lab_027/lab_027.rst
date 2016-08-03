@@ -17,28 +17,51 @@ Assuming types (objects) ¦Á and ¦Â define an OCaml type suitable for describing 
 
 Write the function (morhphism) dup which, given it's argument x computes the product instance (x, x).
 
-ENG Derivatives Library > Week #27 > 20160722_113026.jpg
+ENG Derivatives Library > Week #027 > 20160722_113026.jpg
 
 
 Given a pair (x, y) we can compute a new pair (y, x). Call this function twist.
 
-ENG Derivatives Library > Week #27 > 20160722_113034.jpg
+ENG Derivatives Library > Week #027 > 20160722_113034.jpg
 
 
 Given morphisms f : U ¡ú R and g : V ¡ú S we can compute a new function, U * V ¡ú R * S from f and g. Write this function, call it ravel.
 
-ENG Derivatives Library > Week #27 > 20160722_152404.jpg
+ENG Derivatives Library > Week #027 > 20160722_152404.jpg
  
 If X * Y denotes a product with projections ¦Ðx and  ¦Ðy, then, for every object Z and pair of morphisms f : Z ¡ú X, g: Z ¡ú Y there exists a unique morphism <f, g> : Z ¡ú X * Y. Write an OCaml definition for it. Call the function product.
  
-ENG Derivatives Library > Week #27 > 20160722_113347.jpg
+ENG Derivatives Library > Week #027 > 20160722_113347.jpg
 
 
 Assuming types (objects) ¦Á and ¦Â define an OCaml type suitable for describing the binary sum ¦Á + ¦Â
 
 If X + Y denotes a sum with injections ix and  iy, then, for every object Z and pair of morphisms f : X ¡ú Z, g: Y ¡ú Z there exists a unique morphism [f, g] : X + Y ¡ú Z. Write an OCaml definition for it. Call the function coproduct.
 
-ENG Derivatives Library > Week #27 > 20160722_113542.jpg
+ENG Derivatives Library > Week #027 > 20160722_113542.jpg
 
+Solutions :
+ Here's the "obvious" solutions provided by Peter Nguyen
+let dup x = x,x
+let twist = function x,y -> y,x
+let ravel f g = function u,v -> f u, g v
+let product f g = fun z -> f z, g z
+type ('a, 'b) either = Left of 'a | Right of 'b
+let coproduct f g = function Left x -> f x | Right y -> g y
+Minimal. Nice!
 
- 
+I never saw this alternative solution to representation of sums and the coproduct function coming however (courtesy of Joel Bjornson)
+type ('a, 'b) sum = { run : 'c. ('a -> 'c) -> ('b -> 'c) -> 'c }
+let coproduct (s: ('a, 'b) sum) (f ,g) = s.run f g
+Do you get it? Take a minute beore reading on!
+
+Here's a session in the top-level to help you see how this encoding works.
+
+# let int_val i : (int, float) sum = { run = fun f _ -> f i } ;;
+val int_val : int -> (int, float) sum = <fun>
+# let float_val f : (int,float) sum = { run = fun _ g -> g f } ;;
+val float_val : float -> (int, float) sum = <fun>
+# coproduct (int_val 42) (string_of_int , string_of_float) ;;
+- : string = "42"
+# coproduct (float_val 42.) (string_of_int , string_of_float) ;;
+- : string = "42."
