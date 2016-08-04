@@ -1,30 +1,10 @@
-open Lexing
-
 exception Unrecognized_token of string
 exception Unclosed_comment
 
-type sref = {
-  loc_start : Lexing.position;
-  loc_end : Lexing.position
-}
-
-type 'a loc = {
+type 'a loc = 'a Ml_location.loc = {
   txt : 'a;
-  loc : sref;
+  loc : Ml_location.t;
 }
-
-let curr (lexbuf : lexbuf) : sref = {
-  loc_start = lexbuf.lex_start_p;
-  loc_end = lexbuf.lex_curr_p;
-}
-
-let init (lexbuf : lexbuf) (fname : string) : unit =
-  lexbuf.lex_curr_p <- {
-    pos_fname = fname;
-    pos_lnum = 1;
-    pos_bol = 0;
-    pos_cnum = 0;
-  }
 
 type rec_flag = Nonrecursive | Recursive
 
@@ -36,8 +16,9 @@ type constant =
 
 type pattern = {
   ppat_desc : pattern_desc;
-  ppat_loc : sref
+  ppat_loc : Ml_location.t
 }
+
 and pattern_desc = 
 | Ppat_constant of constant
 | Ppat_construct of string loc (*true, false*)
@@ -46,7 +27,7 @@ and pattern_desc =
 
 and expression = {
   pexp_desc : expression_desc;
-  pexp_loc : sref
+  pexp_loc : Ml_location.t
 }
 
 and expression_desc =
@@ -61,16 +42,6 @@ and expression_desc =
 and value_binding = {
   pvb_pat : pattern;
   pvb_expr : expression;
-  pvb_loc : sref;
+  pvb_loc : Ml_location.t;
 }
 
-let in_file name =
-  let loc = {
-    pos_fname = name;
-    pos_lnum = 1;
-    pos_bol = 0;
-    pos_cnum = -1;
-  } in
-  { loc_start = loc; loc_end = loc; }
-
-let none = in_file "_none_";;

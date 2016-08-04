@@ -25,6 +25,6 @@ type token =
   | T_ident of (string)
 
 val parse_pattern :
-  (Lexing.lexbuf  -> token) -> Lexing.lexbuf -> Ml_types.pattern
+  (Lexing.lexbuf  -> token) -> Lexing.lexbuf -> Ml_ast.pattern
 val parse_expression :
-  (Lexing.lexbuf  -> token) -> Lexing.lexbuf -> Ml_types.expression
+  (Lexing.lexbuf  -> token) -> Lexing.lexbuf -> Ml_ast.expression

@@ -991,7 +991,7 @@ let
 # 992 "ml_lexer.ml"
 = Lexing.sub_lexeme_char lexbuf lexbuf.Lexing.lex_start_pos in
 # 77 "ml_lexer.mll"
-          ( raise (Ml_types.Unrecognized_token (String.make 1 c)) )
+          ( raise (Ml_ast.Unrecognized_token (String.make 1 c)) )
 # 996 "ml_lexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; 
@@ -1023,7 +1023,7 @@ and __ocaml_lex_comments_rec level lexbuf __ocaml_lex_state =
 
   | 4 ->
 # 84 "ml_lexer.mll"
-                              ( raise (Ml_types.Unclosed_comment) )
+                                ( raise (Ml_ast.Unclosed_comment) )
 # 1028 "ml_lexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; 

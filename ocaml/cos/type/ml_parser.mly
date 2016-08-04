@@ -1,21 +1,12 @@
 %{
-  open Ml_types
+  open Ml_location
+  open Ml_ast
   open Ml_ast_helper
 
   let mkloc txt loc = { txt ; loc }
 
-  let rhs_loc n = {
-    loc_start = Parsing.rhs_start_pos n;
-    loc_end = Parsing.rhs_end_pos n;
-  }
-
   let mkrhs (rhs : string) (pos : int) : string loc = 
     mkloc rhs (rhs_loc pos)
-
-  let symbol_rloc () = {
-    loc_start = Parsing.symbol_start_pos ();
-    loc_end = Parsing.symbol_end_pos ();
-  }
 
   let mkpat d = Pat.mk ~loc:(symbol_rloc()) d
   let mkexp d = Exp.mk ~loc:(symbol_rloc()) d
@@ -48,12 +39,12 @@
   type let_binding =
     { lb_pattern: pattern;
       lb_expression: expression;
-      lb_loc: sref; }
+      lb_loc: Ml_location.t; }
 
   type let_bindings =
     { lbs_bindings: let_binding list;
       lbs_rec: rec_flag;
-      lbs_loc: sref }
+      lbs_loc: Ml_location.t }
 
   let mklb (p, e) =
     { lb_pattern = p;
@@ -110,10 +101,10 @@
 
 /*Entry points*/
 
-%type <Ml_types.pattern> parse_pattern
+%type <Ml_ast.pattern> parse_pattern
 %start parse_pattern
 %start parse_expression
-%type <Ml_types.expression> parse_expression
+%type <Ml_ast.expression> parse_expression
 %%
 parse_pattern:
  | pattern T_eof                                                      { $1 }
@@ -155,9 +146,9 @@ fun_binding:
   | simple_pattern fun_binding                 { mkexp (Pexp_fun ($1, $2)) }
   ;
 fun_def:
- | T_arrow expr                                                       { $2 }
- | simple_pattern fun_def                       { mkexp (Pexp_fun ($1, $2))}
- ;
+  | T_arrow expr                                                       { $2 }
+  | simple_pattern fun_def                       { mkexp (Pexp_fun ($1, $2))}
+  ;
 simple_expr:
  | constant                                      { mkexp (Pexp_constant $1)}
  | ident                                 { mkexp (Pexp_ident (mkrhs $1 1)) }

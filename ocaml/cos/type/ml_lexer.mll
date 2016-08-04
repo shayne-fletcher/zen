@@ -74,11 +74,11 @@ rule token = parse
       }
   | eof                                                  { T_eof  }
   | _ as c
-          { raise (Ml_types.Unrecognized_token (String.make 1 c)) }
+          { raise (Ml_ast.Unrecognized_token (String.make 1 c)) }
 and comments level = parse
   | "*)" 
       {if level=0 then token lexbuf else comments (level-1) lexbuf}
   | ['\n']         { advance_line lexbuf; (comments level lexbuf) }
   | "(*"                              { comments (level+1) lexbuf }
   | _                                     { comments level lexbuf }
-  | eof                       { raise (Ml_types.Unclosed_comment) }
+  | eof                         { raise (Ml_ast.Unclosed_comment) }

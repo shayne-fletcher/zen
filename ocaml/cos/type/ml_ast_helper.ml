@@ -1,4 +1,5 @@
-open Ml_types
+open Ml_location
+open Ml_ast
 
 let default_loc = ref none
 
