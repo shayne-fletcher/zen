@@ -1,6 +1,5 @@
-
-include Ml_ast
-
+open Ml_asttypes
+open Ml_ast
 open Ml_location
 open Lexing
 open Format
@@ -54,6 +53,7 @@ let rec pattern i ppf x =
   line i ppf "pattern %a\n" fmt_location x.ppat_loc;
   let i = i + 1 in
   match x.ppat_desc with
+  | Ppat_any -> line i ppf "Ppat_any\n";
   | Ppat_var s -> line i ppf "Ppat_var %a\n" fmt_string_loc s;
   | Ppat_constant c -> line i ppf "Ppat_constant %a\n" fmt_constant c;
   | Ppat_construct li -> line i ppf "Ppat_construct %a\n" fmt_ident_loc li
@@ -67,6 +67,7 @@ and expression i ppf x =
   match x.pexp_desc with
   | Pexp_ident li -> line i ppf "Pexp_ident %a\n" fmt_ident_loc li
   | Pexp_constant c -> line i ppf "Pexp_constant %a\n" fmt_constant c
+  | Pexp_construct li ->  line i ppf "Pexp_construct %a\n" fmt_ident_loc li
   | Pexp_let (rf, l, e) ->
     line i ppf "Pexp_let %a\n" fmt_rec_flag rf;
     list i value_binding ppf l;

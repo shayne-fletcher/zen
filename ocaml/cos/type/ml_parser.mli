@@ -8,6 +8,7 @@ type token =
   | T_rparen
   | T_comma
   | T_arrow
+  | T_underscore
   | T_eq
   | T_lt
   | T_fun
@@ -23,6 +24,8 @@ type token =
   | T_int of (string)
   | T_op of (string)
   | T_ident of (string)
+  | T_comment of (string * Ml_location.t)
+  | T_eol
 
 val parse_pattern :
   (Lexing.lexbuf  -> token) -> Lexing.lexbuf -> Ml_ast.pattern

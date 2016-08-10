@@ -2,20 +2,13 @@ let parse
     (pe : 'a -> Lexing.lexbuf -> 'b) 
     (le : 'a)
     (lexbuf : Lexing.lexbuf)  : 'b =
-  try 
+  try
     pe le lexbuf
-  with 
+  with
   | Parsing.Parse_error ->
-    begin
-      let curr = lexbuf.Lexing.lex_curr_p in
-      let line = curr.Lexing.pos_lnum in
-      let cnum = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
-      let tok = Lexing.lexeme lexbuf in
-      raise 
-       (Failure (
-          Printf.sprintf 
-"file \"\", line %d, character %d\nError : Syntax error \"%s\"" line cnum tok))
-    end
+    let loc = Ml_location.curr lexbuf in
+    raise (Ml_syntaxerr.Error (Ml_syntaxerr.Other loc))
+  | x -> raise x
 
 let from_bytes ?(file : string = "<string>") (str : string) 
     (pe : 'a -> Lexing.lexbuf -> 'b) 
@@ -36,15 +29,8 @@ let prompt (continuing:bool) =
 let read (continuing:bool)=prompt continuing; input_line stdin
 
 let handle_interpreter_error ?(finally=(fun () -> ())) ex =
-  match ex with
-  | Failure s -> finally () ; (Printf.printf "%s\n" s)
-  | Stack_overflow -> finally () ; Printf.printf "Stack overflow\n"
-  | Division_by_zero -> finally () ; Printf.printf "Division by zero\n"
-  | End_of_file -> finally (); raise ex
-  | _  as e -> 
-    finally (); 
-    Printf.printf "Unknown exception : %s\n" (Printexc.to_string e); 
-    raise e
+  finally ();
+  Ml_location.report_exception (Format.std_formatter) ex
 
 let safe_proc ?finally f =
   try f ()

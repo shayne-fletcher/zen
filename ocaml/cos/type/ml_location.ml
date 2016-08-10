@@ -20,9 +20,11 @@
   each character is one column wide).
 *)
 
+open Lexing
+
 type t = { 
-  loc_start : Lexing.position; 
-  loc_end : Lexing.position;
+  loc_start : position; 
+  loc_end : position;
   loc_ghost : bool
 }
 (*Ghost expressions and patterns do not appear explicitly in the
@@ -42,7 +44,6 @@ type t = {
 *)
 
 let in_file (name : string) : t =
-  let open Lexing in
   let loc : position = {
     pos_fname = name; (*The name of the file*)
     pos_lnum = 1; (*The line number of the position*)
@@ -124,14 +125,15 @@ let symbol_rloc () : t = {
 let symbol_gloc () : t =  { 
   loc_start = Parsing.symbol_start_pos ();
   loc_end = Parsing.symbol_end_pos ();
-  loc_ghost = false
+  loc_ghost = true
 }
 
 (*The [Parsing] functions [rhs_start] and [rhs_end] are the same as
   [symbol_start] and [symbol_end] but return the offset of the string
-  matching the [n]th item on the right-hand-side of the rule, where [n]
-  is the integer parameter to [rhs_start] and [rhs_end]. [n] is 1 for
-  the leftmost item*)
+  matching the [n]th item on the right-hand-side of the rule, where
+  [n] is the integer parameter to [rhs_start] and [rhs_end]. [n] is 1
+  for the leftmost item. [rhs_start_pos] and [rhs_end_pos] return a
+  position instead of an offset.*)
 
 let rhs_loc n = {
   loc_start = Parsing.rhs_start_pos n;
@@ -146,3 +148,122 @@ type 'a loc = {
 
 let mkloc (txt : 'a) (loc : t) : 'a loc = { txt ; loc }
 let mknoloc (txt : 'a) : 'a loc = mkloc txt none
+
+open Format
+
+type error =
+  {
+    loc: t;
+    msg: string;
+    sub: error list;
+  }
+
+let pp_ksprintf ?before k fmt =
+  let buf = Buffer.create 64 in
+  let ppf = Format.formatter_of_buffer buf in
+  begin match before with
+    | None -> ()
+    | Some f -> f ppf
+  end;
+  kfprintf
+    (fun _ ->
+      pp_print_flush ppf ();
+      let msg = Buffer.contents buf in
+      k msg)
+    ppf fmt
+
+let print_filename ppf file =
+  fprintf ppf "%s" file
+
+let (msg_file, msg_line, msg_chars, msg_to, msg_colon) =
+    ("File \"", 
+     "\", line ", 
+     ", characters ", 
+     "-", 
+     ":")
+
+(*Return file, line, char from the given position*)
+let get_pos_info pos =
+  (pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol)
+
+let print_loc ppf loc =
+  let (file, line, startchar) = get_pos_info loc.loc_start in
+  let endchar = loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + startchar in
+  if file = "//toplevel//" then
+    fprintf ppf "Characters %i-%i"
+      loc.loc_start.pos_cnum loc.loc_end.pos_cnum
+  else begin
+    fprintf ppf "%s@{<loc>%a%s%i" msg_file print_filename file msg_line line;
+    if startchar >= 0 then
+      fprintf ppf "%s%i%s%i" msg_chars startchar msg_to endchar;
+    fprintf ppf "@}"
+  end
+
+let print ppf loc =
+  fprintf ppf "@{<loc>%a@}%s@." print_loc loc msg_colon
+
+let error_prefix = "Error"
+let warning_prefix = "Warning"
+
+let print_error_prefix ppf () =
+  fprintf ppf "@{<error>%s@}:" error_prefix;
+  ()
+
+let errorf_prefixed ?(loc=none) ?(sub=[]) fmt =
+  pp_ksprintf
+    ~before:(fun ppf -> fprintf ppf "%a " print_error_prefix ())
+    (fun msg -> {loc; msg; sub})
+    fmt
+
+let error_of_exn : (exn -> error option) list ref = ref []
+
+let register_error_of_exn f = error_of_exn := f :: !error_of_exn
+
+let error_of_printer loc print x =
+  errorf_prefixed ~loc "%a@?" print x
+
+let error_of_exn exn =
+  let rec loop = function
+    | [] -> None
+    | f :: rest ->
+      match f exn with
+      | Some _ as r -> r
+      | None -> loop rest
+  in
+  loop !error_of_exn
+
+let rec default_error_reporter ppf ({loc; msg; sub}) =
+  print ppf loc;
+  Format.pp_print_string ppf msg;
+  List.iter (Format.fprintf ppf "@\n@[<2>%a@]" default_error_reporter) sub
+
+let error_reporter = ref default_error_reporter
+
+let num_loc_lines = ref 0 (* number of lines already printed after input *)
+
+let print_updating_num_loc_lines ppf f arg =
+  let out_functions = pp_get_formatter_out_functions ppf () in
+  let out_string str start len =
+    let rec count i c =
+      if i = start + len then c
+      else if String.get str i = '\n' then count (succ i) (succ c)
+      else count (succ i) c in
+    num_loc_lines := !num_loc_lines + count start 0;
+    out_functions.out_string str start len in
+  pp_set_formatter_out_functions ppf 
+    {out_functions with out_string} ;
+  f ppf arg ;
+  pp_print_flush ppf ();
+  pp_set_formatter_out_functions ppf out_functions
+
+let report_error ppf err =
+  print_updating_num_loc_lines ppf !error_reporter err
+
+let rec report_exception_rec n ppf exn =
+  try match error_of_exn exn with
+  | Some err -> fprintf ppf "@[%a@]@." report_error err
+  | None -> raise exn
+  with exn when n > 0 ->
+    report_exception_rec (n - 1) ppf exn
+
+let report_exception ppf exn = report_exception_rec 5 ppf exn
