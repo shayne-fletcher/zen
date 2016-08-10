@@ -49,7 +49,27 @@ let fmt_constant f x =
 let fmt_ident_loc f x =
   fprintf f "\"%s\" %a" x.txt fmt_location x.loc
 
-let rec pattern i ppf x =
+let rec toplevel_phrase i ppf x =
+  match x with
+  | Ptop_def s ->
+    line i ppf "Ptop_def\n";
+    structure (i + 1) ppf s
+
+and structure i ppf x = 
+  list i structure_item ppf x 
+
+and structure_item i ppf x =
+  line i ppf "structure_item %a\n" fmt_location x.pstr_loc;
+  let i = i + 1 in
+  match x.pstr_desc with
+  | Pstr_eval e ->
+    line i ppf "Pstr_eval\n";
+    expression i ppf e
+  | Pstr_value (rf, l) ->
+    line i ppf "Pstr_value %a\n" fmt_rec_flag rf;
+    list i value_binding ppf l
+
+and pattern i ppf x =
   line i ppf "pattern %a\n" fmt_location x.ppat_loc;
   let i = i + 1 in
   match x.ppat_desc with
@@ -104,4 +124,8 @@ let string_of_pattern p =
 
 let string_of_expression e =
   expression 0 (str_formatter) e;
+  flush_str_formatter ()
+
+let string_of_toplevel_phrase p =
+  toplevel_phrase 0 (str_formatter) p;
   flush_str_formatter ()

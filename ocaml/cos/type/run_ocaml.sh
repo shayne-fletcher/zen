@@ -27,3 +27,9 @@ ocamlopt.opt -o ml_expression_repl.exe \
   ml_location.cmx ml_syntaxerr.cmx \
   ml_lexer.cmx ml_parser.cmx \
   repl.cmx ml_print_ast.cmx ml_expression_repl.cmx
+
+ocamlopt.opt -c ml_toplevel_repl.ml
+ocamlopt.opt -o ml_toplevel_repl.exe \
+  ml_location.cmx ml_syntaxerr.cmx \
+  ml_lexer.cmx ml_parser.cmx \
+  repl.cmx ml_print_ast.cmx ml_toplevel_repl.cmx

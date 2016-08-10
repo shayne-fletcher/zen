@@ -8,13 +8,15 @@ type error =
 
 exception Error of error * Ml_location.t
 
-(*Update the current location with file name and line number*)
-
+(*Update the current location with file name and line
+  number. [absolute] if [false] means add [line] to the current line
+  number, if [true], replace it with [line] entirely*)
 let update_loc lexbuf file line absolute chars =
   let pos = lexbuf.lex_curr_p in
-  let new_file = match file with
-                 | None -> pos.pos_fname
-                 | Some s -> s
+  let new_file = 
+    match file with
+    | None -> pos.pos_fname
+    | Some s -> s
   in
   lexbuf.lex_curr_p <- { pos with
     pos_fname = new_file;
@@ -117,7 +119,6 @@ let () =
           Some (Ml_location.error_of_printer loc report_error err)
       | _ ->  None
     )
-
 }
 
 let blank = [' ' '\009' '\012']
@@ -131,7 +132,7 @@ let uppercase = ['A'-'Z']
 rule token = parse
   | newline             { update_loc lexbuf None 1 false 0; T_eol }
   | blank+                                         { token lexbuf }
-  | "-"                                            { T_underscore }
+  | "_"                                            { T_underscore }
   | "->"                                                { T_arrow }
   | ','                                                 { T_comma }
   | '+'                                                  { T_plus }

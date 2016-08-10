@@ -51,6 +51,16 @@
     let loc = rhs_loc pos in (*Location of the item at [pos]*)
     { pexp_desc = Pexp_ident rhs; pexp_loc = loc; }
 
+  (*Produce a [structure_item] of the [Pstr_eval] case*)
+  let mkstrexp (e : expression) : structure_item =
+    { pstr_desc = Pstr_eval e; pstr_loc = e.pexp_loc }
+
+  (*Produce a [structure_item] with a location that spans the
+    left-hand-side of the matched rule*)
+  let mkstr (d : structure_item_desc) : structure_item =
+    let loc = symbol_rloc () in
+    { pstr_desc = d; pstr_loc = loc }
+
   (*Prefix the provided text (representing a number) with a '-' if it
     doesn't already begin with one *)
   let neg_string f =
@@ -103,6 +113,21 @@
       lbs_rec = rf;
       lbs_loc = symbol_rloc (); }
 
+  (*Convert a [let_bindings to an AST [value_binding list] and
+    make a structure item out of that*)
+  let val_of_let_bindings lbs =
+    let bindings = 
+      List.map (fun (lb : let_binding) -> 
+          ({
+            pvb_pat = lb.lb_pattern;
+            pvb_expr = lb.lb_expression;
+            pvb_loc = lb.lb_loc
+          } : value_binding)
+      )
+        lbs.lbs_bindings
+    in
+    mkstr (Pstr_value (lbs.lbs_rec, List.rev bindings))
+
   (*Convert a [let_bindings] to an AST [value_binding list], associate
     it with the body and produce an expression from all that*)
   let expr_of_let_bindings 
@@ -120,6 +145,14 @@
         lbs.lbs_bindings
     in
     mkexp (Pexp_let (lbs.lbs_rec, List.rev bindings, body))
+
+  let unclosed opening_name opening_num closing_name closing_num =
+    raise(Ml_syntaxerr.Error(
+      Ml_syntaxerr.Unclosed(rhs_loc opening_num, opening_name,
+                            rhs_loc closing_num, closing_name)))
+
+  let not_expecting pos nonterm =
+    raise Ml_syntaxerr.(Error(Not_expecting(rhs_loc pos, nonterm)))
 
 %}
 
@@ -160,24 +193,44 @@
 
 /*Entry points*/
 
-%type <Ml_ast.pattern> parse_pattern
 %start parse_pattern
+%type <Ml_ast.pattern> parse_pattern
 %start parse_expression
 %type <Ml_ast.expression> parse_expression
+%start toplevel_phrase
+%type <Ml_ast.toplevel_phrase> toplevel_phrase
 %%
+toplevel_phrase:
+ | top_structure T_eof                                       { Ptop_def $1 }
+ ;
+
+top_structure:
+ | expr                                                   {  [mkstrexp $1] }
+ | top_structure_tail                                                 { $1 }
+ ;
+top_structure_tail:
+ | /*empty*/                                                          { [] }
+ | structure_item top_structure_tail                            { $1 :: $2 }
+ ;
+structure_item:
+ | let_bindings                                   { val_of_let_bindings $1 }
+ ;
+
 parse_pattern:
  | pattern T_eof                                                      { $1 }
  ;
+
 parse_expression:
  | expr T_eof                                                         { $1 }
  ;
+
 expr:
  | simple_expr                                                        { $1 }
  | simple_expr simple_expr_list     { mkexp (Pexp_apply ($1, List.rev $2)) }
  | let_bindings T_in expr                     { expr_of_let_bindings $1 $3 }
  | T_fun simple_pattern fun_def                 { mkexp (Pexp_fun ($2, $3))}
+ | T_if expr T_then expr T_else expr {mkexp(Pexp_if_then_else ($2, $4, $6))}
  | expr_pair %prec below_comma { let u, v = $1 in mkexp (Pexp_pair (u, v)) }
- | T_minus expr %prec prec_unary_minus                       { mkuminus $2 }
  | T_fst simple_expr       { mkexp (Pexp_apply (mkoperator "fst" 1, [$2])) }
  | T_snd simple_expr       { mkexp (Pexp_apply (mkoperator "snd" 1, [$2])) }
  | expr T_plus expr                                    { mkinfix $1 "+" $3 }
@@ -185,7 +238,8 @@ expr:
  | expr T_star expr                                    { mkinfix $1 "*" $3 }
  | expr T_eq expr                                      { mkinfix $1 "=" $3 }
  | expr T_lt expr                                      { mkinfix $1 "<" $3 }
- | T_if expr T_then expr T_else expr {mkexp(Pexp_if_then_else ($2, $4, $6))}
+ | T_minus expr %prec prec_unary_minus                       { mkuminus $2 }
+ | T_underscore                         { not_expecting 1 "wildcard \"_\"" }
  ;
 expr_pair:
  | expr T_comma expr                                            { ($1, $3) }
@@ -213,6 +267,7 @@ simple_expr:
  | constr_ident                      { mkexp (Pexp_construct (mkrhs $1 1)) }
  | ident                                { mkexp (Pexp_ident (mkrhs $1 1))  }
  | T_lparen expr T_rparen                                  { reloc_exp $2  }
+ | T_lparen expr error                              { unclosed "(" 1 ")" 3 }
  ;
 simple_expr_list:
  | simple_expr                                                      { [$1] }
@@ -237,6 +292,7 @@ simple_pattern_not_ident:
   | constant                                    { mkpat (Ppat_constant $1) }
   | constr_ident                     { mkpat (Ppat_construct (mkrhs $1 1)) }
   | T_lparen pattern T_rparen                               { reloc_pat $2 }
+  | T_lparen pattern error                          { unclosed "(" 1 ")" 3 }
   ;
 
 /*Identifiers */

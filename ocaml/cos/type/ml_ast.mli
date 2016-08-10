@@ -35,3 +35,22 @@ and value_binding = {
   pvb_expr : expression;
   pvb_loc : Ml_location.t;
 }
+
+and structure = structure_item list
+
+and structure_item = {
+  pstr_desc : structure_item_desc;
+  pstr_loc : Ml_location.t
+}
+
+and structure_item_desc = 
+  | Pstr_eval of expression
+  | Pstr_value of rec_flag * value_binding list
+
+(**{2 Top level}*)
+
+(*Toplevel phrases*)
+
+type toplevel_phrase =
+| Ptop_def of structure
+
