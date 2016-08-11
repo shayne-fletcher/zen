@@ -2,12 +2,6 @@
 open Lexing
 open Ml_parser
 
-type error =
-| Illegal_character of char
-| Unterminated_comment of Ml_location.t
-
-exception Error of error * Ml_location.t
-
 (*Update the current location with file name and line
   number. [absolute] if [false] means add [line] to the current line
   number, if [true], replace it with [line] entirely*)
@@ -104,14 +98,21 @@ let with_comment_buffer comment lexbuf =
 
 (*Error reporting*)
 
-open Format
-
-let report_error ppf = function
+(*The type of errors that can come up in this module*)
+type error =
+| Illegal_character of char
+| Unterminated_comment of Ml_location.t
+(*The type of exceptions that contain those errors*)
+exception Error of error * Ml_location.t
+(*This function takes a formatter and an instance of type [error] and
+  writes a message to the formatter explaining the meaning. This is a
+  "printer"*)
+let report_error (ppf : Format.formatter) : error -> unit = function
   | Illegal_character c -> 
-    fprintf ppf "Illegal character (%s)" (Char.escaped c)
+    Format.fprintf ppf "Illegal character (%s)" (Char.escaped c)
   | Unterminated_comment _ -> 
-    fprintf ppf "Comment not terminated"
-
+    Format.fprintf ppf "Comment not terminated"
+(*Register an exception handler*)
 let () =
   Ml_location.register_error_of_exn
     (function
