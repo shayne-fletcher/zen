@@ -5,7 +5,12 @@ open Ml_parser
 (*Update the current location with file name and line
   number. [absolute] if [false] means add [line] to the current line
   number, if [true], replace it with [line] entirely*)
-let update_loc lexbuf file line absolute chars =
+let update_loc 
+    (lexbuf : lexbuf) 
+    (file : string option)
+    (line : int)
+    (absolute : bool) 
+    (chars :int) : unit =
   let pos = lexbuf.lex_curr_p in
   let new_file = 
     match file with
@@ -18,11 +23,16 @@ let update_loc lexbuf file line absolute chars =
     pos_bol = pos.pos_cnum - chars;
   }
 
-let create_hashtable size init =
+(*[create_hashtable size init] creates a hashtable with [size] buckets
+  with initial contents [init]*)
+let create_hashtable 
+    (size : int) 
+    (init : ('a * 'b) list ): ('a, 'b) Hashtbl.t =
   let tbl = Hashtbl.create size in
   List.iter (fun (key, data) -> Hashtbl.add tbl key data) init;
   tbl
 
+(*[keyword_table] associates keywords with their tokens*)
 let keyword_table =
   create_hashtable 149 [
     "else", T_else;
@@ -36,60 +46,75 @@ let keyword_table =
     "true", T_true;
   ]
 
-(*To buffer strings and comments*)
-
+(*A buffer used in the harvesting of comments*)
 let initial_string_buffer = Bytes.create 256
-let string_buff = ref initial_string_buffer
-let string_index = ref 0
+let string_buf = ref initial_string_buffer
+let string_index = ref 0 (*The next unused index in the buffer*)
+
+(*Reset the string buffer contents to the original allocation*)
 let reset_string_buffer () =
-  string_buff := initial_string_buffer;
+  string_buf := initial_string_buffer;
   string_index := 0
 
-let store_string_char c =
-  if !string_index >= Bytes.length !string_buff then begin
-    let new_buff = Bytes.create (Bytes.length (!string_buff) * 2) in
-    Bytes.blit !string_buff 0 new_buff 0 (Bytes.length !string_buff);
-    string_buff := new_buff
+(*Write a char [c] into the string buffer at the position indicated by
+  the current [string_index], creating more space as
+  neccessary. Increment [string_index]*)
+let store_string_char (c : char) : unit =
+  if !string_index >= Bytes.length !string_buf then begin
+    let new_buf = Bytes.create (Bytes.length (!string_buf) * 2) in
+    Bytes.blit !string_buf 0 new_buf 0 (Bytes.length !string_buf);
+    string_buf := new_buf
   end;
-  Bytes.unsafe_set !string_buff !string_index c;
+  Bytes.unsafe_set !string_buf !string_index c;
   incr string_index
 
-let store_string s =
+(*[store_string s] writes [s] into [string_buf] by way of
+  [store_string_char]*)
+let store_string (s : string) : unit =
   for i = 0 to String.length s - 1 do
     store_string_char s.[i];
   done
 
+(*Called from the semantic actions of lexer definitions,
+  [Lexing.lexeme lexubf] returns the string corresponding to the the
+  matched regular expression. [store_lexeme lexbuf] stores this string
+  in [string_buf] by way of [store_string]*)
 let store_lexeme lexbuf =
   store_string (Lexing.lexeme lexbuf)
 
+(*Gets the contents of [string_buff], from 0 to the current
+  [string_index], resets the [string_buff] back to it's original
+  allocation; does not modify [string_index]*)
 let get_stored_string () =
-  let s = Bytes.sub_string !string_buff 0 !string_index in
-  string_buff := initial_string_buffer;
+  let s = Bytes.sub_string !string_buf 0 !string_index in
+  string_buf := initial_string_buffer;
   s
-
-(*To store the position of the beginning of a string and comment *)
-
-let string_start_loc = ref Ml_location.none
-let is_in_string = ref false
-let in_string () = !is_in_string
-
-let comment_start_loc = ref []
-let in_comment () = !comment_start_loc <> []
 
 (*Comments*)
 
-let comment_list = ref []
+(*A mutuable list of start locations of comments*)
+let comment_start_loc = ref []
+let in_comment () = !comment_start_loc <> []
 
+(*A list of all comments accumulated during lexing*)
+let comment_list : (string * Ml_location.t) list ref = ref []
+
+(*Add a comment to the list*)
 let add_comment (com : string * Ml_location.t) : unit =
   comment_list := com :: !comment_list
 
-let comments () = List.rev !comment_list
+(*Retrieve the list of comments*)
+let comments () : (string * Ml_location.t) list = List.rev !comment_list
 
-let with_comment_buffer comment lexbuf =
+(*[with_comment_buffer comment lexbuf] uses the string buffer
+  [comment_start_loc] and the [comment] rule*)
+let with_comment_buffer 
+    (comment : lexbuf -> Ml_location.t)
+    (lexbuf : lexbuf) : string * Ml_location.t =
   let start_loc = Ml_location.curr lexbuf  in
   comment_start_loc := [start_loc];
   reset_string_buffer ();
-  let end_loc = comment lexbuf in
+  let end_loc : Ml_location.t = comment lexbuf in
   let s = get_stored_string () in
   reset_string_buffer ();
   let loc = { start_loc 
@@ -206,7 +231,10 @@ and comment = parse
       { store_lexeme lexbuf; comment lexbuf }
 
 {
-  let token lexbuf =
+  (*A wrapper around the token rule that collects comment strings
+    encountered during lexing and discards comment and end of line
+    tokens*)
+  let token (lexbuf : lexbuf) : token =
     let rec loop lexbuf = 
       match token lexbuf with
       | T_comment (s, loc) -> add_comment (s, loc); loop lexbuf

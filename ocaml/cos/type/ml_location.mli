@@ -39,7 +39,7 @@ type 'a loc = {
   loc : t; 
 }
 
-(**Create an ['a loc] value from a value and location*)
+(**Create an ['a loc] value from a ['a] value and location*)
 val mkloc : 'a -> t -> 'a loc
 
 (**Create an ['a loc] value bound to the distinguished location called
