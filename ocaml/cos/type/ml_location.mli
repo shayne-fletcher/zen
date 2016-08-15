@@ -58,26 +58,26 @@ type error =
   sub : error list; (**A list of associated errors*)
 }
 
+val register_error_of_exn : (exn -> error option) -> unit
 (**This module contains a mutable list of exception "handlers". Client
    modules register handlers for their own exception types by means of
    this function*)
-val register_error_of_exn : (exn -> error option) -> unit
 
+val error_of_exn : exn -> error option
 (**A function that given an exception converts it to an [error
    option]. Given argument [x : exn], the list of handlers is
    traversed; each handler is invoked on [x]. The first one that
    doesn't return [None] returns [Some err] (say) else the search goes
    on. Of course, if there is no matching handler, [None] is returned
 *)
-val error_of_exn : exn -> error option
 
+val error_of_printer : t ->  (formatter -> 'a -> unit) -> 'a -> error
 (**The job of this function is to convert a location and value of type
    ['a] into an [error] by means of an auxillary function that knows how
    to make a human readable message of the ['a]*)
-val error_of_printer : t ->  (formatter -> 'a -> unit) -> 'a -> error
 
-(**So, this module implements a framework for implementing uniform
-   error handling/reporting across modules concerned with source code
+(**This module implements a framework for implementing uniform error
+   handling/reporting across modules concerned with source code
    locations across related modules (think lexer, parser, type-checker
    etc.). Let's take the lexer for an example.
 
@@ -120,16 +120,26 @@ val error_of_printer : t ->  (formatter -> 'a -> unit) -> 'a -> error
   ]}
 *)
 
-(**Prints the error prefix "Error:" before yielding to the format
-   string*)
 val errorf_prefixed : ?loc : t -> ?sub : error list 
   -> ('a, Format.formatter, unit, error) format4 -> 'a
+(**[errorf_prefixed] computes a function. The function it computes
+  provides the mean to convert an ['error_t] to an [error] by way of
+  formatting operations to produce the [msg] field of the [error]
+  result. The formatting operations include prefixing the [msg] field
+  with the string ["Error"].
 
-(**)
-val report_error : formatter -> error -> unit
+  The type of the function computed unifies with the type variable
+  ['a].
+*)
 
-(**Hook for intercepting error reports*)
 val error_reporter : (formatter -> error -> unit) ref
+(**Hook for intercepting error reports*)
 
-(**Re-raise the exception if it is unknown*)
+val report_error : formatter -> error -> unit
+(**[report_error ppf err] uses the currently installed error reporter
+   to write an error report for [err] on the formatter [ppf]*)
+
 val report_exception : formatter -> exn -> unit
+(**[report_exception ppf exn] attempts to write an error report for
+   the provided [exn] on the given formatter [ppf]. The exception [exn]
+   can be (re-)raised if no handler is found*)

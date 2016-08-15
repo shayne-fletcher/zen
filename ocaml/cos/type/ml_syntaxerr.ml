@@ -5,9 +5,8 @@ type error =
 
 exception Error of error
 
-let prepare_error = function
-  | Other loc ->
-    Ml_location.errorf_prefixed ~loc "Syntax error"
+let prepare_error : error -> Ml_location.error = function
+  | Other loc -> Ml_location.errorf_prefixed ~loc "Syntax error"
   | Unclosed (opening_loc, opening, closing_loc, closing) ->
     Ml_location.errorf_prefixed 
       ~loc:closing_loc
@@ -18,7 +17,9 @@ let prepare_error = function
       ]
       "Syntax error: '%s' expected" closing
   | Not_expecting (loc, nonterm) ->
-    Ml_location.errorf_prefixed ~loc "Syntax error: %s not expected." nonterm
+    let (mk_err : string -> Ml_location.error) = 
+      Ml_location.errorf_prefixed ~loc "Syntax error: %s not expected." in
+    mk_err nonterm
 
 let () =
   Ml_location.register_error_of_exn (

@@ -1,4 +1,4 @@
-rm *.cmi *.cmx *~ *.exe
+rm *.cmi *.cmx *~ *.exe *.obj
 
 ocamlopt.opt -c ml_location.mli ml_location.ml
 ocamlopt.opt -c ml_asttypes.mli ml_ast.mli

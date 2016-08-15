@@ -149,44 +149,126 @@ type 'a loc = {
 let mkloc (txt : 'a) (loc : t) : 'a loc = { txt ; loc }
 let mknoloc (txt : 'a) : 'a loc = mkloc txt none
 
+(*Error reporting*)
+
 open Format
 
+(*The type of errors*)
 type error =
   {
-    loc: t;
-    msg: string;
-    sub: error list;
+    loc: t;          (*The region of program text*)
+    msg: string;     (*An explanation*)
+    sub: error list; (*Related locations and messages for those*)
   }
 
-let pp_ksprintf ?before k fmt =
+(*A prefix for error messages*)
+let error_prefix = "Error"
+
+(*A prefix for warning messages*)
+let warning_prefix = "Warning"
+
+(*Write the [error_prefix] to the provided formatter*)
+let print_error_prefix (ppf : formatter) () : unit =
+  (* The syntax, [@{<error>%s@}] associates the embedded text with the
+     named tag 'error'*)
+  fprintf ppf "@{<error>%s@}:" error_prefix;
+  ()
+
+(* [pp_ksprintf]
+
+   [pp_ksprintf] computes a function that is expressed in terms of
+   formatting operations:
+
+   {ul
+   {- ['a] is the type of the function computed}
+   {- ['d] is the return type of the user function [k]}
+   }
+
+   It proceeds as follows. A buffer is created and a formatter over
+   that buffer. When presented with all of the arguments of the format
+   operations implied by the [fmt] argument, if the [before] argument
+   is non empty, call it on the formatter. Finally, call [kfprintf]
+   which performs the format operations on the buffer before handing
+   control to a function that retrieves the contents of the now
+   formatted buffer and passes them to the user provided continuation
+   [k].
+*)
+let pp_ksprintf 
+    ?(before : (formatter -> unit) option) 
+    (k : string -> 'd)
+    (fmt : ('a, formatter, unit, 'd) format4) : 'a =
+  (*Create a formatter over a temporary buffer*)
   let buf = Buffer.create 64 in
   let ppf = Format.formatter_of_buffer buf in
+  (*If the [before] argument is non-empty, call its contents on the
+    formatter*)
   begin match before with
     | None -> ()
     | Some f -> f ppf
   end;
+  (*[kprintf] is like [fprintf] but instead of returning immediately,
+    passes the formatter to its first argument at the end of
+    printing*)
   kfprintf
-    (fun _ ->
+    (fun (_ : formatter) : 'd ->
       pp_print_flush ppf ();
       let msg = Buffer.contents buf in
       k msg)
     ppf fmt
 
-let print_filename ppf file =
+(*[errorf_prefixed] computes a function. The function it computes
+  provides the mean to convert an ['error_t] to an [error] by way of
+  formatting operations to produce the [msg] field of the [error]
+  result. The formatting operations include prefixing the [msg] field
+  with the [error_prefix] string.
+
+  The type of the function computed unifies with the type variable
+  ['a].
+*)
+let errorf_prefixed 
+    ?(loc:t = none) 
+    ?(sub : error list = []) 
+    (fmt : ('a, Format.formatter, unit, error) format4) : 'a =
+  let e : 'a =
+    pp_ksprintf
+      ~before:(fun ppf -> fprintf ppf "%a " print_error_prefix ())
+      (fun (msg : string) : error -> {loc; msg; sub})
+    fmt
+  in e
+
+(*[error_of_printer] can make an [error] from a location and an
+  ['error_t] by way of invoking the [printer] function on the
+  ['error_t] to compute the [msg] field of the resulting [error]*)
+let error_of_printer 
+    (loc : t) 
+    (printer : formatter -> 'error_t -> unit) 
+    (x : 'error_t) : error =
+  let mk_err : 'error_t -> error = 
+    errorf_prefixed ~loc "%a@?" printer in
+  mk_err x
+
+(*Write the given [file] onto the formatter [ppf]*)
+let print_filename (ppf : formatter) (file : string) : unit =
   fprintf ppf "%s" file
 
+(*Message constants*)
 let (msg_file, msg_line, msg_chars, msg_to, msg_colon) =
-    ("File \"", 
-     "\", line ", 
-     ", characters ", 
-     "-", 
-     ":")
+    ("File \"",        (*'msg file'*)
+     "\", line ",      (*'msg line'*)
+     ", characters ",  (*'msg chars'*)
+     "-",              (*'msg to'*)
+     ":")              (*'msg colon'*)
 
 (*Return file, line, char from the given position*)
 let get_pos_info pos =
   (pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol)
 
-let print_loc ppf loc =
+(*A function to print a location on a formatter in terms of file, line
+  and character numbers. Locations generally speaking come out in a
+  format along these lines : "File "<string>", line 1, characters
+  8-8:"
+*)
+let print_loc (ppf : formatter) (loc : t) : unit  =
   let (file, line, startchar) = get_pos_info loc.loc_start in
   let endchar = loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + startchar in
   if file = "//toplevel//" then
@@ -199,29 +281,24 @@ let print_loc ppf loc =
     fprintf ppf "@}"
   end
 
-let print ppf loc =
+(*A wrapper over [print_loc] that appends a colon to the location*)
+let print (ppf : formatter) (loc : t) : unit =
+  (* The syntax, [@{<loc>%a@}] associates the embedded text with the
+     named tag 'loc'*)
   fprintf ppf "@{<loc>%a@}%s@." print_loc loc msg_colon
 
-let error_prefix = "Error"
-let warning_prefix = "Warning"
+(*Exception handling*)
 
-let print_error_prefix ppf () =
-  fprintf ppf "@{<error>%s@}:" error_prefix;
-  ()
-
-let errorf_prefixed ?(loc=none) ?(sub=[]) fmt =
-  pp_ksprintf
-    ~before:(fun ppf -> fprintf ppf "%a " print_error_prefix ())
-    (fun msg -> {loc; msg; sub})
-    fmt
-
+(*A mutable list of exception handlers (functions of type [exn ->
+  error option])*)
 let error_of_exn : (exn -> error option) list ref = ref []
 
+(*A function that adds an exception hander to the above list*)
 let register_error_of_exn f = error_of_exn := f :: !error_of_exn
 
-let error_of_printer loc print x =
-  errorf_prefixed ~loc "%a@?" print x
-
+(*[error_of_exn exn] walks the list looking for a hander, returning
+  the contents of the result of the first such function that doesn't
+  return a [None]*)
 let error_of_exn exn =
   let rec loop = function
     | [] -> None
@@ -232,38 +309,77 @@ let error_of_exn exn =
   in
   loop !error_of_exn
 
-let rec default_error_reporter ppf ({loc; msg; sub}) =
+(*The default error reporting function. Given a formatter and an
+  error, write the error location, an explanation of the error and the
+  same for any associated "sub" errors to the formatter*)
+let rec default_error_reporter 
+    (ppf : formatter) ({loc; msg; sub} : error) : unit =
   print ppf loc;
   Format.pp_print_string ppf msg;
   List.iter (Format.fprintf ppf "@\n@[<2>%a@]" default_error_reporter) sub
 
+(*[error_reporter] is a mutable function for reporting errors. Its
+  default value is [default_error_reporter]*)
 let error_reporter = ref default_error_reporter
 
-let num_loc_lines = ref 0 (* number of lines already printed after input *)
+(* A mutable line count*)
+let num_loc_lines : int ref = ref 0
 
-let print_updating_num_loc_lines ppf f arg =
-  let out_functions = pp_get_formatter_out_functions ppf () in
-  let out_string str start len =
-    let rec count i c =
+(*Prints an error on a formatter incidentally recording the number of
+  lines required to do so*)
+let print_updating_num_loc_lines 
+    (ppf : formatter) 
+    (f : formatter -> error -> unit) 
+    (arg : error) : unit =
+  (*A record of functions of output primitives*)
+  let out_functions : formatter_out_functions
+      = pp_get_formatter_out_functions ppf () in
+  (*The strategoy is to temporarily replace the basic function for
+    writing a string with this one*)
+  let out_string (str : string) (start : int) (len : int) : unit =
+    (*A function for counting line breaks in [str]. [c] is the current
+      count, [i] is the current char under consideration*)
+    let rec count (i : int) (c : int) : int=
       if i = start + len then c
       else if String.get str i = '\n' then count (succ i) (succ c)
-      else count (succ i) c in
+      else count (succ i) c 
+    in
+    (*Update the count*)
     num_loc_lines := !num_loc_lines + count start 0;
-    out_functions.out_string str start len in
+    (*Write the string to the formatter*)
+    out_functions.out_string str start len 
+  in
+  (*Replace the standard string output primitive with the one just
+    defined *)
   pp_set_formatter_out_functions ppf 
     {out_functions with out_string} ;
+  (*Write the error to the formatter*)
   f ppf arg ;
   pp_print_flush ppf ();
+  (*Restore the standard primitive*)
   pp_set_formatter_out_functions ppf out_functions
 
-let report_error ppf err =
+(*[report_error ppf err] uses the currently installed error reporter
+  to write an error report for [err] on the formatter [ppf] incidentally
+  updating a count indicating the number of lines written*)
+let report_error (ppf : formatter) (err : error) : unit=
   print_updating_num_loc_lines ppf !error_reporter err
 
-let rec report_exception_rec n ppf exn =
+let rec report_exception_rec (n : int) (ppf : formatter) (exn : exn) : unit =
+  (*Try to find a handler for the exception*)
   try match error_of_exn exn with
-  | Some err -> fprintf ppf "@[%a@]@." report_error err
-  | None -> raise exn
+  | Some err -> 
+    (*Format the resulting error using the current error reporter*)
+    fprintf ppf "@[%a@]@." report_error err 
+  (*The syntax @[%a@]@ writes function output in a box followed by a
+    'cut' break hint*)
+  | None -> raise exn (*A handler could not be found*)
   with exn when n > 0 ->
+    (*A handler wasn't found. Try again*)
     report_exception_rec (n - 1) ppf exn
 
-let report_exception ppf exn = report_exception_rec 5 ppf exn
+(*[report_exception ppf exn] attempts to write an error report for the
+  provided [exn] on the given formatter [ppf]. The exception [exn] can
+  be reraised if no handler is found*)
+let report_exception (ppf : formatter) (exn : exn) : unit = 
+  report_exception_rec 5 ppf exn
