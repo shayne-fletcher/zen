@@ -33,3 +33,5 @@ ocamlopt.opt -o ml_toplevel_repl.exe \
   ml_location.cmx ml_syntaxerr.cmx \
   ml_lexer.cmx ml_parser.cmx \
   repl.cmx ml_print_ast.cmx ml_toplevel_repl.cmx
+
+cl /Feexcept.exe /Zi /MDd /EHsc /I d:/boost_1_59_0 except.cpp
