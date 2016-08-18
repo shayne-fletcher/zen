@@ -1,4 +1,6 @@
 %{
+  (**The parser*)
+
   open Ml_location
   open Ml_asttypes
   open Ml_ast
@@ -146,11 +148,17 @@
     in
     mkexp (Pexp_let (lbs.lbs_rec, List.rev bindings, body))
 
-  let unclosed opening_name opening_num closing_name closing_num =
+  (*Raise a syntax error exception for an unclosed construct*)
+  let unclosed 
+      (opening_name : string) 
+      (opening_num : int)
+      (closing_name : string) 
+      (closing_num : int) : 'a =
     raise(Ml_syntaxerr.Error(
       Ml_syntaxerr.Unclosed(rhs_loc opening_num, opening_name,
                             rhs_loc closing_num, closing_name)))
 
+  (*Raise a syntax error exception for an unexpected term*)
   let not_expecting pos nonterm =
     raise Ml_syntaxerr.(Error(Not_expecting(rhs_loc pos, nonterm)))
 

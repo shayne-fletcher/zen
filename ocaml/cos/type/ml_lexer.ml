@@ -1,9 +1,13 @@
 # 1 "ml_lexer.mll"
  
+(**The lexical analyzer*)
+
 open Lexing
 open Ml_parser
 
-(*Update the current location with file name and line
+(**{2 Utilities}*)
+
+(**Update the current location with file name and line
   number. [absolute] if [false] means add [line] to the current line
   number, if [true], replace it with [line] entirely*)
 let update_loc 
@@ -24,7 +28,7 @@ let update_loc
     pos_bol = pos.pos_cnum - chars;
   }
 
-(*[create_hashtable size init] creates a hashtable with [size] buckets
+(**[create_hashtable size init] creates a hashtable with [size] buckets
   with initial contents [init]*)
 let create_hashtable 
     (size : int) 
@@ -33,7 +37,7 @@ let create_hashtable
   List.iter (fun (key, data) -> Hashtbl.add tbl key data) init;
   tbl
 
-(*[keyword_table] associates keywords with their tokens*)
+(**[keyword_table] associates keywords with their tokens*)
 let keyword_table =
   create_hashtable 149 [
     "else", T_else;
@@ -47,17 +51,19 @@ let keyword_table =
     "true", T_true;
   ]
 
-(*A buffer used in the harvesting of comments*)
-let initial_string_buffer = Bytes.create 256
-let string_buf = ref initial_string_buffer
-let string_index = ref 0 (*The next unused index in the buffer*)
+(**An allocation of 256 bytes*)
+let initial_string_buffer : bytes = Bytes.create 256
+(**A string buffer reference*)
+let string_buf : bytes ref = ref initial_string_buffer
+(**The next unused index in the buffer*)
+let string_index : int ref = ref 0
 
-(*Reset the string buffer contents to the original allocation*)
+(**Reset the string buffer contents to the original allocation*)
 let reset_string_buffer () =
   string_buf := initial_string_buffer;
   string_index := 0
 
-(*Write a char [c] into the string buffer at the position indicated by
+(**Write a char [c] into the string buffer at the position indicated by
   the current [string_index], creating more space as
   neccessary. Increment [string_index]*)
 let store_string_char (c : char) : unit =
@@ -69,21 +75,21 @@ let store_string_char (c : char) : unit =
   Bytes.unsafe_set !string_buf !string_index c;
   incr string_index
 
-(*[store_string s] writes [s] into [string_buf] by way of
+(**[store_string s] writes [s] into [string_buf] by way of
   [store_string_char]*)
 let store_string (s : string) : unit =
   for i = 0 to String.length s - 1 do
     store_string_char s.[i];
   done
 
-(*Called from the semantic actions of lexer definitions,
+(**Called from the semantic actions of lexer definitions,
   [Lexing.lexeme lexubf] returns the string corresponding to the the
   matched regular expression. [store_lexeme lexbuf] stores this string
   in [string_buf] by way of [store_string]*)
 let store_lexeme lexbuf =
   store_string (Lexing.lexeme lexbuf)
 
-(*Gets the contents of [string_buff], from 0 to the current
+(**Gets the contents of [string_buff], from 0 to the current
   [string_index], resets the [string_buff] back to it's original
   allocation; does not modify [string_index]*)
 let get_stored_string () =
@@ -93,21 +99,24 @@ let get_stored_string () =
 
 (*Comments*)
 
-(*A mutuable list of start locations of comments*)
+(**A mutuable list of start locations of comments*)
 let comment_start_loc = ref []
+
+(**[in_comment ()] evaluates to [true] between the time a comment has
+   been started and not ended, [false] at all other times*)
 let in_comment () = !comment_start_loc <> []
 
-(*A list of all comments accumulated during lexing*)
+(**A list of all comments accumulated during lexing*)
 let comment_list : (string * Ml_location.t) list ref = ref []
 
-(*Add a comment to the list*)
+(**Add a comment to the list*)
 let add_comment (com : string * Ml_location.t) : unit =
   comment_list := com :: !comment_list
 
-(*Retrieve the list of comments*)
+(**Retrieve the list of comments*)
 let comments () : (string * Ml_location.t) list = List.rev !comment_list
 
-(*[with_comment_buffer comment lexbuf] uses the string buffer
+(**[with_comment_buffer comment lexbuf] uses the string buffer
   [comment_start_loc] and the [comment] rule*)
 let with_comment_buffer 
     (comment : lexbuf -> Ml_location.t)
@@ -122,15 +131,17 @@ let with_comment_buffer
               with Ml_location.loc_end = end_loc.Ml_location.loc_end } in
   s, loc
 
-(*Error reporting*)
+(**{2 Error reporting}*)
 
-(*The type of errors that can come up in this module*)
+(**The type of errors that can come up in this module*)
 type error =
-| Illegal_character of char
-| Unterminated_comment of Ml_location.t
-(*The type of exceptions that contain those errors*)
+| Illegal_character of char (**Unrecognizable token*)
+| Unterminated_comment of Ml_location.t (**An unterimated comment*)
+
+(**The type of exceptions that contain those errors*)
 exception Error of error * Ml_location.t
-(*This function takes a formatter and an instance of type [error] and
+
+(**This function takes a formatter and an instance of type [error] and
   writes a message to the formatter explaining the meaning. This is a
   "printer"*)
 let report_error (ppf : Format.formatter) : error -> unit = function
@@ -138,7 +149,7 @@ let report_error (ppf : Format.formatter) : error -> unit = function
     Format.fprintf ppf "Illegal character (%s)" (Char.escaped c)
   | Unterminated_comment _ -> 
     Format.fprintf ppf "Comment not terminated"
-(*Register an exception handler*)
+(**Register an exception handler*)
 let () =
   Ml_location.register_error_of_exn
     (function
@@ -147,7 +158,9 @@ let () =
       | _ ->  None
     )
 
-# 151 "ml_lexer.ml"
+(**{2 Tables & rules}*)
+
+# 164 "ml_lexer.ml"
 let __ocaml_lex_tables = {
   Lexing.lex_base = 
    "\000\000\228\255\229\255\084\000\029\000\192\000\020\001\104\001\
@@ -983,132 +996,132 @@ let rec token lexbuf =
 and __ocaml_lex_token_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 159 "ml_lexer.mll"
+# 172 "ml_lexer.mll"
                         ( update_loc lexbuf None 1 false 0; T_eol )
-# 989 "ml_lexer.ml"
+# 1002 "ml_lexer.ml"
 
   | 1 ->
-# 160 "ml_lexer.mll"
+# 173 "ml_lexer.mll"
                                                    ( token lexbuf )
-# 994 "ml_lexer.ml"
+# 1007 "ml_lexer.ml"
 
   | 2 ->
-# 161 "ml_lexer.mll"
+# 174 "ml_lexer.mll"
                                                    ( T_underscore )
-# 999 "ml_lexer.ml"
+# 1012 "ml_lexer.ml"
 
   | 3 ->
-# 162 "ml_lexer.mll"
+# 175 "ml_lexer.mll"
                                                         ( T_arrow )
-# 1004 "ml_lexer.ml"
+# 1017 "ml_lexer.ml"
 
   | 4 ->
-# 163 "ml_lexer.mll"
+# 176 "ml_lexer.mll"
                                                         ( T_comma )
-# 1009 "ml_lexer.ml"
+# 1022 "ml_lexer.ml"
 
   | 5 ->
-# 164 "ml_lexer.mll"
+# 177 "ml_lexer.mll"
                                                          ( T_plus )
-# 1014 "ml_lexer.ml"
+# 1027 "ml_lexer.ml"
 
   | 6 ->
-# 165 "ml_lexer.mll"
+# 178 "ml_lexer.mll"
                                                         ( T_minus )
-# 1019 "ml_lexer.ml"
+# 1032 "ml_lexer.ml"
 
   | 7 ->
-# 166 "ml_lexer.mll"
+# 179 "ml_lexer.mll"
                                                          ( T_star )
-# 1024 "ml_lexer.ml"
+# 1037 "ml_lexer.ml"
 
   | 8 ->
-# 167 "ml_lexer.mll"
+# 180 "ml_lexer.mll"
                                                        ( T_lparen )
-# 1029 "ml_lexer.ml"
+# 1042 "ml_lexer.ml"
 
   | 9 ->
-# 168 "ml_lexer.mll"
+# 181 "ml_lexer.mll"
                                                        ( T_rparen )
-# 1034 "ml_lexer.ml"
+# 1047 "ml_lexer.ml"
 
   | 10 ->
-# 169 "ml_lexer.mll"
+# 182 "ml_lexer.mll"
                                                            ( T_eq )
-# 1039 "ml_lexer.ml"
+# 1052 "ml_lexer.ml"
 
   | 11 ->
-# 170 "ml_lexer.mll"
+# 183 "ml_lexer.mll"
                                                            ( T_lt )
-# 1044 "ml_lexer.ml"
+# 1057 "ml_lexer.ml"
 
   | 12 ->
-# 171 "ml_lexer.mll"
+# 184 "ml_lexer.mll"
                                                           ( T_fun )
-# 1049 "ml_lexer.ml"
+# 1062 "ml_lexer.ml"
 
   | 13 ->
-# 172 "ml_lexer.mll"
+# 185 "ml_lexer.mll"
                                                           ( T_let )
-# 1054 "ml_lexer.ml"
+# 1067 "ml_lexer.ml"
 
   | 14 ->
-# 173 "ml_lexer.mll"
+# 186 "ml_lexer.mll"
                                                           ( T_rec )
-# 1059 "ml_lexer.ml"
+# 1072 "ml_lexer.ml"
 
   | 15 ->
-# 174 "ml_lexer.mll"
+# 187 "ml_lexer.mll"
                                                            ( T_in )
-# 1064 "ml_lexer.ml"
+# 1077 "ml_lexer.ml"
 
   | 16 ->
-# 175 "ml_lexer.mll"
+# 188 "ml_lexer.mll"
                                                          ( T_then )
-# 1069 "ml_lexer.ml"
+# 1082 "ml_lexer.ml"
 
   | 17 ->
-# 176 "ml_lexer.mll"
+# 189 "ml_lexer.mll"
                                                          ( T_else )
-# 1074 "ml_lexer.ml"
+# 1087 "ml_lexer.ml"
 
   | 18 ->
-# 177 "ml_lexer.mll"
+# 190 "ml_lexer.mll"
                                                            ( T_if )
-# 1079 "ml_lexer.ml"
+# 1092 "ml_lexer.ml"
 
   | 19 ->
-# 178 "ml_lexer.mll"
+# 191 "ml_lexer.mll"
                                                          ( T_true )
-# 1084 "ml_lexer.ml"
+# 1097 "ml_lexer.ml"
 
   | 20 ->
-# 179 "ml_lexer.mll"
+# 192 "ml_lexer.mll"
                                                         ( T_false )
-# 1089 "ml_lexer.ml"
+# 1102 "ml_lexer.ml"
 
   | 21 ->
-# 180 "ml_lexer.mll"
+# 193 "ml_lexer.mll"
                                                           ( T_fst )
-# 1094 "ml_lexer.ml"
+# 1107 "ml_lexer.ml"
 
   | 22 ->
-# 181 "ml_lexer.mll"
+# 194 "ml_lexer.mll"
                                                           ( T_snd )
-# 1099 "ml_lexer.ml"
+# 1112 "ml_lexer.ml"
 
   | 23 ->
 let
-# 182 "ml_lexer.mll"
+# 195 "ml_lexer.mll"
                        i
-# 1105 "ml_lexer.ml"
+# 1118 "ml_lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 182 "ml_lexer.mll"
+# 195 "ml_lexer.mll"
                                                         ( T_int i )
-# 1109 "ml_lexer.ml"
+# 1122 "ml_lexer.ml"
 
   | 24 ->
-# 184 "ml_lexer.mll"
+# 197 "ml_lexer.mll"
       ( let s = Lexing.lexeme lexbuf in
         try 
           (*If its a keyword, look it up and return the associated
@@ -1116,24 +1129,24 @@ let
           Hashtbl.find keyword_table s
         with Not_found -> T_ident s  (*Else, treat as identifier*)
       )
-# 1120 "ml_lexer.ml"
+# 1133 "ml_lexer.ml"
 
   | 25 ->
-# 191 "ml_lexer.mll"
+# 204 "ml_lexer.mll"
             ( let s, loc = with_comment_buffer comment lexbuf in
               T_comment (s, loc) )
-# 1126 "ml_lexer.ml"
+# 1139 "ml_lexer.ml"
 
   | 26 ->
-# 193 "ml_lexer.mll"
+# 206 "ml_lexer.mll"
                                                          ( T_eof  )
-# 1131 "ml_lexer.ml"
+# 1144 "ml_lexer.ml"
 
   | 27 ->
-# 195 "ml_lexer.mll"
+# 208 "ml_lexer.mll"
       (raise (Error (Illegal_character (Lexing.lexeme_char lexbuf 0)
                        , Ml_location.curr lexbuf)) )
-# 1137 "ml_lexer.ml"
+# 1150 "ml_lexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; 
       __ocaml_lex_token_rec lexbuf __ocaml_lex_state
@@ -1143,17 +1156,17 @@ and comment lexbuf =
 and __ocaml_lex_comment_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 199 "ml_lexer.mll"
+# 212 "ml_lexer.mll"
       (
         comment_start_loc := 
         (Ml_location.curr lexbuf) :: !comment_start_loc;
         store_lexeme lexbuf;
         comment lexbuf
       )
-# 1154 "ml_lexer.ml"
+# 1167 "ml_lexer.ml"
 
   | 1 ->
-# 206 "ml_lexer.mll"
+# 219 "ml_lexer.mll"
       (
         match !comment_start_loc with
         | [] -> assert false
@@ -1163,10 +1176,10 @@ and __ocaml_lex_comment_rec lexbuf __ocaml_lex_state =
           store_lexeme lexbuf;
           comment lexbuf
       )
-# 1167 "ml_lexer.ml"
+# 1180 "ml_lexer.ml"
 
   | 2 ->
-# 216 "ml_lexer.mll"
+# 229 "ml_lexer.mll"
       (
         match !comment_start_loc with
         | [] -> assert false
@@ -1175,30 +1188,32 @@ and __ocaml_lex_comment_rec lexbuf __ocaml_lex_state =
           comment_start_loc := [];
           raise (Error (Unterminated_comment start, loc))
       )
-# 1179 "ml_lexer.ml"
+# 1192 "ml_lexer.ml"
 
   | 3 ->
-# 225 "ml_lexer.mll"
+# 238 "ml_lexer.mll"
       (
         update_loc lexbuf None 1 false 0;
         store_lexeme lexbuf;
         comment lexbuf
       )
-# 1188 "ml_lexer.ml"
+# 1201 "ml_lexer.ml"
 
   | 4 ->
-# 231 "ml_lexer.mll"
+# 244 "ml_lexer.mll"
       ( store_lexeme lexbuf; comment lexbuf )
-# 1193 "ml_lexer.ml"
+# 1206 "ml_lexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; 
       __ocaml_lex_comment_rec lexbuf __ocaml_lex_state
 
 ;;
 
-# 233 "ml_lexer.mll"
+# 246 "ml_lexer.mll"
  
-  (*A wrapper around the token rule that collects comment strings
+  (**{2 Postscript}*)
+
+  (**A wrapper around the token rule that collects comment strings
     encountered during lexing and discards comment and end of line
     tokens*)
   let token (lexbuf : lexbuf) : token =
@@ -1209,4 +1224,4 @@ and __ocaml_lex_comment_rec lexbuf __ocaml_lex_state =
       | tok -> tok
     in loop lexbuf
 
-# 1213 "ml_lexer.ml"
+# 1228 "ml_lexer.ml"

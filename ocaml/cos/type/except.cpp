@@ -285,17 +285,6 @@ error_t syntax_exceptions () {
     return prepare_syntax_error (s.error);
   }
 }
-
-template<class E>
-int test (E e) {
-  try {
-    throw e;
-  }
-  catch (...) {
-    report_exception (std::cout);
-  }
-}
-
 //Register a handler for syntax exceptions
 int seht = register_error_of_exn (exception_handler{syntax_exceptions});
 

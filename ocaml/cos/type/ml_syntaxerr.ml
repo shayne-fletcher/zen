@@ -27,11 +27,3 @@ let () =
     | Error err -> Some (prepare_error err)
     | _ -> None
   )
-
-let report_error ppf err =
-  Ml_location.report_error ppf (prepare_error err)
-
-let location_of_error = function
-  | Other l -> l
-  | Unclosed (_, _, l, _) -> l
-  | Not_expecting (l, _) -> l
