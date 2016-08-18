@@ -4,17 +4,28 @@ open Ml_location
 open Lexing
 open Format
 
-let line i f s (*...*) =
-  fprintf f "%s" (String.make ((2*i) mod 72) ' ');
-  fprintf f s (*...*)
+let line 
+    (i : int) 
+    (f : formatter) 
+    (s : ('a, formatter, unit) format) : 'a =
+  fprintf f "%s" (String.make ((2 * i) mod 72) ' ');
+  fprintf f s
 
-let pair i f ppf (u, v) =
+let pair 
+    (i : int)
+    (f : int -> formatter -> 'a -> 'b)
+    (ppf:formatter) 
+    ((u, v) : 'a * 'a ) : unit =
     line i ppf "(\n";
     f (i + 1) ppf u;
     f (i + 1) ppf v;
     line i ppf ")\n"
 
-let list i f ppf l =
+let list 
+    (i : int)
+    (f : int -> formatter -> 'a -> unit)
+    (ppf : formatter)
+    (l : 'a list) : unit =
   match l with
   | [] -> line i ppf "[]\n";
   | _ :: _ ->
@@ -22,43 +33,52 @@ let list i f ppf l =
      List.iter (f (i + 1) ppf) l;
      line i ppf "]\n"
 
-let fmt_rec_flag f x =
+let fmt_rec_flag (f : formatter) (x : rec_flag) : unit =
   match x with
   | Nonrecursive -> fprintf f "Nonrec"
   | Recursive -> fprintf f "Rec"
 
-let fmt_position with_name f l =
+let fmt_position (with_name : bool) (f : formatter) (l : position) : unit =
   let fname = if with_name then l.pos_fname else "" in
   if l.pos_lnum = -1
   then fprintf f "%s[%d]" fname l.pos_cnum
   else fprintf f "%s[%d,%d+%d]" fname l.pos_lnum l.pos_bol
                (l.pos_cnum - l.pos_bol)
 
-let fmt_location f loc =
+let fmt_location (f : formatter) (loc : Ml_location.t) : unit =
   let p_2nd_name = loc.loc_start.pos_fname <> loc.loc_end.pos_fname in
   fprintf f "(%a..%a)" (fmt_position true) loc.loc_start
                        (fmt_position p_2nd_name) loc.loc_end
 
-let fmt_string_loc f x =
+let fmt_string_loc (f : formatter) (x : string Ml_location.loc) : unit =
   fprintf f "\"%s\" %a" x.txt fmt_location x.loc
 
-let fmt_constant f x =
+let fmt_constant (f : formatter) (x : constant) : unit =
   match x with
   | Pconst_int i -> fprintf f "Pconst_int (%s)" i
 
-let fmt_ident_loc f x =
+let fmt_ident_loc (f : formatter) (x : string Ml_location.loc) : unit =
   fprintf f "\"%s\" %a" x.txt fmt_location x.loc
 
-let rec toplevel_phrase i ppf x =
+let rec toplevel_phrase 
+    (i : int) 
+    (ppf : formatter) 
+    (x : toplevel_phrase) : unit =
   match x with
   | Ptop_def s ->
     line i ppf "Ptop_def\n";
     structure (i + 1) ppf s
 
-and structure i ppf x = 
+and structure 
+    (i : int) 
+    (ppf : formatter) 
+    (x : structure) : unit = 
   list i structure_item ppf x 
 
-and structure_item i ppf x =
+and structure_item 
+    (i : int) 
+    (ppf : formatter) 
+    (x : structure_item) : unit =
   line i ppf "structure_item %a\n" fmt_location x.pstr_loc;
   let i = i + 1 in
   match x.pstr_desc with
@@ -69,7 +89,7 @@ and structure_item i ppf x =
     line i ppf "Pstr_value %a\n" fmt_rec_flag rf;
     list i value_binding ppf l
 
-and pattern i ppf x =
+and pattern (i : int) (ppf : formatter) (x : pattern) : unit =
   line i ppf "pattern %a\n" fmt_location x.ppat_loc;
   let i = i + 1 in
   match x.ppat_desc with
@@ -81,7 +101,7 @@ and pattern i ppf x =
       line i ppf "Ppat_pair\n";
       pair i pattern ppf (u, v)
 
-and expression i ppf x =
+and expression (i : int) (ppf : formatter) (x : expression) : unit  =
   line i ppf "expression %a\n" fmt_location x.pexp_loc;
   let i = i + 1 in
   match x.pexp_desc with
@@ -109,23 +129,23 @@ and expression i ppf x =
     expression i ppf e2;
     expression i ppf e3
 
-and value_binding i ppf x =
+and value_binding (i : int) (ppf : formatter) (x : value_binding) : unit =
   line i ppf "<def>\n";
   pattern (i + 1) ppf x.pvb_pat;
   expression (i + 1) ppf x.pvb_expr
 
-and x_expression i ppf e =
+and x_expression (i : int) (ppf : formatter) (e : expression) : unit =
   line i ppf "<arg>\n";
   expression (i + 1) ppf e
 
-let string_of_pattern p =
+let string_of_pattern (p : pattern) : string =
   pattern 0 (str_formatter) p;
   flush_str_formatter ()
 
-let string_of_expression e =
+let string_of_expression (e : expression) : string =
   expression 0 (str_formatter) e;
   flush_str_formatter ()
 
-let string_of_toplevel_phrase p =
+let string_of_toplevel_phrase (p : toplevel_phrase) : string =
   toplevel_phrase 0 (str_formatter) p;
   flush_str_formatter ()

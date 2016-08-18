@@ -1,4 +1,4 @@
-rm *.cmi *.cmx *~ *.exe *.obj doc/*
+rm *.pdb *.cmi *.cmx *~ *.exe *.obj doc/*
 
 ocamlopt.opt -c ml_location.mli ml_location.ml
 ocamlopt.opt -c ml_asttypes.mli ml_ast.mli
@@ -13,7 +13,7 @@ ocamlopt.opt -c ml_lexer.ml
 
 ocamlopt.opt -c repl.ml
 
-ocamlopt.opt -c ml_print_ast.ml
+ocamlopt.opt -c ml_print_ast.mli ml_print_ast.ml
 
 ocamlopt.opt -c ml_pattern_repl.ml
 
