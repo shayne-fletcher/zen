@@ -1,14 +1,22 @@
-#include <iostream>
+//The C++ `try...catch` construct allows for discrimination of
+//exceptions based on type. This is a primitive "match" construct. It
+//turns out, this is enough to encode sum types.
 
-//An interpreter for the language of additive expressions using
-//exception handling for case discrimination. Sadly, C++ exceptions on
-//their own are not enough, you still have to involve RTTI.
+//This program uses the above idea to implement an interpreter for the
+//language of additive expressions using exception handling for case
+//discrimination. Unfortunately, C++ exceptions on their own are not
+//quite enough, you still need to involve RTTI.
+
+#include <iostream>
+#include <cassert>
+#include <exception>
+#include <memory>
 
 struct expr {
   virtual ~expr() {}
 };
 
-using expr_ptr = expr*;
+using expr_ptr = std::shared_ptr<expr const>;
 
 struct int_ : expr { 
   int val; 
@@ -20,12 +28,41 @@ struct add : expr {
   expr_ptr left; 
   expr_ptr right; 
 
-  add (expr_ptr left, expr_ptr right) 
-    : left {left}, right {right}
+  template <class U, class V>
+  add (U const& left, V const& right) 
+    : left {expr_ptr{new U{left}}}
+    , right {expr_ptr{new V{right}}}
   {}
 };
 
+template <class P>
+void throw_if_match (expr const& xpr, P) {
+  if (P p = dynamic_cast<P>(&xpr)) throw *p;
+}
+
+void throw_expr (expr const& xpr) {
+  throw_if_match (xpr, (add const*)0);
+  throw_if_match (xpr, (int_ const*)0);
+
+  assert (false); //match non-exhaustive
+}
+
+//These next two functions are mutually recursive
+
+int eval_rec ();
+
+int eval (expr const& xpr) {
+  try {
+    throw_expr (xpr);
+  }
+  catch (...) {
+    return eval_rec ();
+  }
+}
+
 int eval_rec () {
+  assert (std::current_exception());
+
   try {
     throw;
   }
@@ -33,34 +70,7 @@ int eval_rec () {
     return i.val;
   }
   catch (add const& op) {
-    int left, right;
-    try{
-      //Wouldn't it be nice if this block could be replaced with just,
-      //`throw *op.left`?
-      if (add* p = dynamic_cast<add*>(op.left)) throw *p;
-      if (int_* p = dynamic_cast<int_*>(op.left)) throw *p;
-    }
-    catch (...) {
-      left = eval_rec ();
-    }
-    try{
-      if (add* p = dynamic_cast<add*>(op.right)) throw *p;
-      if (int_* p = dynamic_cast<int_*>(op.right)) throw *p;
-    }
-    catch (...) {
-      right = eval_rec ();
-    }
-    return left + right;
-  }
-}
-
-template <class T>
-int eval (T const& xpr) {
-  try {
-    throw xpr;
-  }
-  catch (...) {
-    return eval_rec ();
+    return eval (*op.left) +  eval (*op.right);
   }
 }
 
@@ -68,11 +78,7 @@ int main () {
 
   try{
     // (1 + 2) + 3
-    int_ one{1}, two{2};
-    add inner{&one, &two};
-    int_ three{3};
-    add outer(&inner, &three);
-    std::cout << eval (outer) << std::endl; // 6
+    std::cout << eval (add{add{int_{1}, int_{2}}, int_{3}}) << std::endl;
   }
   catch (...){
     std::cerr << "Unhandled exception\n";

@@ -37,3 +37,4 @@ ocamlopt.opt -o ml_toplevel_repl.exe \
 ocamldoc -d doc -html -stars -colorize-code *.mli *.ml
 
 cl /Feexcept.exe /Zi /MDd /EHsc /I d:/boost_1_59_0 except.cpp
+cl /Feadd.exe /Zi /MDd /EHsc /I d:/boost_1_59_0 add.cpp
