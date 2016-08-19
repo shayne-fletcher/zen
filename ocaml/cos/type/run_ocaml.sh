@@ -3,17 +3,15 @@ rm *.pdb *.cmi *.cmx *~ *.exe *.obj doc/*
 ocamlopt.opt -c ml_location.mli ml_location.ml
 ocamlopt.opt -c ml_asttypes.mli ml_ast.mli
 ocamlopt.opt -c ml_syntaxerr.mli ml_syntaxerr.ml
+ocamlopt.opt -c ml_print_ast.mli ml_print_ast.ml
 
 ocamllex ml_lexer.mll
 ocamlyacc ml_parser.mly
 
 ocamlopt.opt -c ml_parser.mli ml_parser.ml
-
 ocamlopt.opt -c ml_lexer.ml
 
 ocamlopt.opt -c repl.ml
-
-ocamlopt.opt -c ml_print_ast.mli ml_print_ast.ml
 
 ocamlopt.opt -c ml_pattern_repl.ml
 

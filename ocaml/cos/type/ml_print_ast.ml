@@ -4,13 +4,18 @@ open Ml_location
 open Lexing
 open Format
 
+(*[line i f s] formats whitespace on [pp] proportional to the depth
+  indicator [i] before computing the format operation indicated by
+  [s]*)
 let line 
     (i : int) 
-    (f : formatter) 
+    (ppf : formatter) 
     (s : ('a, formatter, unit) format) : 'a =
-  fprintf f "%s" (String.make ((2 * i) mod 72) ' ');
-  fprintf f s
+  fprintf ppf "%s" (String.make ((2 * i) mod 72) ' ');
+  fprintf ppf s
 
+(*[pair i f ppf p] formats a pair on [ppf] with a depth indicator
+  given by [i] by way of [f]*)
 let pair 
     (i : int)
     (f : int -> formatter -> 'a -> 'b)
@@ -21,6 +26,8 @@ let pair
     f (i + 1) ppf v;
     line i ppf ")\n"
 
+(*[list i f ppf p] formats a list on [ppf] with a depth indicator
+  given by [i] by way of [f]*)
 let list 
     (i : int)
     (f : int -> formatter -> 'a -> unit)
@@ -33,33 +40,43 @@ let list
      List.iter (f (i + 1) ppf) l;
      line i ppf "]\n"
 
-let fmt_rec_flag (f : formatter) (x : rec_flag) : unit =
+(*[fmt_rec_flag ppf x] formats ["Rec"] or ["Nonrec"] on [ppf]
+   according to the case of [x]*)
+let fmt_rec_flag (ppf : formatter) (x : rec_flag) : unit =
   match x with
-  | Nonrecursive -> fprintf f "Nonrec"
-  | Recursive -> fprintf f "Rec"
+  | Nonrecursive -> fprintf ppf "Nonrec"
+  | Recursive -> fprintf ppf "Rec"
 
-let fmt_position (with_name : bool) (f : formatter) (l : position) : unit =
+(*[fmt_position with_name ppf l] formats the position [l] on [ppf]*)
+let fmt_position (with_name : bool) (ppf : formatter) (l : position) : unit =
   let fname = if with_name then l.pos_fname else "" in
   if l.pos_lnum = -1
-  then fprintf f "%s[%d]" fname l.pos_cnum
-  else fprintf f "%s[%d,%d+%d]" fname l.pos_lnum l.pos_bol
+  then fprintf ppf "%s[%d]" fname l.pos_cnum
+  else fprintf ppf "%s[%d,%d+%d]" fname l.pos_lnum l.pos_bol
                (l.pos_cnum - l.pos_bol)
 
-let fmt_location (f : formatter) (loc : Ml_location.t) : unit =
+(*[fmt_location ppf loc] formats the location [loc] on [ppf]*)
+let fmt_location (ppf : formatter) (loc : Ml_location.t) : unit =
   let p_2nd_name = loc.loc_start.pos_fname <> loc.loc_end.pos_fname in
-  fprintf f "(%a..%a)" (fmt_position true) loc.loc_start
+  fprintf ppf "(%a..%a)" (fmt_position true) loc.loc_start
                        (fmt_position p_2nd_name) loc.loc_end
 
-let fmt_string_loc (f : formatter) (x : string Ml_location.loc) : unit =
-  fprintf f "\"%s\" %a" x.txt fmt_location x.loc
+(*[fmt_string_loc ppf loc] formats [loc] of type [string loc] on
+  [ppf]*)
+let fmt_string_loc (ppf : formatter) (x : string Ml_location.loc) : unit =
+  fprintf ppf "\"%s\" %a" x.txt fmt_location x.loc
 
-let fmt_constant (f : formatter) (x : constant) : unit =
+(*[fmt_constant ppf x] formats the constant [x] on [ppf]*)
+let fmt_constant (ppf : formatter) (x : constant) : unit =
   match x with
-  | Pconst_int i -> fprintf f "Pconst_int (%s)" i
+  | Pconst_int i -> fprintf ppf "Pconst_int (%s)" i
 
-let fmt_ident_loc (f : formatter) (x : string Ml_location.loc) : unit =
-  fprintf f "\"%s\" %a" x.txt fmt_location x.loc
+(*[fmt_ident_loc ppf x] formats [x] of type [string loc] on [ppf]. It
+  is a reprint of [fmt_string_loc]*)
+let fmt_ident_loc (ppf : formatter) (x : string Ml_location.loc) : unit =
+  fprintf ppf "\"%s\" %a" x.txt fmt_location x.loc
 
+(*Format function for top-level phrases*)
 let rec toplevel_phrase 
     (i : int) 
     (ppf : formatter) 
@@ -68,13 +85,13 @@ let rec toplevel_phrase
   | Ptop_def s ->
     line i ppf "Ptop_def\n";
     structure (i + 1) ppf s
-
+(*Format function for structures*)
 and structure 
     (i : int) 
     (ppf : formatter) 
     (x : structure) : unit = 
   list i structure_item ppf x 
-
+(*Format function for structure items*)
 and structure_item 
     (i : int) 
     (ppf : formatter) 
@@ -88,7 +105,7 @@ and structure_item
   | Pstr_value (rf, l) ->
     line i ppf "Pstr_value %a\n" fmt_rec_flag rf;
     list i value_binding ppf l
-
+(*Format function for patterns*)
 and pattern (i : int) (ppf : formatter) (x : pattern) : unit =
   line i ppf "pattern %a\n" fmt_location x.ppat_loc;
   let i = i + 1 in
@@ -100,7 +117,7 @@ and pattern (i : int) (ppf : formatter) (x : pattern) : unit =
   | Ppat_pair (u, v) ->
       line i ppf "Ppat_pair\n";
       pair i pattern ppf (u, v)
-
+(*Format function for expressions*)
 and expression (i : int) (ppf : formatter) (x : expression) : unit  =
   line i ppf "expression %a\n" fmt_location x.pexp_loc;
   let i = i + 1 in
@@ -128,24 +145,27 @@ and expression (i : int) (ppf : formatter) (x : expression) : unit  =
     expression i ppf e1;
     expression i ppf e2;
     expression i ppf e3
-
+(*Format function for value bindings*)
 and value_binding (i : int) (ppf : formatter) (x : value_binding) : unit =
   line i ppf "<def>\n";
   pattern (i + 1) ppf x.pvb_pat;
   expression (i + 1) ppf x.pvb_expr
-
+(*Format function for applicands*)
 and x_expression (i : int) (ppf : formatter) (e : expression) : unit =
   line i ppf "<arg>\n";
   expression (i + 1) ppf e
 
+(*String representation of patterns*)
 let string_of_pattern (p : pattern) : string =
   pattern 0 (str_formatter) p;
   flush_str_formatter ()
 
+(*String representation of expressions*)
 let string_of_expression (e : expression) : string =
   expression 0 (str_formatter) e;
   flush_str_formatter ()
 
+(*String representation of top-level phrases*)
 let string_of_toplevel_phrase (p : toplevel_phrase) : string =
   toplevel_phrase 0 (str_formatter) p;
   flush_str_formatter ()
