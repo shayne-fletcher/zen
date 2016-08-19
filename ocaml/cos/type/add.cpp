@@ -4,8 +4,10 @@
 
 //This program uses the above idea to implement an interpreter for the
 //language of additive expressions using exception handling for case
-//discrimination. Unfortunately, C++ exceptions on their own are not
-//quite enough, you still need to involve RTTI.
+//discrimination.
+
+//Unfortunately, C++ exceptions on their own are not quite enough, you
+//still need to involve RTTI.
 
 #include <iostream>
 #include <cassert>
