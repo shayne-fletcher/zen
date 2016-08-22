@@ -16,6 +16,8 @@
 
 struct expr {
   virtual ~expr() {}
+
+  virtual void throw_ () const = 0;
 };
 
 using expr_ptr = std::shared_ptr<expr const>;
@@ -24,6 +26,8 @@ struct int_ : expr {
   int val; 
   int_ (int val) : val{val}
   {}
+
+  void throw_ () const { throw *this; } 
 };
 
 struct add : expr { 
@@ -35,19 +39,9 @@ struct add : expr {
     : left {expr_ptr{new U{left}}}
     , right {expr_ptr{new V{right}}}
   {}
+
+  void throw_ () const { throw *this; } 
 };
-
-template <class P>
-void throw_if_match (expr const& xpr, P) {
-  if (P p = dynamic_cast<P>(&xpr)) throw *p;
-}
-
-void throw_expr (expr const& xpr) {
-  throw_if_match (xpr, (add const*)0);
-  throw_if_match (xpr, (int_ const*)0);
-
-  assert (false); //match non-exhaustive
-}
 
 //These next two functions are mutually recursive
 
@@ -55,7 +49,7 @@ int eval_rec ();
 
 int eval (expr const& xpr) {
   try {
-    throw_expr (xpr);
+    xpr.throw_ ();
   }
   catch (...) {
     return eval_rec ();
