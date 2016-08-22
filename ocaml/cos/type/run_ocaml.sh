@@ -1,4 +1,4 @@
-rm *.pdb *.cmi *.cmx *~ *.exe *.obj doc/*
+rm *.ilk *.pdb *.cmi *.cmx *~ *.exe *.obj doc/*
 
 ocamlopt.opt -c ml_location.mli ml_location.ml
 ocamlopt.opt -c ml_asttypes.mli ml_ast.mli
@@ -33,6 +33,3 @@ ocamlopt.opt -o ml_toplevel_repl.exe \
   repl.cmx ml_print_ast.cmx ml_toplevel_repl.cmx
 
 ocamldoc -d doc -html -stars -colorize-code *.mli *.ml
-
-cl /Feexcept.exe /Zi /MDd /EHsc /I d:/boost_1_59_0 except.cpp
-cl /Feadd.exe /Zi /MDd /EHsc /I d:/boost_1_59_0 add.cpp
