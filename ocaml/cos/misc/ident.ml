@@ -104,11 +104,11 @@ let balance (l : 'a tbl) (d : 'a data) (r : 'a tbl) =
 
 let rec add (id : t) (data : 'a) : 'a tbl -> 'a tbl = function
   | Empty -> 
-    Node (Empty, {ident = id; data = data; previous = None}, Empty, 1)
+    Node (Empty, {ident = id; data; previous = None}, Empty, 1)
   | Node (l, k, r, h) ->
     let c = compare id.name k.ident.name in
     if c = 0 then
-      Node (l, { ident = id; data = data; previous = Some k}, r, h)
+      Node (l, { ident = id; data; previous = Some k}, r, h)
     else if c < 0 then
       balance (add id data l) k r
     else
@@ -154,13 +154,13 @@ let rec fold_aux
   | Node (l, k, r, _) ->
     fold_aux f (l :: stack) (f k acc) r
 
-let fold_name 
-    (f : t -> 'a -> 'b)
+let fold_name
+    (f : t -> 'a -> 'b -> 'b)
     (tbl : 'a tbl)
     (acc : 'b) : 'b = 
   fold_aux (fun k -> f k.ident k.data) [] acc tbl
 
-let rec fold_data 
+let rec fold_data
     (f : t -> 'a -> 'b -> 'b)
     (d : 'a data option)
     (acc : 'b ) : 'b =
@@ -168,11 +168,11 @@ let rec fold_data
   | None -> acc
   | Some k -> f k.ident k.data (fold_data f k.previous acc)
 
-let fold_all 
+let fold_all
     (f : t -> 'a -> 'b -> 'b)
     (tbl : 'a tbl)
     (acc : 'b) : 'b = 
-  fold_aux (fun k -> fold_data f (Some k)) acc tbl
+  fold_aux (fun k -> fold_data f (Some k)) [] acc tbl
 
 let rec iter (f : t -> 'a -> 'b) : 'a tbl -> unit = function
   | Empty -> ()
