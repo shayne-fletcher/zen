@@ -1,5 +1,3 @@
-open Format
-
 type t = {
   stamp : int;
   name : string;
@@ -16,12 +14,12 @@ let create (s : string) : t =
   incr currentstamp;
   {name = s; stamp = !currentstamp; flags = 0}
 
+let create_persistent (s : string) : t =
+  { name = s; stamp = 0; flags = global_flag }
+
 let create_predef_exn (s : string) : t =
   incr currentstamp;
   { name = s; stamp = !currentstamp; flags = predef_exn_flag }
-
-let create_persistent (s : string) : t =
-  { name = s; stamp = 0; flags = global_flag }
 
 let rename (i : t) : t =
   incr currentstamp;
@@ -50,7 +48,8 @@ let make_global (i : t) : unit = i.flags <- i.flags lor global_flag
 let global (i : t) : bool = (i.flags land global_flag) <> 0
 let is_predef_exn (i : t) : bool = (i.flags land predef_exn_flag) <> 0
 
-let print (ppf : formatter) (i : t) =
+let print (ppf : Format.formatter) (i : t) =
+  let open Format in
   match i.stamp with
   | 0 -> fprintf ppf "%s!" i.name
   | -1 -> fprintf ppf "%s#" i.name
@@ -143,6 +142,15 @@ let rec get_all : 'a data option -> 'a list = function
   | None -> []
   | Some k -> k.data :: get_all k.previous
 
+let rec find_all (name : string) : 'a tbl -> 'a list = function
+  | Empty -> []
+  | Node (l, k, r, _) ->
+    let c = compare name k.ident.name in
+    if c = 0 then
+      k.data :: get_all k.previous
+    else
+      find_all name (if c < 0 then l else r)
+  
 let rec fold_aux 
     (f : 'a data -> 'b -> 'b) 
     (stack : 'a tbl list) (acc : 'b) : 'a tbl -> 'b = function
@@ -189,4 +197,4 @@ let make_key_generator () =
   fun id ->
     let stamp = !c in
     decr c ;
-    { id with name = key_name; stamp = stamp }
+    { id with name = key_name; stamp }
