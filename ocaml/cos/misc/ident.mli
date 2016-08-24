@@ -66,6 +66,7 @@ val reinit : unit -> unit
 (**Basically resets the current binding time to its start value*)
 
 val print : Format.formatter -> t -> unit
+(**Format an identifier*)
 
 (**Association tables from identifiers to type ['a]. Only the [name]
    field of the identifiers participates in the table ordering*)
@@ -77,6 +78,9 @@ val empty : 'a tbl
 val add : t -> 'a -> 'a tbl -> 'a tbl
 (**[add id data tbl] associates [id] with [data] in [tbl] storing any
    previous association if there is one*)
+
+val remove : string -> 'a tbl -> 'a tbl
+(**[remvove s tbl] removes any association for [s] in [tbl]*)
 
 val find_same : t -> 'a tbl -> 'a
 (**[find_same t tbl] looks for a [data] in the table associated with
