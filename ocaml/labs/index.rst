@@ -27,3 +27,4 @@ Week | Problem
  25  | Zippers
  26  | Functional unparsing
  27  | Basic cateogory theory
+ 28  | Perfectly balanced binary search trees
