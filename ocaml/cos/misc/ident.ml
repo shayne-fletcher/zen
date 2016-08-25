@@ -1,3 +1,5 @@
+open Format
+
 type t = {
   stamp : int;
   name : string;
@@ -120,11 +122,11 @@ let rec merge (l : 'a tbl) (r : 'a tbl) : 'a tbl =
   | Node (l1, v1, r1, h1), Node (l2, v2, r2, h2) ->
     balance l1 v1 (balance (merge r1 l2) v2 r2)
 
-let remove (id : t) (t : 'a tbl) : 'a tbl = 
+let remove (id : string) (t : 'a tbl) : 'a tbl = 
   let rec remove_rec = function
     | Empty -> Empty
     | Node (l, k, r, _) ->
-      let c = compare id.name k.ident.name in
+      let c = compare id k.ident.name in
       if c == 0 then merge l r else
         if c < 0 then balance (remove_rec l) k r
         else balance l k (remove_rec r) in
@@ -134,11 +136,11 @@ let rec find_stamp (s : int) : 'a data option -> 'a = function
   | None -> raise Not_found
   | Some k -> if k.ident.stamp = s then k.data else find_stamp s k.previous
 
-let rec find_same (id : string) : 'a tbl -> 'a = function
+let rec find_same (id : t) : 'a tbl -> 'a = function
   | Empty -> raise Not_found
   | Node (l, k, r, _) ->
     (*If the name matches [id]...*)
-    let c = compare id k.ident.name in
+    let c = compare id.name k.ident.name in
     if c = 0 then
       (*... and the stamp matches [id]...*)
       if id.stamp = k.ident.stamp 
@@ -150,10 +152,8 @@ let rec find_name (name : string) : 'a tbl -> 'a = function
   | Empty -> raise Not_found
   | Node (l, k, r, _) ->
     let c = compare name k.ident.name in
-    if c = 0 then
-      k.data
-    else 
-      find_name name (if c < 0 then l else r)
+    if c = 0 then k.data
+    else  find_name name (if c < 0 then l else r)
 
 let rec get_all : 'a data option -> 'a list = function
   | None -> []
