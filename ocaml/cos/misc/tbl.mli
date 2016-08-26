@@ -20,8 +20,8 @@ val find : 'a -> ('a, 'b) t -> 'b
    Not_found if [x] is not in [t]*)
 
 val mem : 'a -> ('a, 'b) t -> bool
-(**[mem x t] searches for [t] for [x] returing [true] if found,
-   [false] if not*)
+(**[mem x t] searches [t] for [x] returing [true] if found, [false] if
+   not*)
 
 val iter : ('a -> 'b -> unit) -> ('a, 'b) t -> unit
 (**[iter f tab] applies [f] to each binding in [t]*)
