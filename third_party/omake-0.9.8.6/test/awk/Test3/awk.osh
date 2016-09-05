@@ -1,3 +1,0 @@
-fsubst(../Subst.in)
-case $"\<\([[:alnum:]]+\)\." g
-    value $(capitalize $1).

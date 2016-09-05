@@ -1,6 +1,0 @@
-.SUBDIRS: .
-
-    a b:
-        touch b
-
-    .DEFAULT: a

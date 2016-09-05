@@ -1,3 +1,0 @@
-open ../../diff
-omake
-diff -u Subst.out Subst.out.expected

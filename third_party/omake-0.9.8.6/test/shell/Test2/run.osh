@@ -1,3 +1,0 @@
-open ../../diff
-omake --no--progress |grep -v 'omake.*[0-9] sec' > stdout
-diff -u stdout stdout.expected

@@ -1,3 +1,0 @@
-open ../../diff
-osh fib.om > stdout
-diff -u stdout stdout.expected

@@ -1,3 +1,0 @@
-open ../../diff
-osh object.om > stdout
-diff -u stdout stdout.expected

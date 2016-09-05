@@ -1,3 +1,0 @@
-open ../../diff
-osh memo.om > stdout
-diff -u stdout stdout.expected
