@@ -91,6 +91,24 @@ let rec fold (f : 'a -> 'b -> 'c -> 'c) (m : ('a, 'b) t) (acc : 'c) : 'c =
   | Empty -> acc
   | Node (l, k, d, r, _) -> fold f r (f k d (fold f l acc))
 
+let rec chk_bst : ('a, 'b) t -> bool = function
+  | Empty -> true
+  | Node (l, k, _, r, h) -> match (l, r) with
+    | Empty, Empty -> true
+    | Empty, Node (rl, rk, _, rr, _) -> 
+      chk_bst rl && k < rk && chk_bst rr
+    | Node (ll, lk, _, lr, _), Empty ->
+      chk_bst ll && lk < k && chk_bst lr
+    | Node (ll, lk, _, lr, _), Node (rl, rk, _, rr, _) ->
+      chk_bst ll && chk_bst lr && lk < k && chk_bst rl && chk_bst rr && k < rk
+
+let rec chk_bal : ('a, 'b) t -> bool = function
+  | Empty -> true
+  | Node (l, k, _, r, h) -> 
+    chk_bal l && chk_bal r && h = (max (height l) (height r)) + 1
+
+let chk_invariants = function m -> chk_bst m && chk_bal m
+    
 open Format
 
 let print 
