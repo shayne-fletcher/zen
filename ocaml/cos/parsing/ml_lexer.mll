@@ -190,10 +190,8 @@ rule token = parse
   | "if"                                                   { T_if }
   | "true"                                               { T_true }
   | "false"                                             { T_false }
-  | "fst"                                                 { T_fst }
-  | "snd"                                                 { T_snd }
   | decimal_literal as i                                { T_int i }
-  | lowercase identchar *
+  | lowercase identchar*
       { let s = Lexing.lexeme lexbuf in
         try 
           (*If its a keyword, look it up and return the associated
@@ -201,6 +199,8 @@ rule token = parse
           Hashtbl.find keyword_table s
         with Not_found -> T_ident s  (*Else, treat as identifier*)
       }
+  | uppercase identchar* { 
+                       let s = Lexing.lexeme lexbuf in T_uident s }
   | "(*"    { let s, loc = with_comment_buffer comment lexbuf in
               T_comment (s, loc) }
   | eof                                                  { T_eof  }

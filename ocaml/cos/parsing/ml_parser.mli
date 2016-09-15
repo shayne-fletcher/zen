@@ -18,12 +18,11 @@ type token =
   | T_if
   | T_then
   | T_else
-  | T_fst
-  | T_snd
   | T_eof
   | T_int of (string)
   | T_op of (string)
   | T_ident of (string)
+  | T_uident of (string)
   | T_comment of (string * Ml_location.t)
   | T_eol
 

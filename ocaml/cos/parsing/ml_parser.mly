@@ -172,12 +172,12 @@
 
 %token T_eq T_lt
 %token T_fun T_let T_rec T_in T_if T_then T_else
-%token T_fst T_snd
 %token T_eof
 
 %token <string> T_int
 %token <string> T_op
 %token <string> T_ident
+%token <string> T_uident
 %token <string * Ml_location.t> T_comment
 
 %token T_eol
@@ -195,6 +195,7 @@
 %left T_plus T_minus
 %left T_star
 %nonassoc prec_unary_minus
+%nonassoc prec_constr_appl /*above T_as T_bar T_coloncolon T_comma*/
 
 /*Finally, the first tokens of `simple_expr` are above everything else */
 %nonassoc T_false T_true T_int T_ident T_lparen T_rparen
@@ -238,9 +239,7 @@ expr:
  | let_bindings T_in expr                     { expr_of_let_bindings $1 $3 }
  | T_fun simple_pattern fun_def                 { mkexp (Pexp_fun ($2, $3))}
  | T_if expr T_then expr T_else expr {mkexp(Pexp_if_then_else ($2, $4, $6))}
- | expr_pair %prec below_comma { let u, v = $1 in mkexp (Pexp_pair (u, v)) }
- | T_fst simple_expr       { mkexp (Pexp_apply (mkoperator "fst" 1, [$2])) }
- | T_snd simple_expr       { mkexp (Pexp_apply (mkoperator "snd" 1, [$2])) }
+ | expr_comma_list %prec below_comma    { mkexp (Pexp_tuple (List.rev $1)) }
  | expr T_plus expr                                    { mkinfix $1 "+" $3 }
  | expr T_minus expr                                   { mkinfix $1 "-" $3 }
  | expr T_star expr                                    { mkinfix $1 "*" $3 }
@@ -248,9 +247,6 @@ expr:
  | expr T_lt expr                                      { mkinfix $1 "<" $3 }
  | T_minus expr %prec prec_unary_minus                       { mkuminus $2 }
  | T_underscore                         { not_expecting 1 "wildcard \"_\"" }
- ;
-expr_pair:
- | expr T_comma expr                                            { ($1, $3) }
  ;
 let_bindings:
  | let_binding                                                        { $1 }
@@ -270,26 +266,29 @@ fun_def:
   | T_arrow expr                                                      { $2 }
   | simple_pattern fun_def                      { mkexp (Pexp_fun ($1, $2))}
   ;
+expr_comma_list:
+  | expr_comma_list T_comma expr                                { $3 :: $1 }
+  | expr T_comma expr                                           { [$3; $1] }
+  ;
 simple_expr:
- | constant                                     { mkexp (Pexp_constant $1) }
- | constr_ident                      { mkexp (Pexp_construct (mkrhs $1 1)) }
- | ident                                { mkexp (Pexp_ident (mkrhs $1 1))  }
- | T_lparen expr T_rparen                                  { reloc_exp $2  }
- | T_lparen expr error                              { unclosed "(" 1 ")" 3 }
+  | constant                                    { mkexp (Pexp_constant $1) }
+  | constr_ident                     { mkexp (Pexp_construct (mkrhs $1 1)) }
+  | ident                               { mkexp (Pexp_ident (mkrhs $1 1))  }
+  | T_lparen expr T_rparen                                 { reloc_exp $2  }
+  | T_lparen expr error                             { unclosed "(" 1 ")" 3 }
  ;
 simple_expr_list:
- | simple_expr                                                      { [$1] }
- | simple_expr_list simple_expr                                 { $2 :: $1 }
+  | simple_expr                                                     { [$1] }
+  | simple_expr_list simple_expr                                { $2 :: $1 }
  ;
 
 /*Patterns*/
 
 pattern:
   | simple_pattern                                                    { $1 }
-  | simple_pattern_pair  %prec below_comma          { mkpat (Ppat_pair $1) }
-  ;
-simple_pattern_pair:
-  | simple_pattern T_comma simple_pattern                       { ($1, $3) }
+  | pattern_comma_list  %prec below_comma          { mkpat (Ppat_tuple $1) }
+  | constr_ident pattern %prec prec_constr_appl 
+                             { mkpat (Ppat_construct(mkrhs $1 1, Some $2)) }
   ;
 simple_pattern:
   | ident %prec below_eq                    { mkpat(Ppat_var (mkrhs $1 1)) }
@@ -298,9 +297,13 @@ simple_pattern:
 simple_pattern_not_ident:
   | T_underscore                                        { mkpat (Ppat_any) }
   | constant                                    { mkpat (Ppat_constant $1) }
-  | constr_ident                     { mkpat (Ppat_construct (mkrhs $1 1)) }
+  | constr_ident               { mkpat (Ppat_construct (mkrhs $1 1, None)) }
   | T_lparen pattern T_rparen                               { reloc_pat $2 }
   | T_lparen pattern error                          { unclosed "(" 1 ")" 3 }
+  ;
+pattern_comma_list:
+  | pattern_comma_list T_comma pattern                          { $3 :: $1 }
+  | pattern T_comma pattern                                     { [$3; $1] }
   ;
 
 /*Identifiers */
@@ -309,6 +312,7 @@ ident:
   | T_ident                                                           { $1 }
   ;
 constr_ident:
+  | T_uident                                                          { $1 }
   | T_lparen T_rparen                                               { "()" }
   | T_true                                                        { "true" }
   | T_false                                                      { "false" }

@@ -40,6 +40,15 @@ let list
      List.iter (f (i + 1) ppf) l;
      line i ppf "]\n"
 
+(*[option i f ppf x] formats an ['a option] on ppf with a depth
+  indicator given by [i] by way of [f]*)
+let option i f ppf x =
+  match x with
+  | None -> line i ppf "None\n";
+  | Some x ->
+      line i ppf "Some\n";
+      f (i + 1) ppf x
+
 (*[fmt_rec_flag ppf x] formats ["Rec"] or ["Nonrec"] on [ppf]
    according to the case of [x]*)
 let fmt_rec_flag (ppf : formatter) (x : rec_flag) : unit =
@@ -113,10 +122,12 @@ and pattern (i : int) (ppf : formatter) (x : pattern) : unit =
   | Ppat_any -> line i ppf "Ppat_any\n";
   | Ppat_var s -> line i ppf "Ppat_var %a\n" fmt_string_loc s;
   | Ppat_constant c -> line i ppf "Ppat_constant %a\n" fmt_constant c;
-  | Ppat_construct li -> line i ppf "Ppat_construct %a\n" fmt_ident_loc li
-  | Ppat_pair (u, v) ->
-      line i ppf "Ppat_pair\n";
-      pair i pattern ppf (u, v)
+  | Ppat_construct (li, po) -> 
+    line i ppf "Ppat_construct %a\n" fmt_ident_loc li;
+    option i pattern ppf po
+  | Ppat_tuple l ->
+      line i ppf "Ppat_tuple\n";
+      list i pattern ppf l
 (*Format function for expressions*)
 and expression (i : int) (ppf : formatter) (x : expression) : unit  =
   line i ppf "expression %a\n" fmt_location x.pexp_loc;
@@ -137,14 +148,27 @@ and expression (i : int) (ppf : formatter) (x : expression) : unit  =
     line i ppf "Pexp_apply\n";
     expression i ppf e;
     list i x_expression ppf l
-  | Pexp_pair (u, v) ->
-    line i ppf "Pexp_pair\n";
-    pair i expression ppf (u, v)
+  | Pexp_match (e, l) ->
+    line i ppf "Pexp_match\n";
+    expression i ppf e;
+    list i case ppf l
+  | Pexp_tuple l ->
+    line i ppf "Pexp_tuple\n";
+    list i expression ppf l
   | Pexp_if_then_else (e1, e2, e3) ->
     line i ppf "Pexp_if_then_else\n";
     expression i ppf e1;
     expression i ppf e2;
     expression i ppf e3
+(*Format function for match cases*)
+and case i ppf {pc_lhs; pc_guard; pc_rhs} =
+  line i ppf "<case>\n";
+  pattern (i + 1) ppf pc_lhs;
+  begin match pc_guard with
+  | None -> ()
+  | Some g -> line (i + 1) ppf "<when>\n"; expression (i + 2) ppf g
+  end;
+  expression (i + 1) ppf pc_rhs
 (*Format function for value bindings*)
 and value_binding (i : int) (ppf : formatter) (x : value_binding) : unit =
   line i ppf "<def>\n";

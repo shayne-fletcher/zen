@@ -17,10 +17,16 @@ type pattern = {
 (**The type of pattern descriptions*)
 and pattern_desc = 
 | Ppat_any (*'_'*)  (**Wildcard*)
-| Ppat_constant of constant (**A constant*)
-| Ppat_construct of string loc (*'()', 'true', 'false'*) (**Constructor*)
 | Ppat_var of string loc (**Variable*)
-| Ppat_pair of (pattern * pattern) (**Pair*)
+| Ppat_constant of constant (**A constant*)
+| Ppat_tuple of pattern list (**A tuple pattern (invariant n >=2)*)
+| Ppat_construct of string loc * pattern option (**Constructor*)
+(*'()', 'true', 'false'
+
+       C                None
+       C P              Some P
+       C (P1, ..., Pn)  Some (Ppat_tuple [P1; ...; Pn])
+*)
 
 (**The type of expressions*)
 and expression = {
@@ -32,8 +38,10 @@ and expression = {
 and expression_desc =
 | Pexp_ident of string loc (**Identifiers*)
 | Pexp_constant of constant (**Constants*)
-| Pexp_pair of expression * expression (**Pairs*)
+| Pexp_tuple of expression list (**Tuples (invariant n >= 2)*)
 | Pexp_construct of string loc (**Constructors*)
+| Pexp_match of expression * case list (**Match*)
+  (*match E0 with P1 -> E1 | ... | Pn -> En*)
 | Pexp_if_then_else of expression * expression * expression (**Conditionals*)
 | Pexp_fun of pattern * expression (**Functions*)
 | Pexp_apply of expression * expression list (**Application*)
@@ -44,6 +52,13 @@ and value_binding = {
   pvb_pat : pattern;  (**The pattern*)
   pvb_expr : expression;  (**The bound expression*)
   pvb_loc : Ml_location.t; (**Location in the source*)
+}
+
+and case = (*(P -> E) or (P when E0 -> E)*)
+{
+  pc_lhs : pattern;
+  pc_guard : expression option;
+  pc_rhs : expression;
 }
 
 (**The type of structures*)

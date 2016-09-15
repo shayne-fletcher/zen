@@ -39,13 +39,15 @@ and expression = {
 }
 
 and expression_desc =
+| Pexp_var of variable
 | Pexp_case of variable * clause list
 | Pexp_fatbar of expression * expression
-(* (| ...) *)
-| Pexp_var of variable
 
-and clause =
-| Pexp_clause of constructor * variable list * expression
+and clause = {
+  pcl_constructor : constructor;
+  pcl_variables : variable list;
+  pcl_expr : expression;
+}
 
 (*The '...' in the definition of type [expression_desc] stands for
   other constructors used to represent other expressions, such as
@@ -252,7 +254,9 @@ and match_clause
     | _ -> assert false in
   let qs' : equation list = List.map f qs in
 
-  Pexp_clause (c, us', match_ (k' + k) (us' @ us) qs' def)
+  {pcl_constructor = c;
+   pcl_variables = us';
+   pcl_expr =  match_ (k' + k) (us' @ us) qs' def}
 
 and choose (c : constructor) (qs : equation list) : equation list =
   List.filter (fun e -> (get_con e) = c) qs
@@ -296,8 +300,11 @@ let pair
 let fmt_ident (ppf : formatter) (x : string) : unit =
   fprintf ppf "\"%s\"" x
 
+(*
 let ident (i : int) (ppf : formatter) (x : string) : unit =
-  line i ppf "%a" fmt_ident x
+  fmt_ident ppf x
+  (* line i ppf "%a" fmt_ident x *)
+*)
 
 let rec pattern (i : int) (ppf : formatter) (x : pattern) : unit =
   line i ppf "pattern\n";
@@ -322,15 +329,21 @@ and expression (i : int) (ppf : formatter) (x : expression) : unit =
   | Pexp_var v ->
     line i ppf "Pexp_var %a\n" fmt_ident v
 
-and clause (i : int) (ppf : formatter) (c : clause) : unit =
-  line i ppf "clause\n";
+and clause 
+    (i : int) 
+    (ppf : formatter) 
+  ({pcl_constructor; pcl_variables; pcl_expr} : clause) : unit =
+  line i ppf "Pexp_clause\n";
   let i = i + 1 in
-  match c with
-  | Pexp_clause (c, vs, e) ->
-    line i ppf "%a\n" fmt_ident c;
-    list i ident ppf vs;
-    expression i ppf e
+  line i ppf "constructor %a\n" fmt_ident pcl_constructor;
+  variables i ppf pcl_variables;
+  expression i ppf pcl_expr
 
+and variables (i : int) (ppf : formatter) (vs : variable list) : unit =
+ line i ppf "variables ";
+ fprintf ppf "[%s]\n" 
+   (String.concat "; " (List.map (fun s -> "\"" ^  s ^ "\"") vs))
+  
 let string_of_pattern (p : pattern) : string =
   pattern 0 (str_formatter) p;
   flush_str_formatter ()
@@ -347,10 +360,22 @@ let () =
     } in
   Printf.printf "%s" (string_of_pattern p)
 
+(*
+  match xs with
+  | [] -> e
+  | y :: ys -> e
+*)
 let () =
   let e : expression =
     {pexp_desc=Pexp_case ("xs", 
-       [Pexp_clause("[]", [], {pexp_desc=Pexp_var "e"});
-        Pexp_clause("::", ["y"; "ys"], {pexp_desc=Pexp_var "e"});
+       [
+         {pcl_constructor="[]";
+          pcl_variables=[];
+          pcl_expr = { pexp_desc=Pexp_var "e"}
+         };
+         { pcl_constructor="::";
+           pcl_variables=["y"; "ys"];
+           pcl_expr = { pexp_desc = Pexp_var "e"}
+         }
        ])} in
   Printf.printf "%s" (string_of_expression e)
