@@ -77,6 +77,10 @@
       mkexp (Pexp_constant (Pconst_int (neg_string n)))
     | _ -> mkexp (Pexp_apply (mkoperator "-" 1, [arg]))
 
+  let mkexp_cons consloc args loc =
+    {pexp_desc = Pexp_construct (mkloc "::" consloc, Some args) 
+    ; pexp_loc = loc}
+
   (*Apply an infix operator to two expressions*)
   let mkinfix 
       (arg1 : expression) 
@@ -166,6 +170,8 @@
 
 /*Tokens*/
 
+%token T_colon
+%token T_coloncolon
 %token T_true T_false
 %token T_plus T_minus T_star
 %token T_lparen T_rparen T_comma T_arrow T_underscore
@@ -192,6 +198,7 @@
 %left T_comma
 %nonassoc below_eq
 %left T_eq T_less T_gt
+%right T_coloncolon /*expr (e :: e :: e)*/
 %left T_plus T_minus
 %left T_star
 %nonassoc prec_unary_minus
@@ -240,6 +247,8 @@ expr:
  | T_fun simple_pattern fun_def                 { mkexp (Pexp_fun ($2, $3))}
  | T_if expr T_then expr T_else expr {mkexp(Pexp_if_then_else ($2, $4, $6))}
  | expr_comma_list %prec below_comma    { mkexp (Pexp_tuple (List.rev $1)) }
+ | expr T_coloncolon expr {
+      mkexp_cons (rhs_loc 2) (ghexp (Pexp_tuple [$1; $3])) (symbol_rloc()) }
  | expr T_plus expr                                    { mkinfix $1 "+" $3 }
  | expr T_minus expr                                   { mkinfix $1 "-" $3 }
  | expr T_star expr                                    { mkinfix $1 "*" $3 }

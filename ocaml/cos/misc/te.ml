@@ -87,7 +87,7 @@ let string_of_expression (e : expression) : string =
 let mk_pat (p : pattern_desc) : pattern = {ppat_desc = p}
 let mk_exp (e : expression_desc) : expression = {pexp_desc = e}
 
-(*fun x -> x + 1*)
+(*fun_pat x -> x + 1*)
 let e = 
   mk_exp (
       Pexp_patfun (
@@ -105,8 +105,7 @@ let gen_var () =
   let next () =
     counter := !counter + 1;
     "_" ^ (string_of_int (!counter)) in
-  let reset () =
-    counter := (-1)
+  let reset () = counter := (-1)
   in (next, reset)
 
 let (mk_var, reset) = gen_var ()
@@ -135,7 +134,6 @@ let rec translate_exp ({pexp_desc = e} as exp : expression) : expression =
          ))
     | _ -> assert false
 
-(*fun _0 -> (fun x -> x + 1) _0*)
-       
+(*fun _0 -> (fun_pat x -> x + 1) _0*)
 let () = 
   Printf.printf "%s\n" (string_of_expression (translate_exp e))

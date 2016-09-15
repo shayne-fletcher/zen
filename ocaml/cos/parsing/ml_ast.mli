@@ -39,7 +39,11 @@ and expression_desc =
 | Pexp_ident of string loc (**Identifiers*)
 | Pexp_constant of constant (**Constants*)
 | Pexp_tuple of expression list (**Tuples (invariant n >= 2)*)
-| Pexp_construct of string loc (**Constructors*)
+| Pexp_construct of string loc * expression option (**Constructors*)
+  (* C                None
+     C E              Some E
+     C (E1, ..., En)  Some (Pexp_tuple[E1;...;En])
+  *)
 | Pexp_match of expression * case list (**Match*)
   (*match E0 with P1 -> E1 | ... | Pn -> En*)
 | Pexp_if_then_else of expression * expression * expression (**Conditionals*)
