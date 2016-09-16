@@ -1,4 +1,6 @@
 type token =
+  | T_colon
+  | T_coloncolon
   | T_true
   | T_false
   | T_plus
@@ -9,6 +11,9 @@ type token =
   | T_comma
   | T_arrow
   | T_underscore
+  | T_semi
+  | T_lbracket
+  | T_rbracket
   | T_eq
   | T_lt
   | T_fun

@@ -179,7 +179,11 @@ rule token = parse
   | '*'                                                  { T_star }
   | '('                                                { T_lparen }
   | ')'                                                { T_rparen }
+  | "::"                                           { T_coloncolon }
+  | ";"                                                  { T_semi }
   | "="                                                    { T_eq }
+  | "["                                              { T_lbracket }
+  | "]"                                              { T_rbracket }
   | '<'                                                    { T_lt }
   | "fun"                                                 { T_fun }
   | "let"                                                 { T_let }

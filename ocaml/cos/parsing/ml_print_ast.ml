@@ -135,7 +135,9 @@ and expression (i : int) (ppf : formatter) (x : expression) : unit  =
   match x.pexp_desc with
   | Pexp_ident li -> line i ppf "Pexp_ident %a\n" fmt_ident_loc li
   | Pexp_constant c -> line i ppf "Pexp_constant %a\n" fmt_constant c
-  | Pexp_construct li ->  line i ppf "Pexp_construct %a\n" fmt_ident_loc li
+  | Pexp_construct (li, eo) ->
+      line i ppf "Pexp_construct %a\n" fmt_ident_loc li;
+      option i expression ppf eo
   | Pexp_let (rf, l, e) ->
     line i ppf "Pexp_let %a\n" fmt_rec_flag rf;
     list i value_binding ppf l;

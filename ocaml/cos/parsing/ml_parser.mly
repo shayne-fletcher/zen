@@ -34,6 +34,12 @@
 
   (*Produce a [expression] from a [expression_desc] and the location of
     the left-hand-side of the matched rule*)
+  let ghexp (e : expression_desc) : expression =
+    let loc = symbol_gloc () in
+    { pexp_desc = e; pexp_loc = loc }
+
+  (*Produce a [expression] from a [expression_desc] and the location of
+    the left-hand-side of the matched rule*)
   let mkexp (e : expression_desc) : expression = 
     let loc = symbol_rloc () in
     { pexp_desc = e; pexp_loc = loc }
@@ -77,9 +83,28 @@
       mkexp (Pexp_constant (Pconst_int (neg_string n)))
     | _ -> mkexp (Pexp_apply (mkoperator "-" 1, [arg]))
 
-  let mkexp_cons consloc args loc =
+  (*Produce a 'cons' expression*)
+  let mkexp_cons 
+      (consloc : Ml_location.t) 
+      (args : expression) 
+      (loc : Ml_location.t) : expression =
     {pexp_desc = Pexp_construct (mkloc "::" consloc, Some args) 
     ; pexp_loc = loc}
+
+  (*Produce an [expression] to represent a list*)
+  let rec mktailexp 
+      (nilloc : Ml_location.t) : expression list -> expression = function
+    | [] ->
+      let loc = { nilloc with loc_ghost = true } in
+      let nil = { txt = "[]"; loc } in
+      {pexp_desc = Pexp_construct (nil, None); pexp_loc = loc;}
+    | e1 :: el ->
+      let exp_el = mktailexp nilloc el in
+      let loc = { loc_start = e1.pexp_loc.loc_start;
+                  loc_end = exp_el.pexp_loc.loc_end;
+                  loc_ghost = true} in
+      let arg = {pexp_desc = Pexp_tuple [e1; exp_el]; pexp_loc = loc} in
+      mkexp_cons {loc with loc_ghost = true} arg loc
 
   (*Apply an infix operator to two expressions*)
   let mkinfix 
@@ -174,7 +199,8 @@
 %token T_coloncolon
 %token T_true T_false
 %token T_plus T_minus T_star
-%token T_lparen T_rparen T_comma T_arrow T_underscore
+%token T_lparen T_rparen T_comma T_arrow T_underscore T_semi
+%token T_lbracket T_rbracket
 
 %token T_eq T_lt
 %token T_fun T_let T_rec T_in T_if T_then T_else
@@ -191,13 +217,17 @@
 /*Precedences and associatives*/
 
 %nonassoc T_in
-%nonassoc T_let
+%nonassoc below_semi
+%nonassoc T_semi
+%nonassoc T_let  /*above T_semi (...; let ... in ...)*/
 %nonassoc T_then
 %nonassoc T_else
 %nonassoc below_comma
 %left T_comma
 %nonassoc below_eq
 %left T_eq T_less T_gt
+%nonassoc below_lbracket
+
 %right T_coloncolon /*expr (e :: e :: e)*/
 %left T_plus T_minus
 %left T_star
@@ -205,7 +235,7 @@
 %nonassoc prec_constr_appl /*above T_as T_bar T_coloncolon T_comma*/
 
 /*Finally, the first tokens of `simple_expr` are above everything else */
-%nonassoc T_false T_true T_int T_ident T_lparen T_rparen
+%nonassoc T_false T_true T_int T_ident T_lparen T_rparen T_lbracket T_rbracket
 
 /*Entry points*/
 
@@ -247,6 +277,7 @@ expr:
  | T_fun simple_pattern fun_def                 { mkexp (Pexp_fun ($2, $3))}
  | T_if expr T_then expr T_else expr {mkexp(Pexp_if_then_else ($2, $4, $6))}
  | expr_comma_list %prec below_comma    { mkexp (Pexp_tuple (List.rev $1)) }
+ | constr_ident simple_expr  { mkexp (Pexp_construct (mkrhs $1 1, Some $2))}
  | expr T_coloncolon expr {
       mkexp_cons (rhs_loc 2) (ghexp (Pexp_tuple [$1; $3])) (symbol_rloc()) }
  | expr T_plus expr                                    { mkinfix $1 "+" $3 }
@@ -281,15 +312,21 @@ expr_comma_list:
   ;
 simple_expr:
   | constant                                    { mkexp (Pexp_constant $1) }
-  | constr_ident                     { mkexp (Pexp_construct (mkrhs $1 1)) }
+  | constr_ident               { mkexp (Pexp_construct (mkrhs $1 1, None)) }
   | ident                               { mkexp (Pexp_ident (mkrhs $1 1))  }
   | T_lparen expr T_rparen                                 { reloc_exp $2  }
+  | T_lbracket expr_semi_list opt_semi T_rbracket { 
+                           reloc_exp (mktailexp (rhs_loc 4) (List.rev $2)) }
   | T_lparen expr error                             { unclosed "(" 1 ")" 3 }
  ;
 simple_expr_list:
   | simple_expr                                                     { [$1] }
   | simple_expr_list simple_expr                                { $2 :: $1 }
  ;
+expr_semi_list:
+  | expr                                                            { [$1] }
+  | expr_semi_list T_semi expr                                  { $3 :: $1 }
+  ;
 
 /*Patterns*/
 
@@ -322,6 +359,7 @@ ident:
   ;
 constr_ident:
   | T_uident                                                          { $1 }
+  | T_lbracket T_rbracket                                           { "[]" }
   | T_lparen T_rparen                                               { "()" }
   | T_true                                                        { "true" }
   | T_false                                                      { "false" }
@@ -339,5 +377,10 @@ rec_flag:
   | /* empty */                                             { Nonrecursive }
   | T_rec                                                      { Recursive }
 ;
+
+opt_semi:
+  | /* empty */                                                         {()}
+  | T_semi                                                              {()}
+  ;
 
 %%
