@@ -231,8 +231,12 @@
 
 /*Tokens*/
 
+%token T_amperamper
+%token T_and
 %token T_arrow
+%token T_bang
 %token T_bar
+%token T_barbar
 %token T_colon
 %token T_coloncolon
 %token T_comma
@@ -243,9 +247,11 @@
 %token T_eq 
 %token T_false
 %token T_fun 
+%token T_gt
 %token <string> T_ident
 %token T_if
 %token T_in
+%token <string> T_infixop0
 %token <string> T_int
 %token T_lbracket
 %token T_let
@@ -253,7 +259,6 @@
 %token T_lt
 %token T_match
 %token T_minus
-%token <string> T_op
 %token T_plus 
 %token T_rbracket
 %token T_rec
@@ -279,11 +284,12 @@
 %nonassoc T_else
 %left T_bar     /* pattern (p | p | p)*/
 %nonassoc below_comma
-%left T_comma
+%right T_barbar  /*expr (e || e || e)*/
+%right T_amperamper  /*expr (e && e && e)*/
+%left T_comma 
 %nonassoc below_eq
-%left T_eq T_less T_gt
+%left T_infixop0 T_eq T_less T_gt /* expr (e OP e OP e)*/
 %nonassoc below_lbracket
-
 %right T_coloncolon /*expr (e :: e :: e)*/
 %left T_plus T_minus
 %left T_star
@@ -291,7 +297,7 @@
 %nonassoc prec_constr_appl /*above T_as T_bar T_coloncolon T_comma*/
 
 /*Finally, the first tokens of `simple_expr` are above everything else */
-%nonassoc T_false T_true T_int T_ident T_lparen T_rparen T_lbracket T_rbracket
+%nonassoc T_bang T_false T_ident T_int T_lbracket T_lparen T_rparen T_rbracket T_true 
 
 /*Entry points*/
 
@@ -338,11 +344,15 @@ expr:
  | constr_ident simple_expr  { mkexp (Pexp_construct (mkrhs $1 1, Some $2))}
  | expr T_coloncolon expr {
       mkexp_cons (rhs_loc 2) (ghexp (Pexp_tuple [$1; $3])) (symbol_rloc()) }
+ | expr T_infixop0 expr                                 { mkinfix $1 $2 $3 }
  | expr T_plus expr                                    { mkinfix $1 "+" $3 }
  | expr T_minus expr                                   { mkinfix $1 "-" $3 }
  | expr T_star expr                                    { mkinfix $1 "*" $3 }
  | expr T_eq expr                                      { mkinfix $1 "=" $3 }
  | expr T_lt expr                                      { mkinfix $1 "<" $3 }
+ | expr T_gt expr                                      { mkinfix $1 ">" $3 }
+ | expr T_amperamper expr                             { mkinfix $1 "&&" $3 }
+ | expr T_barbar expr                                 { mkinfix $1 "||" $3 }
  | T_minus expr %prec prec_unary_minus                       { mkuminus $2 }
  | T_underscore                         { not_expecting 1 "wildcard \"_\"" }
  ;
@@ -376,6 +386,7 @@ simple_expr:
   | T_lbracket expr_semi_list opt_semi T_rbracket { 
                            reloc_exp (mktailexp (rhs_loc 4) (List.rev $2)) }
   | T_lparen expr error                             { unclosed "(" 1 ")" 3 }
+  | T_bang simple_expr       { mkexp (Pexp_apply (mkoperator "!" 1, [$2])) }
  ;
 simple_expr_list:
   | simple_expr                                                     { [$1] }

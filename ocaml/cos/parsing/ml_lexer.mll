@@ -39,6 +39,7 @@ let create_hashtable
 (**[keyword_table] associates keywords with their tokens*)
 let keyword_table =
   create_hashtable 149 [
+    "and", T_and;
     "else", T_else;
     "false", T_false;
     "fun", T_fun;
@@ -167,7 +168,7 @@ let blank = [' ' '\009' '\012']
 let newline = ('\013'* '\010')
 let decimal_literal = ['0'-'9'] ['0'-'9' '_']*
 let identchar = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
-
+let symbolchar =['*' '+' '-' '.' '/' '<' '=' '>']
 let lowercase = ['a'-'z' '_']
 let uppercase = ['A'-'Z']
 
@@ -182,13 +183,17 @@ rule token = parse
   | '*'                                                  { T_star }
   | '('                                                { T_lparen }
   | ')'                                                { T_rparen }
+  | "!"                                                  { T_bang }
   | "::"                                           { T_coloncolon }
   | ";"                                                  { T_semi }
   | "|"                                                   { T_bar }
+  | "||"                                               { T_barbar }
+  | "&&"                                           { T_amperamper }
   | "="                                                    { T_eq }
   | "["                                              { T_lbracket }
   | "]"                                              { T_rbracket }
   | '<'                                                    { T_lt }
+  | '>'                                                    { T_gt }
   | decimal_literal as i                                { T_int i }
   | lowercase identchar*
       { let s = Lexing.lexeme lexbuf in
@@ -202,6 +207,7 @@ rule token = parse
                        let s = Lexing.lexeme lexbuf in T_uident s }
   | "(*"    { let s, loc = with_comment_buffer comment lexbuf in
               T_comment (s, loc) }
+  | ['=' '<' '>'] symbolchar* { T_infixop0 (Lexing.lexeme lexbuf) }
   | eof                                                  { T_eof  }
   | _ 
       {raise (Error (Illegal_character (Lexing.lexeme_char lexbuf 0)
