@@ -27,6 +27,7 @@ and pattern_desc =
        C P              Some P
        C (P1, ..., Pn)  Some (Ppat_tuple [P1; ...; Pn])
 *)
+| Ppat_or of pattern * pattern (* P1 | P2 *)
 
 (**The type of expressions*)
 and expression = {

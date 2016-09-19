@@ -415,6 +415,7 @@ pattern:
                              { mkpat (Ppat_construct(mkrhs $1 1, Some $2)) }
   | pattern T_coloncolon pattern {
     mkpat_cons (rhs_loc 2)  (ghpat (Ppat_tuple [$1; $3])) (symbol_rloc ()) }
+  | pattern T_bar pattern                       { mkpat (Ppat_or ($1, $3)) }
   ;
 simple_pattern:
   | ident %prec below_eq                    { mkpat(Ppat_var (mkrhs $1 1)) }

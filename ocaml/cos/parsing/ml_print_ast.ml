@@ -128,6 +128,10 @@ and pattern (i : int) (ppf : formatter) (x : pattern) : unit =
   | Ppat_tuple l ->
       line i ppf "Ppat_tuple\n";
       list i pattern ppf l
+  | Ppat_or (p1, p2) ->
+    line i ppf "Ppat_or\n";
+    pattern i ppf p1;
+    pattern i ppf p2
 (*Format function for expressions*)
 and expression (i : int) (ppf : formatter) (x : expression) : unit  =
   line i ppf "expression %a\n" fmt_location x.pexp_loc;
