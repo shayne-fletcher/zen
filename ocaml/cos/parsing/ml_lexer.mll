@@ -45,9 +45,12 @@ let keyword_table =
     "if", T_if;
     "in", T_in;
     "let", T_let;
+    "match", T_match;
     "rec", T_rec;
     "then", T_then;
     "true", T_true;
+    "when", T_when;
+    "with", T_with;
   ]
 
 (**An allocation of 256 bytes*)
@@ -181,19 +184,11 @@ rule token = parse
   | ')'                                                { T_rparen }
   | "::"                                           { T_coloncolon }
   | ";"                                                  { T_semi }
+  | "|"                                                   { T_bar }
   | "="                                                    { T_eq }
   | "["                                              { T_lbracket }
   | "]"                                              { T_rbracket }
   | '<'                                                    { T_lt }
-  | "fun"                                                 { T_fun }
-  | "let"                                                 { T_let }
-  | "rec"                                                 { T_rec }
-  | "in"                                                   { T_in }
-  | "then"                                               { T_then }
-  | "else"                                               { T_else }
-  | "if"                                                   { T_if }
-  | "true"                                               { T_true }
-  | "false"                                             { T_false }
   | decimal_literal as i                                { T_int i }
   | lowercase identchar*
       { let s = Lexing.lexeme lexbuf in

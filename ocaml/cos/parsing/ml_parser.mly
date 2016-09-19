@@ -32,25 +32,31 @@
   let reloc_pat x = 
     { x with ppat_loc = symbol_rloc () } 
 
-  (*Produce a [expression] from a [expression_desc] and the location of
-    the left-hand-side of the matched rule*)
+  (*Produce an [expression] from an [expression_desc] and the location
+    of the left-hand-side of the matched rule*)
   let ghexp (e : expression_desc) : expression =
     let loc = symbol_gloc () in
     { pexp_desc = e; pexp_loc = loc }
 
-  (*Produce a [expression] from a [expression_desc] and the location of
+  (*Produce a [pattern] from a [pattern_desc] and the location of
     the left-hand-side of the matched rule*)
+  let ghpat (p : pattern_desc) : pattern =
+    let loc = symbol_gloc () in
+    { ppat_desc = p; ppat_loc = loc }
+
+  (*Produce an [expression] from a [expression_desc] and the location
+    of the left-hand-side of the matched rule*)
   let mkexp (e : expression_desc) : expression = 
     let loc = symbol_rloc () in
     { pexp_desc = e; pexp_loc = loc }
 
-  (*Produce a [expression] from the provided [expression] but with a
+  (*Produce an [expression] from the provided [expression] but with a
     location that spans the left-hand-side of the matched rule
     (e.g. including surrounding parentheses)*)
   let reloc_exp x = 
     { x with pexp_loc = symbol_rloc () }
 
-  (*Produce a expression (of case [Pexp_ident]) corresponding to the
+  (*Produce an expression (of case [Pexp_ident]) corresponding to the
     item at orinal position [pos] in the right hand side of the rule
     (including sourrounding parentheses)*)
   let mkoperator name pos =
@@ -91,6 +97,14 @@
     {pexp_desc = Pexp_construct (mkloc "::" consloc, Some args) 
     ; pexp_loc = loc}
 
+  (*Produce a 'cons' pattern*)
+  let mkpat_cons 
+      (consloc : Ml_location.t) 
+      (args : pattern) 
+      (loc : Ml_location.t) : pattern =
+    {ppat_desc = Ppat_construct (mkloc "::" consloc, Some args) 
+    ; ppat_loc = loc}
+
   (*Produce an [expression] to represent a list*)
   let rec mktailexp 
       (nilloc : Ml_location.t) : expression list -> expression = function
@@ -105,6 +119,21 @@
                   loc_ghost = true} in
       let arg = {pexp_desc = Pexp_tuple [e1; exp_el]; pexp_loc = loc} in
       mkexp_cons {loc with loc_ghost = true} arg loc
+
+  (*Produce a [pattern] to represent a list*)
+  let rec mktailpat 
+      (nilloc : Ml_location.t) : pattern list -> pattern = function
+    | [] ->
+      let loc = { nilloc with loc_ghost = true } in
+      let nil = { txt = "[]"; loc } in
+      {ppat_desc = Ppat_construct (nil, None); ppat_loc = loc;}
+    | p1 :: pl ->
+      let pat_pl = mktailpat nilloc pl in
+      let loc = { loc_start = p1.ppat_loc.loc_start;
+                  loc_end = pat_pl.ppat_loc.loc_end;
+                  loc_ghost = true} in
+      let arg = {ppat_desc = Ppat_tuple [p1; pat_pl]; ppat_loc = loc} in
+      mkpat_cons {loc with loc_ghost = true} arg loc
 
   (*Apply an infix operator to two expressions*)
   let mkinfix 
@@ -125,6 +154,13 @@
     { lbs_bindings: let_binding list;
       lbs_rec: rec_flag;
       lbs_loc: Ml_location.t }
+
+  let mkcase 
+      (p : pattern)
+      (g : expression option)
+      (rhs : expression)
+      : case = 
+    { pc_lhs = p; pc_guard = g; pc_rhs = rhs }
 
   (*Produce a [let_binding] from a pair of pattern and expression
     and the location of the left-hand-side of the matched rule*)
@@ -195,24 +231,41 @@
 
 /*Tokens*/
 
+%token T_arrow
+%token T_bar
 %token T_colon
 %token T_coloncolon
-%token T_true T_false
-%token T_plus T_minus T_star
-%token T_lparen T_rparen T_comma T_arrow T_underscore T_semi
-%token T_lbracket T_rbracket
-
-%token T_eq T_lt
-%token T_fun T_let T_rec T_in T_if T_then T_else
-%token T_eof
-
-%token <string> T_int
-%token <string> T_op
-%token <string> T_ident
-%token <string> T_uident
+%token T_comma
 %token <string * Ml_location.t> T_comment
-
+%token T_else
+%token T_eof
 %token T_eol
+%token T_eq 
+%token T_false
+%token T_fun 
+%token <string> T_ident
+%token T_if
+%token T_in
+%token <string> T_int
+%token T_lbracket
+%token T_let
+%token T_lparen
+%token T_lt
+%token T_match
+%token T_minus
+%token <string> T_op
+%token T_plus 
+%token T_rbracket
+%token T_rec
+%token T_rparen 
+%token T_semi
+%token T_star
+%token T_then
+%token T_true
+%token <string> T_uident
+%token T_underscore
+%token T_when
+%token T_with
 
 /*Precedences and associatives*/
 
@@ -220,8 +273,11 @@
 %nonassoc below_semi
 %nonassoc T_semi
 %nonassoc T_let  /*above T_semi (...; let ... in ...)*/
+%nonassoc below_with
+%nonassoc WITH   /*below T_bar (match ... with ...)*/
 %nonassoc T_then
 %nonassoc T_else
+%left T_bar     /* pattern (p | p | p)*/
 %nonassoc below_comma
 %left T_comma
 %nonassoc below_eq
@@ -275,6 +331,8 @@ expr:
  | simple_expr simple_expr_list     { mkexp (Pexp_apply ($1, List.rev $2)) }
  | let_bindings T_in expr                     { expr_of_let_bindings $1 $3 }
  | T_fun simple_pattern fun_def                 { mkexp (Pexp_fun ($2, $3))}
+ | T_match expr T_with opt_bar match_cases {
+                                       mkexp (Pexp_match ($2, List.rev $5))}
  | T_if expr T_then expr T_else expr {mkexp(Pexp_if_then_else ($2, $4, $6))}
  | expr_comma_list %prec below_comma    { mkexp (Pexp_tuple (List.rev $1)) }
  | constr_ident simple_expr  { mkexp (Pexp_construct (mkrhs $1 1, Some $2))}
@@ -328,6 +386,15 @@ expr_semi_list:
   | expr_semi_list T_semi expr                                  { $3 :: $1 }
   ;
 
+match_cases:
+  | match_case                                                        {[$1]}
+  | match_cases T_bar match_case                                { $3 :: $1 }
+  ;
+match_case:
+  | pattern T_arrow expr                               { mkcase $1 None $3 }
+  | pattern T_when expr T_arrow expr              { mkcase $1 (Some $3) $5 }
+  ;
+
 /*Patterns*/
 
 pattern:
@@ -335,6 +402,8 @@ pattern:
   | pattern_comma_list  %prec below_comma          { mkpat (Ppat_tuple $1) }
   | constr_ident pattern %prec prec_constr_appl 
                              { mkpat (Ppat_construct(mkrhs $1 1, Some $2)) }
+  | pattern T_coloncolon pattern {
+    mkpat_cons (rhs_loc 2)  (ghpat (Ppat_tuple [$1; $3])) (symbol_rloc ()) }
   ;
 simple_pattern:
   | ident %prec below_eq                    { mkpat(Ppat_var (mkrhs $1 1)) }
@@ -381,6 +450,11 @@ rec_flag:
 opt_semi:
   | /* empty */                                                         {()}
   | T_semi                                                              {()}
+  ;
+
+opt_bar:
+  | /* empty */                                                         {()}
+  | T_bar                                                               {()}
   ;
 
 %%
