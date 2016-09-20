@@ -1,0 +1,20 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #029
+2016-09-20 by 
+Difficulty level :
+Hard
+Problem :
+ Making judicious use of user defined operators, define a minimal parser combinator library. Use your library to implement a parser of floating point numbers defined by the following BNF grammar:
+  digit   := '0'|'1'|'2'|'3'|'4'|'5'|'6'|'7'|'8'|'9'
+  digits  := digit digit*
+  optsign := '-'|'+'|¦Å;
+  optfrac := ('.' digit*)|¦Å;
+  optexp  := (('e'|'E') optsign digits)|¦Å;
+  number  := digits optfrac optexp

@@ -167,10 +167,11 @@ let () =
 let blank = [' ' '\009' '\012']
 let newline = ('\013'* '\010')
 let decimal_literal = ['0'-'9'] ['0'-'9' '_']*
-let identchar = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
-let symbolchar =['*' '+' '-' '.' '/' '<' '=' '>']
 let lowercase = ['a'-'z' '_']
 let uppercase = ['A'-'Z']
+let identchar = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
+let symbolchar =
+  ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '<' '=' '>' '?' '@' '^' '|' '~']
 
 rule token = parse
   | newline             { update_loc lexbuf None 1 false 0; T_eol }
@@ -194,6 +195,13 @@ rule token = parse
   | "]"                                              { T_rbracket }
   | '<'                                                    { T_lt }
   | '>'                                                    { T_gt }
+  | "!" symbolchar+          { T_prefix_op (Lexing.lexeme lexbuf) }
+  | ['~' '?'] symbolchar+    { T_prefix_op (Lexing.lexeme lexbuf) }
+  | ['=' '<' '>' '|' '&' '$'] symbolchar* { T_infixop0 (Lexing.lexeme lexbuf) }
+  | ['@' '^'] symbolchar*     { T_infixop1 (Lexing.lexeme lexbuf) }
+  | ['+' '-'] symbolchar*     { T_infixop2 (Lexing.lexeme lexbuf) }
+  | ['*' '/' '%'] symbolchar* { T_infixop3 (Lexing.lexeme lexbuf) }
+  | "**" symbolchar*          { T_infixop4 (Lexing.lexeme lexbuf) }
   | decimal_literal as i                                { T_int i }
   | lowercase identchar*
       { let s = Lexing.lexeme lexbuf in
@@ -207,7 +215,6 @@ rule token = parse
                        let s = Lexing.lexeme lexbuf in T_uident s }
   | "(*"    { let s, loc = with_comment_buffer comment lexbuf in
               T_comment (s, loc) }
-  | ['=' '<' '>'] symbolchar* { T_infixop0 (Lexing.lexeme lexbuf) }
   | eof                                                  { T_eof  }
   | _ 
       {raise (Error (Illegal_character (Lexing.lexeme_char lexbuf 0)
