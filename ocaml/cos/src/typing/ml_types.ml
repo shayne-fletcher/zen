@@ -68,7 +68,7 @@ and type_kind =
 | Type_variant of constructor_declaration list
 
 and constructor_declaration = {
-  cd_id : string;
+  cd_id : Ml_ident.t;
   cd_args : constructor_arguments;
   cd_res : type_expr option;
   cd_loc : Ml_location.t;
