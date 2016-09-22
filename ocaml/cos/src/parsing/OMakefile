@@ -1,0 +1,3 @@
+FILES[] = $(harvest_modules $(absname $(dir $(SYS_ROOT)/src/parsing)))
+LIB = ml_parser
+.DEFAULT: $(OCamlLibrary $(LIB), ml_lexer ml_parser $(FILES))

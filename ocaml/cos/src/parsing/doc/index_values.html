@@ -1,0 +1,329 @@
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Ml_ast" rel="Chapter" href="Ml_ast.html">
+<link title="Ml_asttypes" rel="Chapter" href="Ml_asttypes.html">
+<link title="Ml_location" rel="Chapter" href="Ml_location.html">
+<link title="Ml_parser" rel="Chapter" href="Ml_parser.html">
+<link title="Ml_print_ast" rel="Chapter" href="Ml_print_ast.html">
+<link title="Ml_syntaxerr" rel="Chapter" href="Ml_syntaxerr.html">
+<link title="Ml_typed_tree" rel="Chapter" href="Ml_typed_tree.html">
+<link title="Ml_types" rel="Chapter" href="Ml_types.html">
+<link title="Ml_expression_repl" rel="Chapter" href="Ml_expression_repl.html">
+<link title="Ml_lexer" rel="Chapter" href="Ml_lexer.html">
+<link title="Ml_pattern_repl" rel="Chapter" href="Ml_pattern_repl.html">
+<link title="Ml_toplevel_repl" rel="Chapter" href="Ml_toplevel_repl.html">
+<link title="Repl" rel="Chapter" href="Repl.html"><title>Index of values</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;</div>
+<h1>Index of values</h1>
+<table>
+<tr><td align="left"><br></td></tr>
+<tr><td><a href="Ml_lexer.html#VAL__ocaml_lex_comment_rec">__ocaml_lex_comment_rec</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_lexer.html#VAL__ocaml_lex_tables">__ocaml_lex_tables</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_lexer.html#VAL__ocaml_lex_token_rec">__ocaml_lex_token_rec</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td></td></tr>
+<tr><td align="left"><br>A</td></tr>
+<tr><td><a href="Ml_lexer.html#VALadd_comment">add_comment</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+Add a comment to the list
+</div>
+</td></tr>
+<tr><td align="left"><br>C</td></tr>
+<tr><td><a href="Ml_lexer.html#VALcomment">comment</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_lexer.html#VALcomment_list">comment_list</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+A list of all comments accumulated during lexing
+</div>
+</td></tr>
+<tr><td><a href="Ml_lexer.html#VALcomment_start_loc">comment_start_loc</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+A mutuable list of start locations of comments
+</div>
+</td></tr>
+<tr><td><a href="Ml_lexer.html#VALcomments">comments</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+Retrieve the list of comments
+</div>
+</td></tr>
+<tr><td><a href="Ml_types.Type_ops-mod.html#VALcompare">compare</a> [<a href="Ml_types.Type_ops-mod.html">Ml_types.Type_ops</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_lexer.html#VALcreate_hashtable">create_hashtable</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+<code class="code">create_hashtable size init</code> creates a hashtable with <code class="code">size</code> buckets
+  with initial contents <code class="code">init</code>
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALcurr">curr</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Get the location of the current token from the <code class="code">lexbuf</code>
+</div>
+</td></tr>
+<tr><td align="left"><br>E</td></tr>
+<tr><td><a href="Ml_types.Type_ops-mod.html#VALequal">equal</a> [<a href="Ml_types.Type_ops-mod.html">Ml_types.Type_ops</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_location.html#VALerror_of_exn">error_of_exn</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+A function that given an exception converts it to an <code class="code">error
+   option</code>.
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALerror_of_printer">error_of_printer</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+The job of this function is to convert a location and value of type
+   <code class="code"><span class="keywordsign">'</span>a</code> into an <code class="code">error</code> by means of an auxillary function that knows how
+   to make a human readable message of the <code class="code"><span class="keywordsign">'</span>a</code>
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALerror_reporter">error_reporter</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Hook for intercepting error reports
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALerrorf_prefixed">errorf_prefixed</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+<code class="code">errorf_prefixed</code> computes a function.
+</div>
+</td></tr>
+<tr><td><a href="Ml_toplevel_repl.html#VALeval">eval</a> [<a href="Ml_toplevel_repl.html">Ml_toplevel_repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_pattern_repl.html#VALeval">eval</a> [<a href="Ml_pattern_repl.html">Ml_pattern_repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_expression_repl.html#VALeval">eval</a> [<a href="Ml_expression_repl.html">Ml_expression_repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_print_ast.html#VALexpression">expression</a> [<a href="Ml_print_ast.html">Ml_print_ast</a>]</td>
+<td><div class="info">
+Print a <code class="code">expression</code> on a <code class="code">formatter</code>
+</div>
+</td></tr>
+<tr><td align="left"><br>F</td></tr>
+<tr><td><a href="Repl.html#VALfrom_bytes">from_bytes</a> [<a href="Repl.html">Repl</a>]</td>
+<td></td></tr>
+<tr><td align="left"><br>G</td></tr>
+<tr><td><a href="Ml_lexer.html#VALget_stored_string">get_stored_string</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+Gets the contents of <code class="code">string_buff</code>, from 0 to the current
+  <code class="code">string_index</code>, resets the <code class="code">string_buff</code> back to it's original
+  allocation; does not modify <code class="code">string_index</code>
+</div>
+</td></tr>
+<tr><td align="left"><br>H</td></tr>
+<tr><td><a href="Repl.html#VALhandle_interpreter_error">handle_interpreter_error</a> [<a href="Repl.html">Repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_types.Type_ops-mod.html#VALhash">hash</a> [<a href="Ml_types.Type_ops-mod.html">Ml_types.Type_ops</a>]</td>
+<td></td></tr>
+<tr><td align="left"><br>I</td></tr>
+<tr><td><a href="Ml_lexer.html#VALin_comment">in_comment</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+<code class="code">in_comment ()</code> evaluates to <code class="code"><span class="keyword">true</span></code> between the time a comment has
+   been started and not ended, <code class="code"><span class="keyword">false</span></code> at all other times
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALin_file">in_file</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Compute an empty ghost range located in a given file
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALinit">init</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Set the file name and line number of the <code class="code">lexbuf</code> to be the start
+   of the named file
+</div>
+</td></tr>
+<tr><td><a href="Ml_lexer.html#VALinitial_string_buffer">initial_string_buffer</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+An allocation of 256 bytes
+</div>
+</td></tr>
+<tr><td align="left"><br>K</td></tr>
+<tr><td><a href="Ml_lexer.html#VALkeyword_table">keyword_table</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+<code class="code">keyword_table</code> associates keywords with their tokens
+</div>
+</td></tr>
+<tr><td align="left"><br>M</td></tr>
+<tr><td><a href="Ml_toplevel_repl.html#VALmain">main</a> [<a href="Ml_toplevel_repl.html">Ml_toplevel_repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_pattern_repl.html#VALmain">main</a> [<a href="Ml_pattern_repl.html">Ml_pattern_repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_expression_repl.html#VALmain">main</a> [<a href="Ml_expression_repl.html">Ml_expression_repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_location.html#VALmkloc">mkloc</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Create an <code class="code"><span class="keywordsign">'</span>a loc</code> value from a <code class="code"><span class="keywordsign">'</span>a</code> value and location
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALmknoloc">mknoloc</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Create an <code class="code"><span class="keywordsign">'</span>a loc</code> value bound to the distinguished location called
+   <code class="code">none</code>
+</div>
+</td></tr>
+<tr><td align="left"><br>N</td></tr>
+<tr><td><a href="Ml_location.html#VALnone">none</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+An arbitrary value describing an empty ghost range
+</div>
+</td></tr>
+<tr><td align="left"><br>P</td></tr>
+<tr><td><a href="Repl.html#VALparse">parse</a> [<a href="Repl.html">Repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_parser.html#VALparse_expression">parse_expression</a> [<a href="Ml_parser.html">Ml_parser</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_parser.html#VALparse_pattern">parse_pattern</a> [<a href="Ml_parser.html">Ml_parser</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_print_ast.html#VALpattern">pattern</a> [<a href="Ml_print_ast.html">Ml_print_ast</a>]</td>
+<td><div class="info">
+Print a <code class="code">pattern</code> on a <code class="code">formatter</code>
+</div>
+</td></tr>
+<tr><td><a href="Repl.html#VALprompt">prompt</a> [<a href="Repl.html">Repl</a>]</td>
+<td></td></tr>
+<tr><td align="left"><br>R</td></tr>
+<tr><td><a href="Repl.html#VALread">read</a> [<a href="Repl.html">Repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Repl.html#VALreduce">reduce</a> [<a href="Repl.html">Repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_location.html#VALregister_error_of_exn">register_error_of_exn</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+This module contains a mutable list of exception "handlers".
+</div>
+</td></tr>
+<tr><td><a href="Repl.html#VALrepl">repl</a> [<a href="Repl.html">Repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_lexer.html#VALreport_error">report_error</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+This function takes a formatter and an instance of type <code class="code">error</code> and
+  writes a message to the formatter explaining the meaning.
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALreport_error">report_error</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+<code class="code">report_error ppf err</code> uses the currently installed error reporter
+   to write an error report for <code class="code">err</code> on the formatter <code class="code">ppf</code>
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALreport_exception">report_exception</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+<code class="code">report_exception ppf exn</code> attempts to write an error report for
+   the provided <code class="code">exn</code> on the given formatter <code class="code">ppf</code>.
+</div>
+</td></tr>
+<tr><td><a href="Ml_lexer.html#VALreset_string_buffer">reset_string_buffer</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+Reset the string buffer contents to the original allocation
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALrhs_loc">rhs_loc</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Compute the span of the <code class="code">n</code>th item of the right-hand-side of the
+   matched rule
+</div>
+</td></tr>
+<tr><td align="left"><br>S</td></tr>
+<tr><td><a href="Repl.html#VALsafe_proc">safe_proc</a> [<a href="Repl.html">Repl</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_lexer.html#VALstore_lexeme">store_lexeme</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+Called from the semantic actions of lexer definitions,
+  <code class="code"><span class="constructor">Lexing</span>.lexeme lexubf</code> returns the string corresponding to the the
+  matched regular expression.
+</div>
+</td></tr>
+<tr><td><a href="Ml_lexer.html#VALstore_string">store_string</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+<code class="code">store_string s</code> writes <code class="code">s</code> into <code class="code">string_buf</code> by way of
+  <code class="code">store_string_char</code>
+</div>
+</td></tr>
+<tr><td><a href="Ml_lexer.html#VALstore_string_char">store_string_char</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+Write a char <code class="code">c</code> into the string buffer at the position indicated by
+  the current <code class="code">string_index</code>, creating more space as
+  neccessary.
+</div>
+</td></tr>
+<tr><td><a href="Ml_lexer.html#VALstring_buf">string_buf</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+A string buffer reference
+</div>
+</td></tr>
+<tr><td><a href="Ml_lexer.html#VALstring_index">string_index</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+The next unused index in the buffer
+</div>
+</td></tr>
+<tr><td><a href="Ml_print_ast.html#VALstring_of_expression">string_of_expression</a> [<a href="Ml_print_ast.html">Ml_print_ast</a>]</td>
+<td><div class="info">
+Produce a string representation of a expression
+</div>
+</td></tr>
+<tr><td><a href="Ml_print_ast.html#VALstring_of_pattern">string_of_pattern</a> [<a href="Ml_print_ast.html">Ml_print_ast</a>]</td>
+<td><div class="info">
+Produce a string representation of a pattern
+</div>
+</td></tr>
+<tr><td><a href="Ml_print_ast.html#VALstring_of_toplevel_phrase">string_of_toplevel_phrase</a> [<a href="Ml_print_ast.html">Ml_print_ast</a>]</td>
+<td><div class="info">
+Produce a string representation of a toplevel phrase
+</div>
+</td></tr>
+<tr><td><a href="Ml_print_ast.html#VALstructure">structure</a> [<a href="Ml_print_ast.html">Ml_print_ast</a>]</td>
+<td><div class="info">
+Print a <code class="code">structure</code> on a <code class="code">formatter</code>
+</div>
+</td></tr>
+<tr><td><a href="Ml_print_ast.html#VALstructure_item">structure_item</a> [<a href="Ml_print_ast.html">Ml_print_ast</a>]</td>
+<td><div class="info">
+Print a <code class="code">structure_item</code> on a <code class="code">formatter</code>
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALsymbol_gloc">symbol_gloc</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Same as <code class="code">symbol_rloc</code> but designates the span as a ghost range
+</div>
+</td></tr>
+<tr><td><a href="Ml_location.html#VALsymbol_rloc">symbol_rloc</a> [<a href="Ml_location.html">Ml_location</a>]</td>
+<td><div class="info">
+Compute the span of the left-hand-side of the matched rule in the
+   program source
+</div>
+</td></tr>
+<tr><td align="left"><br>T</td></tr>
+<tr><td><a href="Ml_lexer.html#VALtoken">token</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td></td></tr>
+<tr><td><a href="Ml_print_ast.html#VALtoplevel_phrase">toplevel_phrase</a> [<a href="Ml_print_ast.html">Ml_print_ast</a>]</td>
+<td><div class="info">
+Print a <code class="code">toplevel_phrase</code> on a <code class="code">formatter</code>
+</div>
+</td></tr>
+<tr><td><a href="Ml_parser.html#VALtoplevel_phrase">toplevel_phrase</a> [<a href="Ml_parser.html">Ml_parser</a>]</td>
+<td></td></tr>
+<tr><td align="left"><br>U</td></tr>
+<tr><td><a href="Ml_lexer.html#VALupdate_loc">update_loc</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+Update the current location with file name and line
+  number.
+</div>
+</td></tr>
+<tr><td align="left"><br>W</td></tr>
+<tr><td><a href="Ml_lexer.html#VALwith_comment_buffer">with_comment_buffer</a> [<a href="Ml_lexer.html">Ml_lexer</a>]</td>
+<td><div class="info">
+<code class="code">with_comment_buffer comment lexbuf</code> uses the string buffer
+  <code class="code">comment_start_loc</code> and the <code class="code">comment</code> rule
+</div>
+</td></tr>
+</table>
+</body>
+</html>

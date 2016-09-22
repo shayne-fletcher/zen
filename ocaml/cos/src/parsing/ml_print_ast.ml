@@ -150,6 +150,9 @@ and expression (i : int) (ppf : formatter) (x : expression) : unit  =
     line i ppf "Pexp_fun\n";
     pattern i ppf p;
     expression i ppf e
+  | Pexp_function l ->
+    line i ppf "Pexp_function\n";
+    list i case ppf l
   | Pexp_apply (e, l) ->
     line i ppf "Pexp_apply\n";
     expression i ppf e;

@@ -247,6 +247,7 @@
 %token T_eq 
 %token T_false
 %token T_fun 
+%token T_function
 %token T_gt
 %token <string> T_ident
 %token T_if
@@ -284,7 +285,7 @@
 %nonassoc T_semi
 %nonassoc T_let  /*above T_semi (...; let ... in ...)*/
 %nonassoc below_with
-%nonassoc WITH   /*below T_bar (match ... with ...)*/
+%nonassoc T_function T_with   /*below T_bar (match ... with ...)*/
 %nonassoc T_then
 %nonassoc T_else
 %left T_bar     /* pattern (p | p | p)*/
@@ -343,12 +344,13 @@ expr:
  | simple_expr                                                        { $1 }
  | simple_expr simple_expr_list     { mkexp (Pexp_apply ($1, List.rev $2)) }
  | let_bindings T_in expr                     { expr_of_let_bindings $1 $3 }
- | T_fun simple_pattern fun_def                 { mkexp (Pexp_fun ($2, $3))}
+ | T_fun simple_pattern fun_def                { mkexp (Pexp_fun ($2, $3)) }
  | T_match expr T_with opt_bar match_cases {
                                        mkexp (Pexp_match ($2, List.rev $5))}
+ | T_function opt_bar match_cases    { mkexp (Pexp_function (List.rev $3)) }
  | T_if expr T_then expr T_else expr {mkexp(Pexp_if_then_else ($2, $4, $6))}
  | expr_comma_list %prec below_comma    { mkexp (Pexp_tuple (List.rev $1)) }
- | constr_ident simple_expr  { mkexp (Pexp_construct (mkrhs $1 1, Some $2))}
+ | constr_ident simple_expr { mkexp (Pexp_construct (mkrhs $1 1, Some $2)) }
  | expr T_coloncolon expr {
       mkexp_cons (rhs_loc 2) (ghexp (Pexp_tuple [$1; $3])) (symbol_rloc()) }
  | expr T_infixop0 expr                                 { mkinfix $1 $2 $3 }
@@ -410,7 +412,7 @@ expr_semi_list:
   ;
 
 match_cases:
-  | match_case                                                        {[$1]}
+  | match_case                                                       { [$1] }
   | match_cases T_bar match_case                                { $3 :: $1 }
   ;
 match_case:

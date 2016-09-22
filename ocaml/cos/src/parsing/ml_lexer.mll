@@ -43,6 +43,7 @@ let keyword_table =
     "else", T_else;
     "false", T_false;
     "fun", T_fun;
+    "function", T_function;
     "if", T_if;
     "in", T_in;
     "let", T_let;

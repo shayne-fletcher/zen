@@ -1,0 +1,426 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="next" href="Ml_asttypes.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Ml_ast" rel="Chapter" href="Ml_ast.html">
+<link title="Ml_asttypes" rel="Chapter" href="Ml_asttypes.html">
+<link title="Ml_location" rel="Chapter" href="Ml_location.html">
+<link title="Ml_parser" rel="Chapter" href="Ml_parser.html">
+<link title="Ml_print_ast" rel="Chapter" href="Ml_print_ast.html">
+<link title="Ml_syntaxerr" rel="Chapter" href="Ml_syntaxerr.html">
+<link title="Ml_typed_tree" rel="Chapter" href="Ml_typed_tree.html">
+<link title="Ml_types" rel="Chapter" href="Ml_types.html">
+<link title="Ml_expression_repl" rel="Chapter" href="Ml_expression_repl.html">
+<link title="Ml_lexer" rel="Chapter" href="Ml_lexer.html">
+<link title="Ml_pattern_repl" rel="Chapter" href="Ml_pattern_repl.html">
+<link title="Ml_toplevel_repl" rel="Chapter" href="Ml_toplevel_repl.html">
+<link title="Repl" rel="Chapter" href="Repl.html"><link title="Core language" rel="Section" href="#2_Corelanguage">
+<link title="Top level" rel="Section" href="#2_Toplevel">
+<title>Ml_ast</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Ml_asttypes.html" title="Ml_asttypes">Next</a>
+</div>
+<h1>Module <a href="type_Ml_ast.html">Ml_ast</a></h1>
+
+<pre><span class="keyword">module</span> Ml_ast: <code class="code"><span class="keyword">sig</span></code> <a href="Ml_ast.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+Abstract syntax<br>
+</div>
+<hr width="100%">
+<br>
+<h2 id="2_Corelanguage">Core language</h2><br>
+
+<pre><code><span id="TYPEconstant"><span class="keyword">type</span> <code class="type"></code>constant</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTconstant.Pconst_int"><span class="constructor">Pconst_int</span></span> <span class="keyword">of</span> <code class="type">string</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Integer constants<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info ">
+The type of constants<br>
+</div>
+
+
+<pre><code><span id="TYPEpattern"><span class="keyword">type</span> <code class="type"></code>pattern</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern.ppat_desc">ppat_desc</span>&nbsp;: <code class="type"><a href="Ml_ast.html#TYPEpattern_desc">pattern_desc</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Pattern description<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern.ppat_loc">ppat_loc</span>&nbsp;: <code class="type"><a href="Ml_location.html#TYPEt">Ml_location.t</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Location in the source<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info ">
+The type of patterns<br>
+</div>
+
+
+<pre><code><span id="TYPEpattern_desc"><span class="keyword">type</span> <code class="type"></code>pattern_desc</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern_desc.Ppat_any"><span class="constructor">Ppat_any</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern_desc.Ppat_var"><span class="constructor">Ppat_var</span></span> <span class="keyword">of</span> <code class="type">string <a href="Ml_asttypes.html#TYPEloc">Ml_asttypes.loc</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Variable<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern_desc.Ppat_constant"><span class="constructor">Ppat_constant</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEconstant">constant</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+A constant<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern_desc.Ppat_tuple"><span class="constructor">Ppat_tuple</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEpattern">pattern</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+A tuple pattern (invariant n &gt;=2)<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern_desc.Ppat_construct"><span class="constructor">Ppat_construct</span></span> <span class="keyword">of</span> <code class="type">string <a href="Ml_asttypes.html#TYPEloc">Ml_asttypes.loc</a> * <a href="Ml_ast.html#TYPEpattern">pattern</a> option</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Constructor<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpattern_desc.Ppat_or"><span class="constructor">Ppat_or</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEpattern">pattern</a> * <a href="Ml_ast.html#TYPEpattern">pattern</a></code></code></td>
+
+</tr></table>
+
+<div class="info ">
+The type of pattern descriptions<br>
+</div>
+
+
+<pre><code><span id="TYPEexpression"><span class="keyword">type</span> <code class="type"></code>expression</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.pexp_desc">pexp_desc</span>&nbsp;: <code class="type"><a href="Ml_ast.html#TYPEexpression_desc">expression_desc</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Expression description<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression.pexp_loc">pexp_loc</span>&nbsp;: <code class="type"><a href="Ml_location.html#TYPEt">Ml_location.t</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Location in the source<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info ">
+The type of expressions<br>
+</div>
+
+
+<pre><code><span id="TYPEexpression_desc"><span class="keyword">type</span> <code class="type"></code>expression_desc</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_ident"><span class="constructor">Pexp_ident</span></span> <span class="keyword">of</span> <code class="type">string <a href="Ml_asttypes.html#TYPEloc">Ml_asttypes.loc</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Identifiers<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_constant"><span class="constructor">Pexp_constant</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEconstant">constant</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Constants<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_tuple"><span class="constructor">Pexp_tuple</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEexpression">expression</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Tuples (invariant n &gt;= 2)<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_construct"><span class="constructor">Pexp_construct</span></span> <span class="keyword">of</span> <code class="type">string <a href="Ml_asttypes.html#TYPEloc">Ml_asttypes.loc</a> * <a href="Ml_ast.html#TYPEexpression">expression</a> option</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Constructors<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_match"><span class="constructor">Pexp_match</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEexpression">expression</a> * <a href="Ml_ast.html#TYPEcase">case</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Match<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_if_then_else"><span class="constructor">Pexp_if_then_else</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEexpression">expression</a> * <a href="Ml_ast.html#TYPEexpression">expression</a> * <a href="Ml_ast.html#TYPEexpression">expression</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Conditionals<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_fun"><span class="constructor">Pexp_fun</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEpattern">pattern</a> * <a href="Ml_ast.html#TYPEexpression">expression</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Functions<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_function"><span class="constructor">Pexp_function</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEcase">case</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Functions<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_apply"><span class="constructor">Pexp_apply</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEexpression">expression</a> * <a href="Ml_ast.html#TYPEexpression">expression</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Application<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTexpression_desc.Pexp_let"><span class="constructor">Pexp_let</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_asttypes.html#TYPErec_flag">Ml_asttypes.rec_flag</a> * <a href="Ml_ast.html#TYPEvalue_binding">value_binding</a> list * <a href="Ml_ast.html#TYPEexpression">expression</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+'let bindings'<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info ">
+The type of expression descriptions<br>
+</div>
+
+
+<pre><code><span id="TYPEvalue_binding"><span class="keyword">type</span> <code class="type"></code>value_binding</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvalue_binding.pvb_pat">pvb_pat</span>&nbsp;: <code class="type"><a href="Ml_ast.html#TYPEpattern">pattern</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+The pattern<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvalue_binding.pvb_expr">pvb_expr</span>&nbsp;: <code class="type"><a href="Ml_ast.html#TYPEexpression">expression</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+The bound expression<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTvalue_binding.pvb_loc">pvb_loc</span>&nbsp;: <code class="type"><a href="Ml_location.html#TYPEt">Ml_location.t</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Location in the source<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info ">
+The type of value bindings<br>
+</div>
+
+
+<pre><code><span id="TYPEcase"><span class="keyword">type</span> <code class="type"></code>case</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcase.pc_lhs">pc_lhs</span>&nbsp;: <code class="type"><a href="Ml_ast.html#TYPEpattern">pattern</a></code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcase.pc_guard">pc_guard</span>&nbsp;: <code class="type"><a href="Ml_ast.html#TYPEexpression">expression</a> option</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcase.pc_rhs">pc_rhs</span>&nbsp;: <code class="type"><a href="Ml_ast.html#TYPEexpression">expression</a></code>;</code></td>
+
+</tr></table>
+}
+
+
+
+<pre><span id="TYPEstructure"><span class="keyword">type</span> <code class="type"></code>structure</span> = <code class="type"><a href="Ml_ast.html#TYPEstructure_item">structure_item</a> list</code> </pre>
+<div class="info ">
+The type of structures<br>
+</div>
+
+
+<pre><code><span id="TYPEstructure_item"><span class="keyword">type</span> <code class="type"></code>structure_item</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTstructure_item.pstr_desc">pstr_desc</span>&nbsp;: <code class="type"><a href="Ml_ast.html#TYPEstructure_item_desc">structure_item_desc</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Structure item description<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTstructure_item.pstr_loc">pstr_loc</span>&nbsp;: <code class="type"><a href="Ml_location.html#TYPEt">Ml_location.t</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Location in the source<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info ">
+The type of structure items<br>
+</div>
+
+
+<pre><code><span id="TYPEstructure_item_desc"><span class="keyword">type</span> <code class="type"></code>structure_item_desc</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTstructure_item_desc.Pstr_eval"><span class="constructor">Pstr_eval</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEexpression">expression</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+An evaluation<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTstructure_item_desc.Pstr_value"><span class="constructor">Pstr_value</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_asttypes.html#TYPErec_flag">Ml_asttypes.rec_flag</a> * <a href="Ml_ast.html#TYPEvalue_binding">value_binding</a> list</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+A value binding<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info ">
+The type of structure item descriptions<br>
+</div>
+
+<br>
+<h2 id="2_Toplevel">Top level</h2><br>
+
+<pre><code><span id="TYPEtoplevel_phrase"><span class="keyword">type</span> <code class="type"></code>toplevel_phrase</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtoplevel_phrase.Ptop_def"><span class="constructor">Ptop_def</span></span> <span class="keyword">of</span> <code class="type"><a href="Ml_ast.html#TYPEstructure">structure</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+A structure definition<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info ">
+The type of top-level phrases<br>
+</div>
+
+</body></html>

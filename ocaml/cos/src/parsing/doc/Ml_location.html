@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Ml_asttypes.html">
+<link rel="next" href="Ml_parser.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Ml_ast" rel="Chapter" href="Ml_ast.html">
+<link title="Ml_asttypes" rel="Chapter" href="Ml_asttypes.html">
+<link title="Ml_location" rel="Chapter" href="Ml_location.html">
+<link title="Ml_parser" rel="Chapter" href="Ml_parser.html">
+<link title="Ml_print_ast" rel="Chapter" href="Ml_print_ast.html">
+<link title="Ml_syntaxerr" rel="Chapter" href="Ml_syntaxerr.html">
+<link title="Ml_typed_tree" rel="Chapter" href="Ml_typed_tree.html">
+<link title="Ml_types" rel="Chapter" href="Ml_types.html">
+<link title="Ml_expression_repl" rel="Chapter" href="Ml_expression_repl.html">
+<link title="Ml_lexer" rel="Chapter" href="Ml_lexer.html">
+<link title="Ml_pattern_repl" rel="Chapter" href="Ml_pattern_repl.html">
+<link title="Ml_toplevel_repl" rel="Chapter" href="Ml_toplevel_repl.html">
+<link title="Repl" rel="Chapter" href="Repl.html"><link title="Locations" rel="Section" href="#2_Locations">
+<link title="Error reporting" rel="Section" href="#2_Errorreporting">
+<title>Ml_location</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Ml_asttypes.html" title="Ml_asttypes">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Ml_parser.html" title="Ml_parser">Next</a>
+</div>
+<h1>Module <a href="type_Ml_location.html">Ml_location</a></h1>
+
+<pre><span class="keyword">module</span> Ml_location: <code class="code"><span class="keyword">sig</span></code> <a href="Ml_location.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+Source code locations<br>
+</div>
+<hr width="100%">
+<br>
+<h2 id="2_Locations">Locations</h2><br>
+
+<pre><code><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.loc_start">loc_start</span>&nbsp;: <code class="type">Lexing.position</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+The position where it starts<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.loc_end">loc_end</span>&nbsp;: <code class="type">Lexing.position</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+The position past the end<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.loc_ghost">loc_ghost</span>&nbsp;: <code class="type">bool</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+If <code class="code"><span class="keyword">true</span></code> then a "ghost" range<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info ">
+A type representing the span of two positions<br>
+</div>
+
+
+<pre><span id="VALnone"><span class="keyword">val</span> none</span> : <code class="type"><a href="Ml_location.html#TYPEt">t</a></code></pre><div class="info ">
+An arbitrary value describing an empty ghost range<br>
+</div>
+
+<pre><span id="VALin_file"><span class="keyword">val</span> in_file</span> : <code class="type">string -> <a href="Ml_location.html#TYPEt">t</a></code></pre><div class="info ">
+Compute an empty ghost range located in a given file<br>
+</div>
+
+<pre><span id="VALinit"><span class="keyword">val</span> init</span> : <code class="type">Lexing.lexbuf -> string -> unit</code></pre><div class="info ">
+Set the file name and line number of the <code class="code">lexbuf</code> to be the start
+   of the named file<br>
+</div>
+
+<pre><span id="VALcurr"><span class="keyword">val</span> curr</span> : <code class="type">Lexing.lexbuf -> <a href="Ml_location.html#TYPEt">t</a></code></pre><div class="info ">
+Get the location of the current token from the <code class="code">lexbuf</code><br>
+</div>
+
+<pre><span id="VALsymbol_rloc"><span class="keyword">val</span> symbol_rloc</span> : <code class="type">unit -> <a href="Ml_location.html#TYPEt">t</a></code></pre><div class="info ">
+Compute the span of the left-hand-side of the matched rule in the
+   program source<br>
+</div>
+
+<pre><span id="VALsymbol_gloc"><span class="keyword">val</span> symbol_gloc</span> : <code class="type">unit -> <a href="Ml_location.html#TYPEt">t</a></code></pre><div class="info ">
+Same as <code class="code">symbol_rloc</code> but designates the span as a ghost range<br>
+</div>
+
+<pre><span id="VALrhs_loc"><span class="keyword">val</span> rhs_loc</span> : <code class="type">int -> <a href="Ml_location.html#TYPEt">t</a></code></pre><div class="info ">
+Compute the span of the <code class="code">n</code>th item of the right-hand-side of the
+   matched rule<br>
+</div>
+
+<pre><code><span id="TYPEloc"><span class="keyword">type</span> <code class="type">'a</code> loc</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTloc.txt">txt</span>&nbsp;: <code class="type">'a</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTloc.loc">loc</span>&nbsp;: <code class="type"><a href="Ml_location.html#TYPEt">t</a></code>;</code></td>
+
+</tr></table>
+}
+
+<div class="info ">
+A type for the association of a value with a location<br>
+</div>
+
+
+<pre><span id="VALmkloc"><span class="keyword">val</span> mkloc</span> : <code class="type">'a -> <a href="Ml_location.html#TYPEt">t</a> -> 'a <a href="Ml_location.html#TYPEloc">loc</a></code></pre><div class="info ">
+Create an <code class="code"><span class="keywordsign">'</span>a loc</code> value from a <code class="code"><span class="keywordsign">'</span>a</code> value and location<br>
+</div>
+
+<pre><span id="VALmknoloc"><span class="keyword">val</span> mknoloc</span> : <code class="type">'a -> 'a <a href="Ml_location.html#TYPEloc">loc</a></code></pre><div class="info ">
+Create an <code class="code"><span class="keywordsign">'</span>a loc</code> value bound to the distinguished location called
+   <code class="code">none</code><br>
+</div>
+<br>
+<h2 id="2_Errorreporting">Error reporting</h2><br>
+
+<pre><code><span id="TYPEerror"><span class="keyword">type</span> <code class="type"></code>error</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTerror.loc">loc</span>&nbsp;: <code class="type"><a href="Ml_location.html#TYPEt">t</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Location to associate with the error<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTerror.msg">msg</span>&nbsp;: <code class="type">string</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+A human readable description of the error<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTerror.sub">sub</span>&nbsp;: <code class="type"><a href="Ml_location.html#TYPEerror">error</a> list</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+A list of associated errors<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info ">
+A type for error reporting<br>
+</div>
+
+
+<pre><span id="VALregister_error_of_exn"><span class="keyword">val</span> register_error_of_exn</span> : <code class="type">(exn -> <a href="Ml_location.html#TYPEerror">error</a> option) -> unit</code></pre><div class="info ">
+This module contains a mutable list of exception "handlers". Client
+   modules register handlers for their own exception types by means of
+   this function<br>
+</div>
+
+<pre><span id="VALerror_of_exn"><span class="keyword">val</span> error_of_exn</span> : <code class="type">exn -> <a href="Ml_location.html#TYPEerror">error</a> option</code></pre><div class="info ">
+A function that given an exception converts it to an <code class="code">error
+   option</code>. Given argument <code class="code">x : exn</code>, the list of handlers is
+   traversed; each handler is invoked on <code class="code">x</code>. The first one that
+   doesn't return <code class="code"><span class="constructor">None</span></code> returns <code class="code"><span class="constructor">Some</span> err</code> (say) else the search goes
+   on. Of course, if there is no matching handler, <code class="code"><span class="constructor">None</span></code> is returned<br>
+</div>
+
+<pre><span id="VALerror_of_printer"><span class="keyword">val</span> error_of_printer</span> : <code class="type"><a href="Ml_location.html#TYPEt">t</a> -> (Format.formatter -> 'a -> unit) -> 'a -> <a href="Ml_location.html#TYPEerror">error</a></code></pre><div class="info ">
+The job of this function is to convert a location and value of type
+   <code class="code"><span class="keywordsign">'</span>a</code> into an <code class="code">error</code> by means of an auxillary function that knows how
+   to make a human readable message of the <code class="code"><span class="keywordsign">'</span>a</code><br>
+</div>
+<br>
+This module implements a framework for implementing uniform error
+   handling/reporting across modules concerned with source code
+   locations across related modules (think lexer, parser, type-checker
+   etc.). Let's take the lexer for an example.
+<p>
+
+   <pre class="codepre"><code class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*lexer.mll*)</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*The&nbsp;cases&nbsp;of&nbsp;lexer&nbsp;errors*)</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;error&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Illegal_character</span>&nbsp;<span class="keyword">of</span>&nbsp;char
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Unterminated_comment</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Ml_location</span>.t
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*The&nbsp;lexer&nbsp;exception&nbsp;type*)</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">exception</span>&nbsp;<span class="constructor">Error</span>&nbsp;<span class="keyword">of</span>&nbsp;error&nbsp;*&nbsp;<span class="constructor">Ml_location</span>.t
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*This&nbsp;function&nbsp;takes&nbsp;a&nbsp;formatter&nbsp;and&nbsp;an&nbsp;instance&nbsp;of&nbsp;type
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[error]&nbsp;and&nbsp;writes&nbsp;a&nbsp;message&nbsp;to&nbsp;the&nbsp;formatter&nbsp;explaining&nbsp;the
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;meaning.&nbsp;This&nbsp;is&nbsp;a&nbsp;"printer"*)</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">let</span>&nbsp;report_error&nbsp;(ppf&nbsp;:&nbsp;<span class="constructor">Format</span>.formatter)&nbsp;:&nbsp;error&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit&nbsp;=&nbsp;<span class="keyword">function</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Illegal_character</span>&nbsp;c&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Format</span>.fprintf&nbsp;ppf&nbsp;<span class="string">"Illegal&nbsp;character&nbsp;(%s)"</span>&nbsp;(<span class="constructor">Char</span>.escaped&nbsp;c)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Unterminated_comment</span>&nbsp;_&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Format</span>.fprintf&nbsp;ppf&nbsp;<span class="string">"Comment&nbsp;not&nbsp;terminated"</span>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*Note&nbsp;that&nbsp;[report_error]&nbsp;is&nbsp;a&nbsp;function&nbsp;that&nbsp;unifies&nbsp;with
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;[formatter&nbsp;-&gt;&nbsp;'a&nbsp;-&gt;&nbsp;unit]&nbsp;parameter&nbsp;of
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[error_of_printer]*)</span>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*Register&nbsp;an&nbsp;exception&nbsp;handler&nbsp;for&nbsp;the&nbsp;lexer&nbsp;exception&nbsp;type*)</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">let</span>&nbsp;()&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Ml_location</span>.register_error_of_exn
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="keyword">function</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Error</span>&nbsp;(err,&nbsp;loc)&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Some</span>&nbsp;(<span class="constructor">Ml_location</span>.error_of_printer&nbsp;loc&nbsp;report_error&nbsp;err)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;_&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;&nbsp;<span class="constructor">None</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*...*/
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rule&nbsp;token&nbsp;=&nbsp;...
+&nbsp;&nbsp;</code></pre><br>
+
+<pre><span id="VALerrorf_prefixed"><span class="keyword">val</span> errorf_prefixed</span> : <code class="type">?loc:<a href="Ml_location.html#TYPEt">t</a> -> ?sub:<a href="Ml_location.html#TYPEerror">error</a> list -> ('a, Format.formatter, unit, <a href="Ml_location.html#TYPEerror">error</a>) Pervasives.format4 -> 'a</code></pre><div class="info ">
+<code class="code">errorf_prefixed</code> computes a function. The function it computes
+  provides the mean to convert an <code class="code"><span class="keywordsign">'</span>error_t</code> to an <code class="code">error</code> by way of
+  formatting operations to produce the <code class="code">msg</code> field of the <code class="code">error</code>
+  result. The formatting operations include prefixing the <code class="code">msg</code> field
+  with the string <code class="code"><span class="string">"Error"</span></code>.
+<p>
+
+  The type of the function computed unifies with the type variable
+  <code class="code"><span class="keywordsign">'</span>a</code>.<br>
+</div>
+
+<pre><span id="VALerror_reporter"><span class="keyword">val</span> error_reporter</span> : <code class="type">(Format.formatter -> <a href="Ml_location.html#TYPEerror">error</a> -> unit) Pervasives.ref</code></pre><div class="info ">
+Hook for intercepting error reports<br>
+</div>
+
+<pre><span id="VALreport_error"><span class="keyword">val</span> report_error</span> : <code class="type">Format.formatter -> <a href="Ml_location.html#TYPEerror">error</a> -> unit</code></pre><div class="info ">
+<code class="code">report_error ppf err</code> uses the currently installed error reporter
+   to write an error report for <code class="code">err</code> on the formatter <code class="code">ppf</code><br>
+</div>
+
+<pre><span id="VALreport_exception"><span class="keyword">val</span> report_exception</span> : <code class="type">Format.formatter -> exn -> unit</code></pre><div class="info ">
+<code class="code">report_exception ppf exn</code> attempts to write an error report for
+   the provided <code class="code">exn</code> on the given formatter <code class="code">ppf</code>. The exception <code class="code">exn</code>
+   can be (re-)raised if no handler is found<br>
+</div>
+</body></html>

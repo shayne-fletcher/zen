@@ -1,0 +1,90 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Ml_ast.html">
+<link rel="next" href="Ml_location.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Ml_ast" rel="Chapter" href="Ml_ast.html">
+<link title="Ml_asttypes" rel="Chapter" href="Ml_asttypes.html">
+<link title="Ml_location" rel="Chapter" href="Ml_location.html">
+<link title="Ml_parser" rel="Chapter" href="Ml_parser.html">
+<link title="Ml_print_ast" rel="Chapter" href="Ml_print_ast.html">
+<link title="Ml_syntaxerr" rel="Chapter" href="Ml_syntaxerr.html">
+<link title="Ml_typed_tree" rel="Chapter" href="Ml_typed_tree.html">
+<link title="Ml_types" rel="Chapter" href="Ml_types.html">
+<link title="Ml_expression_repl" rel="Chapter" href="Ml_expression_repl.html">
+<link title="Ml_lexer" rel="Chapter" href="Ml_lexer.html">
+<link title="Ml_pattern_repl" rel="Chapter" href="Ml_pattern_repl.html">
+<link title="Ml_toplevel_repl" rel="Chapter" href="Ml_toplevel_repl.html">
+<link title="Repl" rel="Chapter" href="Repl.html"><title>Ml_asttypes</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Ml_ast.html" title="Ml_ast">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Ml_location.html" title="Ml_location">Next</a>
+</div>
+<h1>Module <a href="type_Ml_asttypes.html">Ml_asttypes</a></h1>
+
+<pre><span class="keyword">module</span> Ml_asttypes: <code class="code"><span class="keyword">sig</span></code> <a href="Ml_asttypes.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info module top">
+Some foundational types participating in AST values<br>
+</div>
+<hr width="100%">
+
+<pre><code><span id="TYPErec_flag"><span class="keyword">type</span> <code class="type"></code>rec_flag</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTrec_flag.Nonrecursive"><span class="constructor">Nonrecursive</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTrec_flag.Recursive"><span class="constructor">Recursive</span></span></code></td>
+
+</tr></table>
+
+<div class="info ">
+A value of this type indicates whether an expression is recursive
+   or not<br>
+</div>
+
+
+<pre><span id="TYPEloc"><span class="keyword">type</span> <code class="type">'a</code> loc</span> = <code class="type">'a <a href="Ml_location.html#TYPEloc">Ml_location.loc</a></code> = {</pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTloc.txt">txt</span>&nbsp;: <code class="type">'a</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+The <code class="code"><span class="keywordsign">'</span>a</code> value<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTloc.loc">loc</span>&nbsp;: <code class="type"><a href="Ml_location.html#TYPEt">Ml_location.t</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+The location of the <code class="code"><span class="keywordsign">'</span>a</code><br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info ">
+A value of type <code class="code"><span class="keywordsign">'</span>a loc</code> associates an <code class="code"><span class="keywordsign">'</span>a</code> with its location in
+   the source code<br>
+</div>
+
+</body></html>

@@ -49,6 +49,8 @@ and expression_desc =
   (*match E0 with P1 -> E1 | ... | Pn -> En*)
 | Pexp_if_then_else of expression * expression * expression (**Conditionals*)
 | Pexp_fun of pattern * expression (**Functions*)
+| Pexp_function of case list (**Functions*)
+  (* function P1 -> E1 | ... | Pn -> En*)
 | Pexp_apply of expression * expression list (**Application*)
 | Pexp_let of rec_flag * value_binding list * expression (**'let bindings'*)
 

@@ -32,4 +32,7 @@ ocamlopt.opt -o ml_toplevel_repl.exe \
   ml_lexer.cmx ml_parser.cmx \
   repl.cmx ml_print_ast.cmx ml_toplevel_repl.cmx
 
+ocamlopt.opt -c ml_types.mli ml_types.ml
+
 ocamldoc -d doc -html -stars -colorize-code *.mli *.ml
+

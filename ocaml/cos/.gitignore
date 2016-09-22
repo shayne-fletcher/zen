@@ -1,0 +1,15 @@
+build
+.omake*
+*.cma
+*.cmo
+*.cmx
+*.ilk
+*.pdb
+*.cmi
+*.cmxa
+*~
+*.exe
+*.obj
+*.lib
+doc/*
+ml_parser.ml*
