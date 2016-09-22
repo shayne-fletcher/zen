@@ -1,0 +1,3 @@
+FILES[] = $(harvest_modules $(absname $(dir $(SYS_ROOT)/src/utils)))
+LIB = ml_utils
+.DEFAULT: $(OCamlLibrary $(LIB), $(FILES))

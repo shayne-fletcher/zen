@@ -7,7 +7,7 @@ module Env_lazy : sig
   type ('a, 'b) t
 
   val force : ('a -> 'b) -> ('a, 'b) t -> 'b
-  val create : 'a -> ('a, b) t
+  val create : 'a -> ('a, 'b) t
   val get_arg : ('a, 'b) t -> 'a option
 
 end = struct
