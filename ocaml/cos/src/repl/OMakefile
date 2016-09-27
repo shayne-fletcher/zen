@@ -1,0 +1,8 @@
+OCAMLINCLUDES += $(SYS_BUILD)/parsing
+OCAML_LIBS    += $(SYS_BUILD)/parsing/ml_parser
+.DEFAULT: $(OCamlLibrary repl, repl)
+
+OCAML_LIBS    += $(SYS_BUILD)/repl/repl
+.DEFAULT: $(OCamlProgram ml_pattern_repl, ml_pattern_repl)
+.DEFAULT: $(OCamlProgram ml_expression_repl, ml_expression_repl)
+.DEFAULT: $(OCamlProgram ml_toplevel_repl, ml_toplevel_repl)
