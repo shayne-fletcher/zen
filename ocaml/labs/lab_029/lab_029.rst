@@ -18,3 +18,424 @@ Problem :
   optfrac := ('.' digit*)|¦Å;
   optexp  := (('e'|'E') optsign digits)|¦Å;
   number  := digits optfrac optexp
+Solutions :
+Two solutions to offer for this one. First Joel Bjornson's.
+(* Some utilities *)
+module Utils = struct
+  let const x _ = x
+ 
+  let string_to_list s =
+    let rec aux i l =
+      if i < 0 then l else aux (i - 1) (s.[i] :: l) 
+    in
+    aux (String.length s - 1) []
+ 
+  let calc_int xs =
+    let accum x (n, ix) =
+      let n = n +. (float_of_int x) *. (10. ** (float_of_int ix)) in
+      (n, ix + 1)
+    in
+    fst @@ List.fold_right accum xs (0., 0)
+ 
+  let calc_frac xs =
+    let accum (n, ix) x =
+      let n = n +. (float_of_int x) *. (10. ** (-1. *. float_of_int ix)) in
+      (n, ix + 1)
+    in
+    fst @@ List.fold_left accum (0., 1) xs
+end
+ 
+module Option = struct
+  
+  let join = function
+    | Some x  -> x
+    | None    -> None
+ 
+  let map f = function
+    | Some x  -> Some (f x)
+    | None    -> None
+ 
+  let (>>=) o f = join (map f o)
+ 
+  let default f = function
+    | Some y  -> y
+    | None    -> f ()
+end
+ 
+(* Minimal parser implementation exposing an applicative interface *)
+module Parser = struct
+  open Utils
+  open Option
+ 
+  type 'a t = char list -> ('a * char list) option
+
+
+  let run p s = map fst @@ p @@ string_to_list s
+ 
+  (* This parser always fails *)
+  let fail = const None
+ 
+  (* Tries to parse one token *)
+  let one f = function
+    | c :: cs -> f c >>= fun x -> Some (x, cs)
+    | []      -> None
+ 
+  (* Matches empty input *)
+  let empty = function
+    | []  -> Some ((), [])
+    | _   -> None
+
+
+  (* Delay parser creation *)
+  let delay f cs = f () cs
+
+
+  (* Returns a constant value and does not consume any input *)
+  let pure x cs = Some (x, cs)
+ 
+  (* Applicative style composition *)
+  let ( <*> ) pf p cs = 
+    pf cs >>= fun (f, cs) -> p cs >>= fun (x, cs) -> Some (f x, cs)
+ 
+  (* Tries to execute first parser, if it fails runs the second *)
+  let ( <|> ) p1 p2 cs =
+    match p1 cs with
+    | Some r  -> Some r
+    | None    -> p2 cs
+
+
+  let ( <$> ) f x = pure f <*> x
+
+
+  let choose xs = List.fold_right (<|>) xs fail
+ 
+  (* Parses zero or more elements using the given parser *)
+  let rec many p =
+    choose 
+      [
+        List.cons <$> p <*> (delay @@ fun _ -> many p);
+        pure []
+      ]
+end
+
+(* Number parser *)
+module Numbers = struct
+  open Parser
+  open Utils
+
+
+  let token c = one (fun x -> if x = c then Some () else None)
+
+
+  let digit =
+    "0123456789"
+    |> string_to_list 
+    |> List.mapi (fun i c -> const i <$> token c)
+    |> choose
+  
+  let digits = 
+    (fun d ds -> calc_int (d :: ds))
+    <$> digit 
+    <*> many digit
+    
+  let optsign = 
+    choose 
+      [
+        const (-1.) <$> token '-';
+        const 1.    <$> token '+';
+        pure 1.
+      ]
+ 
+  let optfrac = 
+    choose 
+      [
+        (fun _ ds -> calc_frac ds)  <$> token '.' <*> (many digit);
+        pure 0.
+      ]
+ 
+  let optexp =
+    let exp =
+      (fun _ sgn n -> 10. ** (sgn *. n))
+      <$> (token 'e' <|> token 'E')
+      <*> optsign
+      <*> digits
+    in
+    choose [ exp ; pure 1.]
+
+
+  (* Also allow initial +/- (not part of grammar spec) *)
+  let number =
+    (fun sgn d f e -> sgn *. (d +. f) *. e)
+    <$> optsign
+    <*> digits
+    <*> optfrac
+    <*> optexp
+end
+ 
+(* Tests (requires CamlCheck) *)
+module Test_numbers = struct
+  open Bb_camlcheck
+  open Bb_camlcheck_generator
+
+
+  module G  = Bb_camlcheck_generator
+  module GS = Bb_camlcheck_generators
+
+
+  let sof = string_of_float
+
+
+  let prop_parse_int x =
+    let x = float_of_int x in
+    let s = sof x in
+    is_true @@ 
+      match Parser.run Numbers.number s with
+      | Some y  -> s = sof y
+      | None    -> false
+  
+  let prop_parse_float x =
+    let s = sof x in
+    is_true @@ 
+      match Parser.run Numbers.number s with
+      | Some y  -> s = sof y
+      | None    -> false
+  
+  let prop_parse_big_or_small_float (x,n) =
+    let z = x  *. 10. ** (float_of_int (n mod 64)) in
+    let s = sof z in
+    is_true @@ 
+      match Parser.run Numbers.number s with
+      | Some y  -> s = sof y
+      | None    -> false
+ 
+  type float_string = Float_string of string
+ 
+  let prop_parse_float_string (Float_string fs) =
+    let x = float_of_string fs in
+    is_true @@ 
+      match Parser.run Numbers.number fs with
+      | Some y ->
+          begin
+            match Parser.run Numbers.number (sof x) with
+            | Some z  -> sof x = sof y && sof y = sof z
+            | _       -> false
+          end
+      | None ->
+        false
+ 
+  (* Custom register for float_string *)
+  let float_string_register =
+    (* Custom float_string generator *)
+    let gen =
+      let intg : int G.t = GS.get_generator () in
+      let sign = one_of [pure "+"; pure "-"; pure ""] in
+      let frac = (fun n -> Printf.sprintf ".%d" (abs n)) <$> intg in
+      let exp =
+        (fun e s n -> String.concat "" [e; s; n])
+        <$> one_of [pure "e"; pure "E";] 
+        <*> one_of [pure "+"; pure "-"; pure ""]
+        <*> ((fun n -> string_of_int @@ abs @@ n mod 23) <$> intg)
+      in
+      (fun s n f e -> Float_string (String.concat "" [s;n;f;e]))
+      <$> sign
+      <*> ((fun n -> string_of_int @@ abs n) <$> intg)
+      <*> one_of [pure ""; frac]
+      <*> one_of [pure ""; exp]
+    in
+    GS.Register.custom (GS.Register.add gen)
+ 
+  let run_tests () =
+    check prop_parse_int;
+    check prop_parse_float;
+    check prop_parse_big_or_small_float;
+    check ~register:float_string_register prop_parse_float_string
+end
+Notice that the test takes advantage of the CamlCheck library. Tres cool - check it out!
+
+Here's my solution.
+(*Parser combinators*)
+
+
+(*The type of the result of a parse*)
+type ('a, 'b) parse_result =
+| Prreturns of 'b * 'a list
+| Prparse_failed
+
+
+let accept : ('a, 'b) parse_result -> 'b = function
+  | Prreturns (v, []) -> v  
+  | Prreturns (_, _ ::_) -> failwith "Couldn't consume all the input"
+  | Prparse_failed -> failwith "Failed"
+
+
+(*Parsers are functions*)
+type ('a, 'b) parser = 'a list -> ('a, 'b) parse_result
+
+
+(*[empty v b] recognizes the empty string. It always returns a value
+  and never consumes any tokens*)
+let empty (v : 'b) (toks : 'a list) : ('a, 'b) parse_result =
+  Prreturns (v, toks)
+
+
+(*[token test l] computes a parser. The parser succeeds or not by
+  testing the predicate [test] against the head of the token list*)
+let token (test : 'a -> 'b option) : ('a, 'b) parser =
+  fun (l : 'a list) : ('a, 'b) parse_result ->
+    match l with
+    | t :: ts -> begin
+      match test t with 
+      | Some r -> Prreturns (r, ts)
+      | None -> Prparse_failed
+    end
+    | [] -> Prparse_failed
+
+
+(*[char_ ch] computes a parser that matches a specific token*)
+let char_ (ch : 'a) : ('a, 'a) parser = 
+  token (fun tok -> if tok = ch then Some ch else None)
+
+
+(*[disjunction (p, q)] is the disjunction or two parsers : "p or else
+  q"*)
+let disjunction 
+    ((p : ('a, 'b) parser), (q : ('a, 'b) parser)) : ('a, 'b) parser =
+  fun (toks : 'a list) : ('a, 'b) parse_result ->
+    match p toks with
+    | Prparse_failed -> q toks
+    | res -> res
+
+
+(*[conjunction (p, q)] is the conjunction of two parsers : "p and then q"*)
+let conjunction
+    ((p : ('a, 'b) parser), 
+     (q : ('a, 'c) parser)) : ('a, ('b * 'c)) parser =
+  fun (toks : 'a list) : ('a, ('b * 'c)) parse_result ->
+    match p toks with
+    | Prreturns (r1, toks') -> begin
+      match q toks' with
+      | Prreturns (r2, toks'') -> 
+        Prreturns ((r1, r2), toks'')
+      | _ -> Prparse_failed
+    end
+    | _ -> Prparse_failed
+
+
+(*[give (p, f)] parses with [p] and gives the result to [f]*)
+let gives ((p : ('a, 'b) parser), (f : 'b -> 'c)) : ('a, 'c) parser =
+  fun (toks : 'a list) : ('a, 'c) parse_result ->
+    match p toks with
+    | Prreturns (r, toks') -> Prreturns (f r, toks')
+    | _ -> Prparse_failed
+
+
+(*[given_to p f] passes the result of parsing with [p] to the function
+  [f] which computes a new parser from the result*)
+let given_to 
+    ((p1 : ('a, 'b) parser), 
+     (p2 : 'b -> ('a, 'c) parser)) : ('a, 'c) parser = 
+  fun (toks : 'a list) : ('a, 'c) parse_result ->
+    match p1 toks with
+    | Prreturns (r1, toks') -> p2 r1 toks'
+    | Prparse_failed -> Prparse_failed
+
+
+(*Syntax*)
+let ( |~ ) p q = disjunction (p, q)
+let ( &~ ) p q = conjunction (p, q)
+let ( >~ ) p f = gives (p, f)
+let ( >>~ ) p f = given_to (p, f)
+
+
+(*Utilities for brevity in what follows*)
+let cons ((c : 'a), (cs : 'a list)) : 'a list = c :: cs
+let join ((l : 'a list), (m : 'a list)) : 'a list = l @ m
+
+
+(*[zero_or_more p] uses [p] to produce a list of results*)
+let rec zero_or_more (p : ('a, 'b) parser) : ('a, 'b list) parser =
+  fun (toks : 'a list) : ('a, 'b list) parse_result ->
+    (p &~ zero_or_more p >~ cons |~ empty []) toks
+
+
+(*Lexical analysis*)
+
+
+(*[explode s] turns the string [s] into a list of chars*)
+let explode : string -> char list =
+  fun s ->
+    let n = String.length s in
+    let rec loop acc i =
+      if i = n then List.rev acc
+      else loop (String.get s i :: acc) (i + 1) in
+    loop [] 0
+ 
+(*[implode l] turns the list of chars [l] into a string*)
+let implode : char list -> string =
+  fun l ->
+    let n = List.length l in
+    let buf = Bytes.create n in
+    let f i c = Bytes.set buf i c in
+    List.iteri f l ; Bytes.to_string buf
+
+
+(*[char_range c l] tests if [c] is in one of the ranges in [l]
+  e.g. [char c [('A', 'Z'); ('a', 'z')]]*)
+let rec char_range (c : char) (l : (char * char) list) : bool =
+  match l with
+  | [] -> false
+  | (c1, c2) :: cs ->
+    (Char.code c1 <= Char.code c && Char.code c <= Char.code c2) || 
+      char_range c cs
+    
+(*[letter] is a parser of alphabetic characters*)
+let letter : (char, char) parser =
+  token (
+    fun (c : char) : char option ->
+      if char_range c [('A', 'Z'); ('a', 'z')] then Some c else None
+  )
+
+
+(*[digit] is a parser of digit characters*)
+let digit : (char, char) parser =
+  token (
+    fun (c : char) : char option ->
+      if char_range c [('0', '9')] then Some c else None
+  )
+
+
+(*[digits] is a parser of a sequence of digits*)
+let digits : (char, char list) parser = digit &~ zero_or_more digit >~ cons
+
+
+(*optsign := '-'|'+'|epsilon *)
+let optsign : (char, char list) parser =
+  token (
+    fun (c : char) : char list option ->
+      match c with
+      | c when (c = '-' || c = '+') -> Some [c]
+      | _ -> None
+  ) |~ empty []
+
+
+(*optfrac := ('.' *digit)|epsilon *)
+let optfrac : (char, char list) parser = 
+  char_ '.' &~ zero_or_more digit >~ cons |~ empty []
+
+
+(*optexp := (('e'|'E') optsign digits)|epsilon *)
+let optexp : (char, char list) parser =
+  char_ 'e' |~ char_ 'E' &~ optsign >~ cons &~ digits >~ join |~ empty []
+
+
+(*number := digits optfrac optexp*)
+let number : (char, float) parser = 
+  digits &~ optfrac &~ optexp >~  
+    fun ((csi , csf), cse) -> 
+      implode @@ csi @ csf @ cse |> float_of_string
+
+
+(*Test*)
+let _ =  accept (number (explode "123456"))
+let _ =  accept (number (explode "123.456e-03"))
+let _ =  accept (number (explode "123.456e+03"))
