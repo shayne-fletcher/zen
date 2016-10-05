@@ -127,6 +127,7 @@ let list
      List.iter (f (i + 1) ppf) l;
      line i ppf "]\n"
 
+(*Format functions for pretty printing parse results*)
 let print_memo_entry 
     (i : int) 
     (ppf : formatter) 
@@ -135,16 +136,14 @@ let print_memo_entry
     fprintf ppf "%d -> [%s]" (fst res) 
       (String.concat "; " (List.map string_of_int (snd res))) in
   line i ppf "%a\n" f res
-
-let print_memo_tbl_binding 
+and print_memo_tbl_binding 
     (i : int) 
     (ppf : formatter) 
     (entry : (string * memo_tbl_item_t)) : unit =
   let (tag, items) = entry in
   line i ppf "%s\n" tag;
   list (i + 1) print_memo_entry ppf items
-
-let print_memo_tbl 
+and print_memo_tbl 
     (i : int) 
     (ppf : formatter) 
     (t : memo_tbl_t) : unit =
@@ -154,8 +153,7 @@ let print_memo_tbl
     print_memo_tbl_binding 
     ppf 
     (Hashtbl.fold (fun t l acc -> (t, l) :: acc) t [])
-
-let print_parse_result
+and print_parse_result
     (i : int)
     (ppf : formatter)
     (res : result) : unit = 
@@ -166,8 +164,7 @@ let print_parse_result
     (fun ppf l -> 
       fprintf ppf "[%s]" (String.concat "; " (List.map string_of_int l)))
     res
-
-let print_parse
+and print_parse
     (i : int) 
     (ppf : formatter) 
     (res : (result * memo_tbl_t)) : unit = 

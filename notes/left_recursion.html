@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+      extensions: ["tex2jax.js","TeX/AMSmath.js","TeX/AMSsymbols.js"],
+      jax: ["input/TeX", "output/HTML-CSS"],
+      tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+      },
+      "HTML-CSS": { availableFonts: ["TeX"] }
+      });
+    </script> 
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
+    <title>Eliminating left recursion</title>
+  </head>
+  <body>
+    <p>
+    Consider a non-terminal $A$ with two productions $A \rightarrow A
+    \alpha \mid \beta$ where $\alpha$, $\beta$ are sequences of
+    terminals and non-terminals that do not start with $A$. It
+    produces strings of the form $\beta\alpha^{*}$. This rule for $A$
+    exhibits direct left recursion. The left recursion can be turned
+    into right recursion by rewriting in terms of a new non-terminal
+    $R$ as $A \rightarrow \beta R \nonumber$ and $R \rightarrow \alpha
+    R \mid \epsilon$.
+    </p>
+
+    <p>
+      Generally, immediate left recursion can be eliminated by the
+      following technique which works for any number of $A$
+      productions. First group as \[ \begin{equation} A \rightarrow
+      A\alpha_{1} \mid A\alpha_{2} \mid \cdots \mid A\alpha_{m} \mid
+      \beta_{1} \mid \cdots \mid \beta_{n} \end{equation} \] where no
+      $\beta_{i}$ begins with an $A$. Then replace the $A$ productions
+      by \[ \begin{eqnarray} A &\rightarrow& \beta_{1}A^{\prime} \mid
+      \beta_{2}A^{\prime} \mid \cdots \mid \beta_{n}A^{\prime}
+      \nonumber \\ A^{\prime} &\rightarrow& \alpha_{1}A^{\prime} \mid
+      \alpha_{2}A^{\prime} \mid \cdots \mid \alpha_{m}A^{\prime} \mid
+      \epsilon \nonumber \end{eqnarray} \] This procedure eliminates
+      all direct left recursion from the $A$ and $A^{\prime}$ rules
+      (provided no $\alpha_{i}$ is $\epsilon$). For example, the
+      language of arithmetic expressions might be written
+
+      \[
+      \begin{eqnarray}
+      & E &\rightarrow E + T \mid E - T \mid T \nonumber \\
+      & T &\rightarrow T * F \mid T \mathbin{/} F \mid F \nonumber \\
+      & F &\rightarrow \left( E \right) \mid \mathbf{id} \nonumber
+      \end{eqnarray}
+     \]
+      which, on applying the above procedure yields
+     \[
+      \begin{eqnarray}
+      & E &\rightarrow T\;E^{\prime} \nonumber \\
+      & E^{\prime} &\rightarrow +\;T\;E^{\prime} \mid -\;T\;E^{\prime}\nonumber \mid \epsilon \nonumber \\
+      & T &\rightarrow F\;T^{\prime} \nonumber \\
+      & T^{\prime} &\rightarrow *\;F\;T^{\prime} \mid \mathbin{/}\;F\;T^{\prime} \mid \epsilon \nonumber \\
+      & F &\rightarrow \left( E \right) \mid \mathbf{id} \nonumber
+      \end{eqnarray}
+     \]
+
+      Consider the grammar
+      \[
+      \begin{eqnarray}
+      S &\rightarrow& A\;a \mid b \nonumber \\
+      A &\rightarrow& A\;c \mid S\;d \mid \epsilon \nonumber
+      \end{eqnarray}
+      \]
+
+      The non-terminal $S$ is left recursive because $S \Rightarrow
+      A\;a \Rightarrow S\;d\;a$ but it is not immediately left
+      recursive. The procedure given above does not eliminate left
+      recursion of this kind. It is however amenable to the following
+      approach. First order the non-terminals $S$ then $A$. We'd start
+      by eliminating direct left recursion from the $S$-productions
+      but there is none among the $S$-productions so we move onto the
+      $A$-productions. First we eliminate $S$ from the $A$-productions
+      by substitution to obtain the following $A$-productions
+      \[
+      \begin{equation}
+      A \rightarrow A\;c \mid A\;a\;d \mid b\;d \mid \epsilon \nonumber
+      \end{equation}
+      \]
+      and now eliminate the direct left recursion in the $A$ to get
+      \[
+      \begin{eqnarray}
+      & S & \rightarrow A\;a \mid b \nonumber \\
+      & A & \rightarrow b\;d\;A^{\prime} \mid A^{\prime} \nonumber \\
+      & A^{\prime} & \rightarrow c\;A^{\prime} \mid a\;d\;A^{\prime} \mid \epsilon \nonumber
+      \end{eqnarray}
+      \]
+
+      Technically, the above approach is only guaranteed to work when
+      the grammar to which it is applied has no cycles or
+      $\epsilon$-productions. The above example violates this in that
+      the rule for $A$ contained an $\epsilon$-production but it turns
+      out in this case to be harmless. Generalizing, assuming an input
+      grammar $G$ with no cycles or $\epsilon$-productions, an
+      equivalent grammar with no left recursion can be found by,
+      arranging the nonterminals of $G$, $A_{1}, A_{2}, \dots, A_{n}$
+      say, then visiting each in order, for each $A_{i}$, replace each
+      production of the form $A_{i} \rightarrow A_{j}\gamma$ by the
+      productions $A_{i} \rightarrow \delta_{1}\gamma \mid
+      \delta_{2}\gamma \mid \cdots \mid \delta_{k}\gamma$ where $A_{j}
+      \rightarrow \delta_{1} \mid \delta_{2} \mid \cdots \mid
+      \delta_{k}$ are all the current $A_{j}$ productions, $j < i$ and
+      then elminiate the immediate left recursion among the $A_{i}$
+      productions.
+    </p>
+
+    <p>
+      One of the pre-conditions of the algorithm of the previous
+      section is that the input grammar $G$ contain no
+      $\epsilon$-productions. So, we seek a method for eliminating
+      $\epsilon$-productions where we can. To begin, we define a
+      non-terminal $A$ of a grammar $G$ $\textit{nullable}$ if, $A
+      \overset{*}{\Rightarrow} \epsilon$. A non-terminal is nullable
+      if, in $G$, $A \rightarrow \epsilon$ or if $A \rightarrow
+      A_{1}A_{2} \cdots A_{k}$ and each $A_{i}$ is nullable.
+
+      To illustrate the procedure, let $G$ be given as:
+
+      \[
+      \begin{eqnarray}
+      S &\rightarrow& A\;B \nonumber \\
+      A &\rightarrow& A\;a\;A \mid \epsilon \nonumber \\
+      B &\rightarrow& B\;b\;B \mid \epsilon \nonumber
+      \end{eqnarray}
+      \]
+
+      In this grammar all of $S$, $A$ and $B$ are nullable. The new
+      grammar introduces a new start rule $S^{\prime} \rightarrow S$
+      and since $S$ is nullable we also add an $\epsilon$ alternative
+      to conclude $S^{\prime} \rightarrow S \mid \epsilon$. Now, for
+      each rule $A \rightarrow X_{1} X_{2} \dots X_{k}$ create rules,
+      $A \rightarrow \alpha_{1}\alpha_{2}\cdots\alpha_{k}$ where
+      \[
+      \begin{equation}
+      \alpha_{i} =
+      \begin{cases}
+      X_{i} & \text{if $X_{i}$ is a terminal/non-nullable non-terminal} \\
+      X_{i}\; \text{or}\;\epsilon & \text{if $X_{i}$ is nullable}
+      \end{cases}
+      \end{equation}
+      \]
+      and not all $\alpha_{i}$ are nullable. Applying this procedure
+      then, we get
+      \[
+      \begin{eqnarray}
+      & S^{\prime} &\rightarrow S \mid \epsilon \nonumber \\
+      & S &\rightarrow A\;B \mid A \mid B \nonumber \\
+      & A &\rightarrow A\;a\;A \mid a\;A \mid A\; a \mid a \nonumber \\
+      & B &\rightarrow B\;b\;B \mid b\;B \mid B\; b \mid b \nonumber
+      \end{eqnarray}
+      \]
+      The net effect is that $\epsilon$-productions have been
+      eliminated but for the $S^{\prime}$ production which does not
+      appear on the right-hand-side of any other rule.
+    </p>
+    <hr/>
+    <p>
+      References:<br/>
+      [1] <cite>Compilers Principles, Techniques, &amp; Tools</cite> by Aho et. al. 2nd Ed. 2007.</p>
+    </p>
+
+  </body>
+</html>
