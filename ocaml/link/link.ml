@@ -131,7 +131,8 @@ module M : S = struct
       (l : ('source, 'sink) link) 
       (s : 't set)
       (a : ('sink, 't) accepts)  : ('source, 't) augmented_set =
-    let ({name = src}, {name = dst}) = l in
+    let {name = src} : 'source source = fst l in
+    let {name = dst} : 'sink sink  = snd l in
     Augmented_set {
       set : 'tt set = (src, dst) :: s;
       accepts = (Accepts : ('source, 'tt) accepts);
@@ -147,16 +148,18 @@ module Test (E : S) = struct
   type t1 and t2 and t3 and t4
 
   let snk1 : t1 sink = { name = "sink1" }
+  let snk2 : t2 sink = { name = "sink2" }
+  let snk3 : t4 sink = { name = "sink3" }
+
   let src1 : t2 source = { name = "source1" }
   let src2 : t3 source = { name = "source2" }
 
   (*src, sink*)
   let link1 : (t2,  t1) link = (src1, snk1) (*t2 src, t1 sink*)
   let link2 : (t3,  t1) link = (src2, snk1) (*t3 src, t1 sink*)
-  let link3 : (t3,  t2) link = (src2, src1) (*t3 src,  t2 sink*)
+  let link3 : (t3,  t2) link = (src2, snk2) (*t3 src,  t2 sink*)
 
-  let snk2 : t4 sink = { name = "sink2"}
-  let link4 : (t3, t4) link = (src2, snk2)
+  let link4 : (t3, t4) link = (src2, snk3)
 
   let test () = 
 
@@ -167,7 +170,7 @@ module Test (E : S) = struct
       - [a] is evidence [set] accepts links with sink type [t1]
     *)
 
-    (*Insert a [(t1, t2) link]*)
+    (*Insert a [(t2, t1) link]*)
     let Augmented_set 
         {set = set1; accepts = a1; cc = cc1} = 
       insert_link link1 set a in
@@ -180,8 +183,8 @@ module Test (E : S) = struct
           [link2] which has sink type [t1] *)
 
     (*Insert a [(t3, t1)] link*)
-    let Augmented_set 
-        {set = set2; accepts = a2; cc = cc2} = 
+    let Augmented_set
+        {set = set2; accepts = a2; cc = cc2} =
       insert_link link2 set (cc1 a) in
     (*
       - [a2] says that [set2] accepts links with sink type [t3] ([t3] is
@@ -193,8 +196,8 @@ module Test (E : S) = struct
     *)
 
     (*Insert a [(t3, t2)] link*)
-    let Augmented_set 
-        {set = set3; accepts = a3; cc = cc3} = 
+    let Augmented_set
+        {set = set3; accepts = a3; cc = cc3} =
       insert_link link3 set (cc2 a1) in
     (*
       - [a3] says that [set3] accepts links with sink type [t3] ([t3]is
@@ -206,10 +209,11 @@ module Test (E : S) = struct
     (*There is just no way we can get insert [link4] into [set3]. The is
       no evidence we can produce that will allow it. Try the below with
       any of of [a1], [a2], [a3])*)
-    (* let Augmented_set 
-       {set = set4; accepts = a4; cc = cc4} = 
-       insert_link link4 set (cc3 a3) in 
-    *)
+    (*
+    let Augmented_set
+       {set = set4; accepts = a4; cc = cc4} =
+       insert_link link4 set (cc3 a1) in
+     *)
 
     ()
 end
