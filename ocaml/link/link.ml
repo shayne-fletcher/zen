@@ -206,7 +206,10 @@ module Test (E : S) = struct
     (*There is just no way we can get insert [link4] into [set3]. The is
       no evidence we can produce that will allow it. Try the below with
       any of of [a1], [a2], [a3])*)
-    (* let Augmented_set {set = set4; accepts = a4; cc = cc4} = insert_link link4 set (cc3 a3) in *)
+    (* let Augmented_set 
+       {set = set4; accepts = a4; cc = cc4} = 
+       insert_link link4 set (cc3 a3) in 
+    *)
 
     ()
 end
