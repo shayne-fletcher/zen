@@ -13,22 +13,25 @@
 
   1. Generating a fresh, unique type for each set;
   2. Encoding of a set as a collection of evidence about membership.
-
 *)
 
 module type S = sig
 
   (*Types for objects in the domain : sources, sinks, sets and links*)
-  type _ sink = { name : string }
-  type _ source = { name : string }
-  type _ set = (string * string) list
-  type ('source, 'sink) link = ('source source * 'sink sink)
+  type _ sink
+  type _ source
+  type _ set (*=(string * string) list (*Why can't this be abstract?*)*)
+  type ('source, 'sink) link
 
   (*A type for membership evidence. A value of type [('sink, 'set)
     accepts] is a witness that ['set] will accept a link with sink type
     ['sink]*)
   type ('sink, 'set) accepts 
-  (*Abstract; so that there is no means of faking evidence*)
+  (*Abstract so that there is no means of faking evidence*)
+
+  val mk_sink : string -> 'sink sink
+  val mk_source : string -> 'source source
+  val mk_link : 'source source * 'sink sink -> ('source, 'sink) link
 
   (*There are two operations on sets : creating a fresh set and adding
     a link to a set. In both cases the operation returns multiple
@@ -84,10 +87,10 @@ module type S = sig
 
     It's also worth looking again at the scope of the type variables:
     ['sink] and ['parent] are parameters since they correspond to the
-    types of inputs to the operation; ['t] is fresh and ['s] is
-    universally-quantified since the capability must work for any piece
-    of evidence involving the parent.
-  *)
+    types of inputs to the operation; ['set] is fresh and ['s] is
+    universally-quantified since the capability must work for any
+    piece of evidence involving the parent.
+   *)
 
   (*The [insert_link] operation takes three arguments: the link to
     insert, the set into which the link is inserted and evidence that
@@ -102,10 +105,16 @@ end
 
 module M : S = struct
 
-  type _ sink = { name : string }
-  type _ source = { name : string }
-  type _ set = (string * string) list
+  type 'sink sink = { name : string }
+  type 'source source = { name : string }
+
+  type 'set set = (string * string) list
   type ('source, 'sink) link = ('source source * 'sink sink)
+
+  let mk_sink (name : string) : 'sink sink = {name}
+  let mk_source (name : string) : 'source source = {name}
+  let mk_link ((source, sink) : 'source source * 'sink sink) 
+      : ('source, 'sink) link = (source, sink)
 
   type ('sink, 'set) accepts = 
   | Accepts : ('sink, 'set) accepts
@@ -147,17 +156,17 @@ module Test (E : S) = struct
 
   type t1 and t2 and t3 and t4
 
-  let snk1 : t1 sink = { name = "sink1" }
-  let snk2 : t2 sink = { name = "sink2" }
-  let snk3 : t4 sink = { name = "sink3" }
+  let snk1 : t1 sink = mk_sink "sink1"
+  let snk2 : t2 sink = mk_sink "sink2"
+  let snk3 : t4 sink = mk_sink "sink3"
 
-  let src1 : t2 source = { name = "source1" }
-  let src2 : t3 source = { name = "source2" }
+  let src1 : t2 source = mk_source "source1"
+  let src2 : t3 source = mk_source "source2"
 
-  let link1 : (t2,  t1) link = (src1, snk1) (*t2 src, t1 sink*)
-  let link2 : (t3,  t1) link = (src2, snk1) (*t3 src, t1 sink*)
-  let link3 : (t3,  t2) link = (src2, snk2) (*t3 src, t2 sink*)
-  let link4 : (t3,  t4) link = (src2, snk3) (*t3 src, t4 sink*)
+  let link1 : (t2,  t1) link = mk_link (src1, snk1) (*t2 src, t1 sink*)
+  let link2 : (t3,  t1) link = mk_link (src2, snk1) (*t3 src, t1 sink*)
+  let link3 : (t3,  t2) link = mk_link (src2, snk2) (*t3 src, t2 sink*)
+  let link4 : (t3,  t4) link = mk_link (src2, snk3) (*t3 src, t4 sink*)
 
   let test () = 
 
@@ -169,8 +178,8 @@ module Test (E : S) = struct
     *)
 
     (*Insert a [(t2, t1) link]*)
-    let (Augmented_set 
-        {set = set1; accepts = a1; cc = cc1} : (t2, _) augmented_set) = 
+    let Augmented_set 
+        {set = set1; accepts = a1; cc = cc1} = 
       insert_link link1 set a in
     (*
       - [a1] is evidence [set1] accepts links with sink type [t2] ([t2] is
@@ -181,8 +190,8 @@ module Test (E : S) = struct
           [link2] which has sink type [t1] *)
 
     (*Insert a [(t3, t1)] link*)
-    let (Augmented_set
-        {set = set2; accepts = a2; cc = cc2} : (t3, _) augmented_set) =
+    let Augmented_set
+        {set = set2; accepts = a2; cc = cc2} =
       insert_link link2 set (cc1 a) in
     (*
       - [a2] says that [set2] accepts links with sink type [t3] ([t3] is
