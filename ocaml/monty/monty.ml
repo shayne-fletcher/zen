@@ -12,9 +12,9 @@ module Monty = struct
         closed*)
       if p = 0 then n - 1 else 0
 
-  (*[gen_game d] generates a game with [d] doors and returns a game with
-    winning door, a player selected door and a door to keep closed
-    before if the player wants to switch*)
+  (*[gen_game d] generates a game with [d] doors and returns a game
+    with a winning door, a player selected door and a door to keep
+    closed before if the player wants to switch*)
   let gen_game (d : int) : (int * int * int) =
     let w = Random.int d and p = Random.int d in 
     (w, p, dtr w p d)
