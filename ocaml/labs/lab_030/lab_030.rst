@@ -1,0 +1,22 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #030
+2016-10-12 by 
+Difficulty level :
+Easy/medium
+Problem :
+ Marilyn vos Savant's "Ask Marilyn" column in Parade magazine in 1990:
+
+Suppose you're on a game show, and you're given the choice of three doors : Behind one door is a car; behind the others, goats. You pick a door, say No. 1, and the host, who knows what's behind the doors, opens another door, say No.3 which has a goat. He then says to you, "Do you want to pick door No. 2?" Is it to your advantage to switch your choice?
+
+What do you think?
+
+This problem is known as the "Monty Hall" problem. It's named after the host of the American television game show "Let's make a deal". Paul Erdős, one of the most prolific mathematicians in history remained unconvinced (of the correct answer to the above problem) until he was shown a computer simulation confirming the predicted result.
+
+The problem this week is to write a simulation of this game and use it to produce evidence supporting your theory of whether it is better to "hold" or "switch".
