@@ -82,7 +82,6 @@ let () =
         Printf.printf "Error %f\n" err;
         (*Switch*)
         num_wins := 0;
-        num_wins := 0;
         play_games d n Switch;
         Printf.printf "Num wins (switch): %d\n" !num_wins;
         let err=fabs (float_of_int (!num_wins) /. 
@@ -90,6 +89,5 @@ let () =
                                                 (float_of_int d))) in
         Printf.printf "Error %f\n" err ;
       end
-
   with 
   | Invalid_argument s -> Printf.printf "%s\n" s
