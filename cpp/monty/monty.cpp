@@ -69,13 +69,13 @@ int main (int argc, char const* argv[]) {
 
     num_wins = 0;
     play_games (d, n, strategy::hold);
-    err = std::fabs (float (num_wins)/float (n) - 1 / float (d));
+    err = std::abs (double (num_wins)/double (n) - 1 / double (d));
     std::cout << "Num wins (hold) : " << num_wins << std::endl;
     std::cout << "Error : " << err << std::endl;
 
     num_wins = 0;
     play_games (d, n, strategy::switch_);
-    err = std::fabs (float (num_wins)/float (n) - float (d - 1)/ float (d));
+    err = std::abs (double (num_wins)/double (n) - double (d - 1)/ double (d));
     std::cout << "Num wins (switch) : " << num_wins << std::endl;
     std::cout << "Error : " << err << std::endl;
   }
