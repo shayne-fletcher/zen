@@ -85,7 +85,7 @@ namespace detail {
 template <class ItT>
 typename std::iterator_traits<ItT>::value_type 
 sum (ItT begin, ItT end) {
-  using A = std::iterator_traits<ItT>::value_type;
+  using A = typename std::iterator_traits<ItT>::value_type;
   auto add = Num<A>::add;
   auto from_int = Num<A>::from_int;
 
@@ -171,7 +171,7 @@ struct Show<std::vector<A>> {
 template <class A>
 std::string Show<std::vector<A>>::show (std::vector<A> const& ls) {
   bool first=true;
-  std::vector<A>::const_iterator begin=ls.begin (), end=ls.end ();
+  typename std::vector<A>::const_iterator begin=ls.begin (), end=ls.end ();
   std::string s="[";
   while (begin != end) {
     if (first) first = false;
@@ -227,16 +227,16 @@ int Eq<int>::neq (int s, int t) { return s != t; }
 */
 
 template <class A>
-struct Mul : Eq<A>, Num <A>{
+struct Mul : Eq<A>, Num <A> {
   static A mul (A x, A y);
 };
 
 template <class A>
 A Mul<A>::mul (A x, A y) {
-  if (eq (x, from_int (0))) return from_int (0);
-  if (eq (x, from_int (1))) return y;
+  if (Mul<A>::eq (x, Mul<A>::from_int (0))) return Mul<A>::from_int (0);
+  if (Mul<A>::eq (x, Mul<A>::from_int (1))) return y;
 
-  return add (y, mul ((add (x, from_int (-1))), y));
+  return Mul<A>::add (y, mul ((Mul<A>::add (x, Mul<A>::from_int (-1))), y));
 }
 
 /*
@@ -248,7 +248,7 @@ A Mul<A>::mul (A x, A y) {
 
 */
 
-template Mul<bool>;
+template struct Mul<bool>;
 template <> int Mul<int>::mul (int x, int y) { return x * y; }
 
 /*
@@ -304,8 +304,6 @@ int test_dot = dot (std::vector<int>{1, 2, 3}, std::vector<int>{4, 5, 6});
 
  */
 
-#if 0
-
 namespace detail {
 
   template<class A, class ItT>
@@ -318,7 +316,9 @@ namespace detail {
 }//namespace detail
 
 
-//This code sends the compiler (msvc-14.0) into unbounded recursion!
+#if 0
+
+//This code sends at least msvc-14.0 and clang-3.6.2 into unbounded recursion!
 
 template <class A>
 void print_nested (int n, A const& x) {
