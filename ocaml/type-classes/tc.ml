@@ -55,9 +55,9 @@ type 'a num = {
 }
 
 let sum : 'a num -> 'a list -> 'a = 
-  fun {from_int; add} -> 
+  fun {from_int; add= ( + )} -> 
     fun ls ->
-      List.fold_right add ls (from_int 0)
+      List.fold_right ( + ) ls (from_int 0)
 
 (*
   instance Num Int where

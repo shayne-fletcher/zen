@@ -89,8 +89,7 @@ sum (ItT begin, ItT end) {
   auto add = Num<A>::add;
   auto from_int = Num<A>::from_int;
 
-  return detail::fold_right (
-    [=](A z, auto x) { return add (x, z); }, from_int (0), begin, end);
+  return detail::fold_right (add, from_int (0), begin, end);
 
   return 0;
 }
