@@ -154,7 +154,7 @@ auto print_incr_int = [](int x) { return print_incr (x); };
          (if first then "" else ", ")  ++ show h ++ go False t
 
    testls :: String
-   testls = show [1::int, 2, 3]
+   testls = show [1::Int, 2, 3]
 */
 
 //It doesn't look like we can do much better than this (a partial
@@ -227,15 +227,19 @@ int Eq<int>::neq (int s, int t) { return s != t; }
 
 template <class A>
 struct Mul : Eq<A>, Num <A> {
+  using Eq<A>::eq;
+  using Num<A>::add;
+  using Num<A>::from_int;
+
   static A mul (A x, A y);
 };
 
 template <class A>
 A Mul<A>::mul (A x, A y) {
-  if (Mul<A>::eq (x, Mul<A>::from_int (0))) return Mul<A>::from_int (0);
-  if (Mul<A>::eq (x, Mul<A>::from_int (1))) return y;
+  if (eq (x, from_int (0))) return from_int (0);
+  if (eq (x, from_int (1))) return y;
 
-  return Mul<A>::add (y, mul ((Mul<A>::add (x, Mul<A>::from_int (-1))), y));
+  return add (y, mul ((add (x, from_int (-1))), y));
 }
 
 /*
