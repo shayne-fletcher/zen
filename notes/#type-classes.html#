@@ -353,7 +353,6 @@
     A Mul&lt;A&gt;::mul (A x, A y) {
       if (eq (x, from_int (0))) return from_int (0);
       if (eq (x, from_int (1))) return y;
-    
       return add (y, mul ((add (x, from_int (-1))), y));
     }
         
