@@ -58,7 +58,6 @@ module Ord_prod : ORD_PROD =
 
   end
 
-
 module type SHOW = sig
   type t
   val show : t -> string
