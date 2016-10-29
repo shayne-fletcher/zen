@@ -1,43 +1,37 @@
 module type EQ = sig
   type t
+
   val eq : t * t -> bool
 end
 
 module Eq_bool : EQ with type t = bool = struct
   type t = bool
+
   let eq (a, b) = a = b
 end
 
 module Eq_int : EQ with type t = int = struct
   type t = int
+
   let eq (a, b) = a = b
 end
 
-module type EQ_PROD = 
-  functor (X : EQ) (Y : EQ) -> EQ with type t = X.t * Y.t
+module type EQ_PROD = functor (X : EQ) (Y : EQ) -> EQ with type t = X.t * Y.t
 
 module Eq_prod : EQ_PROD =
   functor (X : EQ) (Y : EQ) -> struct
     type t = X.t * Y.t
+
     let eq ((x1, y1), (x2, y2)) =  x1 = x1 && y1 = y2
 end
 
 module type ORD = sig
-  type t
+  include EQ
 
-  (*Base class instance*)
-  module Eq : EQ
-
-  (*Import base class functions*)
-  include EQ with type t := t
-
-  (*Extend the set of functions to include a less than operator*)
   val lt : t * t -> bool
 end
 
 module Ord_int : ORD with type t = int = struct
-  module Eq = Eq_int
-
   include (Eq_int : EQ with type t = int)
 
   let lt (x, y) = Pervasives.( < ) x y
@@ -48,18 +42,15 @@ module type ORD_PROD =
 
 module Ord_prod : ORD_PROD = 
   functor (X : ORD) (Y : ORD) -> struct
-
-    module Eq = Eq_prod (X) (Y)
-
-    include Eq
+    include Eq_prod (X) (Y)
 
     let lt ((x1, y1), (x2, y2)) = 
       X.lt (x1, x2) || X.eq (x1, x2) && Y.lt (y1, y2)
-
   end
 
 module type SHOW = sig
   type t
+
   val show : t -> string
 end
 
@@ -67,6 +58,7 @@ type 'a show_impl = (module SHOW with type t = 'a)
 
 module Show_bool : SHOW with type t = bool = struct
   type t = bool
+
   let show = function | true -> "True" | false -> "False"
 end
 
@@ -74,6 +66,7 @@ let show_bool = (module Show_bool : SHOW with type t = bool)
 
 module Show_int : SHOW with type t = int = struct
   type t = int
+
   let show = Pervasives.string_of_int
 end
 
@@ -89,6 +82,7 @@ let test_print_2 : unit = print show_int 3
 
 module type NUM = sig
   type t
+
   val from_int : int -> t
   val ( + ) : t -> t -> t
 end
@@ -133,6 +127,7 @@ let show_list : 'a show_impl -> 'a list show_impl =
     let module Show = (val show : SHOW with type t = a) in
     (module struct
       type t = a list
+
       let show : t -> string = 
         fun xs ->
           let rec go first = function
@@ -142,28 +137,15 @@ let show_list : 'a show_impl -> 'a list show_impl =
           "[" ^ go true xs
     end : SHOW with type t = a list)
 
-let testls : string = 
-  let module Show = (val (show_list show_int) : SHOW with type t = int list) in 
+let testls : string = let module Show = 
+     (val (show_list show_int) : SHOW with type t = int list) in 
   Show.show (1 :: 2 :: 3 :: [])
 
 module type MUL = sig
-  type t
-
-  (*Base class instances*)
-  module E : EQ with type t = t
-  module N : NUM with type t = t
-
-  (*Accessors to the base class instances*)
-  val as_eq  : unit -> (module EQ with type t = t)
-  val as_num : unit -> (module NUM with type t = t)
-
-  (*The union of the [EQ] and [NUM] functions*)
-  include EQ with type t := t
+  include EQ
   include NUM with type t := t
 
-  (*Extend the set of functions to include a multiplication operator*)
   val mul : t -> t -> t
-
 end
 
 type 'a mul_impl = (module MUL with type t = 'a)
@@ -171,21 +153,13 @@ type 'a mul_impl = (module MUL with type t = 'a)
 (*The type of a functor taking [EQ] and [NUM] base class arguments
   that "returns" a [MUL] class instance*)
 module type MUL_F = 
-  functor (E : EQ) (N : NUM with type t = E.t) -> 
-    MUL with type t = E.t and module E := E and module N := N
+  functor (E : EQ) (N : NUM with type t = E.t) -> MUL with type t = E.t
 
 (*Functor implementation for generating a "default" [MUL] instance
   given instances of a (compatible) [EQ] and [NUM]*)
 module Mul_default : MUL_F = 
   functor (E : EQ) (N : NUM with type t = E.t)  -> struct
-
-    module E = E
-    module N = N
-
-    let as_eq () = (module E : EQ with type t = E.t)
-    let as_num () = (module N : NUM with type t = E.t)
-
-    include E
+    include (E : EQ with type t = E.t)
     include (N : NUM with type t := E.t)
 
     let mul : t -> t -> t =
@@ -197,32 +171,20 @@ module Mul_default : MUL_F =
 
 end
 
-module Mul_bool : 
-  MUL with type t = bool
-      and module E := Eq_bool 
-      and module N := Num_bool = 
-          Mul_default (Eq_bool) (Num_bool)
+module Mul_bool : MUL with type t = bool = Mul_default (Eq_bool) (Num_bool)
 
 module Mul_int : MUL with type t = int = struct
-  module E = Eq_int
-  module N = Num_int
-
-  let as_eq () = (module E : EQ with type t = int)
-  let as_num () = (module N : NUM with type t = int)
-
   include (Eq_int : EQ with type t = int)
-  include (Num_int : NUM with type t := Eq_int.t)
+  include (Num_int : NUM with type t := int)
 
   let mul = Pervasives.( * )
-
 end 
 
 let dot : 'a mul_impl -> 'a list -> 'a list -> 'a =
   fun (type a) (mul : a mul_impl) ->
     fun xs ys ->
-      let module M = 
-            (val mul : MUL with type t = a) in
-      sum (M.as_num ())@@ List.map2 M.mul xs ys
+      let module M = (val mul : MUL with type t = a) in
+      sum (module M : NUM with type t = a)@@ List.map2 M.mul xs ys
 
 let test_dot = 
   dot (module Mul_int : MUL with type t = int) [1; 2; 3] [4; 5; 6]
