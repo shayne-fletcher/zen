@@ -20,7 +20,7 @@ module type S = sig
   (*Types for objects in the domain : sources, sinks, sets and links*)
   type _ sink
   type _ source
-  type _ set(* = (string * string) list*) (*Why can't this be abstract?*)
+  type _ set = (string * string) list
   type ('source, 'sink) link
 
   (*A type for membership evidence. A value of type [('sink, 'set)
@@ -109,6 +109,7 @@ module M : S = struct
   type 'source source = { name : string }
 
   type 'set set = (string * string) list
+
   type ('source, 'sink) link = ('source source * 'sink sink)
 
   let mk_sink (name : string) : 'sink sink = {name}
