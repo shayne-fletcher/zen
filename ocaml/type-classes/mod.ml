@@ -16,7 +16,8 @@ module Eq_int : EQ with type t = int = struct
   let eq (a, b) = a = b
 end
 
-module type EQ_PROD = functor (X : EQ) (Y : EQ) -> EQ with type t = X.t * Y.t
+module type EQ_PROD =
+  functor (X : EQ) (Y : EQ) -> EQ with type t = X.t * Y.t
 
 module Eq_prod : EQ_PROD =
   functor (X : EQ) (Y : EQ) -> struct
@@ -40,11 +41,11 @@ end
 module type ORD_PROD =
   functor (X : ORD) (Y : ORD) -> ORD with type t = X.t * Y.t
 
-module Ord_prod : ORD_PROD = 
+module Ord_prod : ORD_PROD =
   functor (X : ORD) (Y : ORD) -> struct
     include Eq_prod (X) (Y)
 
-    let lt ((x1, y1), (x2, y2)) = 
+    let lt ((x1, y1), (x2, y2)) =
       X.lt (x1, x2) || X.eq (x1, x2) && Y.lt (y1, y2)
   end
 
@@ -107,7 +108,7 @@ end
 
 let num_bool = (module Num_bool : NUM with type t = bool)
 
-let sum : 'a num_impl -> 'a list -> 'a = 
+let sum : 'a num_impl -> 'a list -> 'a =
   fun (type a) (num : a num_impl) (ls : a list) ->
     let module Num = (val num : NUM with type t = a) in
     List.fold_right Num.( + ) ls (Num.from_int 0)
@@ -117,7 +118,7 @@ let test_sum = sum num_int [1; 2; 3; 4]
 let print_incr : ('a show_impl * 'a num_impl) -> 'a -> unit =
   fun (type a) ((show : a show_impl), (num : a num_impl)) (x : a) ->
     let module Num = (val num : NUM with type t = a) in
-    let open Num 
+    let open Num
     in print show (x + from_int 1)
 
 let print_incr_int (x : int) : unit = print_incr (show_int, num_int) x
@@ -128,7 +129,7 @@ let show_list : 'a show_impl -> 'a list show_impl =
     (module struct
       type t = a list
 
-      let show : t -> string = 
+      let show : t -> string =
         fun xs ->
           let rec go first = function
             | [] -> "]"
@@ -137,8 +138,8 @@ let show_list : 'a show_impl -> 'a list show_impl =
           "[" ^ go true xs
     end : SHOW with type t = a list)
 
-let testls : string = let module Show = 
-     (val (show_list show_int) : SHOW with type t = int list) in 
+let testls : string = let module Show =
+     (val (show_list show_int) : SHOW with type t = int list) in
   Show.show (1 :: 2 :: 3 :: [])
 
 module type MUL = sig
@@ -152,12 +153,12 @@ type 'a mul_impl = (module MUL with type t = 'a)
 
 (*The type of a functor taking [EQ] and [NUM] base class arguments
   that "returns" a [MUL] class instance*)
-module type MUL_F = 
+module type MUL_F =
   functor (E : EQ) (N : NUM with type t = E.t) -> MUL with type t = E.t
 
 (*Functor implementation for generating a "default" [MUL] instance
   given instances of a (compatible) [EQ] and [NUM]*)
-module Mul_default : MUL_F = 
+module Mul_default : MUL_F =
   functor (E : EQ) (N : NUM with type t = E.t)  -> struct
     include (E : EQ with type t = E.t)
     include (N : NUM with type t := E.t)
@@ -166,7 +167,7 @@ module Mul_default : MUL_F =
       let rec loop x y = begin match () with
         | () when eq (x, (from_int 0)) -> from_int 0
         | () when eq (x, (from_int 1)) -> y
-        | () -> y + loop (x + (from_int (-1))) y 
+        | () -> y + loop (x + (from_int (-1))) y
       end in loop
 
 end
@@ -178,7 +179,7 @@ module Mul_int : MUL with type t = int = struct
   include (Num_int : NUM with type t := int)
 
   let mul = Pervasives.( * )
-end 
+end
 
 let dot : 'a mul_impl -> 'a list -> 'a list -> 'a =
   fun (type a) (mul : a mul_impl) ->
@@ -186,10 +187,10 @@ let dot : 'a mul_impl -> 'a list -> 'a list -> 'a =
       let module M = (val mul : MUL with type t = a) in
       sum (module M : NUM with type t = a)@@ List.map2 M.mul xs ys
 
-let test_dot = 
+let test_dot =
   dot (module Mul_int : MUL with type t = int) [1; 2; 3] [4; 5; 6]
 
-let rec replicate : int -> 'a -> 'a list = 
+let rec replicate : int -> 'a -> 'a list =
   fun n x -> if n <= 0 then [] else x :: replicate (n - 1) x
 
 let rec print_nested : 'a. 'a show_impl -> int -> 'a -> unit =
