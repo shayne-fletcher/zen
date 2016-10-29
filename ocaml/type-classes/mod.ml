@@ -16,6 +16,8 @@ module Eq_int : EQ with type t = int = struct
   let eq (a, b) = a = b
 end
 
+let test_int = assert (Eq_int.eq (1, 1) && not (Eq_int.eq (2, 1)))
+
 module type EQ_PROD =
   functor (X : EQ) (Y : EQ) -> EQ with type t = X.t * Y.t
 
@@ -23,8 +25,11 @@ module Eq_prod : EQ_PROD =
   functor (X : EQ) (Y : EQ) -> struct
     type t = X.t * Y.t
 
-    let eq ((x1, y1), (x2, y2)) =  x1 = x1 && y1 = y2
+    let eq ((x1, y1), (x2, y2)) =  X.eq (x1, x2) && Y.eq(y1, y2)
 end
+
+module Eq_bool_int : 
+  EQ with type t = (bool * int) = Eq_prod (Eq_bool) (Eq_int)
 
 module type ORD = sig
   include EQ
@@ -33,7 +38,7 @@ module type ORD = sig
 end
 
 module Ord_int : ORD with type t = int = struct
-  include (Eq_int : EQ with type t = int)
+  include Eq_int
 
   let lt (x, y) = Pervasives.( < ) x y
 end
@@ -48,6 +53,12 @@ module Ord_prod : ORD_PROD =
     let lt ((x1, y1), (x2, y2)) =
       X.lt (x1, x2) || X.eq (x1, x2) && Y.lt (y1, y2)
   end
+
+module Ord_int_int = Ord_prod (Ord_int) (Ord_int)
+
+let test_ord_int_int = 
+  let x = (1, 2) and y = (1, 4) in
+  assert ( not (Ord_int_int.eq (x, y)) && Ord_int_int.lt (x, y))
 
 module type SHOW = sig
   type t
@@ -71,7 +82,7 @@ module Show_int : SHOW with type t = int = struct
   let show = Pervasives.string_of_int
 end
 
-let show_int = (module Show_int : SHOW with type t = int)
+let show_int : int show_impl = (module Show_int : SHOW with type t = int)
 
 let print : 'a show_impl -> 'a -> unit =
   fun (type a) (show : a show_impl) (x : a) ->
@@ -122,6 +133,22 @@ let print_incr : ('a show_impl * 'a num_impl) -> 'a -> unit =
     in print show (x + from_int 1)
 
 let print_incr_int (x : int) : unit = print_incr (show_int, num_int) x
+
+module type LIST_SHOW =
+  functor (X : SHOW) -> SHOW with type t = X.t list
+
+module List_show : LIST_SHOW =
+  functor (X : SHOW) -> struct
+    type t = X.t list
+
+    let show =
+        fun xs ->
+          let rec go first = function
+            | [] -> "]"
+            | h :: t ->
+              (if (first) then "" else ", ") ^ X.show h ^ go false t in
+          "[" ^ go true xs
+  end
 
 let show_list : 'a show_impl -> 'a list show_impl =
   fun (type a) (show : a show_impl) ->
