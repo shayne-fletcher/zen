@@ -20,7 +20,7 @@ module type S = sig
   (*Types for objects in the domain : sources, sinks, sets and links*)
   type _ sink
   type _ source
-  type _ set = (string * string) list (*Why can't this be abstract?*)
+  type _ set(* = (string * string) list*) (*Why can't this be abstract?*)
   type ('source, 'sink) link
 
   (*A type for membership evidence. A value of type [('sink, 'set)
@@ -131,9 +131,9 @@ module M : S = struct
   
   type ('sink, 'parent) augmented_set =
   | Augmented_set : {
-    set : 't set;
-    accepts: ('sink, 't) accepts;
-    cc : 's. ('s, 'parent) accepts -> ('s, 't) accepts
+    set : 'set set;
+    accepts: ('sink, 'set) accepts;
+    cc : 's. ('s, 'parent) accepts -> ('s, 'set) accepts
   } -> ('sink, 'parent) augmented_set
 
   let insert_link 
@@ -143,9 +143,9 @@ module M : S = struct
     let {name = src} : 'source source = fst l in
     let {name = dst} : 'sink sink  = snd l in
     Augmented_set {
-      set : 't set = (src, dst) :: s;
-      accepts = (Accepts : ('source, 't) accepts);
-      cc = fun (_ : (_, 'parent) accepts) -> (Accepts : (_, 'parent) accepts)
+      set : 'set set = (src, dst) :: s;
+      accepts : ('souce, 'set) accepts = (Accepts : ('source, 'set) accepts);
+      cc : (_, 'parent) accepts -> (_, 'set) accepts = fun _  -> Accepts
     }
 
 end
@@ -189,6 +189,7 @@ module Test (E : S) = struct
         - [cc1 a] provides evidence that says that [set1] will accept
           [link2] which has sink type [t1] *)
 
+(*
     (*Insert a [(t3, t1)] link*)
     let Augmented_set
         {set = set2; accepts = a2; cc = cc2} =
@@ -221,7 +222,7 @@ module Test (E : S) = struct
        {set = set4; accepts = a4; cc = cc4} =
        insert_link link4 set (cc3 a3) : (t3, _) augmented_set) in
     *)
-
+    *)
     ()
 end
 
