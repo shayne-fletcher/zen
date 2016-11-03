@@ -1,0 +1,528 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+      extensions: ["tex2jax.js","TeX/AMSmath.js","TeX/AMSsymbols.js"],
+      jax: ["input/TeX", "output/HTML-CSS"],
+      tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+      },
+      "HTML-CSS": { availableFonts: ["TeX"] }
+      });
+    </script> 
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
+    <title>Narbel</title>
+  </head>
+  <body>
+    <h2>Generic programming via modules and functors</h2>
+
+    <h3>Modular programming</h3>
+    <p>
+    The readability, development, finding of errors, testability,
+    robustness and adaptability of a program depends mainly on the
+    organization into its independent parts and hierarchies. Without
+    the adoption of boundaries, the development of a program quickly
+    proves difficult to manage and maintenance a burden. Additionally,
+    a program often relies on parts that are more general than
+    it. Distinuishing these parts permits reutilization of their use
+    in other settings and aids in the realization of other
+    programs. Structuring, hierarchization and partitioning are the
+    essential ingredients of programs ambitious in size and life-time.
+    </p>
+    <p>
+    The possibility of building environments protected from each other
+    is already provided for in functional programming through the
+    notion of closures. This sub-spacing favors indeed some of the
+    properties mentioned above. Nevertheless, the functions are
+    limited to values, the protection they impose uniform and not
+    lending easily to certain adaptions or extensions. Similarly, type
+    structures such as records are likely to generate sub-spaces of
+    names used for encapsulation purposes. However, these subspaces
+    are equally as limiting as function closures.
+    </p>
+    <p>
+    It is natural therefore to offer a more general means of
+    construction for encapsulation. We have already met and used this
+    means in fact through OCaml libraries : modules. This new form of
+    encapsulation will indeed:
+    <ul>
+      <li>
+      Allow for the construction of sub-spaces of names that do not
+      impose restrictions on the elements of the language : modules
+      can contain values, the definition of types, exceptions, other
+      modules, etc.
+      </li>
+      <li>
+      Allow control of the visibility of each of the elements
+      encapsulated.
+      </li>
+    </ul>
+    </p>
+    <p>
+    Modules are certainly not an original construction of ML
+    languages. They exist in most current programming
+    languages. However, ML modules possess specifics on which the
+    following sections will expand on fully : the type system includes
+    them in their own right. Each module posses a unique type : it is
+    an instance of this type and recognized as such by the type
+    system. From this point of view, a module resembles a typed value
+    such as an integer or a character string. The typing system can
+    thus extend to the global properties of a program and intervene in
+    the elaboration and validation of a software architecture.
+    </p>
+
+    <h4>Modules : A general encapsulator</h4>
+
+    <h5>Defining modules</h5>
+    <p>
+    The syntax of a module in OCaml comes down to framing a series of
+    definitions and expressions by the keywords <code>struct</code>
+    and <code>end</code>. As earlier announced, there are few
+    restrictions as to the nature of the entities that may be placed
+    there:
+    <pre class="prettyprint ml">
+      struct
+        type ...          exception ...
+        let ...           module ...
+        module type ...   open ...
+        include ...       &lt;exp&gt;
+        ...
+      end
+    </pre>
+    The first three kinds of
+    definitions, <code>type</code>, <code>exception</code>
+    and <code>let</code> are familiar. The occurence
+    of <code>&lt;exp&gt;</code> indicates a module can also contain
+    any expression. We introduce the other key-words and extents in
+    the following.
+    </p>
+    <p>
+    The encapsulation mechanism above does not alone define a value,
+    it is necessary to explicitly associate it with name. To do this
+    one uses the <code>module</code> keyword and the chosen names must
+    start with a capital letter:
+    <pre class="prettyprint ml">
+    module &lt;name&gt; = struct
+      ...
+    end
+    </pre>
+    </p>
+    <p>
+    <i>Rules of a module definition : All the elements enclosed by
+    a <code>struct</code>-<code>end</code> are compiled and evaluated
+    sequentially in the order they appear. Each new element can use
+    the previously defined elements and is strictly associated with
+    the module. The overall result is bound to the
+    identifier <code>&lt;name&gt;</code></i>.
+    </p>
+    <p>
+    For simple bindings, if the overall evaluation is interrupted due
+    to the emergence of an exception due to the evaluation of an
+    individual element, the module is not built.
+    </p>
+    <p>
+    Here is the first example of a module:
+    <pre class="prettyprint ml">
+    module Math = struct
+
+      let rec fact n =
+        if n &lt;= 1 then 1 else n * fact (n - 1)
+
+      let rec fib n =
+        if n &lt;= 0 then 0
+        else if n = 1 then 1
+        else fib (n - 1) + fib (n - 2)
+
+      let rec sum f n0 n =
+        if n < n0 then 0
+        else (f n) + (sum f n0 (n - 1))
+
+    end
+    </pre>
+    So here we have assembled a collection of arithmetic functions
+    into a module of name <code>Math</code>.
+    </p>
+
+    <h5>Accessing module elements</h5>
+    <p>
+    By default, the elements of a module are accessible from its
+    exterior. As observed in using the standard libraries, the access
+    to these items is through indirection using a "member selection
+    notation": <i>&lt;Module&gt.&lt;element&gt</i>. So, with the
+    module <code>Math</code> of the preceding section:
+    <pre>
+    # Math.fact 5;;
+    - : int = 120
+
+    # Math.fib 6;;
+    - : int  = 8 
+
+    # Math.sum (fun n -> n) 0 4;;
+    - : int = 10
+
+    # Math.sum (fun n -> Math.fact n) 1 4;;
+    - : int = 33
+    </pre>
+    </p>
+
+    <h5>The modular form of data-types</h5>
+    <p>
+    Modules used to organize sets of definitions of functions can also
+    include definitions of types and thus can serve as a means of
+    encapsulation of data-types. That is to say, it is possible then
+    to collect in a module the definition of a type and the functions
+    that are associated with that type.
+    </p>
+    <p>
+    Here is an example based on complex numbers:
+    <pre class="prettyprint ml">
+    module Complex = struct
+
+      type complex = {re : float; im : float}
+
+      let make (r, i) = {re = r; im = i}
+      let add z w = {re = z.re +. w.re; im = z.im +. w.im}
+      let norm z = sqrt (z.re ** 2. +. z.im ** 2.)
+
+    end
+    </pre>
+    The representation of values is achieved by the use of a record
+    type <code>{re : float; im : float}</code>. All the elements of
+    this module are public and can be used directly:
+    <pre class="prettyprint ml">
+    # let z1 = Complex.make (4., 3.);;
+    val z1 : Complex.complex = {Complex.re = 4.; Complex.im = 3.}
+
+    # Complex.add z1 z1;;
+    - : Complex.complex = {Complex.re = 8.; Complex.im = 6.}
+
+    # Complex.norm z1;;
+    - : float = 5.
+
+    # z1.Complex.re;;
+    - : float = 4.
+    </pre>
+    Note that these complex numbers are instances of the
+    data-type <code>complex</code>. These instances are dependent on
+    the the functions contained in the module, that is to
+    say, <code>add</code> and <code>norm</code>. The encapsulation of
+    a data-type in a module is indeed often characterized by such a
+    centralized organisation. By contrast, we can compare this case
+    with that record types, that is here, each instance contains both
+    values and functions. We will discuss this important point of
+    comparison later.
+    </p>
+    <p>
+    Here are some more examples of data-types in modular form. First,
+    let us consider a type that represents points in a plane
+    associated with the usual Euclidean distance.
+    <pre class="prettyprint ml">
+    module Plane = struct
+      type point = P of float * float
+
+      let make_point (x, y) = P (x, y)
+
+      let dist (P (x1, y1), P (x2, y2)) =
+        sqrt ((x1 -. x2) ** 2. +. (y1 -. y2.) ** 2.)
+    end
+    </pre>
+    A difference of this example from the preceding is that here, the
+    representation of values of <code>point</code> are as instances of
+    a singlar sum type. The techniques of expressing types we already
+    know apply equally well in the context of modules.
+    </p>
+    <p>
+    Data structures (or containers) can also take a coherent form by
+    means of modules. For example, here's how to gather the
+    definitions associated with lists:
+    <pre class="prettyprint ml">
+    module L = struct
+      type &alpha; lin = Empty | Cons of &alpha; * &alpha; lin
+
+      let empty () = Empty
+
+      let add x l = Cons (x, l)
+
+      let rec mem x l = match l with
+        | Empty -> false
+        | Cons (x, xs) -> x = y || mem x xs
+
+      let rec apend l1 l2 = match l1 with
+        | Empty -> l2
+        | Cons (x, xs) -> Cons (x, append xs l2)
+    end;;
+
+    # let l1 = L.add 3 (L.empty ())
+    val l1 : int L.lin = L.Cons (3, L.Empty)
+
+    # let l1 = L.add 4 l1;;
+    val l1 : int L.lin= L.Cons (4, L.cons (3, L.Empty))
+
+    # L.mem 42 l1;
+    - : bool = false
+    </pre>
+    The type of the containers is naturally generic as the the
+    representation of values of <code>&alpha; lin</code> is:
+    <pre>
+    # L.add 3.1415926 (L.Empty);;
+    - : float L.lin = L.Cons (3.1415926, L.Empty)
+
+    # L.add "colorisation des esprits" (L.empty ());;
+    - : string L.lin = L.cons ("colorisation des esprits", L.Empty)
+    </pre>
+    In fact, most data types defined in the standard OCaml library are
+    implemented using this technique.
+    </p>
+
+    <h5>Remarks on the rules of module definitions</h5>
+    <p>
+    It is useful to have a precise idea about the consequences of the
+    rules of definitions associated with the construction of a
+    module. These are some of the important points:
+    <ul>
+      <li>
+      <i>The evaluation of elements in a module follow their
+      individual evaluation rules</i>.
+      <br/>
+      <br/>
+      Here is an example illustrating the case of functions:
+      <pre class="prettyprint ml">
+      # module M = struct
+          let f () = 1 / 0
+        end;;
+      # M.f ();;
+      Exception : Division_by_zero.
+      </pre>
+      It is only when <code>f</code> is applied that an exception is
+      thrown. Constrast this with the case of the construction of a value:
+      <pre class="prettyprint ml">
+      # module M = struct
+          let x = 1 / 0
+        end;;
+      Exception : Division_by_zero.
+      # M.x ;;
+      Unbound value M.x
+      </pre>
+      The evaluation of the body of a <code>let</code> occurs during
+      the construction of the module. Similarly, simple expressions:
+      <pre class="prettyprint ml">
+      # module M = struct
+          print_endline "Inside M"
+          let f x = x + 1
+        end;;
+      Inside M
+ 
+      #M.f;;
+      - : int &rarr; int
+      </pre>
+      The printing of the character string is effected during the
+      construction of <code>M</code>. In the case where such
+      expressions are followed, it is neccessary to use
+      seperators. One can make use of double semi-colons:
+      <pre class="prettyprint ml">
+      # module M = struct
+          print_endline "in M" ;;
+          print_endline "yes, in M";;
+          let f x = x + 1
+        end;;
+      </pre>
+      However, the tradition in OCaml requires rather that we stick.
+      with <code>let</code> bindings. Evaluations that only occur
+      during the construction of a module are really only useful in
+      edge cases (the construction of a module generates a
+      module). Therefore, the type of these expressions is
+      necessarily <code>unit</code> and the following form is also
+      possible:
+      <pre class="prettyprint ml">
+      # module M = struct
+          let () = print_endline "in M"
+          let () = print_endline "yes, M"
+          let f x = x + 1
+      </pre>
+      What we've written here are artifical <code>let</code>
+      constructions by way of pattern matching on a unique instances
+      of type <code>unit</code>. Thus the form <code>let () =
+      ...</code> in a module invariably indicates an expression that
+      will be evaluated during the construction of the module.
+      <br/>
+      <br/>
+      </li>
+      <li>
+      <i>Dependence on the placement of elements in a module</i>
+      <br/>
+      <br/> The evaluation of a module is sequential. A definition in
+      a module may not utilize a definition that follows it:
+      <pre class="prettyprint ml">
+      # module M = struct
+          let f x = (g x) + 1
+          let g x = x + 2
+        end;;
+      Unbound value g
+      </pre>
+      In the case you wanted to override this rule, it is necessary to
+      make use of a <code>let rec</code> construction and define
+      mutally recursive functions:
+      <pre class="prettyprint ml">
+      # module M = struct
+          let rec f x = (g x) + 1
+          and g x = x + 2
+        end;;
+      </pre>
+      <br/>
+      <br/>
+     </li>
+     <li>
+       <i>Internal module state</i>
+       <br/>
+       <br/>
+       It is possible to define modifiable variables in a module. Such
+       variables constitute internal state. Reconsider the earlier
+       example of points in the plane. We can provide a way to measure
+       the extent of their establishment through such internal state
+       wich will be denoted here as <code>count</code>:
+       <pre class="prettyprint ml">
+         module Plane_count = struct
+           type point = {number : int; coord : float * float}
+
+           let count = ref 0 (*Initialization*)
+
+           let make_point (x, y) =
+             incr count; {number = !count; coord = (x, y)}
+
+           let dist p1 p2 =
+             let (x1, y1) = p1.coord and (x2, y2) = p2.coord in 
+               sqrt ((x1 -. x2) ** 2. +. (y1 -. y2.) ** 2.)
+         end;;
+       </pre>
+       For example:
+       <pre class="prettyprint ml">
+       # Plane_count.make (0., 0.);;
+       - : Plane_count.point = {Plane_count.number = 1;
+                                Plane_count.coord = (0., 0.)}
+       # Plane_count.make (1., 1.);;
+       - : Plane_count.point = {Plane_count.number = 2;
+                                Plane_count.coord = (1., 1.)}
+       </pre>
+       <br/>
+       <br/>
+     </li>
+     <li>
+       <i>Multiple definitions and redefinitions of elements in a
+       module</i> <br/> <br/> If an association is defined multiple
+       times in a module, it is only the last definition that will be
+       taken into account. The sequential evaluation of elements in a
+       module imply behaviors consistent with similar evaluations in
+       the global environment. For example:
+       <pre class="prettyprint ml">
+       module M = struct
+         let number = 1
+         let number = 2.1
+         let number = "three"
+       end;;
+
+       # M.number;;
+       - : string = "three"
+       </pre>
+     </li>
+    </ul>
+    </p>
+
+    <h5>Local modules</h5>
+    <p>
+    In OCaml, modules can emerge in local environments defined by way
+    of a new <code>let</code> construction:
+    <pre class="prettyprint ml">
+    let module &lt;name&gt; = struct ... end in &lt;exp&gt;
+    </pre>
+    where the name of the module is usable in the
+    expression <code>&lt;exp&gt;</code>. One of the main interest of
+    local modules is to remedy the limitations of environments defined
+    by <code>let</code>-<code>in</code> that can not in fact, include
+    certain entities. On the contrary, local modules are not subjected
+    to these restrictions. They allow, among other things, to
+    associate types or exceptions to an expression. For example, we
+    observe that sum types can clarify code. As such, they can
+    sometimes be considered as a localized and specific aid. Consider
+    this example in polynomials of degree 2:
+    <pre class="prettyprint ml">
+    # let poly2 a b c =
+        let module O = struct
+          type order = Less | Equal | Greater
+          let less_or_equal x y =
+            if x < y then Less else
+            if x = y then Equal 
+            else Greater
+           end in
+           match (O.less_or_equal ...) with
+             | O.Equal &rarr; ...
+             | O.Greater &rarr; ...
+             | O.Less &rarr; ...;;
+     val poly2 : float &rarr; float &rarr; float &rarr; solution
+    </pre>
+    The type <code>order</code> resides privately and solely in the
+    function <code>poly2</code>. We will see other uses of local
+    modules.
+    </p>
+
+   <h4>Signatures : the type of modules</h4>
+
+   <h5>Inferred signatures</h5>
+   <p>
+   The behavior of modules in OCaml is similar to that of values in
+   many ways. In paricular, each module possesses a type that is
+   integrated with and used by the type-system. The type of a module
+   can be computed by inference from the module's definition. As
+   stressed in the introduction, this is one of the specifics of ML
+   languages. However, the somewhat different nature of these types
+   justifies distinguishing them from others. The types of modules are
+   called <i>signatures</i>.  <br/> <br/> Property (1) of signatures :
+   A signature can be inferred from the definition of a module.  <br/>
+   <br/> For example, recall the module corresponding to the
+   implementation of a type for complex numbers. The resulting
+   signature obtained by type inference follows:
+   <pre class="prettyprint">
+   module Complex :
+     sig
+       type complex = {re : float; im : float}
+       val make : float * float &rarr; complex
+       val add : complex &rarr; complex &rarr; complex
+       val norm : complex &rarr; float
+     end
+   </pre>
+   A signature is essentially a summary of all the elements of the
+   module to which it corresponds.
+   </p>
+
+   <h5>Defining signatures</h5>
+   <p>
+   As is the case for types of values, it is possible to define
+   signatures independently of modules. A signature then consists of a
+   simple suite of definitions and declarations enclosed in the
+   keywords <code>sig</code> and <code>end</code>:
+   <pre class="prettyprint ml">
+   sig
+     val ...             type ...
+     exception ...       module ...
+     module type ...     open ...
+     include ...         ...
+   end
+   </pre>
+   As for modules, it is neccessary to link a signature to a name
+   using the keywords <code>module type</code>:
+   <pre class="prettyprint ml">
+   module type &lt;NAME&gt; = sig
+       ...
+   end
+   </pre>
+   </p>
+
+   <hr/>
+   <p>
+     References:<br/>
+     "Programmation fonctionnelle, g&#233;n&#233;rique et objet: une introduction avec le langage OCaml" -- Narbel P., 2005
+   </p>
+  </body>
+</html>
