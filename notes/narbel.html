@@ -478,7 +478,7 @@
    stressed in the introduction, this is one of the specifics of ML
    languages. However, the somewhat different nature of these types
    justifies distinguishing them from others. The types of modules are
-   called <i>signatures</i>.  <br/> <br/> Property (1) of signatures :
+   called <i>signatures</i>.  <br/> <br/> <b>Property (1) of signatures</b> :
    A signature can be inferred from the definition of a module.  <br/>
    <br/> For example, recall the module corresponding to the
    implementation of a type for complex numbers. The resulting
@@ -510,6 +510,14 @@
      include ...         ...
    end
    </pre>
+   Note that the identifiers must be delcared with the
+   keyword <code>val</code> (rather than <code>let</code>). For
+   example:
+   <pre class="prettyprint ml">
+   val x : char
+   val f : int &rarr; float
+   val g : &alpha; &rarr; int
+   </pre>
    As for modules, it is neccessary to link a signature to a name
    using the keywords <code>module type</code>:
    <pre class="prettyprint ml">
@@ -517,8 +525,422 @@
        ...
    end
    </pre>
+   There are no syntactic constraints regarding the names of of module
+   types with respect to enforcing uppercase or lowercase
+   characters. However, to distinguish the names of signatures from
+   other identifiers, a convention adopted in the ML literature is to
+   spell them entirely in capital letters. Here are some definitions
+   of signatures corresponding to the modules presented in early
+   sections. For example, here is the signature for <code>Math</code>:
+   <pre class="prettyprint ml">
+   module type MATH = sig
+    val fact : int &rarr; int
+    val fib : int &rarr; int
+    val sum : (int &rarr; int) &rarr; int &rarr; int &rarr; int
+   end
+   </pre>
+   And here are the signatures of the modules <code>Complex</code>
+   and <code>Plane</code> respectively and, the module <code>L</code>
+   associated with lists.
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex
+     val make : float * float &rarr; complex
+     val add : complex &rarr; complex &rarr; complex
+     val norm : complex &rarr; float
+   end;;
+
+   module type METRIC_SPACE_2D = sig
+     type point
+     val make_point : float * float &rarr; point
+     val dist : point &rarr; point &rarr; float
+   end;;
+
+   module type LINEAR_CONTAINER = sig
+     type &alpha; lin
+     val empty : unit -> &alpha; lin
+     val add : &alpha; &rarr; &alpha; lin &rarr; &alpha; lin
+     val mem : &alpha; &rarr; &alpha; lin &rarr; bool
+     val append : &alpha; lin &rarr; &alpha; lin &rarr; &alpha; lin
+   end;;
+   </pre>
+   The examples illustrate the following important point:
+   <br/>
+   <br/>
+   <b>The fundamental interest of signatures :</b> They express certain
+   characteristics of modules without including any implmentation.
+   <br/>
+   <br/>
    </p>
 
+   <h5>Abstract types</h5>
+   <p>
+   The signatures of the last section have show that it is possible to
+   use the keyword <code>type</code> without necessarily associating
+   it with an explicit definition. We saw there for example:
+   <pre class="prettyprint ml">
+     type complex
+     type point
+     type 'a lin
+   </pre>
+    That is, it can be limited to the names of types declared in
+    signatures:
+    <br/>
+    <br/>
+    <b>Definition:</b> In a signature, a simple declaration of a name
+    of a type is called an abstract type.  <br/> <br/> This name is
+    justified because these types allow for an abstraction of the
+    existence of particular types. To be precise:
+    <br/>
+    <br/>
+    <b>The interest of abstract types and the coherence of a
+    signature:</b> The abstract types of a signature <code>S</code>
+    declare the names of types which are usable for the types of other
+    elements in <code>S</code>. They thus impose a global coherence to
+    typing other elements of the signature <code>S</code>, and this
+    without being dependent on the definitions of these types.<br/>
+    <br/> <br/> Moreover, when the parameters are abstract types, this
+    makes possible expressions of typing patterns. For example, in the
+    signature <code>LINEAR_CONTAINER</code>, there were the following
+    generic declarations:
+    <pre class="prettyprint ml">
+    type &alpha; lin
+    val add : &alpha; &rarr; &alpha; lin &rarr; &alpha; lin
+    val mem : &alpha; &rarr; &alpha; lin &rarr; bool
+    </pre>
+    So, for example, the type <code>&alpha; &rarr; &alpha; lin &rarr;
+    &alpha; lin</code> describes a generic operation of adding an
+    element of type <code>&alpha;</code> to an <code>&alpha;
+    lin</code> containing other items of the same type. In the
+    implementation, the typing consistency will be ensured.
+   </p>
+
+   <h5>Elements implemented in signatures</h5>
+   <p>
+   Even if the main part of a signature is constituted merely of
+   simple declarations, some of the elements can be implemented. It is
+   possible to define exceptions:
+   <pre>
+   module type S = sig
+     exception No
+     exception Out_of_bounds of float
+     ...
+   end
+   </pre>
+   On the other hand, types can also be defined in a signature. For
+   example, the signature <code>COMPLEX</code> includes the definition
+   of a record type:
+   <pre class="prettyprint ml">
+   module COMPLEX = sig
+     type complex = {re : float; im : float}
+     ...
+   end
+   </pre>
+   Such types are called "concrete types" (or "manifest types")
+   distinguishing them from abstract types.
+   </p>
+
+   <h5>Signatures for explicitly typing modules</h5>
+   <p>
+   Signature definitions only make sense if they can be linked to
+   modules. As for simple values, it is possible to explicitly ascribe
+   a signature to a module. The syntax is similar:
+   <pre class="prettyprint">
+     module &lt;NAME&gt; : &lt;SIGNATURE&gt; = struct
+       ...
+     end
+   </pre>
+   The first application of this is to add explicit typing information
+   to the definition of a module. Type inference can put this into
+   correspondence with its own calculation. We can therefore check by
+   inference that a module corresponds to its signing. For example, if
+   we use the module <code>L</code> associated with lists we can
+   explicitly type it to the signature <code>LINEAR_CONTAINER</code>.
+   <pre class="prettyprint ml">
+   # module L : LINEAR_CONTAINER = struct
+       type &alpha; lin = Empty | Cons of &alpha; * &alpha; lin
+       let empty () = Empty
+       let add x l = ...
+       let rec mem x l = ...
+       let rec append l1 l2 = ...
+     end;;
+   module L : LINEAR_CONTAINER
+   </pre>
+   Here we get a terse response from the type system indicating
+   acceptance that <code>L</code> can be typed as
+   a <code>LINEAR_CONTAINER</code>. In contrast, an invalid explicit
+   typing not sanctioned by inference will be documented as a type
+   error. For example, consider a situation where a module does not
+   implement all the elements of the
+   signature <code>LINEAR_CONTAINER</code>:
+   <pre class="prettyprint ml">
+   # module L : LINEAR_CONTAINER = struct
+       type &alpha; lin = Empty | Cons of &alpha; * &alpha; lin
+       let add x l = Cons (x, l)
+     end;;
+   The field 'append' is required but not provided
+   The field 'mem' is required but not provided
+   The field 'empty' is required but not provided
+   </pre>
+   The main rule of explicit typing with signatures follows:
+   <br/>
+   <br/>
+   <b>Rule of explicit typing by signature:</b> The explicit typing of
+   a module <code>M</code> to a signature <code>S</code> is valid only
+   if the elements defined and declared in <code>S</code> are
+   implemented in <code>M</code> (with exactly the same names). The
+   elements of <code>M</code> must be equal, consistent with or more
+   general than those indicated in <code>S</code>.
+   <br/>
+   <br/>
+   Here are some examples to help explain the rules:
+   <ul>
+   <li><i>Independence from the order of definitions.</i>
+   <br/>
+   <br/>
+   The order of appearance of the elements of the module is not
+   important as long as its type corresponds with the signature.
+   <br/>
+   <br/>
+   </li>
+   <li>
+   <i>The effect of explicitly typing on individual elements.</i>
+   <br/>
+   <br/>
+   Signing by explicit typing acts to explicitly type each individual
+   element of the module. For example:
+   <pre class="prettyprint ml">
+   module type S = sig
+     val fst : int * float &rarr; int
+   end;;
+
+   module M : S = struct
+     let fst (x, y) = x
+   end;;
+
+   #M.fst ;;
+   - : int * float &rarr; int
+   </pre>
+   Here the function <code>fst</code> given by the explicit typing to
+   the signature <code>S</code> is equivalent to:
+   <pre class="prettyprint ml">
+     let fst ((x, y) : int * float) : int = x;;
+   </pre>
+   An occassional error is to implement an element of a module that is
+   less general than its declaration. For example:
+   <pre class="prettyprint ml">
+   module type S = sig
+     val f : &alpha; &rarr; &alpha;
+   end;;
+
+   module M : S = struct
+     let f x = x + 1
+   end;;
+   </pre>
+   The above is an error. This point will later be discussed in more
+   detail.  
+   <br/>
+   <br/>
+   </li>
+   <li>
+   <i>Parameteric abstract types</i>
+   <br/>
+   <br/>
+   An implementation of an abstract type can make use of
+   type variable parameters. For example:
+   <pre class="prettyprint ml">
+   module type S = sig
+     type (&alpha;, &beta; &gamma;) t
+   end;;
+
+   module M : S = struct
+     type (&alpha;, &beta; &gamma;) t = int
+   end;;
+   </pre>
+   One can restrict the generiticity of a type paramter of an abstract
+   type. The inverse is not possible:
+   <pre class="prettyprint ml">
+   # type t = &alpha; list;;
+   Unbound type parameter &alpha;
+   </pre>
+   <br/>
+   </li>
+   <li>
+   <i>Globale coherence of the type of a module</i>
+   <br/>
+   <br/>
+   Using abstract types in a signature permits expressing the overall
+   typing coherence between the elements of a signature. For example,
+   reconsider the module <code>Plane</code>:
+   <pre class="prettyprint ml">
+   module Plane = struct
+     type point = P of float * float
+
+     let make_point (x, y) = P (x, y)
+
+     let dist (P (x1, y1)) (P (x2, y2)) =
+       sqrt ((x1 -. x2) ** 2. +. (y1 -. y2) ** 2.)
+   end;;
+   </pre>
+   The inferred signature is:
+   <pre class="prettyprint ml">
+   module Plane : sig
+     type point = P of float * float
+     val make_point : float * float -> point
+     val dist : point &rarr; point &rarr; float
+   end
+   </pre>
+   The use of the simple inductive type permits the use of the
+   type <class>point</class> in the type of the
+   functions <code>make</code> and <code>dist</code>. But here,
+   another version of the module uses a type abbreviation:
+   <pre class="prettyprint ml">
+   module Plane = struct
+     type point = float * float
+
+     let make_point (x, y) = (x, y)
+
+     let dist (x1, y1) (x2, y2) = 
+       sqrt ((x1 -. x2) ** 2. +. (y1 -. y2) ** 2.)
+   end;;
+   </pre>
+   The inferred signature follows:
+   <pre class="prettyprint ml">
+   module Plane : sig
+     type point = float * float
+     val make_point : 'a * 'b -> 'a * 'b
+     val dist : float * float &rarr; float * float &rarr; float
+   end
+   </pre>
+   The type <code>point</code> here is a priori without manifest
+   utility and the associated functions don't use it (the type
+   inference possesses no evidence to connect them with the
+   type <code>point</code>). Explicit typing with a signature remedies
+   the situation. Indeed, reconsider signing with:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE_2D = sig
+     type point
+     val make_point : float * float &rarr; point
+     val dist : point &rarr; point &rarr; float
+   end;;
+   </pre>
+   Then,
+   <pre class="prettyprint ml">
+   # module Plane : METRIC_SPACE_2D = struct
+
+       type point = float * float
+
+       let make_point (x, y) = (x, y)
+
+       let dist (x1, y1) (x2, y2) = 
+         sqrt ((x1 -. x2) ** 2. +. (y1 -. y2) ** 2.)
+     end;;
+   module Plane : METRIC_SPACE_2D
+
+   # Plane.make_point;;
+   - : float * float &rarr; Plane.point
+
+   # Plane.dist;;
+   - : Plane.point * Plane.point &rarr; float
+   </pre>
+   The types of the functions here became specific. The explicit
+   typing by signature has had a structuring effect on the collection
+   of the types of the elements of the module.
+   <br/>
+   <br/>
+   </li>
+   <li>
+   <i>Concrete types and exceptions</i> 
+   <br/>
+   <br/>
+   If a signature <code>S</code> contains concrete types of
+   exceptions, the modules that implment it must necessarily contain
+   the same definitions. For example:
+   <pre class="prettyprint ml">
+   module type S = sig
+     exception Bad of int
+     type &alpha; inverse = Full | Empty of &alpha;
+   end;;
+
+   module M : S = struct
+     exception Bad of int
+     type &alpha; inverse = Full | Empty of &alpha;
+   end;;
+   </pre>
+   </li>
+   </ul>
+   </p>
+
+   <h5>The instantiation relationship between modules and signatures</h5>
+   <p>
+   A signature may be inferred by the type system for a particular
+   module. On the other hand, a module may correspond with a signature
+   by explicit typing. It is then said that the module
+   implementation <i>satisfies</i> that signature. To stick to that
+   though would be to forget an important and original characteristic
+   of the module system:
+   <br/>
+   <br/>
+   <b>Property (2) of signatures:</b> The same signature may be
+   implemented by multiple distinct modules.
+   <br/>
+   <br/>
+   To highlight the similarity of modules with simply typed values, we
+   can extend the meaning of the word "instance".
+   <br/>
+   <br/>
+   <b>Definition:</b> A module that implements (or satisfies) a
+   signature, we say is an <i>instance</i>.  <br/> <br/> For example,
+   consider a new signature that describes a two-dimensional space
+   equipped with a distance metric:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE_2D = sig
+     type point
+     val make_point : float * float &rarr; point
+     val dist : point &rarr; point &rarr; float
+   end;;
+   </pre>
+   It is possible to instantiate it in many different ways:
+   <pre class="prettyprint">
+   module Plane : METRIC_SPACE_2D = struct
+    type point = float * float
+    let make_point (x, y) = ...
+    let dist (x1, y1) (x2, y2) = ...
+   end;;
+
+   module Plane_count : METRIC_SPACE_2D = struct
+     type point = {number : int; coord : float * float }
+     let make_point (x, y) = ...
+     let dist p1 p2 = ...
+   end;;
+
+   module Manhattan_plane : METRIC_SPACE_2D = struct
+    type point = float * float
+    let make_point (x, y) = (x, y)
+    let dist (x1, y1) (x2, y2) = 
+      abs_float (x1 -. x2) +. abs_float (y1 -. y2)
+   end;;
+   </pre>
+   With this, these three spaces can coexist in the same progam:
+   <pre class="prettyprint ml">
+   # Plane.dist;;
+   - : Plane.point &rarr; Plane.point &rarr; float
+
+   # Plane_count.dist;;
+   - : Plane_count.point &rarr; Plane_count.point &rarr; float
+
+   # Manhattan_plane.dist;;
+   - : Manhattan_plane.point &rarr; Manhattan_plane.point &rarr; float
+   </pre>
+   </p>
+   <p>
+   Note that the two properties highlighted above - inference and
+   multiple instantiation - are absent from most other
+   languages. Multiple instantiation not only increases the reuse of
+   signatures, but we will also see that it turns out to be natural in
+   defining "functions of mouldes" whose parameters are the types of
+   signatures.
+   </p>
    <hr/>
    <p>
      References:<br/>
