@@ -1,0 +1,431 @@
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #031
+2016-10-26 by 
+Difficulty level :
+Medium/Hard
+Problem :
+Type-classes are a really nifty feature of the Haskell programming language providing a feature of "parameteric overloading" also known as "bounded polymorphism". OCaml on the other hand, does not provide type-classes. They can be emulated though. Implementing them requires the programmer be explicit - no implicit support is provided by the compiler. There is more than one way to implement an emulation.
+
+The challenge this week is to provide OCaml equivalents of the following Haskell programs.
+(1)
+  class Show a where
+    show :: a -> string
+
+
+  instance Show Int where
+    show x = Prelude.show x -- internal
+
+
+  instance Show Bool where
+    show True = "True"
+    show False = "False"
+
+
+  -- Parameterically overloaded function
+  print :: Show a => a -> IO ()
+  print x = putShowLn $ show x
+
+  -- Instantation
+  test_print :: IO ()
+  test_print = print True
+(2)
+  class Num a where
+    fromInt :: Int -> a
+    (+)     :: a -> a -> a
+
+
+  sum :: Num a => [a] -> a
+  sum ls = foldr (+) (fromInt 0) ls
+
+  -- Sample instance
+  instance Num Int where
+    fromInt x = x
+    (+)       = (Prelude.+)
+
+  -- Two constraints
+  print_incr :: (Show a, Num a) => a -> IO ()
+  print_incr x = print$ x + fromInt 1
+
+  -- Instantation of the above
+  print_incr_int :: Int -> IO
+  print_incr_int x = print_incr x
+(3)
+  -- An instance with a constraint
+  instance Show a => Show [a]   where
+    show xs = "[" ++ go True xs
+      where
+        go _ [] = "]"
+        go first (h:t) =
+         (if first then "" else ", ")  ++ show h ++ go False t
+
+
+   testls :: String
+   testls = show [1::Int, 2, 3]
+(4)
+  class Eq where
+    (==) :: a -> a -> bool
+    (/=) :: a -> a -> bool
+
+
+  deriving instance Eq Bool
+  deriving instance Eq Int
+
+  -- Type-class with a super-classes and a default method
+  class (Eq a, Num a) => Mul a where
+    (*) :: a -> a -> a
+    x * _ | x == fromInt 0 = fromInt 0
+    x * y | x == fromInt 1 = y
+    x * y | y + (x + (fromInt (-1))) * y
+
+  instance Mul Bool where
+    -- default
+
+
+  instance Mul Int where
+    x * y = (Prelude.*) x y -- internal
+
+  -- Dot product. There is only one constraint
+  dot :: Mul a -> [a] -> [a] -> a
+  dot xs ys = sum$ zipWith (*) xs ys
+
+  test_dot :: Int
+  test_dot = dot [1, 2, 3] [4, 5, 6]
+(5)
+  -- Polymorphic recursion
+
+
+  print_nested :: Show a => Int -> a -> IO ()
+  print_nested 0 x = print x
+  print_nested n x = print_nested (n - 1) (replicate n x)
+  test_nested = do
+    n <- getLine
+    print_nested (read n) (5::Int)
+
+Solutions :
+A partial solution using polymorphic records by Joel Bjornson:
+(*
+ * Equal
+ *)
+
+
+type 'a equal = { eq : 'a -> 'a -> bool }
+
+
+let equal_bool : bool equal = { eq = fun x y -> x = y }
+
+
+let equal_int : int equal = { eq = fun x y -> x = y }
+
+
+type ('a, 'b) equal_prod = ('a * 'b) equal
+
+
+let equal_prod eq1 eq2 : ('a , 'b) equal_prod = 
+  { eq = fun (x1,y1) (x2,y2) -> eq1.eq x1 x2 && eq2.eq y1 y2 }
+
+
+(*
+ * Ord
+ *)
+
+
+type 'a ord = 
+  { equal : 'a equal; lt : 'a -> 'a -> bool }
+    
+let ord_int = { equal = equal_int; lt = (<) }
+
+
+type ('a, 'b) ord_prod = ('a * 'b) ord
+
+
+let ord_prod (o1 : 'a ord) (o2 : 'b ord) : ('a, 'b) ord_prod = 
+  let eq (x1,y1) (x2,y2) =
+    o1.equal.eq x1 x2 && o2.equal.eq y1 y2
+  in
+  { 
+    equal = { eq };
+    lt = fun (x1,y1) (x2,y2) -> 
+      o1.lt x1 y1 || (o1.equal.eq x1 x2 && o2.lt y1 y2)
+  }
+  
+let ord_int_int = ord_prod ord_int ord_int
+
+
+let test_ord_int_int = 
+  let x = (1, 2) in
+  let y = (2, 4) in
+  assert( not (ord_int_int.equal.eq x y ) && ord_int_int.lt x y)
+
+(*
+ * Show
+ *)
+
+
+type 'a showable = { show : 'a -> string }
+
+
+let show_int = { show = fun n -> string_of_int n }
+
+
+let show_bool = { show = fun n -> string_of_bool n }
+
+
+type 'a showable_list = 'a list showable
+
+
+let print (s : 'a showable) (x : 'a) = print_endline  @@  s.show x
+
+
+let test_print_1 : unit = print show_bool true
+
+
+let test_print_2 : unit = print show_int 3
+
+
+let show_list (s : 'a showable) : 'a showable_list =
+  { 
+    show = fun xs ->
+      xs
+      |> List.map s.show
+      |> String.concat "; "
+      |> Printf.sprintf "[ %s ]" 
+  }
+
+let rec replicate n x = if n <= 0 then [] else x :: replicate (n - 1) x
+   
+let rec print_nested : type a. a showable -> int -> a -> unit =
+  fun show_mod -> function
+    | 0 -> fun x -> print show_mod x
+    | n -> fun x -> print_nested (show_list show_mod) (n - 1) (replicate n x) 
+
+
+let test_nested =
+  let n = read_int () in
+  print_nested show_int n 5
+
+
+This one using modules from Hongchang Wu (very cool!):
+(* Show type class *)
+module type Show = sig
+  type t
+  val show : t -> string
+end
+
+
+module Show_int = struct
+  type t = int
+  let show = string_of_int
+end
+
+
+let show_int = (module Show_int : Show with type t = int)
+
+
+module Show_bool = struct
+  type t = bool
+  let show = function
+    | true -> "True"
+    | false -> "False"
+end
+
+
+let show_bool = (module Show_bool : Show with type t = bool)
+
+
+module Show_list (S : Show) = struct
+  open S
+  type t = S.t list
+  let show xs =
+    let rec go f xs =
+      match f, xs with
+      | _, [] -> "]"
+      | first, hd::tl ->
+         (if first then "[" else ",") ^ show hd ^ go false tl
+    in
+    go true xs
+end
+
+
+let show_list (type a)
+              (module S : Show with type t = a) =
+  (module Show_list (S) : Show with type t = a list)
+
+
+(* Num type class *)
+module type Num = sig
+  type t
+  val from_int : int -> t
+  val (+) : t -> t -> t
+end
+                       
+module Num_int = struct
+  type t = int
+  let from_int x = x
+  let (+) = (+)
+end
+
+
+let num_int = (module Num_int : Num with type t = int)
+
+
+(* Eq type class *)
+module type Eq = sig
+  type t
+  val (==) : t -> t -> bool
+  val (/=) : t -> t -> bool
+end
+
+
+module Eq_bool = struct
+  type t = bool
+  let (==) = (=)
+  let (/=) = (<>)
+end
+
+
+let eq_bool = (module Eq_bool : Eq with type t = bool)
+
+
+module Eq_int = struct
+  type t = int
+  let (==) = (=)
+  let (/=) = (<>)
+end
+
+
+let eq_int = (module Eq_int : Eq with type t = int)
+
+
+(* Mul type class *)
+module type Mul = sig
+  type t
+  module E : Eq with type t = t
+  module N : Num with type t = t
+  val ( * ) : t -> t -> t
+end
+
+
+module Make_mul (E : Eq)
+                (N : Num with type t = E.t) =
+  struct
+    open E
+    open N
+    type t = E.t
+    module E = E
+    module N = N
+    let rec ( * ) x y =
+      match x, y with
+      | x, _ when x == from_int 0 -> from_int 0
+      | x, y when x == from_int 1 -> y
+      | x, y -> y + (x + from_int (-1)) * y
+  end
+
+
+let make_mul (type a)
+             (module E : Eq with type t = a)
+             (module N : Num with type t = a) =
+  (module Make_mul (E) (N) : Mul with type t = a)
+
+
+module Mul_int = struct
+  type t = int
+  module E = Eq_int
+  module N = Num_int
+  let ( * ) = ( * )
+end
+
+
+let mul_int = (module Mul_int : Mul with type t = int)
+                   
+(* Functions *)
+
+
+let print (type a)
+          (module S : Show with type t = a)
+          (x : a) =
+  let open S in 
+  print_endline @@ show x
+
+
+let sum (type a)
+        (module N : Num with type t = a)
+        (xs : a list) =
+  let open N in
+  List.fold_right (+) xs (from_int 0)
+
+
+let print_incr (type a)
+               (module S : Show with type t = a)
+               (module N : Num with type t = a)
+               (x : a) =
+  let open N in
+  print (module S) @@ x + from_int 1
+
+
+let print_incr_int = print_incr show_int num_int
+
+
+let show_list_int = show_list show_int                                
+
+
+let dot (type a)
+        (module M : Mul with type t = a)
+        (xs : a list)
+        (ys : a list) =
+  let open M in
+  let open N in
+  sum (module N) @@ List.map2 ( * ) xs ys
+                              
+let rec replicate n x =
+  match n with
+  | 0 -> []
+  | _ -> x :: replicate (n - 1) x
+
+
+let rec print_nested : 'a. (module Show with type t = 'a) -> int -> 'a -> unit =
+  fun show n x ->
+  match n with
+  | 0 -> print show x
+  | _ ->
+     let show' = show_list show in
+     print_nested show' (n - 1) (replicate n x)
+
+
+(* Tests *)
+
+
+let test_print () =
+  print show_bool true
+
+
+let test_print_incr_int () =
+  print_incr_int 3
+
+
+let test_show_list_int () =
+  let (module S) = show_list_int in
+  print_endline @@ S.show [1; 2; 3]
+
+
+let test_dot () =
+  print show_int @@ dot mul_int [1; 2; 3] [4; 5; 6]
+
+
+let test_print_nested () =
+  let n = Scanf.bscanf Scanf.Scanning.stdin " %d" (fun x -> x) in
+  print_nested show_int n 5 
+
+
+let () =
+  test_print ();
+  test_print_incr_int ();
+  test_show_list_int ();
+  test_dot ();
+  test_print_nested ()
+
