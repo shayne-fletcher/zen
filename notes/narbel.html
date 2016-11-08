@@ -160,10 +160,10 @@
     # Math.fib 6;;
     - : int  = 8 
 
-    # Math.sum (fun n -> n) 0 4;;
+    # Math.sum (fun n &rarr; n) 0 4;;
     - : int = 10
 
-    # Math.sum (fun n -> Math.fact n) 1 4;;
+    # Math.sum (fun n &rarr; Math.fact n) 1 4;;
     - : int = 33
     </pre>
     </p>
@@ -247,12 +247,12 @@
       let add x l = Cons (x, l)
 
       let rec mem x l = match l with
-        | Empty -> false
-        | Cons (x, xs) -> x = y || mem x xs
+        | Empty &rarr; false
+        | Cons (x, xs) &rarr; x = y || mem x xs
 
       let rec apend l1 l2 = match l1 with
-        | Empty -> l2
-        | Cons (x, xs) -> Cons (x, append xs l2)
+        | Empty &rarr; l2
+        | Cons (x, xs) &rarr; Cons (x, append xs l2)
     end;;
 
     # let l1 = L.add 3 (L.empty ())
@@ -558,7 +558,7 @@
 
    module type LINEAR_CONTAINER = sig
      type &alpha; lin
-     val empty : unit -> &alpha; lin
+     val empty : unit &rarr; &alpha; lin
      val add : &alpha; &rarr; &alpha; lin &rarr; &alpha; lin
      val mem : &alpha; &rarr; &alpha; lin &rarr; bool
      val append : &alpha; lin &rarr; &alpha; lin &rarr; &alpha; lin
@@ -581,7 +581,7 @@
    <pre class="prettyprint ml">
      type complex
      type point
-     type 'a lin
+     type &alpha; lin
    </pre>
     That is, it can be limited to the names of types declared in
     signatures:
@@ -678,7 +678,7 @@
        type &alpha; lin = Empty | Cons of &alpha; * &alpha; lin
        let add x l = Cons (x, l)
      end;;
-   The field 'append' is required but not provided
+   The field &alpha;ppend' is required but not provided
    The field 'mem' is required but not provided
    The field 'empty' is required but not provided
    </pre>
@@ -786,7 +786,7 @@
    <pre class="prettyprint ml">
    module Plane : sig
      type point = P of float * float
-     val make_point : float * float -> point
+     val make_point : float * float &rarr; point
      val dist : point &rarr; point &rarr; float
    end
    </pre>
@@ -808,7 +808,7 @@
    <pre class="prettyprint ml">
    module Plane : sig
      type point = float * float
-     val make_point : 'a * 'b -> 'a * 'b
+     val make_point : &alpha; * 'b &rarr; &alpha; * 'b
      val dist : float * float &rarr; float * float &rarr; float
    end
    </pre>
@@ -1033,8 +1033,8 @@
    <pre class="prettyprint ml">
    module type METRIC_SPACE_2D = sig
      type point
-     val make_point : float * float -> point
-     val dist : point -> point -> float
+     val make_point : float * float &rarr; point
+     val dist : point &rarr; point &rarr; float
      (*Satisifies the axioms of a distance function, can raise
       [Invalid_argument] *) 
    end
@@ -1050,7 +1050,7 @@
    combine the type system. For example, in the
    signature <code>MATH</code> we have:
    <pre class="prettyprint ml">
-   val sum : (int -> int) -> int -> int
+   val sum : (int &rarr; int) &rarr; int &rarr; int
    </pre>
    In this declaration, while it defines the form of the function, we
    are guessing the first parameter represents the operation that
@@ -1061,7 +1061,7 @@
    : labeled parameters. We can use this feature in the signature to
    clarify the role of these parameters. For example:
    <pre class="prettyprint ml">
-   val sum : f : (int -> int) -> start : int -> goal : int -> int
+   val sum : f : (int &rarr; int) &rarr; start : int &rarr; goal : int &rarr; int
    </pre>
    Then, modules that satisfy the signature will have these types
    labeled providing coherence. For example:
@@ -1084,9 +1084,9 @@
    signature <code>MATH</code>:
    <pre class="prettyprint ml">
    module type MATH = sig
-    val fact : int -> int
-    val fib : int -> int
-    val sum : (int -> int) -> int -> int -> int
+    val fact : int &rarr; int
+    val fib : int &rarr; int
+    val sum : (int &rarr; int) &rarr; int &rarr; int &rarr; int
    end
    </pre>
    This signature restricts the declarations to numbers of the
@@ -1096,9 +1096,9 @@
    <pre class="prettyprint ml">
    module type MATH_GEN = sig
     type t
-    val fact : t -> t
-    val fib : t -> t
-    val sum : (t -> t) -> t -> t -> t
+    val fact : t &rarr; t
+    val fib : t &rarr; t
+    val sum : (t &rarr; t) &rarr; t &rarr; t &rarr; t
    end
    </pre>
    We have obtained a generalization of the
@@ -1121,12 +1121,12 @@
    <pre class="prettyprint ml">
    module type LINEAR_CONTAINER_IMP = sig
      type &alpha; lin
-     val empty : unit -> &alpha; lin
-     val mem : &alpha; -> &alpha; lin -> bool
-     val add : &alpha; -> &alpha; lin -> unit (*procedure*)
-     val append : &alpha; lin -> &alpha; lin -> unit (*procedure*)
-     val length : &alpha; lin; -> int
-     val nth : &alpha; lin -> int -> &alpha;
+     val empty : unit &rarr; &alpha; lin
+     val mem : &alpha; &rarr; &alpha; lin &rarr; bool
+     val add : &alpha; &rarr; &alpha; lin &rarr; unit (*procedure*)
+     val append : &alpha; lin &rarr; &alpha; lin &rarr; unit (*procedure*)
+     val length : &alpha; lin; &rarr; int
+     val nth : &alpha; lin &rarr; int &rarr; &alpha;
    end
    </pre>
    The functions <code>add</code> and <code>append</code> here have
@@ -1140,12 +1140,12 @@
    <pre class="prettyprint ml">
    module type LINEAR_CONTAINER = sig
      type &alpha; lin
-     val empty : unit -> &alpha; lin
-     val mem : &alpha; -> &alpha; lin -> bool
-     val add : &alpha; -> &alpha; lin -> &alpha; lin (*function*)
-     val append : &alpha; lin -> &alpha; lin -> &alpha lin (*function*)
-     val length : &alpha; lin; -> int
-     val nth : &alpha; lin -> int -> &alpha;
+     val empty : unit &rarr; &alpha; lin
+     val mem : &alpha; &rarr; &alpha; lin &rarr; bool
+     val add : &alpha; &rarr; &alpha; lin &rarr; &alpha; lin (*function*)
+     val append : &alpha; lin &rarr; &alpha; lin &rarr; &alpha lin (*function*)
+     val length : &alpha; lin; &rarr; int
+     val nth : &alpha; lin &rarr; int &rarr; &alpha;
    end
    </pre>
    Apriori this signatures specifies an implementation of functional
@@ -1163,6 +1163,106 @@
    </p>
 
    <h4>Public and private modules</h4>
+
+   <p>
+   The mechanisms of encapsulation induce rules about the visibility
+   of elements in a structure. An element that is <i>public</i> (or
+   'exported') is usable from outside of the encapsulation. An element
+   that is <i>private</i> (or 'hidden') is not. So for example, the
+   local bindings of a function are private while the fields of a
+   record are public. Modules offer a mechanism more nuanced where it
+   is possible to explicitly render individual elements public or
+   private. This control of visibility allows us to apply techniques
+   of information hiding and precise control of the links between
+   modules.
+   </p>
+
+   <h4>Public and private modules</h4>
+
+   <h5>Public</h5>
+
+   <p>
+   First of all, we have already exercised the following rule of visibility:
+   <br/>
+   <br/>
+   <b>Rule (1) of the visibility of modules: </b> The contents of a
+   module without an explicit signature are public.  <br/> <br/> For
+   example, recall the implementation of a datatype for lists: module
+   L = struct type &alpha;lpha lin = Empty | Cons of &alpha; * &alpha; lin let empty
+   () = Empty let add x l = Cons (x, l) end Without explicit signing,
+   the module exposes all its contents. The representation of such
+   values, <code>&alpha; lin</code> is therefore usable for direct use:
+   <pre class="prettyprint ml">
+   # L.empty ();;
+   - : &alpha; L.lin - L.Emtpy
+
+   # let l1 = L.add 3 (L.empty ());;
+   val l1 : int L.lin = L.Cons (3, L.Empty)
+   </pre>
+   </p>
+
+   <h5>Private</h5>
+
+   <p>
+   During the presentation of the rules of explicit typing via
+   signatures we did not highlight an important point : the explicit
+   typing of a module <code>M</code> by a signature <code>S</code>
+   remains valid if at least all of the elements of <code>S</code> are
+   defined in <code>M</code>. The rule that follows is the natural
+   complement of the behavior of explicit typing since the signature
+   acts as interfaces between modules:
+   <br/>
+   <br/>
+   <b>Rule (2) of the visibility of modules: </b> The elements of a
+   module <code>M</code> typed explicitly with a
+   signature <code>S</code> are public only if they appear
+   in <code>S</code> (except for abstract types). All other elements
+   in <code>M</code> are private.
+   <br/>
+   <br/>
+   For example, reconsider the
+   module <code>Plane_count</code>. This one possesses the following
+   signature:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE_2D_COUNT = sig
+     type point
+     val count : int ref
+     val make_point : float * float &rarr; point
+     val dist : point &rarr; point &rarr; float
+   end
+   </pre>
+   The internal state <code>count</code> appears in the signature. In
+   the original rendering of <code>METRIC_SPACE_2D</code> this
+   variable was absent:
+   <pre class="prettyprint ml">
+   module Plane_count : METRIC_SPACE_2D = struct
+     type point = {number : int; coord : float * float}
+     let count = ref 0 (*Initialization*)
+     let make_point (x, y) = incr count; {number = !count; coord = (x, y)}
+     let dist p1 p2 = ...
+   end;;
+
+   # Plane_count.make_point ;;
+   - : float * float &rarr; Plane_count.point
+
+   # Plane_count.count ;;
+   Unbound value Plane_count.count
+   </pre>
+   It is not possible to acces the variable denoted
+   by <code>count</code>. Notice that the
+   module <code>Plane_count</code> can be considered an instantiation
+   of both signatures <code>METRIC_SPACE_2D</code>
+   and <code>METRIC_SPACE_2D_COUNT</code>.
+   </p>
+   <p>Explicit typing implies which properties are important and
+   underlies the independence of signatures relative to modules:
+   <br/>
+   <br/>
+   <b>Property (3) of signatures:</b> The same module may instantiate
+   multiple distinct signatures.
+   </p>
+
+   <h3>Generic modular programming : functors</h3>    
 
    <hr/>
    <p>
