@@ -941,6 +941,229 @@
    defining "functions of mouldes" whose parameters are the types of
    signatures.
    </p>
+
+   <h4>Techniques for writing signatures</h4>
+
+   <h5>Signatures as a means of specification and interface</h5>
+
+   <p>If there is a singularity of ML relative to other languages
+   (modules are instances of signatures), their basic use is very
+   usual. Indeed, explicit typing of modules showcases signatures as a
+   means of interface specification:
+   <ul>
+   <li><i>Formal description.</i> The prior elaboration of signatures
+    admits the design of programs without having to face the practical
+    problems of implementation: we focus on the organization of
+    sub-spaces of names, on the relations, the constraints to be
+    specified there. It is only in the second phase that we undertake
+    implementation. The implmementation of a program is then based on
+    the collection of pre-existing signatures.
+    <br/>
+    <br/>
+   </li>
+   <li><i>Transmission of documentation.</i> Signatures also lend
+    themselves as a means of transmission of an abridged form of the
+    possibilities their bodies offer the potential user.
+   </li>
+   These links between signatures and modules thus induce a method of
+   production of programs that is measured and thoughtful. This method
+   applied during program development takes a certain thoroughness.
+   </ul>
+   </p>
+
+   <h5>The limitations of signatures as specifications</h5>
+
+   <p>The signatures of ML provide a limited means of
+   specification. Signatures can only include properties whose
+   verification can be realized within the reach of the type
+   system. For example, reconsider the
+   signature <code>METRIC_SPACE_2D</code>. The
+   declaration <code>dist</code> there is deemed to specify a function
+   of distance. The declaration describes binary function acting on
+   the <code>point</code> type and computing a number of
+   type <code>float</code>:
+   <ul>
+     <li><i>Weakness in the implementation.</i> A programmer can not
+     rely on the system to check the character of the distance
+     function an implementation of <code>dist</code> will have
+     produced.  <br/> <br/>
+     </li>
+     <li><i>Weakness of use.</i> A user of an instance of the
+     signature <code>METRIC_SPACE_2D</code> can not be sure of the
+     character of the distance function provided by <code>dist</code>.
+     </li>
+   </ul>
+   For example, the module following satisfies the signature
+   of <code>METRIC_SPACE_2D</code> but it's function <code>dist</code>
+   is not a distance:
+   <pre class="prettyprint ml">
+   module Buggy_plane : METRIC_SPACE_2D = struct
+     type point = float * float
+     let make_point (x, y) = (x, y)
+     let dist (x1, y1) (x2, y2) = x1 +. y1 +. x2 +. y2
+   end
+   </pre>
+   As part of a complete description of a metric space , the axioms of
+   the definition of a distance would be included:
+   \[
+   \begin{eqnarray}
+   \forall x,y \in point,&\;\;&0 \le dist (x, y) \le \infty \nonumber \\
+   \forall x,y \in point,&\;\;& dist(x, y) = 0 \iff x = y \nonumber \\
+   \forall x,y \in point,&\;\;& dist(x, y) = dist(y, x) \nonumber \\
+   \forall x,y \in point,&\;\;& dist(x, z) \le  dist(x, y) + dist (y, z)
+   \end{eqnarray}
+   \]
+   Only their verification on <code>dist</code> would ensure the
+   character of the distance function. That verification is quite out
+   of reach of the type system. Languages that include such
+   possibilities of specification require production of mathematical
+   evidence adapted case by case. In the language of OCaml, we resort
+   to verification of specific implementations via assertions and
+   tests.
+   </p>
+
+   <h5>Mitigation of the limitations of specification via signatures</h5>
+
+   <p>
+   The simpliest and most traditional method of mitigating the
+   limitations consists of associating signatures with documentation
+   in the form of comments. The constraints, the properties, the
+   behaviors of elements may be made more or less formal and
+   precise. For example:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE_2D = sig
+     type point
+     val make_point : float * float -> point
+     val dist : point -> point -> float
+     (*Satisifies the axioms of a distance function, can raise
+      [Invalid_argument] *) 
+   end
+   </pre>
+   This tactic can be applied generally and systematically during the
+   elaboration of signatures. It is obviously understood to be a
+   compromise since the type system can exert no control over them.
+   </p>
+   <p>
+   We wil later see however that sometimes OCaml offers more effective
+   means by nesting signatures in other modules or the use of
+   functions of modules. Also, technically, a specification can
+   combine the type system. For example, in the
+   signature <code>MATH</code> we have:
+   <pre class="prettyprint ml">
+   val sum : (int -> int) -> int -> int
+   </pre>
+   In this declaration, while it defines the form of the function, we
+   are guessing the first parameter represents the operation that
+   defines the sum. On the other hand, the declaration fails to
+   describe the remaining two parameters. The use of comments would
+   remedy this lack of precision but OCaml provides an extension which
+   offers a solution which integrates better with this kind of problem
+   : labeled parameters. We can use this feature in the signature to
+   clarify the role of these parameters. For example:
+   <pre class="prettyprint ml">
+   val sum : f : (int -> int) -> start : int -> goal : int -> int
+   </pre>
+   Then, modules that satisfy the signature will have these types
+   labeled providing coherence. For example:
+   <pre class="prettyprint ml">
+   let rec sum ~f ~start ~goal =
+     if goal < start then 0
+     else (f goal) + sum ~f:f ~start:start ~goal:(goal - 1)
+   </pre>
+   Any gaps in the naming of the parameters will be sanctioned by a
+   type error. The labeling of parameters then permits an enriched
+   signature in terms of documentation and is verifiable by the type
+   system during instantiation.
+   </p>
+
+   <h5>The generalization of signatures</h5>
+
+   <p>
+   The existence of abstract types in signatures permits a new
+   technique of generalistation. For example, consider once again the
+   signature <code>MATH</code>:
+   <pre class="prettyprint ml">
+   module type MATH = sig
+    val fact : int -> int
+    val fib : int -> int
+    val sum : (int -> int) -> int -> int -> int
+   end
+   </pre>
+   This signature restricts the declarations to numbers of the
+   type <code>int</code>. The specification sets here a representation
+   that leads to a particular precision in implementations. We can
+   replace the occurences of <code>int</code> with an abstract type:
+   <pre class="prettyprint ml">
+   module type MATH_GEN = sig
+    type t
+    val fact : t -> t
+    val fib : t -> t
+    val sum : (t -> t) -> t -> t -> t
+   end
+   </pre>
+   We have obtained a generalization of the
+   signature <code>MATH</code> over the the type <code>int</code>.
+   <br/>
+   <br/>
+   <b>Principle of generalization of a signature :</b> Replace the
+   specific type in the signature with an abstract type.
+   <br/>
+   <br/>
+   </p>
+
+   <h5>Signatures and the functional or imperative style</h5>
+
+   <p>
+   A signature can induce a programming style. In particular, those
+   operations with the result type <code>unit</code> indicate an
+   imperative program. For example, here is a variation on the
+   specification of the type of linear containers:
+   <pre class="prettyprint ml">
+   module type LINEAR_CONTAINER_IMP = sig
+     type &alpha; lin
+     val empty : unit -> &alpha; lin
+     val mem : &alpha; -> &alpha; lin -> bool
+     val add : &alpha; -> &alpha; lin -> unit (*procedure*)
+     val append : &alpha; lin -> &alpha; lin -> unit (*procedure*)
+     val length : &alpha; lin; -> int
+     val nth : &alpha; lin -> int -> &alpha;
+   end
+   </pre>
+   The functions <code>add</code> and <code>append</code> here have
+   return type <code>unit</code> which imposes the requirement of an
+   implmentation necessarily of imperative character.
+   </p>
+   <p>
+   On the other hand, the items specified by a signature may overall
+   lead one to adopt an imperative rather than a functional style. For
+   example, conser a new version of the preceding signature:
+   <pre class="prettyprint ml">
+   module type LINEAR_CONTAINER = sig
+     type &alpha; lin
+     val empty : unit -> &alpha; lin
+     val mem : &alpha; -> &alpha; lin -> bool
+     val add : &alpha; -> &alpha; lin -> &alpha; lin (*function*)
+     val append : &alpha; lin -> &alpha; lin -> &alpha lin (*function*)
+     val length : &alpha; lin; -> int
+     val nth : &alpha; lin -> int -> &alpha;
+   end
+   </pre>
+   Apriori this signatures specifies an implementation of functional
+   character because the functions <code>add</code>
+   and <code>append</code> compute containers rather than a unit
+   value. Suppose that we have at our disposal such a representation,
+   and suppose we wished to obtain a function that runs through the
+   elements of <code>&alpha; lin</code> instances. Here as the only
+   access function is <code>nth</code>, which accesses the $n$-th
+   element of an instance, it might be tempting to go the way of
+   imperative loops adapted to the management of indices. Thus, a
+   signature that specifies a data structure have functional character
+   that lends itself to recursive decomposition, should also specify
+   directly generalized processing functions like iterators or folds.
+   </p>
+
+   <h4>Public and private modules</h4>
+
    <hr/>
    <p>
      References:<br/>
