@@ -1143,7 +1143,7 @@
      val empty : unit &rarr; &alpha; lin
      val mem : &alpha; &rarr; &alpha; lin &rarr; bool
      val add : &alpha; &rarr; &alpha; lin &rarr; &alpha; lin (*function*)
-     val append : &alpha; lin &rarr; &alpha; lin &rarr; &alpha lin (*function*)
+     val append : &alpha; lin &rarr; &alpha; lin &rarr; &alpha; lin (*function*)
      val length : &alpha; lin; &rarr; int
      val nth : &alpha; lin &rarr; int &rarr; &alpha;
    end
@@ -1187,9 +1187,15 @@
    <br/>
    <b>Rule (1) of the visibility of modules: </b> The contents of a
    module without an explicit signature are public.  <br/> <br/> For
-   example, recall the implementation of a datatype for lists: module
-   L = struct type &alpha;lpha lin = Empty | Cons of &alpha; * &alpha; lin let empty
-   () = Empty let add x l = Cons (x, l) end Without explicit signing,
+   example, recall the implementation of a datatype for lists:
+  <pre class="prettyprint ml">
+   module L = struct 
+     type &alpha;lpha lin = Empty | Cons of &alpha; * &alpha; lin
+     let empty () = Empty
+     let add x l = Cons (x, l)
+   end 
+  </pre>
+   Without explicit signing,
    the module exposes all its contents. The representation of such
    values, <code>&alpha; lin</code> is therefore usable for direct use:
    <pre class="prettyprint ml">
@@ -1264,6 +1270,177 @@
 
    <h3>Generic modular programming : functors</h3>    
 
+   <p>
+   The preceding sections show why and how to decouple a program into
+   seperate distinct components, how to partition components and how
+   to specify them before implmentation. In particular, when we
+   discussed the advisability of implementation hiding techniques, the
+   main quality criteria being precision and shows, namely in the the
+   situation of being able to modify and replace modules locally as
+   related but autonomous elements. The subsitution principle is in
+   effect the essential characteristic of organisation and module
+   reuse. There remains at least one point to improve : the conditions
+   that allow us to express and exploit this substitutivity. Generic
+   programming allowing the full participation of modules.
+   </p>
+   <p>So, in these sections, first of all we introduce the notion of
+   "functions of modules", that is, <i>functors</i>, which will be the
+   principal tools of modular generiticity. We then present some
+   conceptual models associated with their use. A thorough discussion
+   will be provided about various types of signatures. Highlighting
+   their features, we will find functors can be compiled
+   independently, that they can posses more than one parameter, are
+   typable by signatures of their own and they allow their arguments
+   also to be functors. We will then discuss the advantages and
+   inconveniences of generic modular programming based on
+   functors. Finally, we introduce a graphical representation for
+   functors and examples illustrating usage.
+   </p>
+
+   <h4>Generic modular programming : functors</h4>
+
+   <h5>The idea of "functions of modules"</h5>
+
+   <p>
+   We have seen that modules and signatures offer a simple means of
+   adaption and extension. Recall the example based on the type of
+   complex numbers with the following signature:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex
+     val make : float * float -> complex
+     val show : complex -> float * float
+     ...
+   end;;
+   </pre>
+   So now supposing <code>Complex</code> is a module that satisfies
+   the <code>COMPLEX</code> signature, an extension can easily be
+   obtained by inclusion:
+   <pre class="prettyprint ml">
+   module Complex_ext = struct
+     include Complex
+     let mul z w =
+       let (r1, i1) = show z and (r2, i2) = show w in
+       make (r1 *. r2 -. i1 *.i2, i1 *. r2 +. i2 *. r1)
+   end;;
+   </pre>
+   This extension is however specific to the
+   module <code>Complex</code>. Yet it turns out it is structurally
+   independent of the details of the implementation of the module :
+   nothin in the body of the new function <code>mul</code> alludes to
+   anything particularly specific to <code>Complex</code>. Consider
+   the effect on a different implementation of <code>COMPLEX</code>,
+   for example, <code>Complex_memo</code>. The extension follows:
+   <pre class="prettyprint ml">
+   module Complex_memo_ext = struct
+     include Complex
+     let mul z w =
+       let (r1, i1) = show z and (r2, i2) = show w in
+       make (r1 *. r2 -. i1 *.i2, i1 *. r2 +. i2 *. r1)
+   end;;
+   </pre>
+   The substitution principle applies here, but is embodied by an
+   explicit operation on the code : <code>Complex</code> is replaced
+   by hand by the module <code>Complex_memo</code>. This situation is
+   similarly in fact to not knowing the concept of function but only
+   that of constants!
+   </p>
+   <p>
+   So, very naturally, ML languages offer a construction related to
+   that of functions that solves the problem:
+   <pre class="prettyprint ml">
+   module F (C : COMPLEX) = struct
+     include C
+     let mul z w =
+       let (r1, i1) = show z and (r2, i2) = show w in
+       make (r1 *. r2 -. i1 *.i2, i1 *. r2 +. i2 *. r1)
+   end;;
+   </pre>
+   The operation <code>F</code> takes a module
+   parameter <code>C</code> of type the
+   signature <code>COMPLEX</code>. The application simply retunrs a
+   module integration the argument transmitted as a parameter. So, for
+   example, the two extensions of complex numbers discussed earlier
+   can be obtained by direct applications of <code>F</code>:
+   <pre class="prettyprint ml">
+   # module Complex_ext = F (Complex);;
+
+   # module Complex_memo_ext = F (Complex_memo);;
+   </pre>
+   </p>
+   <p>
+   This new kind of operation consititues a means to facilitate
+   substituion of modules. It can express abstractions on modules
+   through its parameters and therefore new forms of generalization
+   and generiticity. We will develop and explain these ideas
+   throughout the pages that follow.
+   </p>
+
+   <h5>Defining functors</h5>
+
+   <p>
+   A "function of modules", that is to say, a parameterized module, or
+   more specifically a functor, permits the passing of modules as
+   arguments to construct other modules on which they depend. The
+   basic syntax of a functor in OCaml naturally resembles that of
+   anonymous functions:
+   <br/>
+   <br/>
+   <pre class="prettyprint ml">
+   functor (&lt;Parameter&gt; : &lt;SIGNATURE&gt;) ->
+    struct
+      type ...           exception ...
+      let ...            module ...
+      module type ...    open ...
+      include ...        &lt;exp&gt;
+      ...
+    end
+   </pre>
+   <br/> <br/> In the above, it is indicated
+   that <code>&lt;Parameter&gt;</code> necessarily
+   satisfies <code>&lt;SIGNATURE&gt;</code>. As a functor computes a
+   module, the body of the functor is enclosed the
+   keywords <code>struct</code> and <code>end</code>. On the other
+   hand, this construction does not itself define a value. We use a
+   new module keyword to link to a name:
+   <pre class="prettyprint ml">
+   module &lt;Name&gt; = 
+     functor (&lt;Parameter&gt; : &lt;SIGNATURE&gt;) ->
+      struct
+        ...
+      end
+   </pre>
+   Such a definition can be abbreviated as so:
+   <br/>
+   <br/>
+   <pre class="prettyprint ml">
+   module &lt;Name&gt; (&lt;Parameter&gt; : &lt;SIGNATURE&gt;) = struct
+     ...
+   end
+   </pre>
+   <br/> <br/> We obtain here a syntax similar to functions. The
+   underlying rule of the definition of functors is given next:
+   <br/>
+   <br/>
+   <b>Functor definition rule : </b> All the elements enclosed in
+   the <code>struct-end</code> are compiled sequentially in the order
+   they apppear. Each new binding may use the bindings that precede it
+   and are strictly associated with the body of the functor. However,
+   there are no evaluations. The overall result is bound to the
+   identifier <code>&lt;Name&gt;</code>.  <br/> <br/> As for
+   functions, evaluation of the body of the functor is effected on
+   application and conforms to the rules of a simple module.
+   </p>
+   <p>Despite the similarities between functions and functors the
+   following important difference should be noted:
+   <br/>
+   <br/>
+   <b>The explicit typing of parameters is mandatory :</b> In
+   constrast to functions, functors require explicit typing of their
+   parameters.  <br/> <br/> In effect, the feature of type inference
+   in ML languages does not extend to calculating the signatures of
+   functor parameters (it is in genearl "undecidable").
+   </p>
    <hr/>
    <p>
      References:<br/>
