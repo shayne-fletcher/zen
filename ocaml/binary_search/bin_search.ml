@@ -89,15 +89,11 @@ let bubble_sort (arr : int array) =
 
 let rec insert n : int list -> int list = function
   | [] -> [n]
-  | (x :: xs) as l -> 
-     if n < x then n :: l 
-     else x :: (insert n xs)
+  | (x :: xs) as l -> if n < x then n :: l else x :: (insert n xs)
 
-let insert_sort (l : int list) : int list =
-  let rec loop acc  = function
-    | [] -> acc
-    | (x :: xs) -> loop (insert x acc) xs in
-  loop [] l
+let rec insert_sort : int list -> int list = function
+  | [] -> []
+  | (x :: xs) -> insert x (insert_sort xs)
 
 let rec drop l k =  
   if k <= 0 then l 
@@ -123,7 +119,7 @@ let rec perms = function
       let e = List.nth l k in
       List.map (fun x -> e :: x) (perms @@ take l k @ drop l (k + 1)) @ acc in
     List.fold_left f [] (range 0 (List.length l))
-  
+
 let random_perms (n : int) : int list =
   let rec loop acc  =
     if List.length acc = n then acc
@@ -180,13 +176,17 @@ let substring (s : string) (xs : string) : int =
          loop (i + 1) xs in
   loop 0 xs'
 
-let merge (xs : int list) (ys : int list) : int list=
-  let rec loop acc xs ys =
-  match (xs, ys) with
-  | ([], l) -> List.rev (l @ acc) (*'@' joins two lists*)
-  | (l, []) -> List.rev (l @ acc)
-  | (x :: xs, y :: ys) ->
-     if x < y then  loop (x :: acc) xs (y :: ys)
-     else loop (y :: acc) (x :: xs) ys in
-  loop [] xs ys
+let rec merge (l : int list) (m : int list) : int list =
+  match (l, m) with
+  | [], ys -> ys
+  | xs, [] -> xs
+  | (x :: xs), (y :: ys) ->
+    if x <= y then x :: (merge xs (y :: ys))
+    else y :: (merge (x :: xs) ys)
 
+let rec merge_sort : int list -> int list = function
+ | [] -> []
+ | [_] -> l
+ | xs ->
+   let n = (List.length xs / 2) in
+   merge (merge_sort (take l n)) (merge_sort (drop l n))
