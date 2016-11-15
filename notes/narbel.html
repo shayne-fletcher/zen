@@ -1268,6 +1268,101 @@
    multiple distinct signatures.
    </p>
 
+   <h5>Compatibility of signatures</h5>
+
+   <p>
+   By what has been said in the previous section, we can now specify a
+   reinterpration of the rules of explict typing by signature.
+   <br/>
+   <br/>
+   <b>Compatibility between signatures : </b>
+   Suppose <code>M<sub>1</sub></code> is a module satisfying the
+   signature <code>S<sub>1</sub></code>; also, <code>M<sub>1</sub></code>
+   also satisfies <code>S<sub>2</sub></code>. Then if:
+   <ol>
+   <li><code>S<sub>1</sub></code> includes <code>S<sub>2</sub></code>
+   in terms of its set of elements.</li>
+   <li>The types of the elements of <code>S<sub>1</sub></code> are
+   respectively, equal to, compatible with or more general than those
+   of <code>S<sub>2</sub></code>.</li>
+   <li>Certain concrete types in <code>S<sub>1</sub></code> are
+   abstract in <code>S<sub>2</sub></code>.</li>
+   </ol>
+   In this case we will say, the signature <code>S<sub>1</sub></code>
+   is compatible with the signature <code>S<sub>2</sub></code>
+   and <code>M<sub>1</sub></code> is an instance of both.
+   <br/>
+   <br/>
+   So, the example of the preceding section, the
+   signature <code>METRIC_SPACE_2D_COUNT</code> is compatible
+   with <code>METRIC_SPACE_2D</code>. Note this definition is in
+   general accord with the general definition of the compatibility of
+   types. It can also be described as <i>structural</i> : it depends
+   only on the form of the signatures, it does not need to be made
+   explicit by the programmer.
+   </p>
+
+   <p>
+   The compatibility between signatures must be associated with
+   another possibility of modules which brings them closer to the
+   usual behavior of values : a module may be bound to an arbitrary
+   number of distinct identifiers. It is indeed possible to construct
+   new bindings of modules to existing modules. For example:
+   <pre class="prettyprint ml">
+   # module P = Plane_count;;
+   </pre>
+   Here the module <code>P</code> is made to be a reference to the
+   same implementation of the module <code>Plane_count</code>. It is
+   similar to the effect to that which governs the definition of new
+   bindings by <code>let</code> : a new copy of the
+   module <code>Plane_count</code> is not produced (in this imperative
+   example, the internal counter of the <code>Plane_count</code>
+   points will be shared).
+   </p>
+
+   The construction of such module links can obviously be accompanied
+   by explicit typing and under the umbrella of the notion of
+   compatibility:
+   <pre class="prettyprint ml">
+   # module P1 : METRIC_SPACE_2D = Plane_count;;
+   # module P2 : METRIC_SPACE_2D_COUNT = Plane_count;;
+   </pre>
+   or, in an equivalent manner:
+   <pre class="prettyprint ml">
+   # module P1 = (Plane_count : METRIC_SPACE_2D);;
+   # module P2 = (Plane_count : METRIC_SPACE_2D_COUNT);;
+   </pre>
+   The explicit typing here authorises multiple visibilities of the
+   same module : the module <code>P<sub>2</sub></code> exports all the
+   elements of the <code>Plane_count</code> module whereas the
+   module <code>P<sub>1</sub></code> just those elements that appear
+   in the signature <code>METRIC_SPACE_2D</code>. Such multiple views
+   can make sense in many situations. For example:
+   <ul>
+   <li><i>Distinguishing between error search phases.</i>  Elements
+   are made public to be deprived but on which an error search applies
+   (I have no idea what this means either)</li>
+   <li><i>Distinguishing between access levels.</i> More or less of
+   complete access is granted to the users of a module.</li>
+   </ul>
+   Note that this explicit typing via signatures can be phrased in
+   terms of the classical type-transformation term of an "up-cast", a
+   term which tenotes transformation of the the type of an element in
+   the sense of a compatibility relation. A restriction on the "window
+   of visibility" of a module by becoming the instance of a more
+   general signature. The reverse, that is a type-transformation of
+   the form of a "down-cast" is not allowed. There are in fact no more
+   traces of the initial shape of a module after an up-cast. For
+   example, if we now reconsider the previous example:
+   <pre class="prettyprint ml">
+   # module P1 : METRIC_SPACE_2D = Plane_count;;
+   # module P2 : METRIC_SPACE_2D_COUNT = P1 ;;
+   Signature error
+   </pre>
+   It is not possible to retrieve the initial module by an <i>a
+   posteriori</i> retyping to its complete signature.
+   </p>
+
    <h3>Generic modular programming : functors</h3>    
 
    <p>
@@ -1295,7 +1390,6 @@
    inconveniences of generic modular programming based on
    functors. Finally, we introduce a graphical representation for
    functors and examples illustrating usage.
-   </p>
 
    <h4>Generic modular programming : functors</h4>
 
@@ -1437,10 +1531,186 @@
    <br/>
    <b>The explicit typing of parameters is mandatory :</b> In
    constrast to functions, functors require explicit typing of their
-   parameters.  <br/> <br/> In effect, the feature of type inference
-   in ML languages does not extend to calculating the signatures of
-   functor parameters (it is in genearl "undecidable").
+   parameters.
+   <br/>
+   <br/> 
+   In effect, the feature of type inference in ML languages does not
+   extend to calculating the signatures of functor parameters (it is
+   generally "undecidable").
    </p>
+
+   <h5>Using functor parameters</h5>
+
+   <p>
+   The parameters of functors denote modules which are usually used in
+   the body of the functor using indirection ("member-selection"
+   notation). For example,
+   <pre class="prettyprint ml">
+   module type S = sig
+    type t
+    val f : t -> t
+   end;;
+
+   module F (M : S) = struct
+     type s = M.t  (*recover the type in [M]*)
+     let pair x = (x, M.f x) (*apply the function [f] in [M]*)
+   end;;
+   </pre>
+   The type <code>t</code> and the function <code>f</code> of the
+   parameter <code>M</code> appear in the implementation of the body
+   of the functor <code>F</code>. The parameters of a functor define a
+   local environment but this time consisting of modules. The same
+   rules of information hiding for simple values apply to the names of
+   modules.
+   </p>
+
+   <h5>Functor application</h5>
+
+   <p>
+   The syntax of functor application is also similar to that of a
+   function application, and the result must be bound to the name of a
+   module:
+   <br/>
+   <br/>
+   <pre class="prettyprint ml">
+   module &lt;Name&gt; = &lt;Functor&gt; (&lt;Argument&gt);;
+   </pre>
+   <br/> <br/> where <code>&lt;Argument&gt</code> is a module
+   statisifying the signature of the parameter
+   of <code>&lt;Functor&gt;</code>. For example, here is an instance
+   of the signature <code>S</code> of the preceding section:
+   <pre class="prettyprint ml">
+   module Increm = struct
+     type t = int
+     let f x = x + 1
+   end;;
+   </pre>
+   It is then possible to apply the functor <code>F</code>:
+   <pre class="prettyprint ml">
+   # module M1 = F (Increm);;
+   </pre>
+   The use of the module <code>M1</code> is as usual:
+   <pre class="prettyprint ml">
+   # M1.pair 1;;
+   - : Increm.t * Increm.t = (1, 2)
+
+   # M1.pair 2;;
+   - : Increm.t * Increm.t = (2, 3)
+   </pre>
+
+    Here are some precise illustrations of two points relating to the
+    rule of definition and application of a functor:
+    <ul>
+    <li>
+    <i>The evaluation of the elements of a functor takes place at the
+    moment of application.</i>
+    <br/>
+    <br/>
+    For example:
+    <pre class="prettyprint ml">
+    # module Div_zero (M : sig end) = struct
+        print_endline "In division by zero"
+        let x = 1 / 0
+      end;;
+
+    # module M1 = Div_zero (struct end);;
+    In division by zero
+    Exception : Division_by_zero
+    </pre>
+    <br/>
+    <br/>
+    </li>
+    <li>
+    <i>Each application of a functor produces a new distinct
+    module.</i>
+    <br/>
+    <br/>
+    In particular, if a functor produces modules with internal state,
+    those states are distinct. For example:
+    <pre class="prettyprint ml">
+    module Count_state (M : sig end) = struct
+      let count = ref 0
+    end;;
+
+    # module V1 = Count_state (struct end)
+      module V2 = Count_state (struct end);;
+    module V1 : sig val count : int ref end
+    module V2 : sig val count : int ref end
+
+    # incr V1.count;;
+    - : int ref = { contents = 1}
+
+    # V2.count ;;
+    - : int ref = { contents = 0}
+    </pre>
+    </li>
+    </ul>
+   </p>
+
+   <h5>Explicit typing of the results of functors</h5>
+
+   <p>
+   As functors are part of the operation of language types it is
+   naturally possible to render explicitly the signature of their
+   results. For this purpose, we use the same notation as for
+   functions. Consider for example the following signature:
+   <pre class="prettyprint ml">
+   module type S_RESULT = sig
+     type s
+     val pair : s -> s * s
+   end;;
+   </pre>
+   We can then reconsider an earlier example and explicitly type the
+   result fo the functor <code>F</code> in two different ways:
+   <pre class="prettyprint ml">
+   module F_explicit (M : S) : S_RESULT = struct
+     type s = M.t
+     let pair x = (x, M.f x)
+   end;;
+
+   module F_explicit (M : S) = (struct
+     type s = M.t
+     let pair x = (x, M.f x)
+   end : S_RESULT);;
+   </pre>
+   Explicit typing induces information hiding of the elements
+   contained in the body of the functor. The rules are the following
+   and reflect directly those which apply to modules:
+   <br/>
+   <br/>
+   <b>Rule (1) : the visibility of the result of a functor : </b> The
+   result of a functor unless explicitly typed by a signature has
+   public contents.
+   <br/>
+   <br/>
+   <b>Rule (2) : the visibility of the result of a functor : </b> The
+   result of a functor explicitly typed by a signature <code>S</code>
+   has public contents limited to those defined in the definition
+   of <code>S</code> (with the exception of abstract types).  
+   <br/>
+   <br/>
+   We can verify the safe application of the
+   functor <code>F_explicit</code> above:
+   <pre class="prettyprint ml">
+   module Increm = struct
+     type t = int
+     let f x = x + 1
+   end;;
+
+   # module M1 = F_explicit (Increm);;
+
+   # M1.pair 1;;
+             ^
+   Error: This expression has type int but an expression was expected
+         of type M1.s = F_explicit(Increm).s
+   </pre>
+   The abstract type <code>s</code> of <code>M1</code>
+   (from <code>t</code> of <code>Increm</code>) has become private
+   since the functor result is explicitly typed.
+   </p>
+   <p>
+   </p>
+
    <hr/>
    <p>
      References:<br/>
