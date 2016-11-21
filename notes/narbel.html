@@ -1363,6 +1363,266 @@
    posteriori</i> retyping to its complete signature.
    </p>
 
+   <h5>Public exceptions</h5>
+
+   <p>
+   In the context of explicit typing, the exporting of exceptions
+   necessarily passes through their definition in the signature. For
+   example:
+   <pre class="prettyprint ml">
+   module type FACT = sig
+     exception Neg
+     val fact : int -> int
+     (*Raises [Neg] if the given argument is negative*)
+   end;;
+
+   module E : FACT = struct
+     exception Neg
+     let rec fact n = ...
+   end;;
+   </pre>
+   Conforming to the rules of explicit typing by signatures, an
+   instantiation of the signature <code>FACT</code> includes
+   necessarily the exception <code>Neg</code>. This double definition
+   is a mark of exporting an exception and makes it usuable outside
+   the module:
+   <pre class="prettyprint ml">
+   # E.Neg ;;
+   - : exn = E.Neg
+   </pre>
+   The interest in exporting them of course is to make possible their
+   processing from outside the module. Their appearence in the
+   signature gives more opportunity to specify the character of the
+   functions likely to use them. Their commentary can thus help
+   prepare for the treatment of errors. Note however, some exceptions
+   need not be exported. They can sometimes be restricted to
+   exploitation by the private implementation of the module. Recall
+   also that their exists in OCaml a fairly large collection of
+   predefined exceptions that are global.
+   </p>
+
+   <h5>Public types</h5>
+
+   <p>
+   With explicit typing by signatures, as for exceptions, to export
+   types from a module requires their implementation in the
+   signature. In other words, the types must be concrete and not
+   abstract if they are to be exported. For example, consider complex
+   numbers, but this time with a representation in the form of records
+   which integrate both the real part, their imaginary part and their
+   precalculated norm:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex = {real : float; im : float; norm : float}
+     val make : float * float -> complex
+     val add : complex -> complex -> complex
+     val norm : complex -> float
+   end;;
+   </pre>
+    The definition of the type <code>complex</code> within the
+    signature renders it public for any instantiation. In particular,
+    the fields of the record are directly usable:
+   <pre class="prettyprint ml">
+   module Complex : COMPLEX = struct
+     type complex = {real : float; im : float; norm : float}
+
+     let make (r, i) = {re = r; im = i;
+                        norm = sqrt (r ** 2. + i ** 2.)}
+     let add z w = ...
+     let norm z = z.norm
+   end;;
+
+   # let zq = Complex.make (4., 3.);;
+   val z1 : Complex.comple = 
+     {Complex.re = 4.; Complex.im = 3.; Complex.norm = 5}
+
+   # z1.Complex.re;;
+   - : float = 4.
+
+   # z1.Complex.norm;;
+   - : float = 5.
+   </pre>
+   However, the interest of exporting types is questionable. For
+   example, one observes here an interaction between the
+   field <code>norm</code> and the function <code>norm</code> and
+   assumes an equivalence. The relationship between the declared norm
+   and the calculated norm can nevertheless take a more sophisticted
+   turn.
+   </p>
+
+   <h5>Private and abstract types</h5>
+
+   <p>
+   A final development is necessary regarding visibility and the
+   explicit typing of modules. As stated in the "rule (2) of the
+   visibility of modules", there is a particular case: when explicitly
+   typing modules with signatures, an abstract type is not rendered
+   public. The abstract character of such types is
+   maintained. Modifying the previous example:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex (*abstract*)
+     val make : float * float -> complex
+     ...
+   end;;
+    
+   module Complex : COMPLEX = struct (*explicit type*)
+     type complex = {real : float; im : float; norm : float}
+
+     let make (r, i) = {re = r; im = i;
+                        norm = sqrt (r ** 2. + i ** 2.)}
+     ...
+   end;;
+
+   # let z1 = Complex.make (4., 3.);;
+   val z1 : Complex.complex = &lt;abstr&gt;
+
+   # z1.Complex.re
+   Unbound record field label
+   </pre>
+   The responses of the type inference hide here the representation of
+   the type mentioning only that it is <code>&lt;abstr&gt;</code>. It
+   is therefore impossible to access directly, even to display, the
+   values associated with a complex number. Specific accessors are now
+   indispensable. It is possible to extend the
+   signature <code>COMPLEX</code> with a general accessor, here we'll
+   name it <code>show</code> which returns a complex number in the
+   form of a pair of <code>float</code>:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex (*abstract*)
+     val make : float * float -> complex
+     val show : complex -> float * float
+     ...
+   end;;
+
+   module Complex : COMPLEX = struct (*explicit type*)
+     type complex = {real : float; im : float; norm : float}
+
+     let make (r, i) = {re = r; im = i;
+                        norm = sqrt (r ** 2. + i ** 2.)}
+
+     let show z = (z.re, z.im)
+
+     ...
+   end;;
+   </pre>
+   The type <code>complex</code> is henceforth hidden, instantiable
+   and exploitable:
+   <pre class="prettyprint ml">
+   # let z1 = Complex.make (4., 3.);;
+   val z1 : Complex.complex = &lt;abstr&gt;
+
+   # Complex.show z1;
+   - : float * float = (4., 3.)
+   </pre>
+   </p>
+
+   <p>
+   Certain types of data lend themselves to the hiding of their
+   representation better than others. For example, those
+   data-structures that naturally provide accessors and constructors
+   of empty structures or of particular sizes. Let us recall the
+   following example:
+   <pre class="prettyprint ml">
+   module type LINEAR_CONTAINER = sig
+     type &alpha; lin
+     val empty : unit -> &alpha; lin (*constructor*)
+     val add : &alpha; -> &alpha; lin -> &alpha; lin
+     val nth : &alpha; lin; -> int -> &alpha; (*accessor*)
+   end;;
+
+   module L : LINEAR_CONTAINER = struct
+     type &alpha; lin = Empty | Cons of &alpha; * &alpha lin
+     let empty () = Empty
+     let add x l = ...
+     let nth l n = ...
+   end;
+
+   # let l1 = L.add 111 (L.add 666 (L.empty ()));;
+   val l1 : int L.lin = &lt;abstr&gt;
+
+   # L.nth l1 1;;
+   - : int = 666
+   </pre>
+   The universal type parameter <code>&alpha;</code> can be equally
+   well instantiated with a hidden type as with a public type. In
+   other words, the responsibility of msasking the values contained by
+   the containers is left in the hands of the users. For example, it is
+   possible to insert a hidden complex number in the container of
+   type <code>&alpha; lin</code>:
+   <pre class="prettyprint ml">
+   # let l1 = L.add (Complex.make (4.0, 3.0)) (L.empty ());;
+   val l1 : Complex.complex L.lin = &lt;abstr&gt;
+
+   # L.nth l1 0;;
+   - : Complex.complex = &lt;abstr&gt;
+   </pre>
+   Of course, the application of the <code>show</code> accessor is required if it is desired to obtain the explicit values:
+   <pre class="prettyprint ml">
+   # Complex.show (L.nth l1 0);;
+   - : float * float = (4., 3.)
+   </pre>
+   We therefore have the possibility to implement controlled
+   visibility of the elements which make up a module. In the case of
+   the implementation of data types, this complete mastery of
+   visibility permits us to define abstract data types where details
+   of the representation are necessarily hidden (and therefore based
+   on abstract types in the corresponding signatures).
+   </p>
+
+   <h4>Abstract data types</h4>
+
+   <h5>The reasons for hiding and substitution</h5>
+   <p>
+   Visibility control of the elements of modules, in other words
+   - <i>implementation hiding</i> - is an important tool for the
+   production of modular programs of quality. Hiding in effect assures
+   indepdence between modules. Without that independence, certain
+   properties mentioned at the outset of the section are
+   compromised. For example, implementation dissemination can make it
+   difficult to make any subsequent changes and adapations and
+   extensions tedious and delicate to carry out.
+   </p>
+   <p>
+   On the other hand, hiding is based on signatures, that is, elements
+   that describe the programm without fixing on or revealing an
+   implementation (the specification). The signatures contain the
+   abstractions, the interfaces, a screen over the particulars of a
+   program. However the signatures indicate as well the organisation
+   of the program composed as distinct modules. They represent by
+   themselves the logical architecture.
+   </p>
+   <p>
+   If the properties sought through modular programming have so far
+   been expressed in a very general way, what has just been said has
+   allowed us to establish a principal that more concretely
+   characterize a good modular organisation:
+   <br/>
+   <br/>
+   <b>The principle of modular substitutivity : </b> Let <b>S</b> be
+   the set of signatures that specify a modular program <i>Prog</i>,
+   and let <code>M</code> be a component of <i>Prog</i> that satisfies
+   a signature <code>S</code> \(\in\) <b>S</b>. Then, any component
+   that also satisfies <code>S</code> may be substituted
+   for <code>M</code> without any other modifications of <i>Prog</i>.
+   <br/>
+   <br/>
+   This principle expresses what is meant by "to be independent" in
+   the case of a set of modular components. It gives rise to a similar
+   virtue of the notion of referential transparency in functional
+   programming, that is to say, a strict localization of the effects
+   of an action on the program. Under the qegis of the "principle of
+   substitutivity", a program can be first specified and its
+   realization and development broken down component by component.
+   </p>
+   <p>
+   In the following, we now illustrate some of the ideas of
+   implementation of abstract data types and present precise
+   techniques offed by OCaml to implement them. We shall then return
+   to these general questions.
+   </p>
+ 
    <h3>Generic modular programming : functors</h3>    
 
    <p>
