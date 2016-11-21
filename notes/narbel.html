@@ -808,7 +808,7 @@
    <pre class="prettyprint ml">
    module Plane : sig
      type point = float * float
-     val make_point : &alpha; * 'b &rarr; &alpha; * 'b
+     val make_point : &alpha; * &beta; &rarr; &alpha; * &beta;
      val dist : float * float &rarr; float * float &rarr; float
    end
    </pre>
@@ -1372,7 +1372,7 @@
    <pre class="prettyprint ml">
    module type FACT = sig
      exception Neg
-     val fact : int -> int
+     val fact : int &rarr; int
      (*Raises [Neg] if the given argument is negative*)
    end;;
 
@@ -1414,9 +1414,9 @@
    <pre class="prettyprint ml">
    module type COMPLEX = sig
      type complex = {real : float; im : float; norm : float}
-     val make : float * float -> complex
-     val add : complex -> complex -> complex
-     val norm : complex -> float
+     val make : float * float &rarr; complex
+     val add : complex &rarr; complex &rarr; complex
+     val norm : complex &rarr; float
    end;;
    </pre>
     The definition of the type <code>complex</code> within the
@@ -1462,7 +1462,7 @@
    <pre class="prettyprint ml">
    module type COMPLEX = sig
      type complex (*abstract*)
-     val make : float * float -> complex
+     val make : float * float &rarr; complex
      ...
    end;;
     
@@ -1491,8 +1491,8 @@
    <pre class="prettyprint ml">
    module type COMPLEX = sig
      type complex (*abstract*)
-     val make : float * float -> complex
-     val show : complex -> float * float
+     val make : float * float &rarr; complex
+     val show : complex &rarr; float * float
      ...
    end;;
 
@@ -1527,9 +1527,9 @@
    <pre class="prettyprint ml">
    module type LINEAR_CONTAINER = sig
      type &alpha; lin
-     val empty : unit -> &alpha; lin (*constructor*)
-     val add : &alpha; -> &alpha; lin -> &alpha; lin
-     val nth : &alpha; lin; -> int -> &alpha; (*accessor*)
+     val empty : unit &rarr; &alpha; lin (*constructor*)
+     val add : &alpha; &rarr; &alpha; lin &rarr; &alpha; lin
+     val nth : &alpha; lin; &rarr; int &rarr; &alpha; (*accessor*)
    end;;
 
    module L : LINEAR_CONTAINER = struct
@@ -1612,7 +1612,7 @@
    the case of a set of modular components. It gives rise to a similar
    virtue of the notion of referential transparency in functional
    programming, that is to say, a strict localization of the effects
-   of an action on the program. Under the qegis of the "principle of
+   of an action on the program. Under the aegis of the "principle of
    substitutivity", a program can be first specified and its
    realization and development broken down component by component.
    </p>
@@ -1622,7 +1622,513 @@
    techniques offed by OCaml to implement them. We shall then return
    to these general questions.
    </p>
+
+   <h5>How to evolve datatypes</h5>
+
+   <p>A representative situation for evolution in modifying programs
+   consists of adaptions in the interest of performance improvments in
+   time and space. Optimisation is often performed after an operation
+   is revealed to be complex and tedious. It is therefore economic in
+   the early phases of development of a program to make it easy to
+   return thereafer and substitute more efficient code.
+   </p>
+   <p>
+   In the context of abstract data types, these modifications lead
+   generally to representations that are very far removed from those
+   that seem natural at the outset. In effect, the implementations
+   then carry technical information which contributes to the
+   optimization of their associated functions. We have already seen
+   several examples. For example, consider the case of the
+   specification of a datatype for queues:
+   <pre class="prettyprint ml">
+   module type FIFO_CONTAINER = sig
+     type &alpha; queue
+     val empty : unit &rarr; &alpha; queue
+     val add : &alpha; &rarr; &alpha; queue &rarr; &alpha; queue
+     val fst : &alpha; queue &rarr; &alpha;
+     val out : &alpha; queue &rarr; &alpha; queue
+   end;;
+   </pre>
+   The signature could be directly implemented with a list and without
+   too much regard to the effects of the persistent nature resulting
+   from being of functional character:
+   <pre class="prettyprint ml">
+   module Q_list : FIFO_CONTAINER = struct
+     type &alpha; queue = &alpha; list
+     let empty () = []
+     let add x q = q @ [x]
+     let fst q = ...
+     let out q = ...
+   end;;
+   </pre>
+   The signature however, equally allows for an implementation
+   optimized for queues:
+   <pre class="prettyprint ml">
+   module Q_burton : FIFO_CONTAINER = struct
+     type &alpha; queue = Q of &alpha; list * &alpha; list
+     let empty () = Q ([], [])
+     let add x (Q (l1, l2)) = ...
+     let fst q = ...
+     let out q = ...
+   end;;
+   </pre>
+   This change of representation is transparent to any user who is
+   restricted to the signature <code>FIFO_CONTAINER</code> : the
+   module <code>Q_burton</code> may be directly substituted
+   for <code>Q_list</code> even though the representations are quite
+   different.
+   </p>
+   <p>
+   Here's another classic example for the structure of association
+   tables. These tables may be initially specified in a minimal way:
+   <pre class="prettyprint ml">
+   module type ASSOC_TABLE = sig
+     type (&alpha;, &beta;) assoc
+     val empty : unit &rarr; (&alpha;, &beta;) assoc
+     val get_pair : (&alpha;, &beta;) assoc &rarr; &alpha; * &beta;
+     val assoc : (&alpha;, &beta;) assoc &rarr; &alpha; &rarr; &beta;
+     val add : &alpha; &rarr; &beta; &rarr; (&alpha;, &beta;) assoc &rarr; (&alpha;, &beta;) assoc
+     val sub : &alpha; &rarr; (&alpha;, &beta;) assoc &rarr; (&alpha;, &beta;) assoc
+   end;;
+   </pre>
+   This signature is easily implemented as a list:
+   <pre class="prettyprint ml">
+   module Assoc_list : ASSOC_TABLE = struct
+     type (&alpha;, &beta;) assoc = (&alpha; * &beta;) list
+
+     let empty () = []
+
+     let get_pair l = 
+       try
+         List.hd l 
+       with
+       | Failure "hd" &rarr; failwith "No pair"
+
+      let assoc l key = List.assoc key l
+
+      let add key data l =
+        try (assoc l key; failwith "Already inserted")
+        with | Not_found &rarr; (key, data) :: l
+     
+      let sub key l = ...
+   end;;
+
+   # let t1 = Assoc_list.add 1 &alpha;' (Assoc_list.empty ());;
+   val t1 : (int, char) Assoc_list.assoc = &lt;abstr&gt;
+
+   # let t1 = Assoc_list.add 2 &beta;' t1;;
+   val t1 : (int, char) Assoc_list.assoc = &lt;abstr&gt;
+
+   # Assoc_list.assoc t1 1;;
+   - : char = &alpha;'
+   </pre>
+   When the elements of an association table are frequently accessed,
+   it is normal to organise the association table in order that
+   accessing elements is of logarithmic complexity. For this we can
+   utilize the simple definition of binary search trees but of the
+   balanced variety, for example, red-black trees:
+   <pre class="prettyprint ml">
+   module Assoc_rb_tree : ASSOC_TABLE = struct
+     type color = R | B
+
+     type (&alpha;, &beta;) assoc =
+       | Empty
+       | Node of color * (&alpha;, &beta;) * (&alpha;, &beta;) assoc * (&alpha;, &beta;) assoc
+
+     let empty () = Empty
  
+     let get_pair t = match t with
+       | Empty &rarr; failwith "No pair"
+       | Node (_, x, _, _) &rarr; x
+
+     let rec assoc t key = match t with
+       | Empty &rarr; raise Not_found
+       | Node (_, (key', data), l, r) &rarr;
+           if key = key' then data else
+           if key < key' then assoc l key 
+           else assoc r key
+
+      let local_balance = ...
+      let add key data t = ...
+      let sub key t = ...
+   end;;
+   </pre>
+   Again, the optimisation can be used transparently due to
+   conformance to the <code>ASSOC_TABLE</code> signature:
+   <pre class="prettyprint ml">
+   # let t1 = Assoc_rb_tree.add 1 &alpha;' (Assoc_rb_tree.empty ());;
+   val t1 : (int, char) Assoc_rb_tree.assoc = &lt;abstr&gt;
+
+   # let t1 = Assoc_rb_tree.add 2 &beta;' t1;;
+   val t1 : (int, char) Assoc_rb_tree.assoc = &lt;abstr&gt;
+
+   # Assoc_rb_tree.assoc t1 1;;
+   - : char = &alpha;'
+   </pre>
+   One obtains the same behavior as for the preceding implementation.
+   </p>
+
+   <h5>Optimizing datatypes by "memoization"</h5>
+
+   <p>
+   Here are other examples of abstract data types using a particular
+   optimization technique. Recall the case of complex numbers with a
+   representation that includes a pre-calculated norm. If this value
+   is not used, this calculation becomes useless. One way to remedy
+   this situation is to calculate it on first use (this is called
+   "memoization"). Here is an implementation which qpplies this
+   technique that equally well satisfies the
+   signature <code>COMPLEX</code>:
+   <pre class="prettyprint ml">
+   module Complex_memo : COMPLEX = struct
+     type complex = { re : float; im : float;
+                      mutable norm : float option } (*memoization*)
+
+     let make (r, i) = { re : r; im : i; norm = None}
+
+     let show z = (z.re; z.im )
+
+     let add z w = make (z.re +. w.re, z.im +. w.im)
+
+     let norm z = match z.norm with
+       | Some x &rarr; x
+       | None &rarr; let m = sqrt (z.re ** 2. + z.im ** 2.) in
+                 (z.norm <- Some m; m)
+   end;;
+   </pre>
+   This optimization is transparent from the point of view of using
+   complex numbers through the signature <code>COMPLEX</code>:
+   <pre class="prettyprint ml">
+   # let z1 = Complex_memo.make (3., 4.);;
+   val z1 : Complex_memo.complex = &lt;abstr&gt;
+
+   # let z2 = Complex_memo.add z1 z1;
+   val z2 : Complex_memo.complex = &lt;abstr&gt;
+
+   # Complex_memo.show z2;;
+   - : float * float = (8., 6.)
+   </pre>
+   There are cases where memoization of all calculations proves to be
+   unsuitable or too heavy. For example, successive searches into a
+   data structure can not all be transformed into immediate
+   access. The idea is rather to put in place "caches" which provide
+   direct references only for the most recent searches. These caches
+   act as a set of opportunities to take "shortcuts". A problem then
+   arises when one modifies the data structure: elements that are
+   deleted by are nevertheless referenced by a cache are not
+   recoverable by the garbage collector; they remain referenced by
+   their shortcuts but they may not be utilized as they no longer
+   exist... A solution to this paradox is offered by the notion of
+   a <i>weak</i> reference, that is a reference to an element the
+   garbage collector is entitled to recover. As long as these element
+   exist, these references make it possible to reach them; if these
+   elements are to be destroyed, these references do not impede the
+   garbage collector in harvesting them.
+   </p>
+   <p>
+   The <code>Weak</code> module in the OCaml stanard library provides
+   an implementation of a table of weak references. For example, we
+   can integrate the technique of memoization by caches with an
+   inmplementation of a table of associations : each will have an
+   individual cache that will allow to reach directly the elements
+   previously accessed. The association function will therefore give
+   priority to the cache and then, in the case of failure on the table
+   of associations. This operation will also be responsible for
+   updating the cache. Here is an implementation based on binary trees
+   that satisfies the signature <code>ASSOC_TABLE</code>:
+   <pre class="prettyprint ml">
+   module Assoc_tree : ASSOC_TABLE = struct
+     let cache_size = 5 (*fixed cache size*)
+
+     type (&alpha;, &beta;) bintree = 
+       | Bin_empty
+       | Bin_node of (&alpha; * &beta;) * (&alpha;, &beta;) bintree * (&alpha;, &beta;) bintree
+
+     type (&alpha;, &beta;) assoc = { tree : (&alpha;, &beta;) bintree ;
+                             cache : (&alpha; * &beta;) Weak.t ;
+                             mutable index : int
+                          }
+
+      let empty () = { tree = Bin_empty; 
+                       cache = Weak.create cache_size;  
+                       index = 0}
+
+      let get_pair { tree = t } = match t with
+        | Bin_empty &rarr; failwith "No pair"  
+        | Bin_node &rarr; (x, _, _) &rarr; x
+
+      let assoc_direct table key =
+        let rec aux t = match t with
+          | Bin_empty &rarr; raise Not_found
+          | Bin_node ((key'; data'), t1, t2) &rarr;
+              if key = key' then data' else
+              if key < key' then aux t1 else aux t2
+        in aux table.tree
+
+      let assoc table key =
+        let res = ref None in
+        let index = ref 0 in
+        begin (*search the cache*)
+          while (!index < cache_size) && (!res = None) do
+            match Weak.get table.cache !index with
+              | Some (key', data) &rarr;
+                  if key = key' then res := Some data else incr index
+              | None &rarr; incr index
+          done ;
+          match !res with
+            | Some x &rarr; x
+            | None &rarr;
+                let data = assoc_direct table key in
+                Weak.set table.cache table.index (Some (key, data));
+                table.index <- (table.index + 1) mod cache_size;
+                data
+        end
+
+       let add key data table = ...
+       let sub key table = ...
+   end;;
+   </pre>
+   Obviously, this implementation is much more complex than the others
+   and only really justified for very large trees. However, the
+   optimization is still transparent to the user. All these examples
+   show that an improvement of a data type could include radical
+   changes in the form of its instances. Exporting of the
+   representation of these types would be very bad if they had to be
+   modified after their dissemination into the code. This work could
+   prove to be not only laborious but problematic. Indeed, the user
+   might find herself in the necessity of managing the creation, the
+   coherence and the processing in the module associated with the
+   datatype. That said, implementation hiding is a technique not
+   without difficulties and traps. We will develop some of them in the
+   following. Let us first recall that the type
+   variables <code>&alpha;</code>, <code>&beta;</code> etc are instantiable in
+   masked types. On the other hand, only structural functions are
+   capable of offering a universal generiticy, that is to say, a truly
+   uniform treatment of their arguments whatever the representation.
+   </p>
+
+   <h5>Hiding and generating predefined predicates</h5>
+
+   <p>
+   The multiple implementations of the last few pages have established
+   the framework of the "principle of module substituion". Optimized
+   versions have replaced non-optimized versions transparently. This
+   is only possible however if we take care to avoid transmitting
+   implicitly someting concealed between the components in spite of
+   their adherence to their respective signatures.
+   </p>
+   <p>
+   There exists a case in OCaml which is particularly representative
+   of this difficulty. For example, reconsider the complex number
+   type <code>Complex_memo</code> which uses memoization for the
+   norm. The representation of values of the type is the following:
+   <pre class="prettyprint ml">
+   type complex = {re : float; im : float; mutable norm : float option}
+   </pre>
+   Recall that the predefined equality operator '<code>=</code>' over
+   records, compares each field. Under these conditions, the equality
+   function is no long valid on such a lazy representation:
+   <pre class="prettyprint ml">
+   # let z1 = Complex_memo.make (1., 1.1)
+     let z2 = Complex_memo.make (1., 1.1);;
+
+   # z1 = z2;; 
+   - : bool = true
+
+   # Complex_memo.norm z1;
+   - : float = 1.414213
+
+   # z1 = z2;;
+   - : bool = false
+   </pre>
+   The origin of this behavior may be even more difficult to discover
+   when comparison predicates are used by other functions. For example:
+   <pre class="prettyprint ml">
+   # let z1 = Complex_memo.make (1., 1.)
+     let z2 = Complex_memo.make (1., 1.)
+     let l1 = [z1; z1; z1];;
+
+   # List.mem z2 l1;;
+   - : bool = trure
+
+   # Complex_memo.norm z1;;
+
+   #List.mem z2 l1;
+   - : bool = false
+   </pre>
+   Implmentation of the function <code>List.mem</code> utilizes the
+   default equality function.
+   </p>
+   <p>Thus, the contribution of these comparison predicates puts in
+   peril the independence of modular components. The earlier example
+   shows that moving from a trivial implementation of complex numbers
+   to an implementation with memoisation induces noticeable
+   differences in behavior.
+   <br/>
+   <br/>
+   <b>Constraint (1) of substitutivity : </b> The principle of module
+   substitutivity is not strictly applicable in OCaml when abstract
+   types are used by functions that use comparison functions of their
+   instances.  <br/> <br/> In particular, a signature for complex
+   numbers must inclue an explicit specification of functions to
+   compare them to work around the problems just discussed:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex
+     val make : float &rarr; float &rarr; complex
+     val show : complex &rarr; float * float
+     val eq : complex &rarr; complex &rarr; bool
+     val less_than_eq : complex &rarr; complex &rarr; bool
+     ...
+   end;;
+   </pre>
+   </p>
+
+   <h5>Hiding and imperative optimizations</h5>
+
+   <p>
+   We have seen examples using imperative features whilst ensuring
+   partioning of this style: nothing was visible outside of the
+   module. The values were simply associated with modifiable
+   information that optimized their evaluation. The only noticeable
+   effect in this case is an "evaluation sharing" which does not alter
+   referential transparency. The preceding section illustrates the
+   problem of comparing values by means of the default predicates but
+   this difficulty was related only to an interaction between hiding
+   and restrained generiticy of the predicates. It would be possible
+   to envisage transformations of the implementation of a module
+   integrating more fully the imperative style. For example, here is a
+   signature specifying the type of sets:
+   <pre class="prettyprint ml">
+   module type SET = sig
+     type &alpha; set
+     val empty : unit &rarr; &alpha; set
+     val mem : &alpha; &rarr; &alpha; set &rarr; bool
+     val add : &alpha; &rarr; &alpha; set &rarr; &alpha; set
+     val union : &alpha; set &rarr; &alpha; set &rarr; &alpha; set
+     val inter : &alpha; set &rarr; &alpha; set &rarr; &alpha; set
+   end;;
+   </pre>
+   It is possible first of all to utilize a functional representation
+   of sets:
+   <pre class="prettyprint ml">
+   module Set_fun : SET = struct
+     type &alpha; set = &alpha; &rarr; bool
+     let empty () = fun y &rarr; false
+     let mem x s = s x
+     let add x s = if mem x s then s else fun y &rarr; s y || x = y
+     let rec union s1 s2 = fun y &rarr; s1 y || s2 y
+     let rec inter s1 s2 = fun y &rarr; s1 && s2 y
+   end;;
+   </pre>
+   So,
+   <pre class="prettyprint ml">
+   # let s1 = Set_fun.add 1 (Set_fun.add 2 (Set_fun.empty ()));;
+   val s1 : int Set_fun = &lt;abstr&gt;
+
+   # Set_fun.mem 2 s1;;
+   - : = true
+   </pre>
+   The purely functional style allows here a terse and not conductive
+   to errors program. On the other hand, the complexities in time and
+   space are high. Consequently, seceral possibilities of optimization
+   might be contemplated. Association tables for example might be
+   considered for exploiting an ordering of the elements of the set
+   and thereby inducing a tree like structure. One could also
+   contribute a hash table of imperative character such as to be found
+   in the <code>Hashtable</code> module of the standard library. Note
+   that tables are presented as association tables. In order to use
+   them as simple tables, the usual tactic is to systematically
+   associate keys with constants. The latter can then correspond to
+   the elements of the set. Here is a new implementation that
+   satisfies <code>SET</code>:
+   <pre class="prettyprint ml">
+   module Set_h : SET = struct
+     type &alpha; set = (&alpha;, unit) Hashtbl.t
+
+     let dummy = ()
+
+     let empty () = Hashtbl.create 0
+
+     let mem x h = Hashtbl.mem x
+
+     let add x h1 =
+       if mem x h1 then h1
+       else let h = Hashtbl.copy h1 in (Hashtbl.add h x dummy; h)
+
+     let union h1 h2 =
+       let h = Hashtbl.copy h1 in
+       Hashtbl.iter (fun x _ &rarr; ignore (add x h)) h2; h
+
+     let inter h1 h2 =
+       let h = empty () in
+       Hashtbl.iter (fun x _ &rarr;
+         if (Hashtbl.mem h1 x) && (Hashtbl.mem h2 x) then
+           Hashtbl.add h x dummy) h1; h
+   end;;
+   </pre>
+   Then, in the same manner as <code>Set_func</code> :
+   <pre class="prettyprint ml">
+   # let s1 = Set_h.add 1 (Set_h.add 2 (Set_h.empty ()));;
+   val s1 : int Set_h = &lt;abstr&gt;
+
+   # Set_h.mem 2 s1;;
+   - : = true
+   </pre>
+   Due to the use of hash tables, accessing the elements of the set is
+   fast (the function <code>mem</code> is guaranteed to return in
+   constant time). However, it should be noted this implementation
+   preserves the functional character of the specification of the
+   operation <code>add</code>, that is,
+   <pre class="prettyprint ml">
+   val add : &alpha; &rarr; &alpha; set &rarr; &alpha; set
+   </pre>
+   Indeed, the implementation of <code>add</code>
+   in <code>Set_h</code> causes the sets to be persistent : each
+   insertion implies a complete copy of the hash table. We could of
+   course override this property of <code>add</code> so as to
+   camouflage it's imperative behavior :
+   <pre class="prettyprint ml">
+   # let add x h1 =
+       if mem x h1 then h1
+       else (Hashtbl.add h1 x dummy; h1)
+   val add : &alpha; &rarr; &alpha; set &rarr; &alpha; set
+   </pre>
+   We refer here to the table <code>h1</code> after
+   modification. However, doing so give rise to the problems of
+   referential transparency no longer being verified in an expression
+   making use of these sets and delicate errors may result.
+   </p>
+   <p>
+   This exmaple illustrates the neccessity of reflecting clearly the
+   intent of the style of the signature and to conform to it.
+   <br/>
+   <br/>
+   <b>Constraint (2) of substitutivity : </b> The pricinciple of
+   module substitutivity is not strictly applicable in a functional
+   framework if imperative features are not strictly
+   compartmentalized.
+   <br/>
+   <br/>
+   In other words, the preservation of the substitution principle
+   justfies what is illustrated in:
+   <br/>
+   <br/>
+   <b>Indication of imperative features in the specificiation : </b>
+   In signatures, those operations with imperative behavior appear as
+   procedure declarations (results are of type <code>unit</code>).
+   <br/> <br/> For example, if full use were to be made of a table of
+   imperative style, the signature <code>SET</code> should reflect
+   this:
+   <pre class="prettyprint ml">
+   module type SET = sig
+     type &alpha; set
+     val add : &alpha; &rarr; &alpha; set &rarr; unit
+     ...
+   end;;
+   </pre>
+   </p>
+   
    <h3>Generic modular programming : functors</h3>    
 
    <p>
@@ -1662,8 +2168,8 @@
    <pre class="prettyprint ml">
    module type COMPLEX = sig
      type complex
-     val make : float * float -> complex
-     val show : complex -> float * float
+     val make : float * float &rarr; complex
+     val show : complex &rarr; float * float
      ...
    end;;
    </pre>
@@ -1741,7 +2247,7 @@
    <br/>
    <br/>
    <pre class="prettyprint ml">
-   functor (&lt;Parameter&gt; : &lt;SIGNATURE&gt;) ->
+   functor (&lt;Parameter&gt; : &lt;SIGNATURE&gt;) &rarr;
     struct
       type ...           exception ...
       let ...            module ...
@@ -1759,7 +2265,7 @@
    new module keyword to link to a name:
    <pre class="prettyprint ml">
    module &lt;Name&gt; = 
-     functor (&lt;Parameter&gt; : &lt;SIGNATURE&gt;) ->
+     functor (&lt;Parameter&gt; : &lt;SIGNATURE&gt;) &rarr;
       struct
         ...
       end
@@ -1808,7 +2314,7 @@
    <pre class="prettyprint ml">
    module type S = sig
     type t
-    val f : t -> t
+    val f : t &rarr; t
    end;;
 
    module F (M : S) = struct
@@ -1823,6 +2329,7 @@
    rules of information hiding for simple values apply to the names of
    modules.
    </p>
+
 
    <h5>Functor application</h5>
 
@@ -1917,7 +2424,7 @@
    <pre class="prettyprint ml">
    module type S_RESULT = sig
      type s
-     val pair : s -> s * s
+     val pair : s &rarr; s * s
    end;;
    </pre>
    We can then reconsider an earlier example and explicitly type the
