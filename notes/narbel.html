@@ -2127,8 +2127,280 @@
      ...
    end;;
    </pre>
+   The function for adding an element to a set exhibits an imperative
+   character.
+   <pre class="prettyprint ml">
+   # let add x h =
+       if not (mem x h) then Hashtbl.add h x dummy;;
+   val add : &alpha; &rarr; &alpha; set &rarr; unit
+   </pre>
+   This example shows again the difficulties of preventing propagation
+   of the imperative style. If its application gives rise to
+   behavioral changes which escape a specification, they will surprise
+   and demand consequent work of a search for errors : an expected
+   effect when the principle of substitutivity applies only in
+   pretense. The strict partitioning of styles however here leads to a
+   multiplication of signatures : the ones in a style purely
+   functional, the others in the imperative style. Optmization via
+   imperative constructs is not directly applicable. It is however
+   possible to unify signatures by application of a generalization for
+   the return types of functions. Indeed, in the framework of
+   implementing abstract data types, these types characterize the
+   style alone. For example,
+   <pre class="prettyprint ml">
+   module type SET_GEN = sig
+     type &alpha; set
+     type &alpha; result
+     ...
+     val add : &alpha; &rarr; &alpha; set &rarr; &alpha; result
+     ...
+   end;;
+   </pre>
+   The type <code>&alpha; result</code> can be instaniated either by
+   the same type as <code>&alpha; set</code> indicating a functional
+   implementation or, by by <code>unit</code> indicating an imperative
+   one.
    </p>
    
+   <h5>The need for individual hiding of abstract types</h5>
+
+   <p>
+   Our current knowledge of the control of type visibility is
+   summarized in the following alternative when a
+   signature <code>S</code> is used to explicitly type a
+   module <code>M</code>:
+   <ul>
+   <li>A concrete type in <code>S</code> is public</li>
+   <li>A type abstract in <code>S</code> is private to <code>M</code></li>
+   </ul>
+   These possibilities lack a little nuance. We might sometimes want
+   to export an abstract type of <code>S</code> after its
+   implmentation in <code>M</code>. But what are the situations that
+   engener the need to derogate from type abstraction? Here is the
+   representative case. When the represntation of values is to be
+   hidden but there is a need to use its constructors as
+   accessors. The constructors must then have arguments whose types
+   are public and the accessors must also have results whose types are
+   public. For example, the signature <code>COMPLEX</code> declares
+   functions in the following form:
+   <pre class="prettyprint ml">
+   val make : float * float &rarr; complex
+   val show : comple &rarr; float * float
+   </pre>
+   Here the respective types of the parameters and the result are
+   based on the predefined type <code>float</code>. This constraint is
+   probably acceptable for conventional use but it will prevent the
+   implementation of certain implementations. Suppose we wished to
+   obtain a type for "big complex numbers" from the library
+   module <code>Num</code>, that is to say,
+   <pre class="prettyprint ml">
+   module Complex_num = struct
+     type complex = C of Num.num * Num.num
+
+     let make (str_r, str_i) = 
+       C (Num.num_of_string str_r, Num.num_of_string str_i)
+
+     let show (C (r, i)) =
+       (Num.string_of_num r, Num.string_of_num i)
+
+     let add (C (r1, i1)) (C (r2, i2)) =
+       C (Num.( + ) r1 r2, Num.( + ) i1 i2)
+
+     let norm (C (r, i)) =
+       sqrt (Num.float_of_num 
+         (Num.add_num (Num.square_num r) (Num.square_num i)))
+   end;;
+   </pre>
+   These complex numbers possess real and imaginary parts that are
+   abitrarily large and precise:
+   <pre class="prettyprint ml">
+   # let z1 = Complex_num.make ("3214321/764365", "8920146398/4291")
+     let z2 = Complex_num.add z1 z1;;
+   # Complex_num.show z2;
+   - : string * string = ("3214321/764365", "8920146398/4291")
+   </pre>
+   It is observed that the types of the parameters of the constructor
+   and the accessor of the module <code>Complex_num</code> have
+   undergone a transformation. The exterior representation of large
+   numbers from <code>Num</code> uses strings instead of floating
+   numbers.
+   <pre class="prettyprint ml">
+   val make : string * string &rarr; complex
+   val show : complex &rarr; string * string
+   </pre>
+   The module <code>Complex_num</code> does not satisfy the
+   signature <code>COMPLEX</code>. We can nevertheless generalize will
+   this signature with respect to the types of constructors of the
+   accessors.
+   <br/>
+   <br/>
+   <b>Technique of generalization of constructors/accessors for
+   external types</b> : If <code>t</code> is the representation of
+   values of a datatype, we associate a type <code>extern_t</code>
+   which constitues the externally view of an instance of
+   type <code>t</code>.  
+   <br/>
+   <br/>
+   Thus, in <code>COMPLEX</code> we replace the type <code>float *
+   float</code> with a new abstract type <code>extern_complex</code>:
+   <pre class="prettyprint ml">
+   module type COMPLEX_MASK = sig
+     type complex
+     type extern_complex
+     val make : extern_complex -> complex
+     val show : complex -> extern_complex
+     val add : complex -> complex -> complex
+     val norm : complex -> float
+   end;;
+   </pre>
+   The definition of the type <code>extern_complex</code> can then be
+   added to <code>Complex_num</code>:
+   <pre class="prettyprint ml">
+   module Complex_num = struct
+     type complex = C of Num.num * Num.num
+     type extern_complex = string * string
+     ...    
+   end;;
+   </pre>
+   This implementation becomes compliant to the
+   signature <code>COMPLEX_MASK</code>:
+   <pre class="prettyprint ml">
+   module Complex_num : COMPLEX_MASK = struct
+    ...
+   end;;
+   </pre>
+   However, the types <code>complex</code>
+   and <code>extern_complex</code> are now both made private by this
+   explict typing. The functions <code>make</code>
+   and <code>show</code> have become unusable:
+   <pre class="prettyprint ml">
+   # let z1 = Complex_num.make ("3214321/764365", "8920146398/4291");;
+   Type error
+   </pre>
+   This technique of generalization has augmented the possibilities of
+   instantiation of the signature but has neccessarily requires to
+   export certain abstract types after their implementation. This
+   situation find itself in connection with the
+   signature <code>SET_GEN</code> whose definitions of the generalized
+   type <code>&alpha; result</code> will also have to be exported. In
+   other words, we need a new rule of visibility of individual hiding
+   of abstract types. The more careful control of the visibility of
+   the types will be possible thanks to a new construction which will
+   be described in the following.
+   </p>
+
+   <h5>Individual hiding and type constraints</h5>
+   <p>
+   Signatures can be supplemented by explicit type constraints. The
+   constraints are capable of associating <i>a posteriori</i> with
+   definitions of abstract types, and are expressed through the
+   construction <code>with type</code>:
+   <pre class="prettyprint ml">
+   &lt;SIGNATURE&gt; with type &lt;type 1&gt; = &lt;expression of type 1&gt;
+                     and type ...
+                     and type &lt;type n&gt; = &lt;expression of type n&gt;
+   </pre>
+   where the <code>&lt;type i&gt;</code> denote types included
+   in <code>&lt;SIGNATURE&gt;</code> and the <code>&lt;expression of
+   type i&gt;</code> is a valid type definition in the environment at
+   the moment of application of the type constraint. For example:
+   <pre class="prettyprint ml">
+   # module type S1 = sig
+       type t
+       val f : t -> t
+     end;;
+
+   # module type S2 = (S1 with type t = int);;
+   module type S2 = sig
+     type t = int
+     val f : t -> t
+   end
+   </pre>
+   Thanks to this constraint, the abstract type <code>t</code> is
+   abstract in <code>S1</code> and made concrete in <code>S2</code>.
+   <br/>
+   <br/>
+   <b>Making types concrete with the <code>with type</code>
+   construction</b>: Type constraints can make concrete types of types
+   that were not originally so. These types then become exportable.
+   <br/> <br/> A signature can thus see some of its abstract types
+   become concrete. This transformation resolves the problem posed by
+   the signature <code>CONCRETE_MASK</code> of the preceding section:
+   <pre class="prettyprint ml">
+   module Complex_num : COMPLEX_MASK
+      with type extern_complex = string * string =
+   struct
+     type complex = C of of Num.num * Num.num
+     type extern_complex = string * string
+     let make (str_r, str_i) = ...
+     let show (C (r, i)) = ...
+       ...
+   end;;
+   </pre>
+   The constructor <code>make</code> becomes accessible from outside
+   the module:
+   <pre class="prettyprint ml">
+   # let z1 = Complex_num.make ("3214321/764365", "8920146398/4291");;
+   val z1 : Complex_num.complex = &lt;abstr&gt;
+   </pre>
+   </p>
+   <p>
+   Here are some remarks to help with usage of type constraints:
+   <ul>
+   <li><i>Neccessary duplication.</i> The syntax imposed by the
+   construction <code>with type</code> sometimes seems somwhat
+   fastidious since it requires a flagrant duplication between the
+   type constraints and the definitions in the module. The
+   implementation of the module must be consistent with the signature
+   transformed by the addition of the type constraint. This
+   duplication of code is the same as that which occurs in the
+   relationship between signatures directly containing concrete types
+   and their instantiations.
+   <br/>
+   <br/>
+   </li>
+   <li><i>Irreversibility of hiding. </i> A type which is hidden may not become revealed by the addition of a type constraint. For example,
+   <pre class="prettyprint ml">
+   # module type S1 = sig type t end;;
+   # module M1 : S1 = struct type t = int end;;
+   # module M2 : S1 with type t = int = struct type t = M.t end;;
+   Type error
+   </pre>
+   The system cannot make the link here between <code>int</code>
+   and <code>M.t</code>. Indeed, the name of a hidden type is
+   definitiely associated with it's module : the name of
+   the <code>int</code> type hidden in <code>M</code>
+   is <code>M.t</code>. It will no longer be equivalent to "int". Type
+   abstraction is directly reflected in OCaml by this syntactic
+   difference between the names of types. 
+   </li>
+   </ul>
+   </p>
+   <p>
+   Type constraints are the last ingredient needed to systematically
+   implement abstract data type and more generally, modules whose
+   implementations are systematically masked even in the case where it
+   is necessary to export abstract types.
+   <br/>
+   <br/>
+   <b>Modular programming with rigorous hiding</b>
+   <ol>
+   <li>No type definition is given in the signatures (no type
+   definitively fixed as concrete)</li>
+   <li>
+   All modules are explicitly typed with a signature. <code>with
+   type</code> constructions are applied on those types that need to be
+   exported.
+   </li>
+   </ol>
+   <br/> <br/> We will discuss again the interest in this modular
+   programming style. Note that the first point above does not
+   prohibit making use of global types like for example, the
+   predefined types. The generalization of types in signatures is not
+   an obligation, this is only a means of which we will still say a
+   few words in the next section.
+   </p>
+    
    <h3>Generic modular programming : functors</h3>    
 
    <p>
@@ -2156,6 +2428,261 @@
    inconveniences of generic modular programming based on
    functors. Finally, we introduce a graphical representation for
    functors and examples illustrating usage.
+   </p>
+
+   <h5>The conceptual generalization of signatures</h5>
+   <p>
+   Generalization renders signatures adaptable without having to
+   redefine them, to rename them and thus to organize their
+   variations. Additionally, the possibilities offered by type
+   constraints make it possible to not fear the effects of the rules
+   of visibility. If the examples of the preceding pages reveal
+   essential techniques, it is important to remark that generalization
+   can also extend conceptually the field of description of a
+   signature. For example, consider a new signature of the notion of a
+   bi-dimensional space with a distance:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE_2D = sig
+     type point
+     val make_point : float * float -> point
+     val dist : point -> point -> float
+   end;;
+   </pre>
+   The number of dimensions of the space is fixed by the type of the
+   constructor <code>make_point</code>. Applying the external type
+   technique it is possible to work around this constraint and propose
+   a more general specification of spaces:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE = sig
+     type point
+     type extern_point
+     val make_point : extern_point -> point
+     val dist : point -> point -> float
+   end;;
+   </pre>
+   And here first of all an instance adapted from one previously
+   presented which could do all the business:
+   <pre class="prettyprint ml">
+   module Plane_count : METRIC_SPACE
+     with type extern_point = float * float = 
+   struct
+     type point = { number : int; coord : float * float }
+     type extern_point = float * float
+     let count = ref 0
+     let make_point (x, y) = ...
+     let dist (x1, y1) (x2, y2) = ...
+   end;;
+   </pre>
+   But, it is equally possible to define spaces with different
+   dimensions. For example, a space of dimension \(1\):
+   <pre class="prettyprint ml">
+   module Line : METRIC_SPACE
+     with type extern_point = float =
+   struct
+     type point = float
+     type extern_point = float
+     let make_point x = x
+     let dist x1 x2 = abs_float (x1 -. x2)
+   end;;
+   </pre>
+   It is also possible to envisage instantiations of the
+   signature <code>METRIC_SPACE</code> with a dramatically different
+   nature. For example, recognition and compression of alphanumeric
+   character strings are based generally on quantitative comparisons
+   and their representations as binary numbers. The functions of
+   distance can then be put into contribution in order to structure
+   the set of recognized characters and the characters to be
+   recognized. The simplest of these functions is to count the number
+   of pixels different from the respective representations. Here is a
+   possible implementation of this novel space also
+   satisfying <code>METRIC_SPACE</code>:
+   <pre class="prettyprint ml">
+   module Bit_map : METRIC_SPACE
+     with type extern_point = int array array =
+   struct
+     type point = Bitmap of int array array
+     type extern_point = int array array
+
+     let make_point b = Bitmap b
+
+     let dist (Bitmap b1) (Bitmap b2) =
+       let len_x = Array.length b1 in
+       let len_y = Array.length b1.(0)  in
+       let diff_count = ref 0 in
+       if len_x = Array.length b2 &&
+          len_y = Array.lgength b2.(0)
+       then
+         for i = 0 to len_x -1 do
+           for j = 0 to len_y - 1 do
+             if b1.(i).(j) <> b2.(i).(j) then incr diff_count
+           done
+         done
+       else failwith "Bitmap sizes different"
+       float (!diff_count)
+   end;;
+   </pre>
+   </p>
+
+   <h5>Tactics for naming abstract data types</h5>
+   <p>
+   The implementation of abstract data types by modular means is
+   dependent on the relationships mainted by three elements:
+   <ol>
+   <li>The signature of the datatype</li>
+   <li>The type of the data itself</li>
+   <li>The representation of values included in the datatype</li>
+   </ol>
+   These three elements must of course bear names and their choice is
+   not so innocent of that. The names participate in the quality of
+   the abstraction and they predispose more or less to
+   compatibility. One point in particular distinguishes many "tactics
+   of naming" (which we have already observed in previous examples):
+   <ul>
+   <li><i>Homogenous naming tactics.</i> The distinctions between the
+   three elements above are reduced by names which are as similar as
+   possible. For example:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex
+     val add : complex -> complex -> complex
+     ...
+   end;;
+
+   module Complex : COMPLEX = struct
+     type complex = ...
+     ...
+   end;;
+   </pre>
+   This homogeneity of naming expresses here that there is only one
+   element that counts : the type of complex numbers.
+   <br/>
+   <br/>
+   </li>
+   <li><i>Algebraic naming tactics.</i> The distinctions between the
+   three elements are emphasized by giving them distinct names. The
+   "algebraic" character of the type of data are also made apparent :
+   a type of data is endeed a set of values structured by associated
+   operations.
+   <br/>
+   <br/>
+   <ul>
+   <li><i>Strong distinction.</i> We assert the difference between the
+   type of data and its representation of values by different and
+   descriptive names. For example:
+   <pre class="prettyprint ml">
+   module Plane = struct
+     type point = ...
+     let dist x y = ...
+   end;;
+   </pre>
+   The representation of values here bears the particular name
+   of <code>point</code> to which is added a distance generating by
+   itself a particular space that is to say, the <code>Plane</code>.
+   <br/>
+   <br/>
+   </li>
+   <li><i>Weak distinction.</i> The characteristics of the
+   representation of values are eluded by giving it a formal name and
+   the most neutral possible (classicly, <code>t</code>). For
+   example:
+   <pre class="prettyprint ml">
+   module Complex = struct
+     type t
+     ...
+   end;;
+   </pre>
+   In contrast to the "homogenous" naming technique, an attempt is
+   made here to diminish the distinctions between the datatype and the
+   representation of values altering the role of the latter. The full
+   name of the type in effect becomes <code>Complex.t</code>.
+   </li>
+   </ul>
+   </li>
+   </ul> 
+   The tactic of algebraic naming permits expression a distinction
+   between a datatype and the containing signature : the instances of
+   the signature can in themselves form a characteristic group. For
+   example:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE = sig
+     type point
+     ...
+   end;;
+
+   module Plane : METRIC_SPACE = struct
+     type point = ...
+     ...
+   end;;
+   </pre>
+   Here <code>Plane</code> is a particular instance of a metric space,
+   that is to say <code>METRIC_SPACE</code>.
+   <br/>
+   <br/>
+   The same tactic can be applied to complex numbers but it requires a
+   generalization of the signature. It is sufficient in doing this to
+   recognize that complex numbers are only one instance of a structure
+   that makes it possible to "make calculations under favorable
+   conditions". For example:
+   <pre class="prettyprint ml">
+   module type ARITH = sig
+     type nb                       type extern_nb
+     val make : extern_nb -> nb    val show : nb -> extern_nb
+     val zero : nb                 val one : nb
+     val add : nb -> nb -> nb      val sub : nb -> nb -> nb
+     val mul : nb -> nb -> nb      val div :  nb -> nb -> nb
+   end;;
+   </pre>
+   The type of complex numbers can then become an instance of that
+   signature:
+   <pre class="prettyprint ml">
+   module Complex : ARITH = struct
+     type nb = ...
+     ...
+   end;;
+   </pre>
+   </p>
+   <p>
+   Let us compare these naming tactics. The tactic of "homogenous"
+   naming permits economic generality while making declarations
+   explicit within a signature. For example:
+   <pre class="prettyprint ml">
+   val add : complex -> complex -> complex
+   </pre>
+   This tactic generates redundancies however since the name of the
+   complete type is <code>Complex.complex</code>. On the other hand,
+   it hinders the generalization of a signature since a particular
+   name is associated with the representation of values. For example,
+   a generalized signature such as <code>ARITH</code> must not display
+   a name such as <code>complex</code>. In contrast, the "strong
+   algebraic" naming tactic remedies the redundancies and does not
+   interfere with the generalization of a signature. Additionally,
+   this tactic favors compatibility between signatures when for
+   example, the representation of values is systematically named
+   "t". Nevertheless, this induces a loss of precision. For example,
+   in the case of complex numbers, the function for addition is
+   specified as :
+   <pre class="prettyprint ml">
+   val add : t -> t -> t
+   </pre>
+   This imprecision can become annoying when number modules interact
+   with each other or when representation of values utilizes multiple
+   distinct types. It also sometimes reduces the possibility of
+   pooling types. Finally, the "weak algebraic" tactic proposes to
+   make a more explicit distinction between names. This also engenders
+   some imprecision but reduces the barriers to compatibility between
+   signatures.
+   </p>
+   <p>
+   No naming tactic is therefore perfect. As a compromise, the "weakly
+   algebraic" tactic is used in practice. This for example, is applied
+   to many types in the standard OCaml library. We will see further on
+   that there exists a technique to rename the elements of a module in
+   fairly good conditions.
+   </p>
+
+   <h5>Universal type parameters and abstract types</h5>
+   <p>
+   </p>
 
    <h4>Generic modular programming : functors</h4>
 
