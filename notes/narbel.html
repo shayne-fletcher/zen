@@ -2682,6 +2682,189 @@
 
    <h5>Universal type parameters and abstract types</h5>
    <p>
+   It is neccessary to be careful of the level of generiticity which
+   is explained in a signature. Consider for example the case of a
+   function <code>f</code> specified in a signature and whose
+   type <code>T</code> makes use of type
+   parameters <code>&alpha;</code>, <code>&beta;</code> etc. The
+   implementation of <code>f</code> must be compatible
+   with <code>T</code>, at least as generic as imposed
+   by <code>T</code>. Experience shows that this evidence is not so
+   easy to apprehend.
+   </p>
+   <p>
+   Here for example is a signature which might seem to specify in a
+   very general manner types for ordered sets:
+   <pre class="prettyprint ml">
+   module type ORDER_GEN = sig
+     val less_or_equal : 'a -> 'a -> bool
+   end;;
+   </pre>
+   The signature requires production of an implementation
+   of <code>less_or_equal</code> that is completely generic. Any
+   function whose implementation is more specific would not
+   satisfy. Let us recall that only the predefined predicates are able
+   to offer such generiticity. The signature that specifies ordered
+   sets is therefore rather of the form:
+   <pre class="prettyprint ml">
+   module type ORDER = sig
+     type t
+     type extern_t
+     val make : extern_t -> t
+     val show : t -> extern_t
+     val less_or_equal : t -> t -> bool
+   end;;
+   </pre>
+   In this signature, the indicated implementation
+   of <code>less_or_equal</code> is dependant on the instantiation of
+   the abstract type <code>t</code>. The specification possesses a
+   certain level of generiticity as in <code>ORDER_GEN</code> but only
+   through the utilisation of the abstract type. The implementation
+   here is not required to be totally generic and the
+   function <code>less_or_equal</code> may exploit the characteristics
+   of the concrete type <code>t</code>. Here is an example of ordered
+   strings for the value of their interpretation in base 256 according
+   to the ASCII code of their characters (for example, "éol"
+   corresponds to the code \(cod (é) * 256^2 + cod (o) * 256^1 + cod
+   (l) * 256^0\)). This implementation applies a memoization of the
+   sum and illustrates a new case where hiding and specification are
+   useful:
+   <pre class="prettyprint ml">
+   module String_ordered = struct
+     type t = Str of string * Num.num option ref
+     type extern_t = string
+
+     let make s = Str (s, ref None)
+     let show (S(s, _)) = s
+
+     let ascii_value s =
+       let value = ref (Num.Int 0) and len = (String.length s) - 1 in
+       let basis = ref (Num.Int 1) in
+       for i = len downto 0 do
+         value := Num.add_num !value
+               (Num.mult_num !basis (Num.Int (Char.code s.[i])));
+         basis := Num.mult_num !basis (Num.Int 256)
+       done;
+       !value
+
+     let less_or_equal s1 s2 =
+       let extract_ascii_value (Str (s, c)) = match !c with
+         | None -> let d = ascii_value s in c := Some d; d
+         | Some d -> d
+       in
+       Num.le_num (extract_value s1) (extract_ascii_value s2)
+   end;;
+   </pre>
+   There exist situations when the choice between type parameters and
+   abstract types proves more delicate than the above especially when
+   these two kinds of parameters combine. For example, consider the
+   problem of specifying a datatype for a "production line". That is,
+   processes that generate sequentially and on demand, random numbers,
+   events of inputs/outputs, happiness of the day etc. Here is the
+   first specification:
+   <pre class="prettyprint ml">
+   module type PRODUCTION_LINE_GEN = sig
+     type 'a product_line
+     val make : unit -> 'a product_line
+     val read_fst : 'a product_line -> 'a
+     ...
+   end;;
+   </pre>
+   At first glance, nothing seems suspect in this signature that
+   resembles those proposed for sequential containers. Nevertheless,
+   it is observed that the constructor <code>make</code> must be
+   generic even though it is rather to provide a production line of
+   particular elements. Indeed, here is an example of a production
+   line in the form of a stream that generates random binary sequences:
+   <pre class="prettyprint ml">
+   module Rand_bin = struct
+     type 'a product_line = 'a stm
+     let rec make () =
+       Random.self_init ();
+       stm_build (fun x -> (Random.int 2)) 0
+     let read_fst s = stm_hd s
+     ...
+   end;;
+   </pre>
+   This module does not satisfy the
+   signature <code>PRODUCTION_LINE_GEN</code> since its constructor is
+   obviously not generic being of type:
+   <pre class="prettyprint ml">
+   val make : unit -> int stm
+   </pre>
+   The type is less general than specified. Nevertheless, as in the
+   case of ordered types, we can replace the type variable with an
+   abstract type:
+   <pre class="prettyprint ml">
+   module type PRODUCTION_LINE = sig
+     type data
+     type 'a product_line
+     val make : unit -> data product_line
+     val read_first : data product_line -> data
+     ...
+   end;;
+   </pre>
+   The <code>Rand_bin</code> module satisfies this signature:
+   <pre class="prettyprint ml">
+   module Rand_bin : PRODUCTION_LINE = struct
+     type data = int
+     type 'a product_line = 'a stm
+     let rec make () =
+       Random.self_init (); stm_build (fun x -> (Random.int 2)) 0
+     let read_fst s = stm_hd s
+     ...
+   end;
+   </pre>
+   The signature <code>PRODUCTION_LINE</code> uses here an abstract
+   type <code>&alpha; product_line</code> so as to be able to indicate
+   a strict relationship between the proudction lines and the data
+   they produce. Indeed, in this signature, the type is explicitly in
+   the expression <code>data product_line</code>. Here is an
+   alternative:
+   <pre class="prettyprint ml">
+   module type PRODUCTION_LINE' = sig
+     type data
+     type product_line
+     val make : unit -> product_line
+     val read_fst : product_line -> data
+     ...
+   end;;
+   </pre>
+   The link between <code>data</code> and <code>product_line</code> is
+   more precise, and this gives it more latitude : the representation
+   of data in the link to the product isn't necessarily the same as
+   that seen from the outside. For example, here is a case where the
+   definitoin of the type <code>product_line</code> permits modifiable
+   data:
+   <pre class="prettyprint ml">
+   module Rand_bin : PRODUCTION_LINE' = sig
+     type data = int
+     type product_line = data ref stm
+     ...
+   end;;
+   </pre>
+   </p>
+   <p>
+   Thus, the elaboration of signatures gives the programmer choices to
+   make between universal paramters and abstract types. These should
+   in fact be considered as two kinds of parameters in the signatures:
+   <br/>
+   <br/>
+   <b>Difference between type parameters in signatures: </b>
+   <ul>
+   <li><i>Universal type parameters</i> impose generic
+   implementations. Their instantiation is performed automatically by
+   the type system.
+   <br/>
+   <br/>
+   </li>
+   <li><i>Abstract types</i> do not impose generic
+   implementations. Their instantiations are established explicitly
+   case by case.
+   </li>
+   </ul>
+   <br/> <br/> This distinction makes it possible to specify the level
+   of generiticity of programs in signatures.
    </p>
 
    <h4>Generic modular programming : functors</h4>
