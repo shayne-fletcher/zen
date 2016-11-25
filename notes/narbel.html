@@ -2400,35 +2400,6 @@
    an obligation, this is only a means of which we will still say a
    few words in the next section.
    </p>
-    
-   <h3>Generic modular programming : functors</h3>    
-
-   <p>
-   The preceding sections show why and how to decouple a program into
-   seperate distinct components, how to partition components and how
-   to specify them before implmentation. In particular, when we
-   discussed the advisability of implementation hiding techniques, the
-   main quality criteria being precision and shows, namely in the the
-   situation of being able to modify and replace modules locally as
-   related but autonomous elements. The subsitution principle is in
-   effect the essential characteristic of organisation and module
-   reuse. There remains at least one point to improve : the conditions
-   that allow us to express and exploit this substitutivity. Generic
-   programming allowing the full participation of modules.
-   </p>
-   <p>So, in these sections, first of all we introduce the notion of
-   "functions of modules", that is, <i>functors</i>, which will be the
-   principal tools of modular generiticity. We then present some
-   conceptual models associated with their use. A thorough discussion
-   will be provided about various types of signatures. Highlighting
-   their features, we will find functors can be compiled
-   independently, that they can posses more than one parameter, are
-   typable by signatures of their own and they allow their arguments
-   also to be functors. We will then discuss the advantages and
-   inconveniences of generic modular programming based on
-   functors. Finally, we introduce a graphical representation for
-   functors and examples illustrating usage.
-   </p>
 
    <h5>The conceptual generalization of signatures</h5>
    <p>
@@ -2834,7 +2805,7 @@
    more precise, and this gives it more latitude : the representation
    of data in the link to the product isn't necessarily the same as
    that seen from the outside. For example, here is a case where the
-   definitoin of the type <code>product_line</code> permits modifiable
+   definition of the type <code>product_line</code> permits modifiable
    data:
    <pre class="prettyprint ml">
    module Rand_bin : PRODUCTION_LINE' = sig
@@ -2863,11 +2834,453 @@
    case by case.
    </li>
    </ul>
-   <br/> <br/> This distinction makes it possible to specify the level
-   of generiticity of programs in signatures.
+   <br/> 
+   <br/>
+   This distinction makes it possible to specify the level of
+   generiticity of programs in signatures. In this respect, the
+   preceding examples the general technique following:
+   <br/> 
+   <br/>
+   <b>Mastering the generiticity of a signature:</b> Suppose a
+   universal type <code>&alpha;</code> in a signature imposes a
+   generic implementation. This parameter is replaced or controlled by
+   a new abstract type.
+   <br/>
+   <br/>
+   We will talk again about this delicate point.
+  </p>
+
+   <h4>Module inclusion relationships</h4>
+
+   <h5>The inclusion of modules in signatures</h5>
+   <p>
+   In OCaml, reuse of a module in a module is expressed directly by
+   the inclusion of one module in the other. This operation is
+   established by the construction syntax following:
+   <br/>
+   <br/>
+   <pre class="prettyprint ml">
+   include &lt;Module&gt;
+   </pre>
+   <br/>
+   <br/>
+
+   The elements of the module <code>&lt;Module&gt;</code> are then
+   defined in their entirety in the including module. For example,
+   consider the following module:
+   <pre class="prettyprint ml">
+   module Increm = struct
+     let f x = x + 1
+   end;;
+   </pre>
+   The module can be included in another:
+   <pre class="prettyprint ml">
+   module More_than_increm = struct
+     include Increm
+     let g x = f (x * 10)
+   end;
+   </pre>
+   This is equivalent to the following module definition:
+   <pre class="prettyprint ml">
+   module More_than_increm = struct
+     let f x = x + 1
+     let g x = f (x * 10)
+   end
+   </pre>
+   </p>
+   <p>
+   Signatures also can include others with the same construction:
+   <br/>
+   <br/>
+   <pre class="prettyprint ml">
+   include &lt;SIGNATURE&gt;
+   </pre>
+   <br/>
+   <br/>
+   As for modules, the elements of <code>&lt;SIGNATURE&gt;</code> are
+   declared and defined as part of the signature that includes
+   them. For example, consider the signature of the
+   module <code>Increm</code> above:
+   <pre class="prettyprint ml">
+   module type S = sig
+     val f : int -> int
+   end;;
+   </pre>
+   The definition of the signature for the
+   module <code>More_than_increm</code> can include the
+   signatures <code>S</code>.
+   <pre class="prettyprint ml">
+   module MORE_THAN_S = sig
+     include S
+     val g : int -> int
+   end;;
+   </pre>
+   This definition is equivalent to the signature:
+   <pre class="prettyprint ml">
+   module type MORE_THAN_S = sig
+     val f : int -> int
+     val g : int -> int
+   end;;
+   </pre>
+   The modules defined previously can be typed against these
+   signatures:
+   <pre class="prettyprint ml">
+   module M1 : S = Increm;;
+   module M2 : MORE_THAN_S = More_than_increm;;
+   </pre>
+   <br/>
+   <br/>
+   <b>The interest in module inclusion : </b> Inclusion facilitates
+   the resule of modules. Also, inclusion of modules can reflect the
+   inclusion of signatures and in the same way, inclusions of
+   signatures can be concretely realized by the inclusion of modules.
+   <br/>
+   <br/>
+   On the other hand, it can be remarked that the version
+   of <code>MORE_THAN_S</code> with inclusion expresses explicitly the
+   link with the signature <code>S</code> which is not the case for
+   the version without inclusion. In other words:
+   <br/>
+   <br/>
+   <b>The interest in signature inclusion : </b> Inclusion facilitates
+   resuse of signatures. Also, inclusion of signatures allows for the
+   specification of links between reutilized modules.
+   <br/>
+   <br/>
    </p>
 
-   <h4>Generic modular programming : functors</h4>
+   <h5>Inclusion for inheritance</h5>
+   <p>
+   Inclusion offers a direct means to extend and specialize existing
+   modules and signatures. For example, consder a new implementation
+   of complex numbers:
+   <pre class="prettyprint ml">
+   module Complex = struct
+     type complex = float * float
+     let make (r, i) = (r, i)
+     let add (r1, i1) (r2, i2) = make (r1 +. r2, i1 +. i2)
+     let norm (r, i) = sqrt (r ** 2. + i ** 2.)
+   end;
+   </pre>
+   The module can easily be extended by inclusion:
+   <pre class="prettyprint ml">
+   module Complex_ext = struct
+     include Complex;
+     let mul (r1, i1) (r2, i2) =
+       (r1 *. r2 -. i1 *. i2, i1 *. r2 + i2 *. r1)
+   end;;
+   </pre>
+   <br/>
+   <br/>
+   <b>Module inheritance is implemented by inclusion:</b> One includes
+   globally a module in another module and then extends, specializes
+   or adapts.  
+   <br/>
+   <br/>
+   On the other hand, here is a possible signature of
+   the <code>Complex</code> module:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+    type complex
+    val make : float * float -> complex
+    val add : complex -> complex -> complex
+    val norm : complex -> float
+   end;;
+   </pre>
+   A signature for the module <code>Complex_ext</code> can be directly
+   derived by inclusion:
+   <pre class="prettyprint ml">
+   module type COMPLEX_EXT = sig
+     include COMPLEX
+     val mul : complex -> complex -> comples
+   end;;
+   </pre>
+   Observe that the signature <code>COMPLEX_EXT</code> is compatible
+   with <code>COMPLEX</code>:
+   <pre class="prettyprint ml">
+   # module C1 : COMPLEX = Complex_ext ;;
+   module C1 : COMPLEX
+
+   # module C2 : COMPLEX_EXT = Complex _ext ;;
+   module C2 : COMPLEX_EXT
+   </pre>
+   <br/>
+   <br/>
+   <b>The behavior of module inheritance by inclusion : </b> One
+   includes a signature <code>S1</code> in another
+   signature <code>S2</code> to extend, specialize or
+   adapt. Additionally, <code>S2</code> is compatible
+   with <code>S1</code> (assuming no reclarations).
+   <br/>
+   <br/>
+   Evidently, in the context of information hiding, the extending
+   module cannot change the access privilege of the modules it
+   includes, it will use the constructors and accessors previously
+   defined. So, for example, let us suppose there is a
+   module <code>Complex</code> that satisfies the following signature:
+   <pre class="prettyprint ml">
+   module type COMPLEX_MASK = sig
+     type complex
+     val make : float * float -> complex
+     val show : complex -> float * float
+     ...
+   end;;
+   </pre>
+   An extension can be written using the accessors <code>make</code>
+   and <code>show</code>:
+   <pre class="prettyprint ml">
+   module Complex_ext = struct
+     include Complex
+     let mul z w =
+      let (r1, i1) = show z and (r2, i2) = show w in
+      make (r1 *. r2 -. i1 *. i2, i1 *.r2 +. i2 *. r1)
+   end;;
+   </pre>
+   This example shows that we can begin to examine the question "the
+   dimensions of extensibility of types" for the case of abstract
+   types. In particular, inclusion makes it easy to extend functions
+   associated with a type and in a module framework with rigourous
+   information hiding. We will treat later the case of the extension
+   of representation of values. For now, we comment that "functors"
+   are able to make generic these extensions.
+   </p>
+
+   <h5>Inclusion for inheritance</h5>
+   <p>
+   Inclusion also allows us to adapt existing modules and signatures :
+   one redefines, one renames, one sometimes transforms elements
+   module elements as necessary to obtain the extension. For example,
+   let us reconsider the signature <code>ARITH</code>:
+   <pre class="prettyprint ml">
+   module type ARITH = sig
+     type nb                        type nb_extern
+     val make : extern_nb -> nb     val show : nb -> nb_extern
+     val zero : nb                  val one : nb
+     val add : nb -> nb -> nb       val sub : nb -> nb -> nb
+     val mul : nb -> nb -> nb       val div : nb -> nb -> nb
+   end;;
+   </pre>
+   Certain modules of the OCaml standard library are not far off being
+   instances of this signature. However, the modules make use of the
+   naming tactic where the representation of values is denoted by
+   the <code>t</code> (the "strong algebraic" tactic) and do not apply
+   the same conventions with respect to information hiding. We can use
+   inclusion to make it easy to remedy this situation. For example,
+   consider the case of the module <code>Int64</code> of the standard
+   library which implements a datatype associated with whole numbers
+   modulo \(2^{64}\) (that is, numbers in the range \([-2^{63}, 2^{63}
+   - 1]\)). Here is how to adapt it such that it satisfies
+   the <code>ARITH</code> signature:
+   <pre class="prettyprint ml">
+   module Arith_Int64 : ARITH  type nb_extern = string = 
+   struct
+     include Int64
+     type nb = Int64.t (*rename type*)
+     type extern_nb = string
+     let make = of_string (*alias*)
+     let show = to_string
+   end;;
+
+   # Arith_Int64.make "1000000000000000000000";;
+   - : Arith_Int64.nb = &lt;abstr&gt;
+   </pre>
+   Note that is quite possible to include modules and revise some of
+   their definitions. Adaption by inclusion can also benefit
+   redefinitions of values and functions. However, there is a limit to
+   such redefinitions : if there are mutual uses between functions
+   contained in the module, if if a redefinition is applied between
+   one of them, there will be no automatic update of their
+   relation. In other words, the redefinitions do not incorporate a
+   "delayed link" mechanism. For example:
+   <pre class="prettyprint ml">
+   module M = struct
+     let f x = x + 1000
+     let g x = (f x) + 1
+   end;
+
+   module Modified_M = struct
+     include M
+     let f x = x
+   end;;
+   </pre>
+   The redefinition of <code>f</code> does not affect the definition
+   of <code>g</code>:
+   <pre class="prettyprint ml">
+   # Modified_M.f 0 ;;
+   - : int = 0
+
+   # Modified_m.g 0 ;;
+   - : int = 1001
+   </pre>
+   In the module framework, the programmer is in charge of assuring
+   the cohesion of elements from the point of view of any
+   redefinition. On the other hand, redefinitions may induce errors
+   when they are not delibrate. This situation is all the more likely
+   when modules are large and inclusions numerous. Generally,
+   inclusions imply a pooling of definitions which provides
+   opportunities for incoherencies. The following section introduces
+   another means of expressing importations of modules end signatures
+   that is more constrained and structured.
+   </p>
+
+   <h4>Module containment relations</h4>
+
+   <h5>Containment of modules</h5>
+
+   <p>Modules may embed other modules. We call this containment of
+   modules and <i>parent-module</i> the module which contains others
+   and those contained modules <i>sub-modules</i> of the parent
+   module. Recall the earlier example:
+   <pre class="prettyprint ml">
+   module Increm = struct
+     let f x = x + 1
+   end;;
+   </pre>
+   A new module emerges from a sub-module in the other:
+   <pre class="prettyprint ml">
+   module More_than_increm = struct
+     module Sub = Increm
+     let g x = Sub.f (x * 10)
+   end;;
+   </pre>
+   Contrary to inclusion of modules, containment respects the
+   partitioning of the modules. They do not put all the definitions at
+   the same level and they therefore do not imply unqualified
+   redefinitions.
+   </p>
+
+   <h5>Opening of modules</h5>
+
+   <p>
+   Containment of modules must be compared to another construction
+   that acts equally within the framework of links between
+   modules. Using contained modules implies indirections "pointer
+   notation". Sometimes this constraint seems to excessively increase
+   the verbosity of programs especially when module names are very
+   explicit. So, the language provides the means to "open" a module so
+   that the names of the elements are directly addressable. It
+   suffices to make this happen with the following directive:
+   <br/>
+   <pre class="prettyprint ml">
+   open &lt;Module&gt;
+   </pre>
+   <br/> The elements conainted in <code>&lt;Module&gt;</code> are
+   then accessible at the level of the the occurence of
+   the <code>open</code> directive. No indirections are required.
+   </p>
+   <p>For example, consider a new module <code>Increm</code> opened in
+   another module.
+   <pre class="prettyprint ml">
+   module More_than_increm = struct
+     open Increm
+     let g x = f (x * 10)
+   end;;
+   </pre>
+   This is equivalent to the module definition:
+   <pre class="prettyprint ml">
+   module More_than_increm = struct
+     let g x = Increm.f (x * 10)
+   end;;
+   </pre>
+   </p>
+   <p>
+   Contrary to inclusion and containment, opening of modules does not
+   produce any new definitions : it operates only on the space of
+   identifiers. However, suppose there is an <code>x</code> valid at
+   the point of application of an open directive of a
+   module <code>M</code>; if <code>x</code> is also the name of an
+   element of <code>M</code>, the open implies an irreversible
+   redefinition of <code>x</code>. Consequently, as for inclusion,
+   opens may involve name complications delicate to organise.
+   </p>
+   <p>
+   For example, the modules <code>List</code>, <code>Array</code>
+   and <code>Stack</code> from the sandard library have in common a
+   certain number of functions with the same names. In the module
+   following, the opening of these three modules will define a
+   function <code>last</code> that gives rise to a type error:
+   <pre class="prettyprint ml">
+   # module M = struct
+       open List
+       open Stack
+       open Array
+       let last lin = nth lin ((length lin) - 1)
+     end;;
+    Type error
+   </pre>
+   Indeed the function <code>nth</code> is provided by
+   the <code>List</code> module, but the <code>length</code> function
+   has come from the <code>Array</code> module to which is
+   applied <code>last</code>. The suite of module opens is ordered
+   differently than required for a correct version:
+   <pre class="prettyprint ml">
+   # module M = struct
+       open Stack
+       open Array
+       open List
+       let last lin = nth lin ((length lin) - 1)
+     end;;
+   </pre>
+   <br/>
+   <br/>
+   <b>The technique of openings transformed into sub-modules:</b> Any
+   opening of a sub-module <code>M</code> can be replaced by an
+   explicit import of <code>M</code> as a sub-module.
+   <br/>
+   <br/>
+   Note that there exists a derivative of this technique. If
+   utilisation of a module can be restrained to a simple expression
+   such as a function body, it is possible to consider a local module
+   . For example:
+   <pre class="prettyprint ml">
+   module M = struct
+     let last lin =
+       let module L = List in
+       L.nth lin ((L.length lin) - 1)
+   end;;
+   </pre>
+   On the other hand, opening a module possesses another important
+   inconvenience : they are not representable at the level of the
+   specification. We have seen that this is the case for inclusions
+   and will now discover it for nesting.
+   </p>
+
+   <h5>Embedding in signatures : abstract sub-modules</h5>
+
+
+   <!-- ******************************************************* -->
+
+
+   <h3>Generic modular programming : functors</h3>    
+
+   <p>
+   The preceding sections show why and how to decouple a program into
+   seperate distinct components, how to partition components and how
+   to specify them before implmentation. In particular, when we
+   discussed the advisability of implementation hiding techniques, the
+   main quality criteria being precision and shows, namely in the the
+   situation of being able to modify and replace modules locally as
+   related but autonomous elements. The subsitution principle is in
+   effect the essential characteristic of organisation and module
+   reuse. There remains at least one point to improve : the conditions
+   that allow us to express and exploit this substitutivity. Generic
+   programming allowing the full participation of modules.
+   </p>
+   <p>So, in these sections, first of all we introduce the notion of
+   "functions of modules", that is, <i>functors</i>, which will be the
+   principal tools of modular generiticity. We then present some
+   conceptual models associated with their use. A thorough discussion
+   will be provided about various types of signatures. Highlighting
+   their features, we will find functors can be compiled
+   independently, that they can posses more than one parameter, are
+   typable by signatures of their own and they allow their arguments
+   also to be functors. We will then discuss the advantages and
+   inconveniences of generic modular programming based on
+   functors. Finally, we introduce a graphical representation for
+   functors and examples illustrating usage.
+   </p>
+
+   <h4>Functors</h4>
 
    <h5>The idea of "functions of modules"</h5>
 
