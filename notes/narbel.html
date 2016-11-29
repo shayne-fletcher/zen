@@ -3246,7 +3246,156 @@
    </p>
 
    <h5>Embedding in signatures : abstract sub-modules</h5>
+   <p>
+   Signatures also lend themselves to the embedding of modules. A
+   signature can declare modules by the aid of the following
+   construction:
+   <pre class="prettyprint ml">
+   module type ... = sig
+     ...
+     module &lt;Name&gt; : &lt;SIGNATURE&gt;
+     ...
+   end
+   </pre>
+   The notation is similar to the declaration of values in a signature
+   e.g. <code>val &lt;name&gt; : &lt;type&gt;</code>. For example,
+   here is a signature for the module <code>More_than_increm</code>:
+   <pre class="prettyprint ml">
+   module type S = sig
+     val f : int -> int
+   end;;
 
+   module type MORE_THAN_S = sig
+     module Sub : S
+     val g : int -> int
+   end;;
+   </pre>
+   These declarations of sub-modules in signatures are reminiscent of
+   abstract types. We will therefore name them here in accordance of
+   this recollection:
+   <br/>
+   <br/>
+   <b>Definition : </b> In a signature, a simple type declaration of
+   the name of a sub-module is called an abstract sub-module.
+   <br/>
+   <br/>
+   </p>
+
+   <h5>The link between signatures and abstract sub-modules</h5>
+   <p>
+   As in the case of the inclusion of signatures, an abstract
+   sub-module permits the declaration of a link between modules at the
+   level of a specification. The embedding also makes possible
+   description of the particular relationships between elements of the
+   sub-module and parent module. Consider this example derived from
+   one preceding:
+   <pre class="prettyprint ml">
+   module type S = sig
+     type t
+     val f : t -> t
+   end
+
+   module type MORE_THAN_S = sig
+     module Sub : S
+     val g : Sub.t -> Sub.t
+   end
+   </pre>
+   Here, the links between the instances of <code>S</code> and those
+   of <code>MORE_THAN_S</code> concretely express the way types are
+   used : the function <code>g</code> is based on a type provided
+   by <code>Sub</code>. We have therefore increased the precision of
+   the signature <code>MORE_THAN_S</code> such that thte
+   function <code></code> must be linked to an abstract type described
+   by <code>S</code>. Therefore a function <code>g</code> can always
+   be based on a function <code>f</code> associated with its type
+   by <code>S</code>. Generalizing:
+   <br/>
+   <br/>
+   <p>Interest in abstract sub-modules : </p> Abstract sub-modules of
+   a signature <code>S</code> declare the names of modules whose
+   elements are usuable for the types of other elements
+   in <code>S</code>. They also specify links of reutilization between
+   modules, and this without being dependent on the particulars of
+   implementations of modules.
+   <br/>
+   <br/>
+   We also talk sometimes of <i>abstraction composition</i>. Here is
+   an example less formal than the preceding:
+   <pre class="prettyprint ml">
+   module type SET = sig
+     type 'a set
+     val empty : unit -> 'a set
+     val mem : 'a -> 'a set -> bool
+     val add : 'a -> 'a set -> unit
+     ...
+   end;
+   </pre>
+   One proposed implementation, the module <code>Set_H</code> -- makes
+   use of a hash table from the standard library. Suppose suche hash
+   tables are specified by means of the
+   signature <code>HASH_TABLE</code>. It is then possible to give
+   oneself a new signature which imposes on the representation of sets
+   that they be an implementation of <code>HASH_TABLE</code>:
+   <pre class="prettyprint ml">
+   module type SET_HASH = sig
+     module H : HASH_TABLE
+     type 'a set = 'a H.t
+     val empty : unit -> 'a set
+     val mem : 'a -> 'a set -> bool
+     val add : 'a -> 'a set -> unit
+     ...
+   end;;
+   </pre>
+   This constraint in the specficiation indicates that any
+   implementation of <code>SET_HASH</code> benefits a priori the
+   properties of hash tables. In particular, access to the elements of
+   a set will have constant complexity. On the other hand, variations
+   of the instantiation of the type <code>'a set</code>'s masking
+   conventions will be delegated to the sub-modules <code>H</code>.
+   </p>
+   <p>
+   This example illustrates how use of abstract sub-modules may remedy
+   some of the limitations we spoke of earlier of signatures : thanks
+   to them, it is possible to integrate greater precision into a
+   specification. On the other hand, note the
+   signature <code>SET_HASH</code> is compatible with the
+   signature <code>SET</code> : any module that
+   satisfies <code>SET_HASH</code> equally well
+   satisfies <code>SET</code>. As in the case of signature inclusion,
+   we specified here very naturally, compatible specializations.
+   </p>
+   <p>
+   Here is an abstract of the technique we have presented:
+   <br/>
+   <br/>
+
+   <b>Technique of specication of a signature by abstract sub-modules : </b> Any module <code>M</code> with signature <code>S</code> using modules <code>M1</code>, <code>M2</code>, ..., <code>Mn</code> may induce a specialized signature <code>S_PLUS</code>:
+   <ol>
+   <li>In <code>S_PLUS</code> we declare <code>M2</code>,
+   ..., <code>Mn</code> as abstract sub-modules.</li>
+   <li>The elements of <code>S_PLUS</code> rely on the elements of the
+   signatures of the abstract sub-modules.</li>
+   </ol>
+    The signature <code>S_PLUS</code> is rendered compatible
+   with <code>S</code>.
+   <br/>
+   <br/>
+   This technqiue permits also, systematic expression of the links
+   between modules at the level of signatures. The advantages of this
+   follow:
+   <br/>
+   <br/>
+   <b>The advantages of specialization of signatures :</b>
+   <ol>
+   <li>Help refining type inference, enriched analysis of the module
+   components, to give information to the programmer.</li>
+   <li>Aid to the programmer in understanding the logical architecture
+   since the relevant signatures are already part of the interactions
+   between components.</li>
+   </ol>
+   <br/>
+   <br/>
+   </p>
 
    <!-- ******************************************************* -->
 

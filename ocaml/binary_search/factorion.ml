@@ -54,30 +54,30 @@ let gather ls =
   let f acc d = (List.filter (fun x -> x = d) ls) :: acc in
   List.fold_left f [] ds
 
-(*[partion p ls] computes two list from [ls], the first list contains
-  the elements of [ls] that satisfy the predicate [p], the second one,
-  the elements of [ls] that don't satisfy [p]*)
+(*[partition p ls] computes two lists : a list of the elements in [ls]
+  that satisfy [p] and a list of the elements in [ls] that don't*)
 let partition p ls =
   let rec loop (xs, ys) = function
     | [] -> (xs, ys)
     | (h :: tl) -> loop (if p h then (h :: xs, ys) else (xs, h ::ys)) tl in
   loop ([], []) ls
 
-(*[gather ls] starts with [ls] and considers the element at the head
-  of the list ('h'). It uses [partition] to break the list into two
-  lists : a list containing all the occurences of 'h' (called [xs] in
-  the code), and a second list (called [rem] in the code) containing
-  what's left. [xs] is pushed onto the list of lists ([acc]) and [acc]
-  and [rem] become input to the next iteration of the loop. When
-  the loop is given an empty list, there are no more elements to
-  consider and we return [acc].*)
+(*[gather ls] produces a list of list of the distinct items of [ls]
+  gathered together*)
 let gather ls =
-  let rec loop acc s =
-   match s with
-   | [] -> acc (*[xs] is empty, return [acc]*)
-   | (h :: _) -> 
-     (*The head of the list [h] is an element we haven't seen before*)
+  let rec loop acc = function
+   | [] -> acc
+   | (h :: _) as s -> 
      let (xs, rem) = partition (fun x -> x = h) s in
      loop (xs :: acc) rem in
   loop [] ls
      
+(*[bin_count ls] produces a list of the unique elements of [ls]
+  together with a count of their occurences*)
+let bin_count ls =
+  let rec loop acc = function
+    | [] -> acc
+    | (h :: _) as s ->
+      let (xs, rem) = partition (fun x -> x = h) s in
+      loop ((h, (List.length xs)) :: acc) rem in
+  loop [] ls
