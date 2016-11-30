@@ -3368,8 +3368,11 @@
    Here is an abstract of the technique we have presented:
    <br/>
    <br/>
-
-   <b>Technique of specication of a signature by abstract sub-modules : </b> Any module <code>M</code> with signature <code>S</code> using modules <code>M1</code>, <code>M2</code>, ..., <code>Mn</code> may induce a specialized signature <code>S_PLUS</code>:
+   <b>Technique of specication of a signature by abstract sub-modules
+   : </b> Any module <code>M</code> with signature <code>S</code>
+   using modules <code>M1</code>, <code>M2</code>,
+   ..., <code>Mn</code> may induce a specialized
+   signature <code>S_PLUS</code>:
    <ol>
    <li>In <code>S_PLUS</code> we declare <code>M2</code>,
    ..., <code>Mn</code> as abstract sub-modules.</li>
@@ -3397,8 +3400,234 @@
    <br/>
    </p>
 
-   <!-- ******************************************************* -->
+   <h5>Abstract sub-modules and inclusion constraints</h5>
+   <p>
+   The specialization of signatures facilitates the possibilty of
+   directly constraining an inclusion by the following syntax:
+   <pre class="prettyprint ml">
+   include &lt;SIGNATURE&gt; with type &lt;type 1&gt; = &lt;expression of type 1&gt;
+                             and type ...
+                             and type&lt;type n&gt; = &lt;expression of type n&gt;
+   </pre>
+   Recalling the example of the preceding section, suppose a general
+   signature <code>SET</code> with a pre-existing specialization. It
+   is possible to obtain that specialization directly with an
+   inclusion constraint:
+   <pre class="prettyprint ml">
+   module type SET_HASH = sig
+     module H : HASH_TABLE
+     include SET with type 'a set = 'a H.t
+   end;
+   </pre>
+   The type constraint here is particular : it deals only with
+   abstract types. Indeed, the type constraints of the preceding pages
+   always used a term on the right denoting a type duly defined. While
+   being abstract, the type <code>'a H.t</code> is nevertheless part
+   of the environment; it may also therefore contribute to the
+   definition of a type.
+   <br/>
+   <br/>
+   <b>Definition : </b> When a type constraint consists entirely of
+   abstract types, these types are called <code>sharing types</code>.
+   <br/>
+   <br/>
+   We have seen other occurences of this notion.
+   </p>
 
+   <h5>Hiding the types of sub-modules</h5>
+   <p>
+   The existence of module embedding neccessitates a clarification of
+   the effect of explicit typing by signature. The rule follows:
+   <br/>
+   <br/>
+   <p><b>Rule (3) of visibility of a module (precision) : </b> The
+   effects of a valid explicit typing of <code>M</code> apply
+   individually to the sub-modules of <code>M</code>.  
+   <br/>
+   <br/> 
+   In consequence, suppose a module <code>M1</code> contained in a
+   module <code>M2</code> : while the type of <code>M2</code> is
+   explicit and valid, the implementation of the abstract types
+   of <code>M1</code> are hidden. For example:
+   <pre class="prettyprint ml">
+   module type S1 = sig
+     type t
+     val cst : t
+   end;;
+
+   module type S2 = sig
+     module Sub : S1
+     val f : Sub.t -> Sub.t
+   end;;
+
+   module M1 = struct
+     type t = int
+     let cst = 3
+   end;;
+
+   module M2 : S2 = struct (*explicitly typed*)
+     module Sub = M1
+     let f x = Sub.cst + x
+   end;;
+   </pre>
+   The explicit typing of <code>M2</code> by <code>S2</code> implies
+   it is the parent of a sub-module <code>Sub</code> - and
+   so <code>M1</code> - is also subject to the rule of hiding:
+   <pre class="prettyprint ml">
+   # M2.Sub.cst;;
+   - : M2.Sub.t = &lt;abstr&gt;
+
+   # M2.f 1;;
+   Type error
+   </pre>
+   The type of the constant contained in <code>Sub</code> is hidden
+   even though it would come from the module <code>M1</code> which
+   exported its initial definition.
+   </p>
+   <p>
+   So, individualized masking is sometimes established on elements of
+   sub-modules by using the construction <code>with type</code>. For
+   example:
+   <pre class="prettyprint ml">
+   module M2 : S2 = 
+     with type Sub.t = int = struct
+     module Sub = M1
+     val f x = Sub.cst + x
+   end;;
+
+   # M2.f 1;;
+   - : M2.Sub.t = 4
+   </pre>
+   </p>
+   <p>
+   In the case of sub-modules possessing multiple types, and for
+   additional clarity, the exists an equivalent
+   construction <code>with module</code>:
+   <pre class="prettyprint ml">
+   &lt;SIGNATURE&gt; with module &lt;module 1&gt; = &lt;expression of module 1&gt;
+                     and module ...
+                     module &lt;module n&gt; = &lt;expression of module n&gt;
+   </pre>
+   where the <code>&lt;module i&gt;</code> denotes a sub-module within
+   the signature <code>&lt;SIGNATURE&gt;</code> and
+   the <code>&lt;expression of module i&gt;</code> are the valid
+   definitions of modules in the environment at the moment of
+   application of the type constraint. This construction iss in fact
+   only an abbreviation of the set of constraints <code>with
+   type</code> associated with all of the types appearing in
+   the <code>&lt;expression of module i&gt;</code>. So, the following
+   version of module <code>M2</code> is equivalent to the earlier one:
+   <pre class="prettyprint ml">
+   module M2 : S2 = 
+     with module Sub = M1 =
+   struct
+    module Sub = M1
+    let f x = Sub.cst + x
+   end;;
+   </pre>
+   The masking with a structuring in sub-modules therefore requires a
+   certain rigor under pain of lots of unnessary type
+   errors. Recalling the example where explicit typing of a module by
+   a signature may be rendered unuable if there has been no masking
+   preperation, that is to say, if the constructors and accessors have
+   not been forseen. In fact, a systematic approach to masking
+   simplifies the reasoning. Thus, here is a precise statement
+   concerning modular programming with "rigorous masking":.
+   <br/>
+   <br/>
+   <p>Modular programming with rigorous masking (precision): </p> Any
+   module is explicitly typed by a signature. The
+   construction <code>with module</code> are applied to the
+   sub-modules whose export is necessary.  <br/> <br/> As masking is
+   irreversible, a construction <code>with module</code> on hidden
+   types will only have influence on its public elements. By applying
+   a rigorous masking, it is sufficient to ask at the level of each
+   module whether its types or its sub-modules must be exported or
+   not. The complexit of embeddings will not affect the complexity of
+   the decisions to be taken concerning exports.
+   </p>
+
+   <h5>Flattening the nesting of modules</h5>
+   <p>
+   Despite their simplicity, the preceding examples illustrate again a
+   phenomon which may become inconvenient when module embeddings are
+   numerous. For example, the complete name of the type <code>t</code>
+   in the module <code>M2</code>, that is to
+   say, <code>M2.Sub.t</code>, reflects the complete embedding
+   structure of the modules. In order to mitigate this effect, one
+   redefines certain elements of abstract sub-modules to the level of
+   the signature. It is then possible to "flatten" the level of
+   embedding in a manner visible from the exterior of the module. For
+   example:
+   <pre class="prettyprint ml">
+   module type S1 = sig
+     type t
+     val f : t -> t
+   end;;
+
+   module type S2 = sig
+     module Sub : S1
+     type t = Sub.t
+     val g : t -> t
+   end;;
+   </pre>
+   Here, the type <code>t</code> of <code>Sub</code> is replaced at
+   the level of the signature <code>S2</code>. That signature includes
+   from there on, the type as part of its entirity.
+   </p>
+   <p>
+   This technique permits therefore establishing a partial inclusion
+   of another module. It is crucial for making an intuitively
+   structured structuring of sub-modules.
+   </p>
+
+   <h5>Modular aggregation of data-types</h5>
+   <p>
+   The use of sub-modules gives us leave to consider datatypes whose
+   representation of values depend directrly on other datatypes. We
+   have in fact already applied this idea: the
+   signature <code>SET_HASH</code> indicates that the representation
+   of set values be based on hash tables. Here is another example in
+   the same vein. Let us propose a generalized version of an event
+   loop capable of processing a set of graphic computations. This set
+   will be structure in terms of association tables which we specify
+   by means of the signature <code>ASSOC_TABLE</code>. The precise
+   specification of the the datatype adapted to graphics interactions
+   is thus the following:
+   <pre class="prettyprint ml">
+   module type GRAPHIC_ENVIRONMENT = sig
+     module T : ASSOC_TABLE
+     type action = int -> int -> unit (*fixed for simplicity*)
+     type behaviors = (char, action) T.assoc
+     val empty : unit -> behaviors
+     val add : char -> action -> behaviors -> behaviors
+     val interaction_with_mouse : behaviors -> unit
+   end;;
+   </pre>
+   The form of the datatype is classic except for the fact that the
+   representation of the values of <code>behaviors</code> is a type
+   directly dependent on the abstract sub-module <code>T</code>. A
+   requirement on implementations is thus clearly expressed in this
+   signature: graphics environments are necessarily association
+   tables. To instantiate a <code>GRAPHIC_ENVIRONMENT</code>, one
+   may reutilize and combine an implementation of events (given in an
+   earlier chapter in the book this has been copied from) the the
+   implementation <code>Assoc_tree</code> of association tables based
+   on red-black trees:
+   <pre class="prettyprint ml">
+   module G_env : GRAPHIC_ENVIRONMENT = struct
+     module T = Assoc_rbtree
+     module G = Graphics (*an internal renaming*)
+     type action = int -> int -> unit
+     type behaviors = (char, action) T.assoc
+
+     let empty () = T.empty ()
+
+   end;;
+   </pre>
+   </p>
+
+   <!-- ******************************************************* -->
 
    <h3>Generic modular programming : functors</h3>    
 
