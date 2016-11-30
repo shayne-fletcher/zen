@@ -44,6 +44,12 @@ let pandigital n =
   h <> 0 && (l = range 0 10)
 
 let gather ls =
+  List.fold_left 
+    (fun acc d -> (List.filter (fun x -> x = d) ls) :: acc) 
+    [] 
+    (List.fold_left (fun ns n -> if List.mem n ns then ns else n :: ns) [] ls)
+
+let gather ls =
   (*First, compute a list of all of the distinct elements in [ls]. For
     example, if [ls] is the list ['a'; 'a'; 'b'; 'b'; 'c'; 'a'; 'b';
     'a'], then the distinct elements form the list ['a'; 'b'; 'c'; 'd']*)
@@ -81,3 +87,23 @@ let bin_count ls =
       let (xs, rem) = partition (fun x -> x = h) s in
       loop ((h, (List.length xs)) :: acc) rem in
   loop [] ls
+
+(*Final versions. Forget tail recursion, go for elegance*)
+
+let rec partition (p : 'a -> bool) : 'a list -> 'a list * 'a list = function
+  | [] -> ([], [])
+  | (h :: tl) ->
+    let xs, ys = partition p tl in
+    if p h then (h :: xs, ys) else (xs, h :: ys)
+
+let rec gather : 'a list -> 'a list list = function
+  | [] -> []
+  | (h :: _) as ls -> 
+    let xs, ys = partition (fun x -> x = h) ls in
+    xs :: gather ys
+
+let rec bin_count : 'a list ->('a * int) list = function
+  | [] -> []
+  | (h :: _) as ls ->
+    let xs, ys = partition (fun x -> x = h) ls in
+    (h, List.length xs) :: bin_count ys
