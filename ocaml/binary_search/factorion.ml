@@ -102,7 +102,7 @@ let rec gather : 'a list -> 'a list list = function
     let xs, ys = partition (fun x -> x = h) ls in
     xs :: gather ys
 
-let rec bin_count : 'a list ->('a * int) list = function
+let rec bin_count : 'a list -> ('a * int) list = function
   | [] -> []
   | (h :: _) as ls ->
     let xs, ys = partition (fun x -> x = h) ls in
