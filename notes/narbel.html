@@ -3535,7 +3535,7 @@
    concerning modular programming with "rigorous masking":.
    <br/>
    <br/>
-   <p>Modular programming with rigorous masking (precision): </p> Any
+   <b>Modular programming with rigorous masking (precision): </b> Any
    module is explicitly typed by a signature. The
    construction <code>with module</code> are applied to the
    sub-modules whose export is necessary.  <br/> <br/> As masking is
@@ -3623,8 +3623,419 @@
 
      let empty () = T.empty ()
 
+     let add key action l = T.add key action l
+
+     let interaction_with_mouse l =
+       let action_state = ref (snd (T.get_pair l)) in
+       while true do
+         let s = G.wait_next_event [Button_down; Key_pressed] in
+         if s.button then ! action_state s.mouse_x s.mouse_y
+         else if s.keypressed then
+         try
+           action_staett := T.assoc l s.key
+         with
+           | Not_found -> ()
+       done
    end;;
    </pre>
+   It is then possible to create specific graphics interaction loops:
+   <pre class="prettyprint ml">
+   # let g1 = G_env.empty ();;
+   val g1 : G_env.behaviors = &lt;abstr&gt;
+
+   # let g1 = G_env.add 
+             'l' (fun x y ->
+                    if x < 30 && y < 30 then failwith "Exit"
+                    else if current_point () = (-1, -1)
+                    them moveto x xy else lineto x y)
+              g1;;
+   val g1 : G_env.behaviors = &lt;abstr&gt;
+
+   # let interaction_loop_1 () = G_env.interaction_with_mouse g1;;
+   val interaction_loop_1 : unit -> unit
+   </pre>
+   The relation between the graphics environments and association
+   tables here illustrates a particular point: the management of the
+   specific type of <code>ASSOC_TABLE</code> is completely in the
+   charge of the type described for <code>G_env</code>. No use of
+   module <code>Assoc_rbtree</code> is required from the outside : the
+   module <code>G_env</code> alone creates and manipulates the
+   association table. As such, the explicit typing of the
+   module <code>G_env</code> need not constrain the association table
+   type provided by <code>T</code>.
+   </p>
+   <p>
+   The relation between the two datatypes may be characterised by the
+   following:
+   <br/>
+   <br/>
+   <b>Definition :</b> Suppose that<code>M_sub</code>
+   and <code>M</code> describe abstract datatypes and
+   that <code>M_sub</code> is a sub-module in <code>M</code>. We
+   say <code>M</code> is an <i>aggregation module</i> if it manages
+   completely the instances of type provided by <code>M_sub</code>.
+   <br/>
+   <br/>
+   </p>
+
+   <h5>Modular associations of datatypes</h5>
+   <p>
+   The notion of module aggregation that we have just described has of
+   course a less binding version:
+   <br/>
+   <br/>
+   <b>Definition :</b> Suppose that <code>M_sub</code>
+   and <code>M</code> describe abstract datatypes and
+   that <code>M_sub</code> is a sub-module of <code>M</code>. We say
+   that <code>M</code> is an <i>association module</i> if the
+   management of the instances of the type provided
+   by <code>M_sub</code> are not completely under the charge
+   of <code>M</code>.
+   <br/>
+   <br/>
+   Another way of saying this, the exploitation of the
+   module <code>M_sub</code> remains explicit (at least in part) for
+   use of module <code>M</code>. For example, reconsider first of all
+   a version of the signature <code>COMPLEX</code>:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex
+     type extern_complex
+     val make : extern_complex -> complex
+     val show : complex -> extern_complex
+     val zero : complex  val one : complex
+     val add : complex -> complex -> complex
+     val mul : complex -> complex -> complex
+     val norm : complex -> float
+   end;;
+   </pre>
+   Here, a specialization which succinctly describes a type associate
+   with functions of complex numbers:
+   <pre class="prettyprint ml">
+   module type COMPLEX_FUN = sig
+     module C : COMPLEX
+     type fun_t
+     type extern_fun_t
+     val make : extern_fun_t -> fun_t
+     val apply : fun_t -> C.complex -> C.complex
+     val apply : fun_t -> C.Complex -> C.complex
+     val iterate : fun_t -> int -> C.complex -> C.complex
+   end;;
+   </pre>
+   Apart from nesting an implementation of <code>COMPLEX</code>, the
+   signature specifies a priori any function which would be likely to
+   create or manage complex numbers for themselves. Consequently,
+   these will necessarily come from the instance of the
+   sub-module <code>C</code>. Another way of saying this is the use
+   and the management of complex number is not transparent to the the
+   use of the the functions of a module that
+   satisfies <code>COMPLEX_FUN</code>: we are indeed in one case of a
+   module association. For example, here first of all an implemenation
+   based on a simple instance of <code>COMPLEX</code>:
+   <pre class="prettyprint ml">
+   module Complex_F1 : COMPLEX
+     with type extern_complex = float * float = 
+   struct
+     type complex = float * float
+     type extern_complex = complex
+     let make (r, i) = (r, i)
+     let show (r, i) = (r, i)
+     let zero = (0., 0.)
+     let one = (1., 0.)
+     ...
+   end;;
+
+   module CFuns : COMPLEX_FUN
+     with type extern_fun_t = Complex_F1.complex -> Complex_F1.complex
+     with module C = Complex_F1 =
+   struct
+     module C = Complex_F1
+     type fun_t = Fun of (C.complex -> C.complex)
+     type extern_fun_t = Complex_F1.complex -> Complex_F1.complex
+
+     let make f = Fun f
+     let apply (Fun f) z = fz
+     let rec iterate (fun f) n z =
+       if n < 1 then z else iterate (Fun f) (n - 1) (f z)
+   end;;
+   </pre>
+   The use of the module <code>C</code> can be carried out through the
+   use of the module <code>CFuns</code>:
+   <pre class="prettyprint ml">
+   # let z1 = Complex_F1.make (2., 0.);;
+   val z1 : Complex_F1.complex = &lt;abstr&gt;
+
+   # let sqr = CFuns.make (fun z -> Complex_F1.mul z z);;
+   val z2 : CFuns.fun_t = &lt;abstr&gt;
+
+   # Complex_F1.show (CFuns.apply sqr z1);;
+   - : Complex_F1.extern_complex = (4., 0.)
+   </pre>
+   The utilisation may equivalently be carried from a
+   sub-module <code>C</code> of <code>CFuns</code>:
+   <pre class="prettyprint ml">
+   # let z1 = CFuns.C.make (2., 0.);;
+   val z1 : CFuns.C.complex = &lt;abstr&gt;
+
+   # CFuns.C.show z1;;
+   - : CFuns.C.extern_complex = (2., 0.)
+   </pre>
+   However, the user is still in the situation of having to create and
+   manage the complex numbers. On the other hand, the type
+   constraint <code>with module C = Complex_F1 ...</code> necessarily
+   associates with <code>CFuns</code>. Indeed, the distinction between
+   module aggregation and association is characterized by the module
+   headers during the application of rigorous masking:
+   <br/>
+   <br/>
+   <b>Criterion for the use of type constraints :</b> A module
+   aggregation does not require a type constraint <code>with
+   module</code> with regards to sub-module embedding. In contrast, a
+   module association generally requires one.  <br/> <br/> Here is
+   another implementation of <code>COMPLEX_FUN</code> which
+   illustrates how the signature may be instantiated differently under
+   the same module association conditions. The functions on complex
+   numbers can be specialized to polynomials. We will represent them
+   here by list of pairs (cofficient/powers of the indeterminate). So,
+   for example $p(z) = (1 + i)z^{3} + (2 + i)z + (3 + i)$ is
+   represented as:
+   <pre class="prettyprint ml">
+     p = [((1., 1.), 3); ((2., 1.), 1); ((3., 1.), 0)]
+   </pre>
+   <pre class="prettyprint ml">
+   module CPolynom : COMPLEX_FUN
+     with type extern_fun_t = (Complex_F1.complex * int) list
+     with module C = Complex_F1 =
+   struct
+     module C = Complex_F1
+     type fun_t = Fun of (C.complex -> C.complex)
+     type extern_fun_t = (C.complex * int) list
+
+     let apply (Fun f) z = f z
+ 
+     let rec iterator (Fun f) n z =
+       if n < 1 then z else iterator (Fun f) (n - 1) (f z)
+
+     let power z0 n =
+       iterate (Fun (fun z -> C.mul z z0)) n C.one
+
+     let make coeflist =
+       Fun (fun z -> (List.fold_right
+                       (fun (x, y) -> C.add v (C.mul x (power z y)))
+                       coeflist C.zero))
+   end;;
+   </pre>
+   So, for example:
+   <pre class="prettyprint ml">
+   # let z1 = Complex_F1.make (2., 0.);;
+   val z1 : Complex_F1.complex = &lt;abstr&gt;
+
+   # let p1 = CPolynom.make [(z1, 2)];;
+   val p1 : CPolynom.fun_t = &lt;abstr&gt;
+
+   # Complex_F1.show (CPolynom.apply p1 z1);;
+   - : Complex_F1.extern_complex = (8., 0.)
+   </pre>
+   </p>
+
+   <h5>A complete example : "apple-men"</h5>
+   <p>
+   An abstract datatype may involve more several types in its
+   representation of values. For example, an "apple-man" set (a kind
+   of Mandlebrot set) associates a function $f(z_{1}, z_{2})$ of
+   complex numbers and consists of all values $c$ such that the
+   iterations $f(c, 0)$ do not diverge to infinity. In more precise
+   terms, this set is defined as: \[ \{c \in \mathbb{C}\;|\;\lim_{n
+   \to \infty}\|f^{n}(c, 0)\| \ne \infty\} \] To implement a program
+   that permits the study of these "apple-men" sets makes natural use
+   of theree datatypes : complex numbers, their functions and their
+   sets. By reconsidering the signature <code>COMPLEX_FUN</code> and
+   the signature <code>SET</code>, a minimal signature which specifies
+   a type for "apple-men" sets follows (we utilise here lableled
+   parameters for precision of the constructor):
+   <pre class="prettyprint ml">
+   module type APPLE_MEN = sig
+     module CF : COMPLEX_FUN
+     module S : SET
+     type complex = CF.C.complex
+     type complex_fun = CF.fun_t
+     type set_elements
+     type apple_man = set_elements S.set
+     val make : f_c : (complex -> complex_fun) ->
+                      diverg_ball : float ->
+                      max_iter : int -> int
+                      size : int ->
+                      start : float ->
+                      apple_man
+   end;;
+   </pre>
+   The principle type <code>apple_man</code> described here is an
+   "apple-man" set according to the definition depending on the
+   signature <code>SET</code>. The constructor <code>make</code> takes
+   a function parameter <code>f_c</code>$= f (c, .)$, and the
+   divergencewill be established experimantally by observing the
+   values after <code>max_iter</code> iterations of <code>f_c
+   (0)</code>: if a value obtained exceeds <code>diverg_ball</code>,
+   then the function is assumed to have diverged. The
+   parameters <code>size</code> and <code>start</code> will make it
+   possible to define the discretisation of the complex plane where
+   the analysis will take place, that is to say a grid of points of
+   the size of the square <code>[-start,
+   start]</code>$\times$<code>[-start, start]</code>. Given this
+   specification, we can thus for example, reuse the polynomials
+   of <code>CPolynom</code> and the sets of <code>Set_H</code> in an
+   imperative version. Then, an implementation of the
+   signature <code>APPLE_MEN</code> made possible is provided in the
+   following:
+   <pre class="prettyprint ml">
+   module A : APPLE_MEN 
+     with type set_elements = int * int
+     and module CF = CPolynom
+     and module S = Set_H =
+   struct
+     module CF = CPolynom
+     module S = Set_H
+     type complex = CF.C.complex
+     type complex_fun = CF.fun_t
+     type set_elements = int * int
+     type apple_man = set_elements S.set
+ 
+     let make ~f_c ~diverge_ball ~max_iter ~size ~start =
+       let rec diverg f z n =
+         let z' = CF.apply f z in
+         if CF.C.norm z > diverge_ball then true else
+         if n >= max_iter then false
+         else diverg f z' (n + 1) in
+       let start2 = (start *. 2.) /. (float size) in
+       let origin =  CF.C.zero in
+       let set = S.empty () in
+       let arr = Array.make size 0. in
+       for i = 0 to size - 1 do
+         arr.(i) <- -.start +. ((float i) *. start2) done;
+       done;
+       for i = 0 to size - 1 do
+         for j = 0 to size - 1 do
+           let z = (CF.C.make (arr.(i), arr.(j))) in
+           let f = f_c z in
+           if not (diverg f origin 0) then S.add (i, j) set
+         done
+       done;
+       set
+   end;;
+   </pre>
+   In the header of the module, the two constraints <code>with module
+   = ...</code> indicate each module association from the point of
+   view of <code>CF</code> and <code>S</code>. The
+   constraint <code>with type set_elements = ...</code> of the
+   principal abstract type of the "apple-man"
+   sets <code>set_elements</code> are represented externally as
+   coordinate indicies of the whole (implicitly derived from a regular
+   discretization of a square domain of the plane).
+   </p>
+   <p>
+   Here for example, the expression which constructs one "apple-man"
+   of $f(c, z) = z^{4} + z^{2} + c$ for a grid $300 \times 300$ of the
+   domain <code>[-1.5, 1.5]</code>$\times$<code>[-1.5, 1.5]</code>:
+   <pre class="prettyprint ml">
+   # let bonze = 
+       A.make ~f_c:(fun c -> CPolynom.make [(Complex_F1.one, 4);
+                                            (Complex_F1.one, 2);
+                                            (c, 0)])
+              ~diverg_ball:100.00 ~max_iter:10 ~size:300 ~start:1.5;;
+   val bonze : A.apple_man = &lt;abstr&gt;
+   </pre>
+   </p>
+
+   <h4>Masking of the types in question</h4>
+
+   <h5>The choice to mask</h5>
+   <p>
+     In OCaml, the attraction of exporting types is great. Their
+     instances are directly visible and accessible, the constructors
+     and sum types and their field accessors of records are
+     available. Instances of these types may benefit from pattern
+     recognition and filtering at any point in the program. Moreover,
+     no difficulties of masking need to be overcome and no type
+     constraints are required in the signatures.
+   </p>
+   <p>
+   However, the definitions of types constitute entirely a choice of
+   implementation. Made public, they are likely to be diffused
+   throughout the program, breaking the partitioning between
+   components and by the same token, most of the expected qualities of
+   a modular architecture. After the preceding examples, we can in
+   fact express how the masking remedies this and summarize the
+   discussion with full knowledge of the facts:
+   <br/>
+   <br/>
+   <b>Advantages of masking :</b> Masking stops the dissemination of
+   implementation choices. Refactoring, extensions and testing are
+   facilitated, circumscribed and localized. The "principle of module
+   substitutivity" may apply in these conditions.
+   <br/>
+   <br/>
+   Masking is also part of a good general programming practice:
+   <br/>
+   <br/>
+
+   <b>Masking and programming :</b> A program with rigorous masking
+   requires a global and fine use of signatures. It is the reflection
+   of a precise work of analysis of the partitions between components,
+   their links and the types they contribute. On the other hand, in
+   OCaml this work can be partially verified by the type system.
+   <br/> <br/> We have shown here how to obtain a rigorous masking
+   while preserving the possibilities of specifying and realizeing a
+   network of relations between the modular components. Of course, its
+   implementation includes requirements that are not neglible:
+   <br/>
+   <br/>
+   <b>Inconveniences of masking :</b> Masking imposed written burdens
+   (such as for example, the use of accessors, constructors, make-up
+   types, type constraints), and is not without impact on the speed of
+   execution of a program (in particular, data access passes through
+   at least one indirection).  <br/> <br/> These disadvantages explain
+   why it is not so easy to systematically subscribe to the rules of
+   rigorous masking.  As for the "dense typing style" or the
+   functional/imperative choice to apply, it depends on the
+   situation. For example, the elaboration of an optimized program or
+   prototype may sometimes be satisfied with an approximate
+   masking. On the other hand, when the reuse of code and subsequent
+   modifications are certain, the effort required by a rigorous
+   masking will take on its full meeting.
+   </p>
+   <p>
+   The example of "apple-man" sets was therefore a representative
+   implementation of what could be said. External modules are reused
+   there without imposing any choice of implementation. Certain
+   important characteristics (as the representation of complex
+   numbers, their functions and sets) are thus directly modifiable in
+   a localized way. Also, the set of signatures contributes rich
+   information and offers a global vision which includes the
+   description of the links beteen the different component
+   modules. Finally, the program is itself reusable since it is
+   essentially a specific form of a datatype associated with
+   sets. Obviously, it is more complicated and probably slower than
+   realization using different notions and direct melees.
+   </p>
+   <p>
+   In this respect, if the argument for program speed seems often
+   decisive for renouncing the quality of a modular structure,
+   accelerating a program can often be achieved by other means. The
+   indirect effects due to partitioning induce in effect a latency
+   which is in general very marginal compared to the principal
+   calculation. On the other hand, the partitionings may be poorly
+   position or dependant on poor functionalities. For example, a type
+   associated with images will need not limit access to their
+   individual points, but instea provide accessors to their lines,
+   their columns and sub-images. This type may also benefit from
+   iterators or generalized functions of composition which will
+   naturally limit the need for external access. The quality of a
+   partition is sometimes in question and not the intrinsic notion of
+   partitioning.
+   </p>
+   <p>
+   In the same suit, we will clarify some technical points about
+   masking and its integration into OCaml programs.
    </p>
 
    <!-- ******************************************************* -->
@@ -3657,7 +4068,7 @@
    functors. Finally, we introduce a graphical representation for
    functors and examples illustrating usage.
    </p>
-
+    
    <h4>Functors</h4>
 
    <h5>The idea of "functions of modules"</h5>
