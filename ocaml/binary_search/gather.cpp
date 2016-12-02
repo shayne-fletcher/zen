@@ -9,8 +9,10 @@
 //`partition (p, begin, end, xs, ys)` computes a partitioning of the
 //sequence `[begin, end)` using the predicate `p`. Those elements that
 //satisfy `P` are written to `xs`, those that don't, `ys`
-template <class P, class S, class D1, class D2>
-std::tuple<D1, D2> partition (P p, S begin, S end, D1 xs, D2 ys) {
+template <class P, class S, class D>
+auto partition (P p, S begin, S end, D xs, D ys) ->
+  decltype (std::make_tuple (std::declval<D> (), std::declval<D>()))
+{
   if (begin == end)
     return std::make_tuple (xs, ys);
   auto const& h = *begin++;
