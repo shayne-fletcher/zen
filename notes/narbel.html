@@ -3946,7 +3946,7 @@
    </pre>
    </p>
 
-   <h4>Masking of the types in question</h4>
+   <h4>Masking of types in question</h4>
 
    <h5>The choice to mask</h5>
    <p>
@@ -3977,7 +3977,6 @@
    Masking is also part of a good general programming practice:
    <br/>
    <br/>
-
    <b>Masking and programming :</b> A program with rigorous masking
    requires a global and fine use of signatures. It is the reflection
    of a precise work of analysis of the partitions between components,
@@ -4036,6 +4035,292 @@
    <p>
    In the same suit, we will clarify some technical points about
    masking and its integration into OCaml programs.
+   </p>
+
+   <h5>Module records</h5>
+
+   <p>
+   Masking seems to be inhibiting when applied to short
+   modules. Reconsider the example of the specification of ordered
+   sets with masking:
+   <pre class="prettyprint ml">
+   module type ORDER_MASK = sig
+     type t
+     type extern_t
+     val make : extern_t -> t
+     val show : t -> extern_t
+     val less_or_equal : t -> t -> bool
+   end;;
+   </pre>
+   This signature is rather intimidating when compared against another
+   that does not prepare for masking:
+   <pre class="prettyprint ml">
+   module type ORDER = sig
+     type t
+     val less_or_equal : t -> t -> bool
+   end;;
+   </pre>
+   However, a module which satisfies this signature necessarily
+   implies that it's type <code>t</code> be public : no way is
+   possible to manage the proceedings if it is masked. The form of the
+   signature can therefore be considered as a construction of types
+   that lies between the specification of abstract types and the
+   definition of types of records. In fact, it contains elements with
+   distinct names, does not impose or authorize masking and its
+   instances are adapated to the modular framework. We will call these
+   instances of <i>module records</i>.
+   </p>
+   <p>
+   These constructions obviously have simplifying virtues, they allow
+   us to express a datatype without worrying about its
+   abstraction. For example, in the framework of modules where only
+   basic types and predefined functions are used, masking may be
+   superfluous and "module records" well adapted. They consist only of
+   a modular formatting of elements defined at the global level. Here
+   for example, an instance of the signature <code>ORDER</code>:
+   <pre class="prettyprint ml">
+   module Int_ordered = struct
+     type t = int
+     let less_or_equal = ( <= )
+   end
+   </pre>
+   Apart from the general disadvantages of non-masking, here are more
+   specific counterparts of such a type construction:
+   <ul>
+   <li><i>Difficulties when explicitly typing</i> A signature
+   like <code>ORDER</code> which is not predisposed to masking may not
+   be used for explicit typing with type constraints. We will see on
+   the other hand that certain types cannot appear in a type
+   constraint.</li>
+   <li><i>Of the asssociated implementation</i> The construction
+   and the managament of the coherence of instances of
+   type <code>t</code> must necessarily be setup outside the modules
+   that satisfy <code>ORDER</code>. However if the structure of these
+   instances become complex, these operations can't take place outside
+   the module, under penalty of being considered private functions if
+   a typing by <code>ORDER</code> intervenes.
+   </li>
+   </ul>
+   For example, here is an implementation of the
+   signature <code>ORDER</code> for sets of characters where the order
+   relation is inclusion (that is to say, $A \le B$ if $A \subseteq
+   B$) implemented with the aid of a hash table:
+   <pre class="prettyprint ml">
+   module Char_set_ordered = struct
+     type t = Set of (char, unit) Hashtbl.t
+
+     let less_or_equal (Set h1) (Set h2) =
+       let flag = ref true in
+       (
+          try
+            Hashtbl.iter ( fun x y ->
+                             if not (Hashtbl.mem h2 x) then
+                               raise Not_found ) h1
+          with
+           | Not_found -> flag := false; );
+       !flag
+   end;;
+   </pre>
+   The only way to exploit this implementation consists of
+   constructing sets outside of the module as predefined hash tables
+   taking into account their specific storage contract (only the keys
+   represent the elements). The non-masking of the implementation here
+   is seriously defaulted.
+   </p>
+   <p>
+   That said, we will show how such an approximate partioning tactic
+   sometimes leads to minimal consequences, and even, on rare
+   occasions justfied use of "module-recordings".
+   </p>
+
+   <h5>Masking <i>a posteriori</i></h5>
+   <p>
+   Approximate masking is not irreversible. It is possible to apply
+   techniques we already know.
+   <br/>
+   <br/>
+   <b>Masking <i>a posteriori</i> by inclusion:</b> A module may be by
+   inclusion to integrate type abstractions, constructors and
+   accessors. A data-type can thus become abstract <i>a
+   posteriori</i>.
+   <br/>
+   <br/>
+   If we resume the example of the preceding section, we can first
+   obtain a signature derived from <code>ORDER</code> which prepares
+   for masking the representation of values.
+   <pre class="prettyprint ml">
+   module type ORDER_MASK = sig
+     include ORDER
+     type extern_t
+     val make : extern_t -> t
+     val show : t -> extern_t
+   end;;
+
+   module Char_set_ordered_mask : ORDER_MASK
+     with type extern_t = char list =
+   struct
+     include Char_set_ordered
+
+     type extern_t = char list
+
+     let make s =
+       let h = Hashtbl.create (List.length s) in
+       List.iter (fun x -> Hashtbl.add h x ()) s;;
+       Set h
+
+     let show (Set h) =
+       let l = ref [] in
+       Hashtbl.iter (fun x y -> l := x :: !l) h;
+       !l
+   end;;
+   </pre>
+   Not only is the representation of values masked, but usage is made
+   easier as the user does not have to manage hash tables:
+   <pre class="prettyprint ml">
+   # let s1 = Char_set_ordered_mask.make ['a']
+     let s2 = Char_set_ordered_mask.make ['a'; 'c'];;
+   val s1 : Char_set_ordered_mask.t = &lt;abstr&gt;
+   val s2 : Char_set_ordered_mask.t = &lt;abstr&gt;
+
+   # Char_set_ordered_mask.less_or_equal s1 s2;;
+   - : bool = true
+   </pre>
+   In conformance with what has already been noted, the extended
+   signature is compatible with the intial version : the module
+   satisfies not only <code>ORDER_MASK</code> but
+   also <code>ORDER</code>.
+   </p>
+
+   <h5>Masking and module associations</h5>
+   <p>
+   We must now speak of a case where masking does not necessarily need
+   to be imposed: that of certain specifications of module
+   associations between data-types. In fact, in such a relationship,
+   it sometimes happens that a data type does not create or access
+   instances of the type it uses. For example, reconsider the
+   specification of the type of functions of complex numbers:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig 
+     type complex
+     type extern_complex
+     val make : extern_complex -> complex
+     val show : complex -> extern_complex
+     ...
+   end;;
+
+   module type COMPLEX_FUN = sig
+     module C : COMPLEX
+     type fun_t
+     ...
+   end;;
+   </pre>
+   In its simplicity, the signature <code>COMPLEX_FUN</code> does not
+   describe <i>a priori</i> any function likely to create or
+   manipulate only complex numbers. Also, for example, the
+   functions <code>make</code> and <code>show</code> were not utilized
+   in the implementations of <code>CFuns</code>
+   and <code>CPolynom</code>. In other words, the implementation
+   of <code>COMPLEX_FUN</code> does not depend on a particular masking
+   convention. The modular association specification could therefore
+   have been simplified by using a signature that does not prepare for
+   masking, that is to say a signature of "module recordings":
+   <pre class="prettyprint ml">
+   module type COMPLEX_NOMASK = sig
+     type complex
+     ...
+   end;;
+
+   module type COMPLEX_FUN = sig
+     module C : COMPLEX_NOMASK
+     type fun_t
+     ...
+   end;;
+   </pre>
+   It will be noted moreover that <code>COMPLEX</code> can be assumed
+   compatible with <code>COMPLEX_NOMASK</code>. As a consequence, an
+   instance of <code>COMPLEX</code> could also be used in the context
+   of this simplification.
+   <br/>
+   <br/>
+   <b>Masking and module associations:</b> Consider the
+   specification <code>S</code> of a modular association
+   between <code>M</code> and a module it
+   imports <code>M_sub</code>. Then, <code>S</code> may not impose
+   masking on <code>M_sub</code> when the instances originating
+   from <code>M_sub</code> are not likey to be created or accessed
+   in <code>M</code>.
+   <br/>
+   <br/>
+   </p>
+   <p>
+   Thus, even in the case which of the requirement of rigorous
+   masking, it may be advantageous to have at our disposal both
+   versions of a specification : that which prepares for rigorous
+   masking and that which does not. We shall see other examples of
+   module association relationships.
+   </p>
+
+   <h5>The limitations of type constraints</h5>
+   <p>
+   <br/>
+   <br/>
+   <b>Limitations of the use of type constraints:</b> Constraints of
+   the form <code>with type</code> may not include inductive types or
+   records.
+   <br/>
+   <br/>
+   For example, the following module header will be sanctioned as an
+   error:
+   <pre class="prettyprint ml">
+   module Complex : COMPLEX 
+     with type extern_complex = C of Num.num * Num.num = 
+   struct
+     ...
+   end;;
+   </pre>
+   An inductive type or a record type may not therefore be made
+   concrete <i>a posteriori</i>, and lend themselves to the
+   individualized masking of abstract types. There exist some
+   possibilities to remedy this siutation:
+   <ul>
+   <li><i>Global types</i>. Inductive and record types may also be
+   defined at the global level. That solution is certainly in conflict
+   with the idea of masking but is sometimes justified in the rare
+   cases where the types are deliberately considered as constants of
+   an implementation. These constants are then often gathered into a
+   particular module that exports all it contains (in a kind of
+   extension of the module <code>Pervasives</code>)
+   </li>
+   <li><i>Semi-global types</i>. Modules can contain modules and their
+   signatures. In other words, for embedding, a module is able to play
+   the role of a "package". Inductive and record types that we want to
+   be able to share among several are then defined outside of these
+   but in one package. We will develop this idea further.
+   </li>
+   <li><i>Polymorphic variants</i>. In contrast to classic inductive
+   types, polymorphic variant types are able to be rendered public by
+   the contstruction <code>with type</code>. For example:
+   <pre class="prettyprint ml">
+   module Complex_num : COMPLEX_MASK
+     with type extern_complex = [`Complex of string * string] =
+   struct
+     type extern_complex = [`Complex of string * string]
+     type complex = C of Num.num * Num.num
+
+     let make (`Complex (str_r, str_i)) =
+       C (Num.num_of_string str_r, Num.num_of_string str_i)
+
+     let show (C (r, i)) =
+       `Complex (Num.string_of_num r, Nu.string_of_num i)
+
+     ...
+   end;;
+   </pre>
+   Since then, the constructor of a polymorphic variant is directly usable:
+   <pre class="prettyprint ml">
+   </pre>
+   </li>
+   </ul>
    </p>
 
    <!-- ******************************************************* -->
