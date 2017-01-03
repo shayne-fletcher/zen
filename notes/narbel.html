@@ -2247,10 +2247,10 @@
    module type COMPLEX_MASK = sig
      type complex
      type extern_complex
-     val make : extern_complex -> complex
-     val show : complex -> extern_complex
-     val add : complex -> complex -> complex
-     val norm : complex -> float
+     val make : extern_complex &rarr; complex
+     val show : complex &rarr; extern_complex
+     val add : complex &rarr; complex &rarr; complex
+     val norm : complex &rarr; float
    end;;
    </pre>
    The definition of the type <code>extern_complex</code> can then be
@@ -2307,13 +2307,13 @@
    <pre class="prettyprint ml">
    # module type S1 = sig
        type t
-       val f : t -> t
+       val f : t &rarr; t
      end;;
 
    # module type S2 = (S1 with type t = int);;
    module type S2 = sig
      type t = int
-     val f : t -> t
+     val f : t &rarr; t
    end
    </pre>
    Thanks to this constraint, the abstract type <code>t</code> is
@@ -2415,8 +2415,8 @@
    <pre class="prettyprint ml">
    module type METRIC_SPACE_2D = sig
      type point
-     val make_point : float * float -> point
-     val dist : point -> point -> float
+     val make_point : float * float &rarr; point
+     val dist : point &rarr; point &rarr; float
    end;;
    </pre>
    The number of dimensions of the space is fixed by the type of the
@@ -2427,8 +2427,8 @@
    module type METRIC_SPACE = sig
      type point
      type extern_point
-     val make_point : extern_point -> point
-     val dist : point -> point -> float
+     val make_point : extern_point &rarr; point
+     val dist : point &rarr; point &rarr; float
    end;;
    </pre>
    And here first of all an instance adapted from one previously
@@ -2515,7 +2515,7 @@
    <pre class="prettyprint ml">
    module type COMPLEX = sig
      type complex
-     val add : complex -> complex -> complex
+     val add : complex &rarr; complex &rarr; complex
      ...
    end;;
 
@@ -2597,10 +2597,10 @@
    <pre class="prettyprint ml">
    module type ARITH = sig
      type nb                       type extern_nb
-     val make : extern_nb -> nb    val show : nb -> extern_nb
+     val make : extern_nb &rarr; nb    val show : nb &rarr; extern_nb
      val zero : nb                 val one : nb
-     val add : nb -> nb -> nb      val sub : nb -> nb -> nb
-     val mul : nb -> nb -> nb      val div :  nb -> nb -> nb
+     val add : nb &rarr; nb &rarr; nb      val sub : nb &rarr; nb &rarr; nb
+     val mul : nb &rarr; nb &rarr; nb      val div :  nb &rarr; nb &rarr; nb
    end;;
    </pre>
    The type of complex numbers can then become an instance of that
@@ -2617,7 +2617,7 @@
    naming permits economic generality while making declarations
    explicit within a signature. For example:
    <pre class="prettyprint ml">
-   val add : complex -> complex -> complex
+   val add : complex &rarr; complex &rarr; complex
    </pre>
    This tactic generates redundancies however since the name of the
    complete type is <code>Complex.complex</code>. On the other hand,
@@ -2633,7 +2633,7 @@
    in the case of complex numbers, the function for addition is
    specified as :
    <pre class="prettyprint ml">
-   val add : t -> t -> t
+   val add : t &rarr; t &rarr; t
    </pre>
    This imprecision can become annoying when number modules interact
    with each other or when representation of values utilizes multiple
@@ -2668,7 +2668,7 @@
    very general manner types for ordered sets:
    <pre class="prettyprint ml">
    module type ORDER_GEN = sig
-     val less_or_equal : 'a -> 'a -> bool
+     val less_or_equal : &alpha; &rarr; &alpha; &rarr; bool
    end;;
    </pre>
    The signature requires production of an implementation
@@ -2681,9 +2681,9 @@
    module type ORDER = sig
      type t
      type extern_t
-     val make : extern_t -> t
-     val show : t -> extern_t
-     val less_or_equal : t -> t -> bool
+     val make : extern_t &rarr; t
+     val show : t &rarr; extern_t
+     val less_or_equal : t &rarr; t &rarr; bool
    end;;
    </pre>
    In this signature, the indicated implementation
@@ -2720,8 +2720,8 @@
 
      let less_or_equal s1 s2 =
        let extract_ascii_value (Str (s, c)) = match !c with
-         | None -> let d = ascii_value s in c := Some d; d
-         | Some d -> d
+         | None &rarr; let d = ascii_value s in c := Some d; d
+         | Some d &rarr; d
        in
        Num.le_num (extract_value s1) (extract_ascii_value s2)
    end;;
@@ -2735,9 +2735,9 @@
    first specification:
    <pre class="prettyprint ml">
    module type PRODUCTION_LINE_GEN = sig
-     type 'a product_line
-     val make : unit -> 'a product_line
-     val read_fst : 'a product_line -> 'a
+     type &alpha; product_line
+     val make : unit &rarr; &alpha; product_line
+     val read_fst : &alpha; product_line &rarr; &alpha;
      ...
    end;;
    </pre>
@@ -2749,10 +2749,10 @@
    line in the form of a stream that generates random binary sequences:
    <pre class="prettyprint ml">
    module Rand_bin = struct
-     type 'a product_line = 'a stm
+     type &alpha; product_line = &alpha; stm
      let rec make () =
        Random.self_init ();
-       stm_build (fun x -> (Random.int 2)) 0
+       stm_build (fun x &rarr; (Random.int 2)) 0
      let read_fst s = stm_hd s
      ...
    end;;
@@ -2761,7 +2761,7 @@
    signature <code>PRODUCTION_LINE_GEN</code> since its constructor is
    obviously not generic being of type:
    <pre class="prettyprint ml">
-   val make : unit -> int stm
+   val make : unit &rarr; int stm
    </pre>
    The type is less general than specified. Nevertheless, as in the
    case of ordered types, we can replace the type variable with an
@@ -2769,9 +2769,9 @@
    <pre class="prettyprint ml">
    module type PRODUCTION_LINE = sig
      type data
-     type 'a product_line
-     val make : unit -> data product_line
-     val read_first : data product_line -> data
+     type &alpha; product_line
+     val make : unit &rarr; data product_line
+     val read_first : data product_line &rarr; data
      ...
    end;;
    </pre>
@@ -2779,9 +2779,9 @@
    <pre class="prettyprint ml">
    module Rand_bin : PRODUCTION_LINE = struct
      type data = int
-     type 'a product_line = 'a stm
+     type &alpha; product_line = &alpha; stm
      let rec make () =
-       Random.self_init (); stm_build (fun x -> (Random.int 2)) 0
+       Random.self_init (); stm_build (fun x &rarr; (Random.int 2)) 0
      let read_fst s = stm_hd s
      ...
    end;
@@ -2796,8 +2796,8 @@
    module type PRODUCTION_LINE' = sig
      type data
      type product_line
-     val make : unit -> product_line
-     val read_fst : product_line -> data
+     val make : unit &rarr; product_line
+     val read_fst : product_line &rarr; data
      ...
    end;;
    </pre>
@@ -2903,7 +2903,7 @@
    module <code>Increm</code> above:
    <pre class="prettyprint ml">
    module type S = sig
-     val f : int -> int
+     val f : int &rarr; int
    end;;
    </pre>
    The definition of the signature for the
@@ -2912,14 +2912,14 @@
    <pre class="prettyprint ml">
    module MORE_THAN_S = sig
      include S
-     val g : int -> int
+     val g : int &rarr; int
    end;;
    </pre>
    This definition is equivalent to the signature:
    <pre class="prettyprint ml">
    module type MORE_THAN_S = sig
-     val f : int -> int
-     val g : int -> int
+     val f : int &rarr; int
+     val g : int &rarr; int
    end;;
    </pre>
    The modules defined previously can be typed against these
@@ -2982,9 +2982,9 @@
    <pre class="prettyprint ml">
    module type COMPLEX = sig
     type complex
-    val make : float * float -> complex
-    val add : complex -> complex -> complex
-    val norm : complex -> float
+    val make : float * float &rarr; complex
+    val add : complex &rarr; complex &rarr; complex
+    val norm : complex &rarr; float
    end;;
    </pre>
    A signature for the module <code>Complex_ext</code> can be directly
@@ -2992,7 +2992,7 @@
    <pre class="prettyprint ml">
    module type COMPLEX_EXT = sig
      include COMPLEX
-     val mul : complex -> complex -> comples
+     val mul : complex &rarr; complex &rarr; comples
    end;;
    </pre>
    Observe that the signature <code>COMPLEX_EXT</code> is compatible
@@ -3021,8 +3021,8 @@
    <pre class="prettyprint ml">
    module type COMPLEX_MASK = sig
      type complex
-     val make : float * float -> complex
-     val show : complex -> float * float
+     val make : float * float &rarr; complex
+     val show : complex &rarr; float * float
      ...
    end;;
    </pre>
@@ -3054,10 +3054,10 @@
    <pre class="prettyprint ml">
    module type ARITH = sig
      type nb                        type nb_extern
-     val make : extern_nb -> nb     val show : nb -> nb_extern
+     val make : extern_nb &rarr; nb     val show : nb &rarr; nb_extern
      val zero : nb                  val one : nb
-     val add : nb -> nb -> nb       val sub : nb -> nb -> nb
-     val mul : nb -> nb -> nb       val div : nb -> nb -> nb
+     val add : nb &rarr; nb &rarr; nb       val sub : nb &rarr; nb &rarr; nb
+     val mul : nb &rarr; nb &rarr; nb       val div : nb &rarr; nb &rarr; nb
    end;;
    </pre>
    Certain modules of the OCaml standard library are not far off being
@@ -3262,12 +3262,12 @@
    here is a signature for the module <code>More_than_increm</code>:
    <pre class="prettyprint ml">
    module type S = sig
-     val f : int -> int
+     val f : int &rarr; int
    end;;
 
    module type MORE_THAN_S = sig
      module Sub : S
-     val g : int -> int
+     val g : int &rarr; int
    end;;
    </pre>
    These declarations of sub-modules in signatures are reminiscent of
@@ -3292,12 +3292,12 @@
    <pre class="prettyprint ml">
    module type S = sig
      type t
-     val f : t -> t
+     val f : t &rarr; t
    end
 
    module type MORE_THAN_S = sig
      module Sub : S
-     val g : Sub.t -> Sub.t
+     val g : Sub.t &rarr; Sub.t
    end
    </pre>
    Here, the links between the instances of <code>S</code> and those
@@ -3323,10 +3323,10 @@
    an example less formal than the preceding:
    <pre class="prettyprint ml">
    module type SET = sig
-     type 'a set
-     val empty : unit -> 'a set
-     val mem : 'a -> 'a set -> bool
-     val add : 'a -> 'a set -> unit
+     type &alpha; set
+     val empty : unit &rarr; &alpha; set
+     val mem : &alpha; &rarr; &alpha; set &rarr; bool
+     val add : &alpha; &rarr; &alpha; set &rarr; unit
      ...
    end;
    </pre>
@@ -3339,10 +3339,10 @@
    <pre class="prettyprint ml">
    module type SET_HASH = sig
      module H : HASH_TABLE
-     type 'a set = 'a H.t
-     val empty : unit -> 'a set
-     val mem : 'a -> 'a set -> bool
-     val add : 'a -> 'a set -> unit
+     type &alpha; set = &alpha; H.t
+     val empty : unit &rarr; &alpha; set
+     val mem : &alpha; &rarr; &alpha; set &rarr; bool
+     val add : &alpha; &rarr; &alpha; set &rarr; unit
      ...
    end;;
    </pre>
@@ -3350,7 +3350,7 @@
    implementation of <code>SET_HASH</code> benefits a priori the
    properties of hash tables. In particular, access to the elements of
    a set will have constant complexity. On the other hand, variations
-   of the instantiation of the type <code>'a set</code>'s masking
+   of the instantiation of the type <code>&alpha; set</code>'s masking
    conventions will be delegated to the sub-modules <code>H</code>.
    </p>
    <p>
@@ -3416,13 +3416,13 @@
    <pre class="prettyprint ml">
    module type SET_HASH = sig
      module H : HASH_TABLE
-     include SET with type 'a set = 'a H.t
+     include SET with type &alpha; set = &alpha; H.t
    end;
    </pre>
    The type constraint here is particular : it deals only with
    abstract types. Indeed, the type constraints of the preceding pages
    always used a term on the right denoting a type duly defined. While
-   being abstract, the type <code>'a H.t</code> is nevertheless part
+   being abstract, the type <code>&alpha; H.t</code> is nevertheless part
    of the environment; it may also therefore contribute to the
    definition of a type.
    <br/>
@@ -3457,7 +3457,7 @@
 
    module type S2 = sig
      module Sub : S1
-     val f : Sub.t -> Sub.t
+     val f : Sub.t &rarr; Sub.t
    end;;
 
    module M1 = struct
@@ -3562,13 +3562,13 @@
    <pre class="prettyprint ml">
    module type S1 = sig
      type t
-     val f : t -> t
+     val f : t &rarr; t
    end;;
 
    module type S2 = sig
      module Sub : S1
      type t = Sub.t
-     val g : t -> t
+     val g : t &rarr; t
    end;;
    </pre>
    Here, the type <code>t</code> of <code>Sub</code> is replaced at
@@ -3597,11 +3597,11 @@
    <pre class="prettyprint ml">
    module type GRAPHIC_ENVIRONMENT = sig
      module T : ASSOC_TABLE
-     type action = int -> int -> unit (*fixed for simplicity*)
+     type action = int &rarr; int &rarr; unit (*fixed for simplicity*)
      type behaviors = (char, action) T.assoc
-     val empty : unit -> behaviors
-     val add : char -> action -> behaviors -> behaviors
-     val interaction_with_mouse : behaviors -> unit
+     val empty : unit &rarr; behaviors
+     val add : char &rarr; action &rarr; behaviors &rarr; behaviors
+     val interaction_with_mouse : behaviors &rarr; unit
    end;;
    </pre>
    The form of the datatype is classic except for the fact that the
@@ -3618,7 +3618,7 @@
    module G_env : GRAPHIC_ENVIRONMENT = struct
      module T = Assoc_rbtree
      module G = Graphics (*an internal renaming*)
-     type action = int -> int -> unit
+     type action = int &rarr; int &rarr; unit
      type behaviors = (char, action) T.assoc
 
      let empty () = T.empty ()
@@ -3634,7 +3634,7 @@
          try
            action_staett := T.assoc l s.key
          with
-           | Not_found -> ()
+           | Not_found &rarr; ()
        done
    end;;
    </pre>
@@ -3644,7 +3644,7 @@
    val g1 : G_env.behaviors = &lt;abstr&gt;
 
    # let g1 = G_env.add 
-             'l' (fun x y ->
+             'l' (fun x y &rarr;
                     if x < 30 && y < 30 then failwith "Exit"
                     else if current_point () = (-1, -1)
                     them moveto x xy else lineto x y)
@@ -3652,7 +3652,7 @@
    val g1 : G_env.behaviors = &lt;abstr&gt;
 
    # let interaction_loop_1 () = G_env.interaction_with_mouse g1;;
-   val interaction_loop_1 : unit -> unit
+   val interaction_loop_1 : unit &rarr; unit
    </pre>
    The relation between the graphics environments and association
    tables here illustrates a particular point: the management of the
@@ -3701,12 +3701,12 @@
    module type COMPLEX = sig
      type complex
      type extern_complex
-     val make : extern_complex -> complex
-     val show : complex -> extern_complex
+     val make : extern_complex &rarr; complex
+     val show : complex &rarr; extern_complex
      val zero : complex  val one : complex
-     val add : complex -> complex -> complex
-     val mul : complex -> complex -> complex
-     val norm : complex -> float
+     val add : complex &rarr; complex &rarr; complex
+     val mul : complex &rarr; complex &rarr; complex
+     val norm : complex &rarr; float
    end;;
    </pre>
    Here, a specialization which succinctly describes a type associate
@@ -3716,10 +3716,10 @@
      module C : COMPLEX
      type fun_t
      type extern_fun_t
-     val make : extern_fun_t -> fun_t
-     val apply : fun_t -> C.complex -> C.complex
-     val apply : fun_t -> C.Complex -> C.complex
-     val iterate : fun_t -> int -> C.complex -> C.complex
+     val make : extern_fun_t &rarr; fun_t
+     val apply : fun_t &rarr; C.complex &rarr; C.complex
+     val apply : fun_t &rarr; C.Complex &rarr; C.complex
+     val iterate : fun_t &rarr; int &rarr; C.complex &rarr; C.complex
    end;;
    </pre>
    Apart from nesting an implementation of <code>COMPLEX</code>, the
@@ -3746,12 +3746,12 @@
    end;;
 
    module CFuns : COMPLEX_FUN
-     with type extern_fun_t = Complex_F1.complex -> Complex_F1.complex
+     with type extern_fun_t = Complex_F1.complex &rarr; Complex_F1.complex
      with module C = Complex_F1 =
    struct
      module C = Complex_F1
-     type fun_t = Fun of (C.complex -> C.complex)
-     type extern_fun_t = Complex_F1.complex -> Complex_F1.complex
+     type fun_t = Fun of (C.complex &rarr; C.complex)
+     type extern_fun_t = Complex_F1.complex &rarr; Complex_F1.complex
 
      let make f = Fun f
      let apply (Fun f) z = fz
@@ -3765,7 +3765,7 @@
    # let z1 = Complex_F1.make (2., 0.);;
    val z1 : Complex_F1.complex = &lt;abstr&gt;
 
-   # let sqr = CFuns.make (fun z -> Complex_F1.mul z z);;
+   # let sqr = CFuns.make (fun z &rarr; Complex_F1.mul z z);;
    val z2 : CFuns.fun_t = &lt;abstr&gt;
 
    # Complex_F1.show (CFuns.apply sqr z1);;
@@ -3808,7 +3808,7 @@
      with module C = Complex_F1 =
    struct
      module C = Complex_F1
-     type fun_t = Fun of (C.complex -> C.complex)
+     type fun_t = Fun of (C.complex &rarr; C.complex)
      type extern_fun_t = (C.complex * int) list
 
      let apply (Fun f) z = f z
@@ -3817,11 +3817,11 @@
        if n < 1 then z else iterator (Fun f) (n - 1) (f z)
 
      let power z0 n =
-       iterate (Fun (fun z -> C.mul z z0)) n C.one
+       iterate (Fun (fun z &rarr; C.mul z z0)) n C.one
 
      let make coeflist =
-       Fun (fun z -> (List.fold_right
-                       (fun (x, y) -> C.add v (C.mul x (power z y)))
+       Fun (fun z &rarr; (List.fold_right
+                       (fun (x, y) &rarr; C.add v (C.mul x (power z y)))
                        coeflist C.zero))
    end;;
    </pre>
@@ -3861,11 +3861,11 @@
      type complex_fun = CF.fun_t
      type set_elements
      type apple_man = set_elements S.set
-     val make : f_c : (complex -> complex_fun) ->
-                      diverg_ball : float ->
-                      max_iter : int -> int
-                      size : int ->
-                      start : float ->
+     val make : f_c : (complex &rarr; complex_fun) &rarr;
+                      diverg_ball : float &rarr;
+                      max_iter : int &rarr; int
+                      size : int &rarr;
+                      start : float &rarr;
                       apple_man
    end;;
    </pre>
@@ -3938,7 +3938,7 @@
    domain <code>[-1.5, 1.5]</code>$\times$<code>[-1.5, 1.5]</code>:
    <pre class="prettyprint ml">
    # let bonze = 
-       A.make ~f_c:(fun c -> CPolynom.make [(Complex_F1.one, 4);
+       A.make ~f_c:(fun c &rarr; CPolynom.make [(Complex_F1.one, 4);
                                             (Complex_F1.one, 2);
                                             (c, 0)])
               ~diverg_ball:100.00 ~max_iter:10 ~size:300 ~start:1.5;;
@@ -4047,9 +4047,9 @@
    module type ORDER_MASK = sig
      type t
      type extern_t
-     val make : extern_t -> t
-     val show : t -> extern_t
-     val less_or_equal : t -> t -> bool
+     val make : extern_t &rarr; t
+     val show : t &rarr; extern_t
+     val less_or_equal : t &rarr; t &rarr; bool
    end;;
    </pre>
    This signature is rather intimidating when compared against another
@@ -4057,7 +4057,7 @@
    <pre class="prettyprint ml">
    module type ORDER = sig
      type t
-     val less_or_equal : t -> t -> bool
+     val less_or_equal : t &rarr; t &rarr; bool
    end;;
    </pre>
    However, a module which satisfies this signature necessarily
@@ -4113,11 +4113,11 @@
        let flag = ref true in
        (
           try
-            Hashtbl.iter ( fun x y ->
+            Hashtbl.iter ( fun x y &rarr;
                              if not (Hashtbl.mem h2 x) then
                                raise Not_found ) h1
           with
-           | Not_found -> flag := false; );
+           | Not_found &rarr; flag := false; );
        !flag
    end;;
    </pre>
@@ -4152,8 +4152,8 @@
    module type ORDER_MASK = sig
      include ORDER
      type extern_t
-     val make : extern_t -> t
-     val show : t -> extern_t
+     val make : extern_t &rarr; t
+     val show : t &rarr; extern_t
    end;;
 
    module Char_set_ordered_mask : ORDER_MASK
@@ -4165,12 +4165,12 @@
 
      let make s =
        let h = Hashtbl.create (List.length s) in
-       List.iter (fun x -> Hashtbl.add h x ()) s;;
+       List.iter (fun x &rarr; Hashtbl.add h x ()) s;;
        Set h
 
      let show (Set h) =
        let l = ref [] in
-       Hashtbl.iter (fun x y -> l := x :: !l) h;
+       Hashtbl.iter (fun x y &rarr; l := x :: !l) h;
        !l
    end;;
    </pre>
@@ -4203,8 +4203,8 @@
    module type COMPLEX = sig 
      type complex
      type extern_complex
-     val make : extern_complex -> complex
-     val show : complex -> extern_complex
+     val make : extern_complex &rarr; complex
+     val show : complex &rarr; extern_complex
      ...
    end;;
 
@@ -4318,10 +4318,340 @@
    </pre>
    Since then, the constructor of a polymorphic variant is directly usable:
    <pre class="prettyprint ml">
+   # let z1 = Complex_num.make  (`Complex ("3424543643232147643", "2432014/4291"));;
+   - : Complex_num.complex = &lt;abstr&gt;
+
+   # Complex_num.show z1;;
+   - : Complex_num.extern_complex =
+                                 `Complex ("3424543643232147643", "2432014/4291")
    </pre>
+   Let us recall however that the typing abilities with this type
+   variety will be less then with classical inductive types.
    </li>
    </ul>
    </p>
+
+   <h5>The extension of the representation of values</h5>
+   <p>
+   We have previously seen how extension of the processing of a
+   data-type was made relatively easy by the use of module
+   inclusions. Consider now extensions of the representation of values
+   of a data-type. In fact, in the case of abstract data types, the
+   problem is simply in contradiction to masking : the representation
+   of data is private by definition, it cannot <i>a priori</i> be
+   extended. Consider however the particular situation in which each
+   element of the representation of values posseses it's own
+   constructor and accessor. In this case, techniques for extending
+   the types of records and inductive types are applicable. For
+   example, suppose that we have at our disposal a
+   module <code>M</code> of a signature <code>S</code> which contains
+   a type <code>t</code> which we wish to extend. Here is a general
+   module possible for its extension:
+   <pre class="prettyprint ml">
+   module type S_ext = sig
+     include S
+     ... (*declarations of new operations*)
+   end;;
+
+   module M_ext : S_ext = sig
+     module M_old S = M
+     type t = ... (*definition extending [t]*)
+     ... (*implementation of operations adapted for [t]*)
+     ... (*implementation of new operations*)
+   end;;
+   </pre>
+   Note here the implementation shows a module embedding even though
+   the signature utilizes an inclusion. In fact, remember that types
+   can not be multiply defined in the same module, it is necessary to
+   prevent it : the type <code>t</code> of <code>M_ext</code> will be
+   defined by explicit adaptions of the
+   sub-module <code>M_old</code>. Furthermore, the functions inherited
+   from <code>M</code> will also have to be explicitly adapted to the
+   extented <code>t</code>. Here is a concrete illustration of this
+   model: 
+   <pre class="prettyprint ml">
+   module type VALUE = sig
+     type value
+     val make_int : int &rarr; value
+     val make_float : float &rarr; value
+     val int_of_value : value &rarr; int
+     ...
+   end;;
+
+   module Value : VALUE = struct
+     type value = Int of int | Float of float
+     let make_int i = Int i
+     let make_float f = Float f
+
+     let int_of_value v = match v with
+       | Int i &rarr; i
+       | Float f &rarr; int_of_float f
+     ...
+   end;;
+   </pre>
+   Now, here is an extension for the representation of rational
+   fractions:
+   <pre class="prettyprint ml">
+   module type VALUE_EXT = sig
+     include VALUE
+     val make_ratio : int &rarr; int &rarr; value
+   end;;
+
+   module Value_ext : VALUE_EXT = sig
+     module Val = Value
+     type value = V of Val.value | Ratio of int * int
+     let make_int i = V (Val.make_int i)
+     let make_float f = V (Val.make_float f)
+     let make_ratio a b = Ratio (a, b)
+
+     let int_of_value v = match v with
+       | V v &rarr; Val.int_of_value v
+       | Ratio (a, b) &rarr; a / b
+     ...
+   end;;
+
+   # let v1 = Val_ext.make_int 4;;
+   val v1 : Value_ext.value = &lt;abstr&gt;
+
+   # let v2 = Val_ext.int_of_value v1;;
+   - : int = 4
+
+   # let v2 = Value_ext.make_ratio 11 2;;
+   val v2 : Value_ext.value = &lt;abstr&gt;
+
+   # Value_ext.int_of_value v2;;
+   - : int = 5
+   </pre>
+   It is therefore possible sometimes to benefit from code resuse when
+   extending a representation of values that are masked. In the case
+   of incudtive types as above, the technique correspons to external
+   adaption of an abstract data type whose role is related to
+   emulation - an overload. Note that the use of polymorphic variants
+   may somewhat simplify this extension.
+   </p>
+
+   <h4>Modules in files and separate compilation</h4>
+
+   We have established how modules allow us to structure programs into
+   distinct components. Nevertheless, as these components become
+   numerous, it is neccessary to store them, transmit them and to
+   compile them in an organized way. For this purpose, a classic
+   technique consists of producing the modules and their compilations
+   in the form of external files of the host system. Module components
+   can then be assembled according to the means of this system through
+   tree branches of directories, archives and version management
+   tools. The OCaml language provides two mechanisms which make it
+   possible to utlize external files:
+   <ol>
+   <li>Direct interaction of source files into the top-level by
+   recopying and recompiling them.</li>
+   <li>Separate compilation of source files and their integration
+   either into other compiled files or the top-level.</li>
+   </ol>
+   We now introduce these mechanisms in the following pages.
+
+   <h5>Loading of modules into the top-level</h5>
+   <p>
+   The top-level offers a simple means for importing external files
+   via the command:
+   <pre class="prettyprint ml">
+   #use "&lt;nom.ml&gt;"
+   </pre>
+   where "&lt;nom.ml&gt;" is a character string which designate the
+   complete name of a file in the file-system. All the lines contained
+   in this file are then copied and compiled in the top-level in the
+   order in which they appear. For example, consider the
+   file <code>distance.ml</code> consisting of the following
+   definitions:
+   <pre class="prettyprint ml">
+   module type DISTANCE = sig
+     val dist_to_zero : float &rarr; float &rarr; float
+   end;;
+
+   module Distance : DISTANCE = struct
+     let sqr x = x ** 2.
+     let dist_to_zero x y = sqrt (sqr x +. sqr y)
+   end;;
+   </pre>
+   Given this:
+   <pre class="prettyprint ml">
+   # #use "distance.ml" ;;
+   # Distance.dist_to_zero 1. 2. ;;
+   - : float = 2.23606797749979   
+   </pre>
+   As in the top-level, the order of loading files must be subordinate
+   to the order resulting from the dependencies between the
+   definitions they contain. For example, here is a
+   file <code>geometric_forms.ml</code> which utilize the definitions
+   of <code>distance.ml</code>:
+   <pre class="prettyprint ml">
+   module type GEOMETRIC_FORMS = sig
+     val disk : float -> float -> float -> bool
+   end;;
+
+   module Geometric_forms : GEOMETRIC_FORMS = struct
+     let disk radius x y =
+       Distance.dist_to_zero x y &lt; radius
+   end;;
+   </pre>
+   In the top-level, the loading of <code>distance.ml</code> must
+   therefore precede that of <code>geometric_forms.ml</code>:
+   <pre class="prettyprint.ml">
+   # #use "distance.ml";;
+   # #use "geometric_forms.ml";;
+   
+   # Geometric_forms.disk 1.0 0.7 0.4;;
+   - : bool = true
+   </pre>
+   </p>
+   <p>
+   Note that <code>#use</code> commands can also take place in external
+   files and thus constitute "load files" capable of reflecting the
+   overall structuring of the avialable module components.
+   </p>
+   <p>
+   This mechanism of integrating files directly into the top-level is
+   a simple one which lends itself well to medium sized
+   programs. However, it presents a major disadvantage when the size
+   of the program is important : the files are recompiled each time a
+   <code>#use</code> is evaluated and for each top-level session.
+   </p>
+
+   <h5>Separate compilation of modules</h5>
+   <p>
+   There exists an alternative to the preceding method : the
+   compilation of external files more specifically, the separate
+   compilation of modules. We say, "unit of compilation" for the pair
+   of files formed by the following:
+   <ul>
+
+   <li>An <i>implementation file</i> which is capable of containing
+   everything that can be contained in a module. The name of the file
+   is given the suffix "<code>.ml</code>"
+   </li>
+   <li>An <i>interface file</i> which consists of the declarations
+   associated with the definitions of the implementation file. The
+   name of the file is the sanme as the implementation file but given
+   the extension "<code>.mli</code>"</li>
+   </ul>
+   For example, if the two files are respectively
+   named <code>name.ml</code> and <code>name.mli</code> (the first
+   letter may equally be captilized, e.g. <code>Name.ml</code>
+   and <code>Name.mli</code>), the unit of compilation associated is
+   equivalent to the following module definition:
+   <pre class="prettyprint ml">
+   module Name : sig (*contents of name.mli*) end
+     = struct (*contents of name.ml*) end;;
+   </pre> 
+   Unit of compilation are compilable external to the top-level and
+   also separably. To so so one used the exteranl
+   commands <code>ocamlc</code> or <code>ocamlopt</code>. During this
+   compilation "object files" will be produced - the mark of separate
+   compilation - and will bear the following names:
+   <ul>
+   <li>The result of compiling an implmentation
+   file <code>name.ml</code> will have the name <code>name.cmo</code>
+   (byte-code) or <code>name.cmx</code> (native).</li>
+   <li>The result of compiling an interface file <code>name.mli</code>
+   will invariably have the name <code>name.cmi</code>.</li>
+   </ul>
+   Note that if there is no interface file <code>.mli</code>, it will
+   be automatically generated by type inference. This will correspond
+   to the complete signature of the implementation file which amounts
+   to exporting everything it contains.
+   </p>
+   <p>
+   Here is the example of the preceding section adapted for
+   conformance to the definition of a unit of compilation. Consider
+   the file <code>distance.mli</code> following:
+   <pre class="prettyprint ml">
+   val dist_to_zero : float -> float -> float
+   </pre>
+   The file <code>distance.ml</code> then contains a possible
+   implementation of this implicit signature:
+   <pre class="prettyprint ml">
+   let sqr x = x ** 2.
+   let dist_to_zero x y = sqrt (sqr x +. sqr y)
+   </pre>
+   These two files form a unit of compilation equivalent to the
+   definition of the following module:
+   <pre class="prettyprint ml">
+   module Distance : sig
+     val dist_to_zero : float -> float -> float
+   end = struct
+     let sqr x = x ** 2.
+     let dist_to_zero x y = sqrt (sqr x +. sqr y)
+   end;;
+   </pre>
+   The compilation of the interface file must be carried out before
+   the compilation of the implementation file. For example, in the
+   case of generating byte-code from the files:
+   <pre>
+   $ ocamlc distance.mli
+   $ ocamlc distance.ml
+   </pre>
+   The commands result in the generation of the
+   files <code>distance.cmi</code> and <code>distance.cmo</code>. Note
+   that the <code>ocamlc</code> and <code>ocamlopt</code> commands
+   accept more than one argument : they can be files with extensions
+   "<code>.mli</code>" and "<code>.ml</code>" or files
+   "<code>.cmi</code>", "<code>.cmo</code>" (respectiveley
+   "<code>.cmx</code>") alread compiled. We may therefore write:
+   <pre>
+   $ ocamlc distance.mli distance.ml
+   </pre>
+   </p>
+   <p>
+   Let us now continue the adaption of the example of the preceding in
+   composing the following files:
+   <pre class="prettyprint.ml">
+   (*File : geometric_forms.mli*)
+   val disk : radius:float &rarr; float &rarr; float &rarr; bool
+
+   (*File : geometric_forms.ml*)
+   let disk ~radius x y = Distance.dist_to_zero x y < radius
+   </pre>
+   The compilation of this new unit must integrate information taht
+   makes it possible to establish links with the
+   unit <code>distance</code>. As in the top-level an element used in
+   a unit must have been defined in an earlier unit. The arguments of
+   a compilation command reflect therefore this order. For example,
+   if <code>distance.ml</code> has not already yet been compiled:
+   <pre>
+   $ ocamlc distance.mli distance.ml geometric_forms.mli geometric_forms.ml
+   </pre>
+   But also - and this is one of the interests of separate compilation
+   -, if <code>distance.ml</code> has already been compiled, the
+   object file may be included directly:
+   <pre>
+   $ ocamlc distance.cmo geometric_forms.mli geometric_forms.ml
+   </pre>
+   </p>
+   <p>
+   Another advantage of separate compilation consists of the ability
+   to organize by means of tools external to the lanague (for
+   example <code>make</code>). These tools take into consideration the
+   links between the different units and allow selective
+   recompiliation that depend on what modifications that have been
+   carried out. Further, units of compilation can be grouped into
+   libraries. This compilation can be effected with the option
+   "<code>-a</code>" (the extension of the object file of a library is
+   "<code>.cma</code>"). By default, the name of the library is
+   "<code>library.cma</code>" but by means of the "<code>-o</code>"
+   option, you can choose any name desired. For example,
+   <pre>
+   $ ocamlc -o metrics.cma -a \
+       distance.cmo geometric_forms.mli geometric_forms.ml
+   </pre>
+   This command will create a library "<code>metrics.cma</code>" which
+   assembles the modules <code>Distance</code>
+   and <code>Geometric_form</code>.
+   </p>
+   <p>Thus, compilation units completely remedy the shortcomings of
+   direct loads via the command <code>#use</code>.
+   </p>
+
+   <h5>Precompiled modules and the top-level</h5>
 
    <!-- ******************************************************* -->
 
