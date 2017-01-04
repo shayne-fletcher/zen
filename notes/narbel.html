@@ -4652,6 +4652,307 @@
    </p>
 
    <h5>Precompiled modules and the top-level</h5>
+   <p>
+   Units compiled to byte-code can be integrated into the
+   top-level. The following command will be used for this purpose
+   (instead of <code>#use</code> which only applies to files that have
+   not been compiled):
+   <pre class="prettyprint ml">
+   #load "&lt;name&gt;.cmo"
+   </pre>
+   where "&lt;name&gt;.com" is a string designating the compile name
+   of a file in the file-system. The consequences of this command are
+   similar to <code>#use</code> : if the file <code>name.cmo</code>
+   exists it is loaded intot he top-level in the form of a module
+   named <code>Name</code> (without having to compile it). Consider a
+   new example of the preceding section:
+   <pre class="prettyprint ml">
+   # #load "distance.cmo";;
+   # #load "geometric_forms.cmo";;
+
+   # Geometric_forms.disk 1.0 0.7 0.4;;
+   - : bool = true
+   </pre>
+   It should be noted that this load can be established from the
+   launch of the top-level. Just call <code>ocaml</code> with the
+   corresponding "<code>.cmo</code>" files. For example:
+   <pre>
+   $ ocaml distance.cmo geometric_forms.cmo
+   </pre>
+   There also exists a command <code>ocamlmktop</code> which provides
+   for building a top-level which contains the compiled units
+   automatically.
+   </p>
+   <p>
+   These new possibilities induce a general technique for development:
+   <br/>
+   <br/>
+   <b>Program development by extension of the top-level : </b> Any
+   implemented module can be compiled and definitively integrated into
+   the top-level interaction loop. It becomes more and more
+   specialized, evolving in concert with the program which is being
+   developed.
+   <br/>
+   <br/>
+   This technique offers a new form of "incremental programming" which
+   applies at the modular level and complements the one we have
+   illustrated at the functional level. The evolution of the top-level
+   becomes an integral part of global development.
+   </p>
+   <p>
+   For example, it is easy to provide the set of elements provided by
+   default in the top-level. Consider a
+   file <code>ocaml_plus.ml</code> including the generic constructors
+   of lists which are not part of the module <code>List</code>, and a
+   definition of binary tree type:
+   <pre class="prettyprint ml">
+   let rec list_build f n x =
+     if n &lt;= 0 then []
+     else x :: (list_build f (n - 1) (f x));;
+
+   let list_interv n len =
+     list_build (fun x -> x + 1) len n;;
+
+   type &alpha; bintree =
+     | Bin_empty
+     | Bin_node of &alpha; * &alpha; bintree * &alpha; bintree;;
+   </pre>
+   The following commands generate a top-level which contains these
+   definitions:
+   <pre>
+   $ ocamlc ocaml_plus.ml
+   $ ocaml ocaml_plus.cmo
+   </pre>
+   <pre class="prettyprint ml">
+   # open Ocaml_plus ;;
+
+                  Objective Caml
+
+   # list_build ;;
+   - : (&alpha; &rarr; &alpha;) &rarr; int &rarr; &alpha; &rarr; &alpha; list
+
+   # Bin_empty ;;
+   - : &alpha; Ocaml_plus.bintree = Bin_empty
+   </pre>
+   </p>
+
+   <h5>Precompiled modules and side-effects</h5>
+   <p>
+   We have passed over silently in the course of the preceding
+   discussion that compilation by <code>ocamlc</code>
+   or <code>ocamlopt</code> generates not only object files
+   corresponding to each compilation unit, but also an executable. By
+   default, the name of that executable is <code>a.out</code> and it
+   may be renamed by the option <code>-o</code>. Evidently, its
+   execution can have consequences only by interposed side effect. For
+   example, reconsider the file <code>fact.ml</code> following:
+   <pre class="prettyprint ml">
+   let rec fact n =
+     if n &lt;=1 then 1 else n * fact (n - 1)
+   let () = print_int (fact 3)
+   let () = print_newline ()
+   </pre>
+   Then:
+   <pre>
+   $ ocamlc -o fact fact.ml
+   $ fact
+   6
+   </pre>
+   How do we reconcile this observation with what we have just
+   introduced about separate compilation? First of all, the above file
+   alone constitutes a compilation unit (we are in a case where the
+   interface file <code>fact.mli</code> is automatically
+   generated). That compilation unit then describes a module
+   named <code>Fact</code> which exports all of it's contents. That is
+   to say:
+   <pre class="prettyprint ml">
+   module Fact = struct
+     let rec fact n =
+       if n &lt;=1 then 1 else n * fact (n - 1)
+     let () = print_int (fact 3)
+     let () = print_newline ()
+   end;;
+   </pre>
+   Recall the rules associated with the construction of a module :
+   evaluation of the elements are in the order in which they occur. A
+   module is in fact only a particular space of definitions and
+   nothing prevents the evaluation/execution of expressions. The
+   executable produced by separate compilation of a
+   unit <code>M</code> corresponds to the series of
+   evaluations/executions associated with the construction
+   of <code>M</code>. The <code>fact</code> command above thus
+   effectively summarizes to the calls of the two <code>Fact</code>
+   display programs.
+   </p>
+
+   <h5>The technqiue of parent modules : packages</h5>
+   <p>
+   During the development of a modular program, there are several
+   general techniuqes for using the compilation units. The simplest is
+   the following:
+   <br/>
+   <br/>
+   <b>Modular programming (C language style) :</b> Each module is
+   associated with a unit of compilation of its own. The external file
+   structure is then similar to the structure of modules in the
+   program.
+   <br/>
+   <br/>
+   The application of this technique implies the relationalship
+   between the "<code>.mli</code>" and "<code>.ml</code>" files is
+   very similar to the relationship between header files
+   "<code>.h</code>" and implementation files "<code>.c</code>" in the
+   C programming language. However, this technique demand also
+   renouncing certain important possibilities offered by the module
+   language system:
+   <ul>
+   <li><i>Anonymous signatures.</i> Interface files
+   "<code>.mli</code>" do not name the signatures they describe. These
+   signatures can therefore have no other role than to explicitly type
+   their corresponding implementation file. Thus for example, all
+   techniques related to inclusions and abstract sub-modules become
+   unusable since they depend in part on the names of
+   signatures. Similarly, constraints of the form <code>with
+   type</code> no longer find a place in programes and hence a masking
+   of the abstract types is no longer conceivable. We will see
+   moreover that "functors" also require the use of named signatures.
+   </li>
+   <li><i>Uniqueness of the implmementation.</i> The univocal link
+   between the interface "<code>.mli</code>" and implementation
+   "<code>.ml</code>" files imposes <i>a priori</i> that each
+   signature may have only one implementation in a program. Yet, one
+   of the pecularities of the ML module system is to not only consider
+   signatures as interfaces but also as types that can be instantiated
+   in multiple ways.</li>
+   </ul>
+   That said, the technique of modular programming "C style" is not at
+   all a fatality in OCaml because modules may contain other
+   modules. Consequently, compilation units may themselves contain
+   signatures and modules thus forming packages. For example, consider
+   the implementation file <code>metric_space_unit.ml</code> following:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE = sig
+     type point
+     type extern_point
+     val make_point : extern_point -> point
+     val dist : point -> point -> float
+   end;;
+
+   module Line : METRIC_SPACE
+       with type extern_point = float =
+   struct
+     type point = Point of float
+     type extern_point = float
+     let make_point x = Point x
+     let dist (Point x) (Point y) = abs_float (x -. y)
+   end;;
+   </pre>
+   In the framework of compilation units, the file can be considered
+   equivalent to the following module:
+   <pre class="prettyprint.ml">
+   module Metric_space_unit = struct
+     module type METRIC_SPACE = ...
+     module Line : METRIC_SPACE with type extern_point = float = ...
+   end
+   </pre>
+   A corresponding interface file <code>metric_space_unit.mli</code>
+   could be:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE = sig
+     type point
+     type extern_point
+     val make_point : extern_point -> point
+     val dist : point -> point -> float
+   end;;
+
+   module Line : METRIC_SPACE with type extern_point = float
+   </pre>
+   Then, this compilation unit compiles like the others:
+   <pre>
+   $ ocamlc metric_space_unit.mli metric_space_unit.ml
+   </pre>
+   It's use further shows that masking of type has been applied as
+   expected:
+   <pre class="prettyprint ml">
+   # #load "metric_space_unit.cmo" ;;
+
+   # let p1 = Metric_space_unit.Line.make_point 4.3 ;;
+   val p1 : Metric_space_unit.Line.point = &lt;abstr&gt;
+
+   # Metric_space_unit.Line.dist p1 p1 ;;
+   - : float = 0.
+   </pre>
+   </p>
+   <p>
+   An immediate advantage of this structuring into packages is to
+   restore the possibilities of signatures. For example, in the other
+   unit, we may integrate an implementation of plane which equally
+   satisfies the signature <code>METRIC_SPACE</code> as the
+   module <code>Line</code>. Here indeed is a new implementation
+   file <code>metric_space_plane_unitl.ml</code>:
+   <pre class="prettyprint ml">
+   module M = Metric_space_unit
+
+   module Plane : M.METRIC_SPACE
+     with type extern_point = float * float = struct
+     type point = ...
+     ...
+   end;;
+   </pre>
+   Compilation can be directly obtained:
+   <pre>
+   $ ocamlc metric_space_unit.cmo metric_space_plane_unit.ml
+   </pre>
+   </p>
+   <p>
+   This structuring of packages imples a new supplemental level of
+   embedding and thus some heaviness in the form of names. As above,
+   one can employ aliases in order to alleviate that or even consider
+   the idea of using the <code>open</code> directive. In this
+   framework, openings are less likely to result in inapproriate
+   redefinitions and to weaken the global software architecture.
+   </p>
+   <p>
+   So, in considering compilation units as a base for the idea of
+   packages, it is possible to give an alternative technique for
+   modular programming in the C style. In order to clearly identify
+   the files, one could always suffix the names with
+   "<code>_unit</code>" and their general form would consist of three
+   parts:
+  <br/>
+  <br/>
+  <b>General form of packages:</b> ("<code>.ml</code>" parent
+   modules)
+   <pre>
+   module MI_1 = M1_unit
+   ... (*aliases for imports*)
+   module MI_k = Mk_unit
+   </pre>
+   <pre>
+   module type S1 = ...
+   ... (*signatures*)
+   module type Sm = ...
+   </pre>
+   <pre>
+   module M1 = ...
+   ... (*modules*)
+   module Mn
+   </pre>
+   We will replace here the expressions <code>module MI_i =
+   Mi_uinit</code> with the expressions <code>open Mi_unit</code> in
+   the case where one would be satisfied with simple openings of the
+   packages <code>Mi_unit</code>.
+   <br/>
+   <br/>
+   <b>Modular programming with packages:</b> The nominated modules and
+   signatures are contained in packages that constitute
+   implemementation "<code>.ml</code>" files. The structuring of
+   external files induces then a new supplementary level of
+   description connected to the structure of modules in the program.
+   <br/>
+   <br/>
+
+   </p>
 
    <!-- ******************************************************* -->
 
