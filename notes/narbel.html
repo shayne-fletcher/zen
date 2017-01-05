@@ -5357,8 +5357,176 @@
    since the functor result is explicitly typed.
    </p>
    <p>
+   Evidently, individual masking of abstract types and abstract
+   sub-modules by the constructions <code>with</code> adapt too to the
+   case of the results of functors. One may then apply rigorous
+   masking when programming with functors:
+   <br/>
+   <br/>
+
+   <b>Modular programming with functors and rigorous masking:</b>
+   <ol>
+   <li>Every functor sees its result explicitly typed by a signature.</li>
+   <li>The constructions <code>with type</code> (resp. <code>with
+   module</code>)</li> are applied to the types (resp. sub-modules)
+   aas necessary.
+   </ol>
+   <br/>
+   <br/>
    </p>
 
+   <h5>Shared types and transmission of types</h5>
+   <p>
+   If the explicit typing of the result of a functor can also benefit
+   from type constraints, a new one appears however here : these
+   constraints are able to be established between the types of the
+   parameters of a functor and the types that appear in the body of
+   this same functor. One may recreate the example from the preceding
+   section in the manner following:
+   <pre class="prettyprint ml">
+   module F_explicit (M : S) :
+     S_RESULT with type s = M.t =
+   struct
+     type s = M.t
+     let pair x = (x, M.f x)
+   end;;
+   </pre>
+   The result signature <code>S_RESULT</code> depends here
+   on <code>M</code> which is permissible since it is part of the
+   environment of constraint : the type <code>s</code> is
+   systematically rendered concrete by the relationship to
+   type <code>t</code> of the argument <code>M</code>. Therefore, the
+   application of the functor makes it possible to export a type
+   without having to know <i>a priori</i> the identity:
+   <pre class="prettyprint ml">
+   # module M1 = F_explicit (Increm);;
+   
+   # M1.pair 1;;
+   - : M1.s * M1.s = (1, 2)
+   </pre>
+   Contrary to the example of the preceding section, the type of the
+   result module remains public thanks to the type constraint. The
+   type has been transmitted and made concrete through application of
+   the functor. In fact, functors offer the opportunity to use
+   constraints which are concerned with such "type sharing".
+   </p>
+
+   <h5>Non-module parameters</h5>
+   <p>
+   It is sometimes desirable to parametrize a functor by not only
+   modules but also simple values. OCaml does not directly allow this
+   mixing of genres. It suffices however to encapsulate the value to
+   be transmitted in a module to obtain the desired effect. For
+   example:
+   <pre class="prettyprint ml">
+   # module F (M : sig val x : int end) = struct
+       let v = M.x
+     end;;
+
+   # module M = F (struct let x = 3 end);;
+
+   # M.v;;
+   - : int = 3
+   </pre>
+   Here is a less formal example. Its about matrices on integers of a
+   certain size (without masking and reduced to a simple operation):
+   <pre class="prettyprint ml">
+   module Int_matrix (S : sig val size : int end) = struct
+     type mat = int array array
+     let add m1 m2 =
+       let mat = Array.create_matrix S.size S.size m1.(0).(0) in
+       for i = 0 to (S.size - 1) do
+         for j = 0 to (S.size - 1) do
+           mat.(i).(j) <- m1.(i).(j) + m2.(i).(j)
+         done
+       done;
+       mat
+   end;;
+   </pre>
+   For example:
+   <pre class="prettyprint ml">
+   # module Int_matrix_3x3 = Int_matrix (struct let size = 3 end);;
+
+   # let m = [|[|1; 1; 1|]; [|1; 0; 1|]; [|1; 1; 1|]|];;
+
+   # Int_matrix_3x3.add m m;;
+   - : int array array = [|[|2; 2; 2|]; [|2; 0; 2|]; [|2; 2; 2|]|]
+   </pre>
+   By means of a functor, we remedy here the fact of not being able to
+   define "dependant types". In fact, it is not possible in OCaml to
+   give a type parameter on values such that:
+   <pre class="prettyprint ml">
+   # type (n : int, 'a) matrix = ...
+   </pre>
+   or <code>n</code> would be instantiated by an integer.
+   </p>
+
+   <h5>Functors : a generic modular programming type</h5>
+   <p>
+   Functors constitute in ML, the principal tools of generic modular
+   programming, that is to say, the expression of abstractions over
+   modules. It is necessary to remark however that modular
+   generiticity is not a possibility exclusive to the ML languages and
+   that it does not necessarily take this form:
+   <ul>
+   <li>C++ offers "parameteric classes" or "class templates". The
+   parameters of these constructions are not however types but simply
+   instansiable by a rewriting mechanism proceeding compilation. The
+   parametrized components therefore are not completely compilable
+   without being instantiated and type control can only be established
+   when they are actually used. On the other hand, for reasons of
+   optimization, each instantiation generates independent code
+   distinct from the others.</li>
+   <li>The languages Eiffel and Java 1.5 offer generic constructions
+   with standard parameters : their instantiations must then satisfy a
+   class type or an interface. One speaks here of "generiticity
+   constraints". However, these type constraints do not allow a fine
+   analysis of typing in all situations : in these languages, the
+   instantiation of the parameters is often dependent on the inclusion
+   polymorphism which benefits the objects.
+   </li>
+   <li>In Ada, generiticity over modules may equally be constrained
+   and is strictly typed. That generiticity is however somewhat
+   obstructed by cumbersome writing and use.
+   </li>
+   </ul>
+   This rapid inventory leads us to hightlight the advantages of
+   modular generiticity of the ML languages:
+   <br/>
+   <br/>
+   <b>The specification of generic modular programming in ML : </b>
+   Functors are autonomous components, individually compilable, easy
+   to use, strictly typed and generiticity constrained. As modular
+   components they are integrally integrated into the type system.
+   <br/>
+   <br/>
+   Let us develop the last point of this box. We saw earlier that the
+   relationship between signature/module is similar to the relationsip
+   of type/value.
+   \[
+     \begin{eqnarray}
+      value    &\leftrightarrow&   module \nonumber \\
+      type     &\leftrightarrow&   signature \nonumber \\
+      function &\leftrightarrow&   functor \nonumber
+     \end{eqnarray}
+   \]
+   Modules are defined and indeed typed like other values in the
+   language, and signatures may have multiple instantiations. Fron now
+   on, we also know that functors allow to pass modules as arguments
+   and return modules as results. We shall see later that they have
+   their own signatures and they accept other functors as
+   arguments. Thus very clearly, functors extend the parallel between
+   the world of typical values and the world of modules. Generic
+   modular programming is similar to a language with typical functions
+   which favors a functional style. We will return to these general
+   questions when functors have been presented in more detail.
+   </p>
+
+   <h4>Techniques for using functors</h4>
+   <p>
+   </p>
+
+   
    <hr/>
    <p>
      References:<br/>
