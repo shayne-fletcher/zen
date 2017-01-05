@@ -4951,7 +4951,60 @@
    description connected to the structure of modules in the program.
    <br/>
    <br/>
+   Implementation masking becomes once again fully controlable and the
+   techniques of inclusion of modules and abstract sub-modules are
+   again available. It should also be noted that one of the
+   consequences of this structuring is to make the need for specific
+   interface "<code>.mli</code>" files rather rare (remember these
+   files are generated automatically if they are not provided). It is
+   not very common to hide signatures and modules. Interface files can
+   be useful when defining "locally global" elements taht are only
+   shared by the components of the same package.
+   </p>
+   <p>
+   It should be noted that in the case of explicit interface files,
+   the above technique induces duplication of signatures between the
+   "<code>.ml</code>" and "<code>.mli</code>" files. On the other
+   hand, the notion of interface files is equally related to the
+   possibility of describing and transmitting a programe without
+   implementation. Package structuring can then be refined :
+   <br/>
+   <br/>
+   <b>Modular programming with packages (precision) : </b> Packages
+   can be separated into two species : those that contain only
+   signatures and those that contain only modules. We thus obtain
+   packages of specification and packages of implementation.
+   <br/>
+   <br/>
 
+   Adapting the preceding example gives a new form of
+   organisation. Firstly, here is the file that contains the
+   signature (<code>metric_space_spec.ml</code>):
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE = sig
+     type point
+     ...
+   end;;
+   </pre>
+   Next, the implementation is provided in another file
+   (<code>metric_space_impl.ml</code>):
+   <pre class="prettyprint ml">
+   module S = Metric_space_spec
+
+   module Line : S.METRIC_SPACE
+     with type extern_point = float =
+   struct
+     ...
+   end;;
+   </pre>
+   Compilation of the ensemble is then obtained with the command:
+   <pre>
+   $ ocamlc metric_space_spec.ml metric_space_impl.ml
+   </pre>
+   In order to distinguish between them, specification packages and
+   implementation packages can systematically employ suffixes as in
+   the example, that is, respectively "<code>_spec.ml</code>" and
+   "<code>_impl.ml</code>".
    </p>
 
    <!-- ******************************************************* -->
@@ -5015,7 +5068,7 @@
    This extension is however specific to the
    module <code>Complex</code>. Yet it turns out it is structurally
    independent of the details of the implementation of the module :
-   nothin in the body of the new function <code>mul</code> alludes to
+   nothing in the body of the new function <code>mul</code> alludes to
    anything particularly specific to <code>Complex</code>. Consider
    the effect on a different implementation of <code>COMPLEX</code>,
    for example, <code>Complex_memo</code>. The extension follows:
@@ -5030,7 +5083,7 @@
    The substitution principle applies here, but is embodied by an
    explicit operation on the code : <code>Complex</code> is replaced
    by hand by the module <code>Complex_memo</code>. This situation is
-   similarly in fact to not knowing the concept of function but only
+   similarl in fact to not knowing the concept of function but only
    that of constants!
    </p>
    <p>
