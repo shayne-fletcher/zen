@@ -5456,7 +5456,7 @@
    define "dependant types". In fact, it is not possible in OCaml to
    give a type parameter on values such that:
    <pre class="prettyprint ml">
-   # type (n : int, 'a) matrix = ...
+   # type (n : int, &alpha;) matrix = ...
    </pre>
    or <code>n</code> would be instantiated by an integer.
    </p>
@@ -5524,9 +5524,303 @@
 
    <h4>Techniques for using functors</h4>
    <p>
+   Use of functors is expressed in terms of natural and recurring
+   forms. It is also possible to extract "conceptual models". We
+   present here some of them which consist for the most part in
+   generalizations of modular programming techniques of which we have
+   already spoken:
+   <ul>
+   <li>Generic inheritance</li>
+   <li>Generic adaption</li>
+   <li>Generic decoration</li>
+   <li>Generic composition</li>
+   <li>Types of generic data</li>
+   </ul>
+   We will also develop the model of "control of generiticity".
    </p>
 
-   
+   <h5>Generic module inheritance</h5>
+   <p>Functors permit inclusion of modules to be generic and with
+   them, the techniques wich which are associated. We had for example
+   earlier pointed out that inclusion is like inheritance.
+   <br/>
+   <br/>
+   <b>Definition : </b> Generic module inheritance is inheritance
+   expressed by inclusion of modules and generalized to functors.
+   <br/>
+   <br/>
+
+   The extension of the type of complex numbers earlier illustrated an
+   example of generic inheritance. First of all, recall a signature
+   for simple sequential data:
+   <pre class="prettyprint ml">
+   module type LINEAR_CONTAINER = sig
+     type &alpha; t
+     val empty : unit &rarr; &alpha; t
+     val add : &alpha; &rarr; &alpha; t &rarr; &alpha; t
+     val mem : &alpha; &rarr; &alpha; t &rarr; bool
+     val length : &alpha; t &rarr; int
+     val nth : &alpha; t &rarr; int &rarr; &alpha;
+   end;;
+   </pre>
+   Suppose we wished to add functions that return the first and last
+   element of a container. The resulting signature would then be
+   defined by inheritance of <code>LINEAR_CONTAINER</code>:
+   <pre class="prettyprint ml">
+   module type LINEAR_CONTAINER_EXT = sig
+     include LINEAR_CONTAINER
+     val first : &alpha; t &rarr; &alpha;
+     val last : &alpha; t &rarr; &alpha;
+   end;;
+   </pre>
+   So, the operation of extending an instance
+   of <code>LINEAR_CONTAINER</code> can be summed up by a functor:
+   <pre class="prettyprint ml">
+   module Lin_ext (L : LINEAR_CONTAINER) : LINEAR_CONTAINER_EXT = struct
+     include L
+     let first l = L.nth l 0
+     let last l = L.nth l ((L.length l) - 1)
+   end;;
+   </pre>
+   One notes here a property which echoes the case of modules :
+   functors do not have privileged access to their arguments. They
+   must therefore use the avaialable constructors and accessors. Here
+   are two implementations of <code>LINEAR_CONTAINER</code>, one based
+   on lists, the other on arrays:
+   <pre class="prettyprint ml">
+   module Simple_list : LINEAR_CONTAINER = struct
+     type 'a t = 'a list
+     let empty () -> []
+     let add x l = x :: l
+     let mem = List.mem
+     let length = List.length
+     let nth = List.nth
+   end;;
+
+   module Simple_array  : LINEAR_CONTAINER = struct
+     type 'a t = 'a array
+     let empty () = [||]
+     let add x l =
+       let a = Array.make l x in Array.append a l
+     let mem x l = List.mem x (Array.to_list l)
+     let length = Array.length
+     let nth l x = l.(x)
+   end;;
+   </pre>
+   By application of only the one functor <code>Lin_ext</code> is is
+   then possible to obtain two distinct implementations that
+   satisfy <code>LINEAR_CONTAINER_EXT</code>:
+   <pre class="prettyprint ml">
+   # module L_ext = Lin_ext (Simple_list);;
+   # module A_ext = Lin_ext (Simple_array);;
+   </pre>
+   The extension of an instance <code>M</code>
+   of <code>LINEAR_CONTAINER</code> does not therefore depend on the
+   implementation of <code>M</code>. The extension is the result of
+   application of the functor <code>Lin_ext</code>.
+   <br/>
+   <br/>
+   <b>Specificity of the link defined by generic modular inheritance
+   :</b> The link between two modules is not established by their two
+   signatures, but between a signature and a functor. Application of
+   an "inheritance functor" solely realizes the particular
+   implementation inheritance between the two modules.
+   <br/>
+   <br/>
+   </p>
+
+   <h5>Generic modular adaption</h5>
+   <p>
+   One of the common forms of inheritance is that of adaption of
+   modules by inclusion. This form or reutilisation may equally be
+   rendered generic:
+   <br/>
+   <br/>
+   <b>Definition : </b> Generic module adaption is a form of
+   inheritance in which it is not necessary to extend or specialize.
+   <br/>
+   <br/>
+   For example, let us discuss a datatype for "structured arithmetic"
+   which needs to be adapted from the point of view of the naming of
+   its elements and masking conventions. We can generalise this
+   example to generic adaption. Recall first of all, the signature we
+   had been using:
+   <pre class="prettyprint ml">
+   module type ARITH = sig
+     type nb                            
+     type extern_nb
+     val make : extern_nb &rarr; nb
+     val show : nb &rarr; extern_nb
+     val zero : nb
+     val one : nb
+     val add : nb &rarr; nb &rarr; nb
+     val sub : nb &rarr; nb &rarr; nb
+     val mul : nb &rarr; nb &rarr; nb
+     val div : nb &rarr; nb &rarr; nb
+   end;;
+   </pre>
+   This is very similar to a signature that could be used for the
+   datatypes <code>Int32</code> and <code>Int64</code> of the OCaml
+   standard library. For example:
+   <pre class="prettyprint ml">
+   module type ARITH_STRING = sig
+     type t
+     val of_string : string &rarr; t
+     val to_string : t &rarr; string
+     val zero : t
+     val one : t
+     val add : t &rarr; t &rarr; t
+     val sub : t &rarr; t &rarr; t
+     val mul : t &rarr; t &rarr; t
+     val div : t &rarr; t &rarr; t
+   end;;
+   </pre>
+   An "adaption functor" from one to the other can therefore be:
+   <pre class="prettyprint ml">
+   module Arith_adapater (A : ARITH_STRING) : ARITH 
+     with type extern_nb = string = struct
+     include A
+     type nb = A.t
+     type extern_nb = string
+     let make = A.of_string
+     let show = A.to_string
+   end;;
+   </pre>
+   We have generalized here the adaption of names and masking
+   conventions of all modules that
+   satisfy <code>ARITH_STRING</code>. Assuredly, this genre of
+   manipulation is important for remedying those situations where
+   signatures are incompatible for reasons benign. The reusing of
+   modular components is in its favor.
+   </p>
+
+   <h5>Generic modular decoration</h5>
+   <p>One particular case of generic adaption occurs sufficiently
+   often to be distinguished from the others:
+   <br/>
+   <br/>
+   <b>Definition : </b> Generic module adaption is a generic adaption
+   which consists of plunging the elements of one module into another
+   in order to add new traits of behavior without changing the
+   signature.
+   <br/>
+   <br/>
+   For example, such a "decoration" may systematically transform
+   calculated values into rendered viewable graphics or generally
+   enrich their appearance. A decoration may equally well permit rapid
+   verification, saving to a memory device, validation of their
+   associated exceptions or assertions and tests. Additionally, as the
+   signature is held fixed it is possible to compose decorations and
+   attain a superposition of their respective behaviors. Reconsider
+   the example of a two-dimensional space with a distance:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE_2D = sig
+     type point
+     type make_point : float * float &rarr; point
+     type dist : point &rarr; point &rarr; float
+   end;;
+   </pre>
+   One might wish to obtain a trace of the calculations when using an
+   instance of the signature. For example, here is a generic
+   decoration which provides display of such information on the
+   standard output device:
+   <pre class="prettyprint ml">
+   module Metric_print (M : METRIC_SPACE_2D) : METRIC_SPACE_2D = struct
+     type point = M.point
+
+    let make_point (x, y) =
+      Printf.printf "POINT CREATION : (%g, %g)\n" (x, y) ;
+      M.make_point (x, y)
+
+    let dist x y =
+      let d = M.dist x y in
+      Printf.printf "COMPUTED DISTANCE : %g\n" d; d
+   end;;
+   </pre>
+   All of the implementations of planes we have introduced are then
+   transformable into impenitent chatter. For example:
+   <pre class="prettyprint ml">
+   # module Plane_print = Metric_print (Plane);;
+
+   # let p1 = Plane_print.make (1., 1.);;
+   POINT_CREATION : (1, 1)
+   val p1 : Plane_print.point = &abstr;abstr&gt;
+
+   # Plane_print.dist p1 p1;;
+   COMPUTED_DISTANCE : 0
+   - : float = 0.
+   </pre>
+   </p>
+
+   <p>Here is another important example of generic decoration. Recall
+   firstly that the means of specification in ML languages are limited
+   since they can only describe algorithmic properies. The
+   function <code>dist</code> of the signature above is far from
+   specifying what is a function of distance in the mathematical
+   sense. Reconsider the example of the
+   module <code>Bugged_plane</code> which satisfies the
+   signature <code>METRIC_SPACE_2D</code> with a
+   function <code>dist</code> which is not a distance. It is possible
+   to remedy the situation there and directly associate checks and
+   link tests to the relevant properties. This can be done
+   indpendently of any particular implementation. It is therefore
+   natural to employ a generic program. Here is a generic decoration
+   that checks the definition axioms of distance over all instances
+   that satisfy <code>METRIC_SPACE_2D</code>:
+   <pre class="prettyprint ml">
+   module Metric_test (M : METRIC_SPACE_2D) : METRIC_SPACE_2D = struct
+     type point = M.point
+
+     let make_point = M.make_point
+
+     let dist x y =
+       let dxy = M.dist x y in
+       if not (dxy >= 0.) then failwith "Negative distance";
+       if not ((M.dist x x) = 0.)
+       || not ((M.dist y y) = 0.) then failwith "Non zero distance";
+       if dxy <> (M.dist y x) then failwith "Non commutative distance"
+       let rand =
+         M.make_point (Random.float 1., Random.float 1.) in
+         if not ((M.dist x rand) < dxy +. (M.dist y rand)) then
+           failwith "Non triangular distance"
+         dxy
+   end;
+   </pre>
+   The idea of this functor then is to enforce checks over the
+   distance function on each calculation. Obviously, it is not a
+   question here of formal verification or exhaustive of an
+   implementation but to ensure at least a bit that it is well
+   founded. So, for example:
+   <pre class="prettyprint ml">
+   # module M_test = Metric_test (Bugged_plane);;
+
+   # let p1 = M_test.make_point (1., 1.);;
+   val p1 : M_test.point = &lt;abstr&gt;
+
+   # M_test.dist p1 p1;;
+   Exception : Failure "Non zero distance"
+   </pre>
+   </p>
+   <p>Conforming to the definition of decoration, the modules
+   issuedfrom <code>Metric_test</code>
+   satisfy <code>METRIC_SPACE_2D</code>. The modules are then
+   substituable in all circumstances. Additionally, such a test
+   functor may pre-exist any instance module
+   of <code>METRIC_SPACE_2D</code> : it may then be made part of the
+   specification. Finally, we remark that the two preceding functors
+   may be chained to superimpose their respective decorations:
+   <pre class="prettyprint ml">
+   # module M_TP = Metric_print (Metric_test (Bugged_plane));;
+
+   # let p1 = M_TP.make_point (1., 1.);;
+   POINT_CREATION (1, 1)
+   val p1 : M_TP.point = &lt;abstr;&gt;
+
+   # M_TP.dist p1 p1;;
+   Exception : Failure "Non zero distance"
+   </pre>
+   </p>
+
    <hr/>
    <p>
      References:<br/>
