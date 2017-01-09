@@ -5821,6 +5821,437 @@
    </pre>
    </p>
 
+   <h5>Generic modular composities</h5>
+   <p>
+   There exists another characteristic case of generic adaptions,
+   namely those that are related to generic decorations of data types:
+   <br/>
+   <br/>
+   <b>Definition : </b> A generic composition is a generic adaption
+   wich transforms a datatype <code>T</code> into a datatype on sets
+   of instances.
+   <br/>
+   <br/>
+
+   For example, consider a type for graphical elements of which here
+   is one possible signature:
+   <pre class="prettyprint ml">
+   module type GRAPHIC_ELEM = sig
+     type t
+     type extern_t
+     val make : extern_t &rarr; t
+     val draw : t &rarr; unit
+     val translate : int * int &rarr; t &rarr; t
+   end;;
+   </pre>
+   The adaption functor following permits obtaining a type of lists of
+   graphical elements from any implementation of a type of graphical
+   element which satisfies <code>GRAPHIC_ELEMEM</code>:
+   <pre class="prettyprint ml">
+   module Picture (G : GRAPHIC_ELEM) : GRAPHIC_ELEM
+     with type extern_t = G.t list = 
+   struct
+     type t = G.t list
+     type extern_t = G.t list
+     let make l = l
+     let draw l = List.iter G.draw l
+     let translate (t1, t2) l = List.map (G.translate (t1, t2)) l
+   end;;
+   </pre>
+   Here is a simple instansiation of <code>GRAPHIC_ELEM</code>
+   suitable for application of this functor:
+   <pre class="prettyprint ml">
+   module Disk2D (S : sig val radius : int end) : GRAPHIC_ELEM
+     with type extern_t = int * int =
+   struct
+     module G = Graphics
+     let radius = S.radius
+     type t = {x : int; y : int}
+     type extern_t = int * int
+     let make (x, y) = {x = x; y = y}
+     let draw p = G.fill_circle p.x p.y radius
+     let translate (t1, t2) {x = x; y = y} = {x = x + t1; y = y + t2}
+   end;;
+   </pre>
+   <pre class="prettyprint ml">
+   # module Disk = Disk2D (struct let radius = 4 end) ;;
+   # module Pic2D = Picture (Disk);;
+   # let coord_list = [(50, 55); (60, 70); (57, 85); (60, 100);
+                       (50, 115); (65, 135); (80, 130)];;
+   # let casserole = Pic2D.make (List.map Disk.make coord_list);;
+   val casserole : Pic2D.t = &lt;abstr;&gt;
+   </pre>
+   We can also create a type consisting of sets of sets and thus
+   describe easily a graphical element of a more substantial
+   complexity:
+   <pre class="prettyprint ml">
+   # module PPic2D = Picture (Pic2D);;
+
+   # let supercasserole =
+       PPic2D.make
+       (List.map (fun c &rarr; Pic2D.translate c casserole)
+                  List.map (fun (x, y) &rarr; (y * 3 - 150, x * 3 1 150))
+                  coord_list));;
+   val supercasserole : Pic2D.t = &lt;abstr&gt;
+
+   # PPic2D.draw supercasserole;;
+   </pre>
+   We reused here the list of coordinates <code>coord_list</code>
+   above as a set of translations of the graphical elements.
+   </p>
+   <p>We note that the modular framework in OCaml limits the
+   possibilities of generic composites since the different types
+   obtained are not directly compatible with each other: it is not
+   because two types of data are derived from modules of the same
+   signature that these types are compatible. We will talk again about
+   this important point.
+   </p>
+
+   <h5>Types of generic data</h5>
+   <p>
+   Relationships between modules defined by inclusion are also well
+   suited to generalisation by interposing by functor. For example,
+   module aggregation and module association between types of data may
+   be rendered generic. That idea motivates the following definition:
+   <br/>
+   <br/>
+   <b>Definition : </b> A generic module data type is one such that
+   the representation of its values is generalized by functor.
+   <br/>
+   <br/>
+   Conforming to the idea of generiticity, only the application of a
+   generic data type will make it possible to produce a particular
+   data type. Reconsider the example of graphical environments
+   according to the "data-driven" programming technique:
+   <pre class="prettyprint ml">
+   module type GRAPHIC_ENVIRONMENT = sig
+     module T : ASSOC_TABLE
+     type action = int &rarr; int &rarr; int
+     type behaviors = (char, action) T.assoc
+     val empty : unit &rarr; behaviors
+     ...
+   end;;
+
+   module G_env : GRAPHIC_ENVIRONMENT = struct
+     module T = Assoc_rb_tree
+     type action = int &rarr; int &rarr; int
+     type behaviors = (char, action) T.assoc
+     let empty () = T.empty ()
+     ...
+   end;;
+   </pre>
+   The type may be rendered generic by replacing the explicit link
+   of <code>T</code> with the parameter of a functor:
+   <pre class="prettyprint ml">
+   module G_env (Assoc : ASSOC_TABLE) = struct
+     module T = Assoc
+     type action = int &rarr; int &rarr; int
+     type behaviors = (char, action) T.assoc
+     let empty () = T.empty ()
+     ...
+   end;;
+   </pre>
+   The functor permits then construction of modules adapted to each of
+   implementation of association tables we have at our disposal, for
+   example, one based on lists or, one based on red-black trees:
+   <pre class="prettyprint ml">
+   # module G_list = G_env (Assoc_list);;
+   # module G_tree = G_env (Assoc_rb_tree);;
+   </pre>
+   </p>
+   <p>More generally, if a signature of a data type is declared by
+   inclusion, as in the case of the
+   signature <code>GRAPHIC_ENVIRONMENT</code>, one may expect its
+   implementations to take on the form of generic datatypes:
+   <br/>
+   <br/>
+   <b>Abstract sub-modules and generiticity : </b> An abstract
+   sub-module in a signature is generally translated into a functor
+   parameter.
+   <br/>
+   <br/>
+   </p>
+
+   <h4>Functors and the control of the generiticity of signatures</h4>
+
+   <h5>Signatures and universal type parameters</h5>
+
+   <p>Universal parameters and abstract types may be seen as two
+   distinct species of parameters for signatures. They are nonetheless
+   very different. Indeed, if universal parameters benefit from an
+   automation of their instantiation, they impose on the other hand
+   the implementation itself being generic.
+   </p>
+   <p>Consider for example the specification of general containers
+   which utilise a universal parameter <code>&alpha;</code> for
+   describing the type of elements they contain:
+   <pre class="prettyprint ml">
+   module type UNIV_CONTAINER = sig
+     type &alpha; t
+     type empty : unit &rarr; &alpha; t
+     val add : &alpha; &rarr; &alpha; t &rarr; &alpha; t
+   end;;
+   </pre>
+   This signature imposes on the modules that instantiate it as
+   consisting of generic functions and valid for any type. The
+   implementation of these functions may mot make use of particular
+   properties of these types. In other words, implemementation can
+   only be established on "functions of structure". The elements of a
+   container satisfying <code>UNIV_CONTAINER</code> are not thus <i>a
+   priori</i> comparable, measurable, etc. They can only be in a way
+   that will be ignored by an implementation
+   of <code>UNIV_CONTAINER</code>. The universality of types
+   associated with the parameter <code>&alpha;</code> imposes a
+   neutrality on the implementations of <code>UNIV_CONTAINER</code>.
+   </p>
+   <p>
+   Evidently, the predefined OCaml comparison predicates of OCaml
+   given as <code>=</code>, <code>&lt;</code> or <code>&gt;</code>
+   offer a default generiticity that might suggest the opposite. For
+   example, here is a type of binary search trees which
+   satisfy <code>UNIV_CONTAINER</code> which are ordered over their
+   data:
+   <pre class="prettyprint ml">
+   module Tree : UNIV_CONTAINER = struct
+     type 'a t = Bin_empty | Bin_node of 'a * 'a t * 'a t
+     let empty () = Bin_empty
+ 
+     let rec add x t = match t with
+       | Bin_empty -> Bin_node (x, Bin_empty, Bin_empty)
+       | Bin_node (x, t1, t2) ->
+           if x = y then t else
+           if x < y then Bin_node (y, add x t1, t2)
+           else Bin_not (y, t1, add x t2)
+   end;;
+   </pre>
+   However, this implementation is hampered by the generiticity of
+   predefined comparison predicates. For example, this implementation
+   does not permit the elements contained by <code>Tree</code> to be
+   function values : not only can simple functions not be placed but
+   more generally any representations that make use of functions such
+   as frozen values. On the other hand, serious problems will arise
+   when these values possess in them modifiable information such as
+   due to "memoisation". The evolution of their internal
+   representation will in fact lead to a complete incoherence of the
+   search trees.
+   </p>
+
+   <h5>Signatures and abstract types</h5>
+   <p>The control of the generiticity of a signatures and its
+   instances is established by the use of abstract types. For example,
+   the signature <code>UNIV_CONTAINER</code> above may be transformed
+   into the following signature:
+   <pre class="prettyprint ml">
+   module type CONTAINER = sig
+     type elt
+     type t
+     val empty : unit &rarr; t
+     val add : elt &rarr; t &rarr; t
+   end;;
+   </pre>
+   Therefore, the implmentation no longer has a duty to be generic. It
+   may make use of proerties of the type instantiated as the
+   abstract <code>elt</code>. Moreover, this type can be specified and
+   constrainted by means of abstract sub-modules integrated into the
+   signature. For example, in the case that it is desired to specify
+   that the elements of a container are ordered, here is how to get
+   it:
+   <pre class="prettyprint ml">
+   module type ORDER = sig
+     type t
+     val less_or_equal : t -> t -> bool
+   end;;
+
+   module type ORDERED_CONTAINER = sig
+     module O : ORDER
+     type elt = 0.t
+     type t
+     val empty : unit -> t
+     val add : elt -> t -> t
+   end;;
+   </pre>
+   We have thus indicated here a dependance of the
+   type <code>elt</code> to the properties specified
+   by <code>ORDER</code> : the generiticity expressed in this
+   signature is precise and constrained. On the other hand, the
+   relationship beween the containers and their elements is generally
+   a modular association where the latter are neither created nor
+   accessed. This typing constraint can therefore be satisfied with a
+   signature of "module recordings" as <code>ORDER</code> and this,
+   even in the framework of rigorous masking.
+   </p>
+   <p>That said, the counterpart of this technique is real : the
+   instaniation of an abstract type (or abstract sub-module) must be
+   made explicit at the time of implementation. Functors play an
+   important role in facilitating this instantiation. For example:
+   <pre class="prettyprint ml">
+   module Ord_list (Ord : ORD) : ORDERED_CONTAINER
+     with module O = Ord =
+   struct
+     module O = Ord
+     type elt = O.t
+     type t = elt list
+     let empty () = []
+     let add x l = ....
+   end;;
+   </pre>
+   Such a functor permits instantiation of <code>elt</code> to be
+   carried out without modification of existing code. The
+   signature <code>ORDERED_CONTAINER</code> would indeed not be really
+   acceptable without functors, since one can expect a frequent
+   variation of the type of the elements of these containers. If we
+   were left with the modular programming techniques we covered
+   earlier, this replacement of universal parameters with abstract
+   types whould have been rather disadvantageous : any new
+   instantiation would have required an explicit operation on the
+   code. In those examples we were delibrately using links between
+   modules that were less susceptible to variations than in the case
+   of containers.
+   </p>
+   <p>
+   Thus, we can specify the difference between the type parameters
+   within signatures:
+   <br/>
+   <br/>
+   <b>Differences between type parameters in signatures (precise) : </b>
+   <ul>
+   <li><i>Universal type parameters</i> impose an implementation be
+   generic. Their instantiation is performed automatically by the type
+   system. Nevertheless, no property can be associated with them
+   (except those related to predefined predicates).</li>
+   <li><i>Abstract types</i> do not impose an implementation be
+   generic. They lend themselves to the setting up of contstraints and
+   control of generiticity. Nevertheless, their instantiation must be
+   established explicitly, case by case, facilitation depends on the
+   utilisation of functors.</li>
+   </ul>
+   <br/>
+   <br/>
+   </p>
+
+   <h5>How to switch from one type of generiticity to another?</h5>
+
+   <p>In light of the distinctions between universal and abstract
+   types, one could easily admit the following criterion: we will use
+   universal parameters to represent types without specific properties
+   and abstract types for the others.
+   </p>
+   <p>However, things are not so simple as it is often necessary to
+   consider all the signatures available, their compatibility and
+   their future evolution. Take again the earlier example of
+   containers:
+   <pre class="prettyprint ml">
+   module type UNIV_CONTAINER = sig
+     type &alpha; t
+     val empty : unit &rarr; &alpha; t
+     val add : &alpha; &rarr; &alpha; t &rarr; &alpha; t
+   end;;
+   </pre>
+   Let us reconsider the specialized ordered elements version:
+   <pre class="prettyprint ml">
+   module type ORDERED_CONTAINER = sig
+     module O : ORDER
+     type elt = O.t
+     val empty : unit &rarr; t
+     val add : elt &rarr; t &rarr; t
+   end;;
+   </pre>
+   These two signatures are incompatible. From the point of view of
+   software design, it would be desirable for an implementation
+   of <code>ORDERED_CONTAINER</code> to be seen as an implementation
+   of <code>UNIV_CONTAINER</code>. The differing power of generiticity
+   here offers an irreducible resistance. For example, the following
+   adaption will not be enough to reduce all the generiticity
+   specified in <code>UNIV_CONTAINER</code>:
+   <pre class="prettyprint ml">
+   module type ORDERED_CONTAINER_INST = sig
+     module T : ORDER
+     module C : UNIV_CONTAINER
+     include UNIV_CONTAINER with type &alpha; t = T.t C.t
+   end;;
+   </pre>
+   Indeed, the declaration of the function <code>add</code>
+   of <code>UNIV_CONTAINER</code> has the type <code>&alpha; &rarr;
+   &alpha; t &rarr; &alpha; t</code>. This declaration remains generic
+   here because it uses an isolated instance of <code>&alpha;</code>
+   out of reach of an explicit instantiation (whose result is the
+   type <code>&alpha; &rarr; T.t C.t &rarr; T.t C.t</code>). In fact,
+   the specialization capable of generalizing the
+   signature <code>ORDERED_CONTAINER</code> is rather the following:
+   <pre class="prettyprint ml">
+   module type CONTAINER = sig
+     type elt
+     type t
+     val empty : unit &rarr; t
+     val add : elt &rarr; t &rarr;
+   end;;
+   </pre>
+   The signature <code>ORDERED_CONTAINER</code> is this time obviously
+   comptabile. It can be rewritten more directly as:
+   <pre class="prettyprint ml">
+   module type ORDERD_CONTAINER = sig
+     module O : ORDER
+     include CONTAINER with type elt = O.t
+   end;;
+   </pre>
+   The signature <code>CONTAINER</code> here has a particularity that
+   it is necessary to underline: it type <code>elt</code> is an
+   abstract type without it being nevertheless associated with
+   properties. Its instantiation can assuredely be established by a
+   functor but it is then necessary to use the signature of a trivial
+   data type, that is to say a signature that consists of an abstract
+   type:
+   <pre class="prettyprint ml">
+   module type TYPE = sig type t end;;
+
+   module C (T : TYPE) : CONTAINER = stuct
+     type elt = T.t
+     type t = elt list
+
+     let empty () = []
+     let add x l = x :: l
+   end;;
+   </pre>
+    The idea of "trivial datatype" must be compared to that of
+    "non-module parameters". This form of type definition corresponds
+    to that which appears very naturally in any language offering a
+    share of generic modular programming and which would have at its
+    disposal only abstract types (that is, without universal type
+    parameters). The consequences of the example can be dealt with as
+    summarized below:
+   <br/>
+   <br/>
+   <b>Distinct signature hierarchies : </b>the two kinds of type
+   parameters induce distinct hierarchies of compatibility between
+   signatures : those that utilize universal type parameters and those
+   which utilise abstract types.
+   <br/>
+   <br/>
+   Univeral parameters make it possibly to quickly obtain generic
+   components which benefit from automatic instantiation of their
+   types but they cannot be associated with properties nor transmitted
+   and used to give properties to other types. Only hierarchies of
+   signatures with abstract types offer real control of the types
+   accuracy as to their reciprocal links.
+   <br/>
+   <br/>
+   <b>The technique of explicit generic modular programming : </b>
+   Only abstract types are used as parameters in signatures. Functors
+   become the essential means of instantiations of type parameters.
+   <br/>
+   <br/>
+   </p>
+   <p>It should be noted that since the generiticity of universal
+   parameters is more powerful than that of abstract types, it is
+   sometimes possible to reuse the associated implementations. The
+   instantiation of the types will remain explicit and one can realize
+   this reuse by means of generic adaptions.
+   </p>
+
+   <h4>Functors and their separate compilation</h4>
+   <p>
+   </p>
+
    <hr/>
    <p>
      References:<br/>
