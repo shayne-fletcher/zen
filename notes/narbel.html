@@ -4223,7 +4223,7 @@
    of <code>COMPLEX_FUN</code> does not depend on a particular masking
    convention. The modular association specification could therefore
    have been simplified by using a signature that does not prepare for
-   masking, that is to say a signature of "module recordings":
+   masking, that is to say a signature of "module records":
    <pre class="prettyprint ml">
    module type COMPLEX_NOMASK = sig
      type complex
@@ -6077,7 +6077,7 @@
    relationship beween the containers and their elements is generally
    a modular association where the latter are neither created nor
    accessed. This typing constraint can therefore be satisfied with a
-   signature of "module recordings" as <code>ORDER</code> and this,
+   signature of "module records" as <code>ORDER</code> and this,
    even in the framework of rigorous masking.
    </p>
    <p>That said, the counterpart of this technique is real : the
@@ -6183,7 +6183,7 @@
      type elt
      type t
      val empty : unit &rarr; t
-     val add : elt &rarr; t &rarr;
+     val add : elt &rarr; t &rarr; t
    end;;
    </pre>
    The signature <code>ORDERED_CONTAINER</code> is this time obviously
@@ -6249,13 +6249,371 @@
    </p>
 
    <h4>Functors and their separate compilation</h4>
-   <p>
+
+   <p>Functors are modular components in the same was as the
+   others. They integrate equally with the means of separate
+   compilation. However, they do not lend themselves directly to
+   structuring in compilation units. Let us recall that the general
+   form of these units is the following:
+   <pre class="prettyprint ml">
+   module Name : sig (*contents of name.mli*) end
+     = struct (*contents of name.ml*) end;;
+   </pre>
+   Units of compilation are then necessarily modules without
+   parameters. As a consequence, separate compilation of functors is
+   achieved by the technique of parent modules in the form of
+   packages. For example, reconsider the type of sequential containers
+   and transform it in such a way that it lends itself to separate
+   compilation. Here first of all is the package specifying the
+   content of the signatures (<code>linear_containers_spec.ml</code>):
+   <pre class="prettyprint ml">
+   module type LINEAR_CONTAINER = sig ... end;;
+   module type LINEAR_CONTAINER_EXT = sig ... end;;
+   </pre>
+   Next, here is the implementation package
+   (<code>linear_containers_impl.ml</code>):
+   <pre class="prettyprint ml">
+   open Linear_containers_spec
+
+   module Simple_list : LINEAR_CONTAINER = struct ... end;;
+   module Simple_array : LINEAR_CONTAINER = struct ... end;;
+   </pre>
+   The extending functor can be placed in another package
+   (<code>linear_containers_ext_impl.ml</code>)
+   <pre class="prettyprint ml">
+   open Linear_containers_spec
+
+   module Lin_ext (L : LINEAR_CONTAINER) : LINEAR_CONTAINER_EXT =
+   struct
+     include L
+     let first l = L.nth l 0
+     let last l = L.nth l ((L.length l) - 1)
+   end;;
+   </pre>
+   A compilation of these units will be obtained with:
+   <pre>
+   $ ocamlc linear_containers_spec.ml linear_containers_impl.ml \
+            linear_containers_ext.ml
+   </pre>
+   With this, in the top-level, the functor <code>Lin_ext</code> can
+   be provided as will the modules <code>Simple_list</code>
+   and <code>Simple_array</code>:
+   <pre class="prettyprint ml">
+   # #load "linear_containers_impl.cmo";;
+   # #load "linear_containers_ext_impl.cmo";;
+
+   # #open Linear_containers_impl;;
+   # #open Linear_containers_ext_impl;;
+
+   # module L_ext = Lin_ext (Simple_list);;
+   # module A_ext = Lin_ext (Simple_array);;
+   </pre>
+   </p>
+   <p>There is on the other hand a structuring of units associated
+   with functors which makes them somewhat resemble the case of simple
+   modules and thus to apply a modular program in the "C language"
+   style:
+   <ol>
+   <li>The compilation unit is named for the name of the functor it
+   contains.</li>
+   <li>We place the necessary signatures for the functor.</li>
+   <li>We put the functor there and we bind it to a neutral name
+   like <code>F</code> or <code>Make</code></li>.
+   </ol>
+   The preceding example may then be adapted to use a file like this
+   (<code>lin_ext.ml</code>):
+   <pre class="prettyprint ml">
+   module type LINEAR_CONTAINER = sig ... end;;
+   module type LINEAR_CONTAINER_EXT = sig ... end;;
+
+   module Make (L : LINEAR_CONTAINER) : LINEAR_CONTAINER_EXT = struct
+     include L
+     let first l = L.nth l 0
+     let last l = L.nth l ((L.length l) - 1)
+   end;;
+   </pre>
+   The functor now posses the name <code>Lin_ext.Make</code>. This
+   structuring is close to the naming tactic "weakly algebraic" for
+   data types. We try to reduce the distinction between the two
+   modular levels contributed by giving a neutral name to the functor.
+   </p>
+   <p>This construction technique of compilation units is sometimes
+   utilised in the OCaml standard library. Consider
+   the <code>Set</code> module for example which defines a type for
+   ordered sets of elements. The type is generic from the point of
+   view of the ordering of the elements which is specified by a
+   signature of a "module recording". The file <code>set.ml</code> in
+   the standard library contains essentially the following two
+   definitions:
+   <pre class="prettyprint ml">
+   module type ORDER = sig
+     type t
+     val compare : t &rarr; t &rarr; int
+   end;;
+
+   module Make (Ord : ORDER) = struct
+     type elt = Ord.t
+     ...
+   end;;
+   </pre>
+   Thus, it is possible to instantiate this generic representation
+   through a functor whose name is <code>Set.Make</code>:
+   <pre class="prettyprint ml">
+   # module Int_ord = struct
+       type t = int
+       let compare = Pervasives.compare
+     end;;
+
+   # module Int_set = Set.Make (Int_ord);;
+
+   # let s1 = Int_set.add 100 (Int_set.empty);;
+   val s1 : Int_set.t = &lt;abstr&gt;
+   </pre>
+   </p>
+   <p>Within the OCaml standard library the
+   modules <code>Hashtbl</code>, <code>Map</code>
+   and <code>Weak</code> (hash tables with weak pointers) each
+   implement datatypes that conform to this code
+   structure. Nevertheless, as described herein, it induces
+   duplications of signatures. It is possible to employ the idea of
+   signature packages in order to remedy this.
    </p>
 
+   <h4>N-ary functors</h4>
+
+   <h5>Defining n-ary functors</h5>
+
+   <p>Functors may have more than one parameter. It is thus possible
+   to render a module generic from the point of view of multiple
+   signatures. The base syntax of n-ary functors is an immediate
+   extension of the unary functors:
+   <pre class="prettyprint ml">
+   module &lt;Name&gt; =
+     functor (&lt;Paramter 1&gt; : &lt;SIGNATURE 1&gt;)  &rarr;
+       ...
+         functor (&lt;Paramter n&gt; : &lt;SIGNATURE n&gt;)  =
+    struct
+      ...
+    end;;
+   </pre>
+   For example, reconsider the functor associated with matrices over
+   integers of a certain size which we recall here with the important
+   lines:
+   <pre class="prettyprint ml">
+   module Matrix (S : sig val int end) = struct
+     type mat = int array array
+     ...
+       mat.(i).(j) &larr; m1.(i) + m2.(i).(j)
+     ...
+   end;;
+   </pre>
+   Despite a representation of the values based on the type parameter
+   of <code>&alpha; array array</code>, the generiticity is not saved
+   at the level of the type of matrices. The
+   parameter <code>&alpha;</code> is in fact instantiated
+   as <code>int</code> by the addition operatation "<code>+</code>"
+   which is explicitly utilised in the implementation. Indeed, the
+   generiticity of matrices can be established only through properties
+   of their coefficients : the latter must constitute sets of
+   structures with internal laws. In other words, the specification of
+   a generic type of matrices must necessarily be precise. Here is
+   such a specification:
+   <pre class="prettyprint ml">
+   module type OP = sig
+     type t
+     val op : t &rarr; t &rarr; t
+   end;;
+
+   module type MATRIX = sig
+     module Coef : OP
+     type 'a gen_mat
+     type t = Coef.t gen_mat
+     val op : t &rarr; t &rarr; t
+   end;;
+   </pre>
+   One notices accordance with the idea that once can make
+   matrices, <code>MATRIX</code> is compatible with <code>OP</code>:
+   it is only a specialization. Here follows an implementation by
+   means of a binary functor:
+   <pre class="prettyprint ml">
+   module Matrix (C : OP)
+                 (S : sig val size : int end) =
+   struct
+     module Coef = C
+     type 'a gen_mat = 'a array array
+     type t = Coef.t gen_mat
+     let op m1 m2 =
+       let mat = Array.create_matrix S.size S.size m1.(0).(0) in
+       for i = 0 to (S.size - 1) do
+         for j = 0 to (S.size - 1) do
+           mat.(i).(j) <- Coef.op.m1.(i).(j) m2.(i).(j)
+         done
+       done;
+       mat
+   end;;
+   </pre>
+   This new implementation of matrices thus proposes a complete
+   generiticity.
+   </p>
+
+   <h5>Applying n-ary functors</h5>
+   <p>The syntax for application of an n-ary functor is equally an
+   extension for the unary case:
+   <pre class="prettyprint ml">
+   module &lt;Name&gt; = &lt;Functor&gt; (&lt;Argument 1&gt;) ... (&lt;Argument n&gt;);;
+   </pre>
+   The parentheses around each of the arguments in the n-ary functor
+   call are required. The arguments cannot be separated by commas as
+   for functions : there is no notion of tuple of modules. So, with
+   the functor <code>Matrix</code> of the preceding example:
+   <pre class="prettyprint ml">
+   # module Simple_float = struct
+       type t = float
+       let op = ( + )
+     end;;   
+
+   # module Float_2x2 =
+       Matrix (Simple_float) (struct let size = 2 end);;
+
+   # module Simple_complex = struct
+       type t = float * float
+       let op (r1, i1) (r2, i2) = (r1 +. r2, i1 +. i2)
+     end;;
+
+  # module Complex_3x3 =
+      Matrix (Simple_complex) (struct let size = 3 end);;
+   </pre>
+   We obtain here matrices of dimension $2$ of real coefficients and
+   matrices of dimension $3$ of complex coefficients.
+   </p>
+   <p>
+   The definition of an n-ary functor is be default under a curried
+   form. This permits partial application. For example, the functors
+   above may be specialized by partial applications:
+   <pre class="prettyprint ml">
+   # module Float_mat = Matrix (Simple_float);;
+   functor (S : sig val size : int end) &rarr sig ... end
+
+   # module Complex_mat = Matrix (Simple_complex);;
+   functor (S : sig val size : int end) &rarr sig ... end
+   </pre>
+   This possibility of partial application illustrates a new
+   relationship between functors and functions:
+   <br/>
+   <br/>
+   <b>A property of functors : </b>The result of application of a
+   functor may be a functor.
+   <br/>
+   <br/>
+   </p>
+   <p>Here is another example of an n-ary functor. Consider an
+   optimisation process. The idea here is to construct a type for
+   spaces in which it is possible to search for a minimum according to
+   the following strategy : starting at a point $p_{0}$, observe the
+   set of points a a fixed distance from $p_{0}$; calculate or
+   approximate the minimum of values associated with this set of
+   points; if this value is smaller than that for $p_{0}$, transport
+   there and recommence; in the case where $p_{0}$ is the minium
+   value, consider a local minima found. This search strategy is
+   general and may be specified by the following signatures some of
+   which have already been discussed:
+   <pre class="prettyprint ml">
+   module type METRIC_SPACE = sig
+     type point
+     val dist : point -> point -> float
+     val ball : radius:float -> point -> point list
+   end;;
+
+   module type ORDER = sig
+     type elt
+     val compare : elt -> elt -> int
+   end;;
+
+   module type OPTIMISATION = sig
+     module M : METRIC_SPACE
+     module O : ORDER
+     type valuation_t = M.point -> O.elt
+     val find_optimal : M.point -> radius:float -> valuation_t -> M.point
+   end;;
+   </pre>
+   The specification of the signature <code>OPTIMISATION</code> thus
+   makes use of two structures : one describing the search space which
+   must be provided with a distance (in order to define what is the
+   neighbourhood of a point); the other describes the set of values of
+   points of the space which must be ordered (in order to be able to
+   determine the minimum of one of its sub-spaces). An implementation
+   lends itself naturally to the form of a binary functor:
+   <pre class="prettyprint ml">
+   module Optimis (Metr : METRIC_SPACE)
+                  (Ord : ORDER) 
+   : OPTIMISATION
+     with module M = Metr and module O = Ord =
+   struct
+     module M = Metr
+     module O = Ord
+     type valuation_t = M.point -> O.elt
+
+     let rec find_optimimum p ~radius f =
+       let val_ball = List.map (fun x -> (x, f x)) (M.ball radius p) in
+       let sort_ball = List.sort (fun (_, y1) (_, y2) -> O.compare y1 y2) val_ball in
+       if O.compare (f p) (snd (List.hd sort_ball)) <= 0 then p
+       else find_optimal (fst (List.hd sort_ball)) ~radius:radius f
+   end;;
+   </pre>
+   The type constraints of the form <code>with module</code> indicate
+   here is a double module association which can also be satisfied
+   with "module records". Here a use is based over the space of
+   integers with the usual distance, that is to say a discretized
+   line:
+   <pre class="prettyprint ml">
+   module Discrete_line = struct
+     type point = int
+     let dist x y = float (abs (x - y))
+     let ball ~radius p =
+       let rec aux r p i =
+         if i &lt;= r then p - i :: p + i :: (aux r p (i + 1))
+         else [] in
+       aux (int_of_float radius) p 1
+   end;;
+   </pre>
+   This discretized line will be such that each point will carry a
+   floating point number: 
+   <pre class="prettyprint ml">
+   module Order_float = struct
+     type elt = float
+     let compare = Pervasives.compare
+   end;;
+   </pre>
+   Thenceforth, the search for a minimum over a function of that line
+   in floats may be obtained by partial application of the
+   functor <code>Optimis</code>:
+   <pre class="prettyprint ml">
+   # module Grad_line = Optimis (Discrete_line) (Order_float);;
+   </pre>
+   Here is a test over the function $f(x) = (x -50)^{2}$ with a
+   neighbourhood of radius $2$ and a starting point of $0$:
+   <pre class="prettyprint ml">
+   # Grad_line.find_optimal 0 ~radius:2 (fun x -> (float x -. 50.) ** 2.;;
+   - Grad_line.M.point = 50
+   </pre>
+   So, the generiticy of the implementation makes it possible to
+   search for minima in a variety of spaces. It is sufficient to have
+   at its disposal instances of <code>METRIC_SPACE</code>
+   and <code>ORDER</code> to apply the
+   functor <code>OPTIMIS</code>. Let us add that there are techniques
+   for the generalization of algorithms that can be applied here in
+   order to make the implementation of <code>Optimis</code> even more
+   flexible, for example from the point of view of the search for a
+   minimum in a neighborhood.
+   </p>
+
+   <h5>A more complete example : generic graphs</h5>
+ 
    <hr/>
    <p>
      References:<br/>
      "Programmation fonctionnelle, g&#233;n&#233;rique et objet: une introduction avec le langage OCaml" -- Narbel P., 2005
    </p>
+
   </body>
 </html>
