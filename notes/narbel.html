@@ -6608,7 +6608,306 @@
    </p>
 
    <h5>A more complete example : generic graphs</h5>
- 
+   <p>Directected graphs, labeled such that vertices can be reachable
+   by keys can be made generic over their constiuants. Here first of
+   all is a specification (with the number of functions deliberately
+   constrained for the objective of an example illustrates type
+   constructions):
+   <pre class="prettyprint ml">
+   module type EQUAL = sig
+     type t
+     val eq : t &rarr; t &rarr; bool
+   end;;
+
+   module type GRAPH = sig
+     module Key : EQUAL
+     module Label : EQUAL
+     type vertex_data
+     type vertex_key = Key.t
+     type label = Label.t
+     type graph
+     type extern_graph
+     val make : extern_graph &rarr; graph
+     val show : graph &rarr; (vertex_key * vertex_data) list
+     val assoc : vertex_key &rarr; graph &rarr; vertex_data
+     val nexts : vertex_key &rarr; graph &rarr; (vertex_key * label) list
+     val update : vertex_key &rarr; vertex_data &rarr; graph &rarr; unit
+   end;;
+   </pre>
+   Observe that we have specified keys and lables as types with an
+   equality function. On the other hand, the type of vertex data is
+   not assumed to possess any particular properties. It is an an
+   abstract type : the technique of "explicit generic modular
+   programming". On the other hand, the specification
+   of <code>update</code> announces an imperative implementation by
+   way of its return type which is <code>unit</code>.
+   </p>
+   <p>Here is a functor that constructs modules the satisfy the
+   signature <code>GRAPH</code>. It is based on adjaceny list
+   representations of graphs. The type <code>extern_graph</code>
+   corresponds to an adjacency list and the internal
+   representation <code>graph</code> is composed of that adjacency
+   list and a list of vertices (the second list permits simplifying
+   the implementation of certain operations):
+   <pre class="prettyprint ml">
+   module type TYPE = sig type t end
+
+   module Graph (T : TYPE) (Key : EQUAL) (Label : LABEL) : GRAPH
+     with module Key = Key and module Label = Label
+     with type vertex_data = T.t
+     with type extern_graph = ((Key.t * T.t) * ((Key.t * Label.t) list)) list =
+   struct
+     module Key = Key
+     module Label = Label
+     type vertex_data = T.t
+     type vertex_key = Key.t
+     type label = Label.t
+     type vertex = vertex_key * (T.t ref) (*imperative character*)
+     type adjacency = vertex_key * (vertex_key * label) list
+     type graph = Graph of adjency list * vertex list
+
+     let rec assoc_gen eq f l x = (*generic association*)
+      match l with
+        | [] &rarr; raise Not_found
+        | (a, b) :: l &rarr; if eq a x then f a b else assoc_gen eq f l x
+
+     let assoc v_key (Graph (_, vertex_list)) =
+       !(assoc_gen Key.eq (fun a b &rarr; b) vertex_list v_key)
+
+     let make full_adjlist = (*simple formatting of the argument*)
+       let adjlist =
+         List.map (fun ((x, _), z) &rarr; x, z) full_adjlist in
+       let vertex_list =
+         List.map (fun ((x, y), _) &rarr; x, ref y)) full_adjlist in
+      Graph (adj_list, vertex_list)
+
+     let show (Graph (_, vertex_list)) =
+       List.map (fun (x, y) &rarr; (x, !y)) vertex_list
+
+     let update v_key v_data (Graph (_, vertex_list) as g) =
+       assoc_gen Key.eq (fun a b &rarr; b := v_data) vertex_list v_key
+
+     let next v_key (Graph (adjlist, _)) =
+       try assoc_gen Key.eq (fun a b &rarr; b) adjlist v_key
+       with Not_found &rarr; []
+
+   end;;
+   </pre>
+   And here is an example of application of the functor which consists
+   of contructing a graph where the keys are integers, the data are
+   strings and the edges are distances in kilometers:
+   <pre class="prettyprint ml">
+   # module Eq_str = struct type t = string end;;
+   # module Eq_int = struct type t = int let eq = ( = ) end;;
+   # type kilometer  = Km of float;;
+   # module Kilometer = struct type t = kilometer let eq = ( = ) end;;
+   # module Geo = Graph (Eq_str) (Eq_int) (Kilometer);;
+   </pre>
+   Here is a graph of cities labeled with distances and represented as
+   an instance of a graph derived from <code>Geo</code>:
+   <pre class="prettyprint ml">
+   # let g1 = Geo.make
+     [ (1, "Hay River"),       [2, Km 120.; 3, Km 225.; 4, Km 275.];
+       (2, "Fort Resolution"), [1, Km 120.];
+       (3, "Fort Smith"),      [1, Km 225.; 4, Km 300.; 5, Km 175.];
+       (4, "Fort Vermillon"),  [1, Km 275.; 3, Km 300.;
+                                5, Km 275.; 6, Km 250.];
+       (5, "Fort Chiewyan"),   [3, Km 175.; 4, Km 275.];
+       (6, "Peace River"),     [4, Km 250.;]];;
+   val g1 : Geo.graph = &lt;abstr&gt;
+   </pre>
+   </p>
+   <p>We have thus realized here a data structure in the framework of
+   complete and controlled genericity. In addition there is an OCaml
+   libries of modules, <code>OCAMLGRAPH</code> which implements graphs
+   and their associated algorithms fully using generic modular
+   programming.
+   </p>
+
+   <h5>Constraints over the parameters of functors</h5>
+   <p>The body of a functor sometimes induces more constraints on
+   types than the signatures of its parameters suggest. For example,
+   consider the following functor:
+   <pre class="prettyprint ml">
+   module type OP = sig
+     type t
+     val op : t -> t -> t
+   end;;
+
+   module Pair (M : OP) = struct
+     let make_pair x = (x, M.op x (x +. 1.))
+   end;;
+   </pre>
+   This functor is misleading : it effectively announces itself as
+   applicable to a module <code>M</code> that
+   satisfies <code>OP</code>. However, in the implementation, the
+   operation <code>M.op</code> is applicable only to floating
+   numbers. In other words, the functor is unable to produce good
+   modules over types <code>M.t</code> that are legal for anything
+   other than floats. If the form above were accepted, type errors
+   could be detected at the time of application of the functor, that
+   is to say, too late. Recall that a functor is compiled and the
+   result must be ensured not to generate type errors (this property
+   represents an essential difference from C++).
+   </p>
+   <p>The remedy to this situation is to add a type constraint to the
+   parameter of the functor in its signature:
+   <pre class="prettyprint ml">
+   module Pair (M : OP with type t = float) = struct
+     let make_pair x = (x, M.op x (x +. 1.))
+   end;;
+   </pre>
+   Here is an example use of <code>Pair</code> embedded in another
+   functor:
+   <pre class="prettyprint ml">
+   # module Simple_float = struct
+       type t = float
+       let op = ( +. )
+     end;;
+
+   # module F1 (N : sig end) = struct
+       module M = Pair (Simple_float)
+     end;;
+   module F1 : functor (N : sig end) -> ...
+   </pre>
+   Type inference here can ensure the validity of the
+   functor <code>F1</code> even if the functor <code>Pair</code> is
+   not applied. This will be done when it is confirmed
+   that <code>F1</code> conforms to the rules of the definition of a
+   functor. To illustrate the fact:
+   <pre class="prettyprint ml">
+   # module Simple_int = struct
+       type t = int
+       type op = ( + )
+     end;;
+
+   # module F2 (N : sig end) = struct
+       module M = Pair (Simple_int)
+     end;;
+   => TYPE ERROR
+   </pre>
+   Type inference is here capable of statically detecting the
+   incoherence of the <code>Pair</code> call on an argument based on
+   the type <code>int</code>. Situations similar to the preceding one
+   occur when an explicit typing on a functor result is more
+   constrained than it should be:
+   <pre class="prettyprint ml">
+   module type FLOAT_PAIR = sig
+     val make_pair : float -> float * float
+   end;;
+
+   module PAIR (M : OP) : FLOAT_PAIR = struct
+     let make_pair x = (x, M.op x x)
+   end;;
+   </pre>
+   The functor is incorrect in a new way. Indeed, the operation
+   transmitted through <code>M.op</code> must be applied over floating
+   point numbers by virtue of explicit typing
+   by <code>FLOAT_PAIR</code>. The remedy is thus the same as before:
+   <pre class="prettyprint ml">
+   module Pair (M : OP with type t = float) : FLOAT_PAIR = struct
+     let make_pair x = (x, M.op x x)
+   end;;
+   </pre>
+   <br/>
+   <br/>
+   <b>Type constraints over a functor : </b> Consider $S_{F}$ the set
+   of signatures associated with the parameters of a functor
+   $F$. Then, any use or typing in $F$ more specific than what is
+   described in $S_{F}$ will have to be reflected by type constraints
+   associated with $S_{F}$.
+   <br/>
+   <br/>
+   </p>
+    <p>This use of type constraints may seem tedious. It nevertheless
+    finds its place within the usual framework of static verification
+    of the type links between modular components. Signatures are
+    adapted to the needs of the good typing of a program. Let us give
+    examples more formal than the one above and let us first take the
+    case of complex numbers with a generalization on the external
+    type:
+   <pre class="prettyprint ml">
+   module type COMPLEX = sig
+     type complex
+     type extern_complex
+     val make : extern_complex -> complex
+     val show : complex -> extern_complex
+     ...
+   end;;
+   </pre>
+   Generic inheritance will then require a type constraint on its
+   parameter since it applies exclusively to pairs of floating point
+   numbers:
+   <pre class="prettyprint ml">
+   module F (C : COMPLEX with type extern_complex = float * float) = struct
+     include C
+     let mul z w =
+       let (r1, i1) = show z and (r2, i2) = show w in
+       make (r1 *. r2 0. i1 * i2, i1 *. r2 +. i2 *. r1)
+   end;;
+   </pre>
+   Consider also the transformation to a functor of the example of
+   "apple men". The implementation proposed made explicit use of a
+   constructor type of complex numbers of the form <code>float *
+   float</code>. It is thus a type more specific than announced by the
+   signature <code>COMPLEX_FUN</code>. Consequently, the complete
+   header of this functor requires that this signature must be
+   constrained:
+   <pre class="prettyprint ml">
+   module Appel_F
+     (CFuns : COMPLEX_FUN with type C.extern_complex = float * float)
+     (Set : SET)
+   : APPLE_MEN
+      with module CF = CFuns
+      and type set_elements = (int * int) = 
+   struct
+     ...
+   end;;
+   </pre>
+   This functor thus describes a generic version of the construction
+   of "apple men" able to integrate an implementation of complex
+   numbers (with an external representation <code>extern_comple</code>
+   equal to <code>float * float</code>), an implementation of
+   functions on these complex numbers and, an implementation of a type
+   associated with the notion of a set. This example shows that the
+   functor header can become very rich in type related
+   information. Nevertheless, the rules to be applied are summarized
+   in two points:
+   <br/>
+   <br/>
+
+   <b>Construction of functor headers :</b>
+   <ol>
+   <li><i>Adaptions : </i> Each signature of a parameter of a functor
+   $F$ must be adapted according to the type constraints issued by the
+   implementation of $F$.</li>
+   <li><i>Individual masking : </i>The explicit ytpe of a functor
+   result follows the same rules of visibility control as of those for
+   a simple module.</li>
+   </ol>
+   <br/>
+   <br/>
+
+   <br/>
+   <br/>
+
+   <b>The general form of a functor header : </b> The adatpion of
+   signatures and the techniques of rigorous masking induce on functor
+   headers the following general form:
+   <pre class="prettyprint ml">
+   module Name
+     (P1 : SIGNATURE1 with type ...)
+     ...
+     (Pn : SIGNATUREn with type ...)
+   : SIGNATURE_RESULT
+       with type ... =
+   struct
+     ...
+   end;;
+   <br/>
+   <br/>
+   </p>
+
    <hr/>
    <p>
      References:<br/>
