@@ -4486,7 +4486,7 @@
    of <code>distance.ml</code>:
    <pre class="prettyprint ml">
    module type GEOMETRIC_FORMS = sig
-     val disk : float -> float -> float -> bool
+     val disk : float &rarr; float &rarr; float &rarr; bool
    end;;
 
    module Geometric_forms : GEOMETRIC_FORMS = struct
@@ -4565,7 +4565,7 @@
    conformance to the definition of a unit of compilation. Consider
    the file <code>distance.mli</code> following:
    <pre class="prettyprint ml">
-   val dist_to_zero : float -> float -> float
+   val dist_to_zero : float &rarr; float &rarr; float
    </pre>
    The file <code>distance.ml</code> then contains a possible
    implementation of this implicit signature:
@@ -4577,7 +4577,7 @@
    definition of the following module:
    <pre class="prettyprint ml">
    module Distance : sig
-     val dist_to_zero : float -> float -> float
+     val dist_to_zero : float &rarr; float &rarr; float
    end = struct
      let sqr x = x ** 2.
      let dist_to_zero x y = sqrt (sqr x +. sqr y)
@@ -4711,7 +4711,7 @@
      else x :: (list_build f (n - 1) (f x));;
 
    let list_interv n len =
-     list_build (fun x -> x + 1) len n;;
+     list_build (fun x &rarr; x + 1) len n;;
 
    type &alpha; bintree =
      | Bin_empty
@@ -4834,8 +4834,8 @@
    module type METRIC_SPACE = sig
      type point
      type extern_point
-     val make_point : extern_point -> point
-     val dist : point -> point -> float
+     val make_point : extern_point &rarr; point
+     val dist : point &rarr; point &rarr; float
    end;;
 
    module Line : METRIC_SPACE
@@ -4861,8 +4861,8 @@
    module type METRIC_SPACE = sig
      type point
      type extern_point
-     val make_point : extern_point -> point
-     val dist : point -> point -> float
+     val make_point : extern_point &rarr; point
+     val dist : point &rarr; point &rarr; float
    end;;
 
    module Line : METRIC_SPACE with type extern_point = float
@@ -5590,7 +5590,7 @@
    <pre class="prettyprint ml">
    module Simple_list : LINEAR_CONTAINER = struct
      type 'a t = 'a list
-     let empty () -> []
+     let empty () &rarr; []
      let add x l = x :: l
      let mem = List.mem
      let length = List.length
@@ -6017,8 +6017,8 @@
      let empty () = Bin_empty
  
      let rec add x t = match t with
-       | Bin_empty -> Bin_node (x, Bin_empty, Bin_empty)
-       | Bin_node (x, t1, t2) ->
+       | Bin_empty &rarr; Bin_node (x, Bin_empty, Bin_empty)
+       | Bin_node (x, t1, t2) &rarr;
            if x = y then t else
            if x < y then Bin_node (y, add x t1, t2)
            else Bin_not (y, t1, add x t2)
@@ -6059,15 +6059,15 @@
    <pre class="prettyprint ml">
    module type ORDER = sig
      type t
-     val less_or_equal : t -> t -> bool
+     val less_or_equal : t &rarr; t &rarr; bool
    end;;
 
    module type ORDERED_CONTAINER = sig
      module O : ORDER
      type elt = 0.t
      type t
-     val empty : unit -> t
-     val add : elt -> t -> t
+     val empty : unit &rarr; t
+     val add : elt &rarr; t &rarr; t
    end;;
    </pre>
    We have thus indicated here a dependance of the
@@ -6520,20 +6520,20 @@
    <pre class="prettyprint ml">
    module type METRIC_SPACE = sig
      type point
-     val dist : point -> point -> float
-     val ball : radius:float -> point -> point list
+     val dist : point &rarr; point &rarr; float
+     val ball : radius:float &rarr; point &rarr; point list
    end;;
 
    module type ORDER = sig
      type elt
-     val compare : elt -> elt -> int
+     val compare : elt &rarr; elt &rarr; int
    end;;
 
    module type OPTIMISATION = sig
      module M : METRIC_SPACE
      module O : ORDER
-     type valuation_t = M.point -> O.elt
-     val find_optimal : M.point -> radius:float -> valuation_t -> M.point
+     type valuation_t = M.point &rarr; O.elt
+     val find_optimal : M.point &rarr; radius:float &rarr; valuation_t &rarr; M.point
    end;;
    </pre>
    The specification of the signature <code>OPTIMISATION</code> thus
@@ -6551,11 +6551,11 @@
    struct
      module M = Metr
      module O = Ord
-     type valuation_t = M.point -> O.elt
+     type valuation_t = M.point &rarr; O.elt
 
      let rec find_optimimum p ~radius f =
-       let val_ball = List.map (fun x -> (x, f x)) (M.ball radius p) in
-       let sort_ball = List.sort (fun (_, y1) (_, y2) -> O.compare y1 y2) val_ball in
+       let val_ball = List.map (fun x &rarr; (x, f x)) (M.ball radius p) in
+       let sort_ball = List.sort (fun (_, y1) (_, y2) &rarr; O.compare y1 y2) val_ball in
        if O.compare (f p) (snd (List.hd sort_ball)) <= 0 then p
        else find_optimal (fst (List.hd sort_ball)) ~radius:radius f
    end;;
@@ -6593,7 +6593,7 @@
    Here is a test over the function $f(x) = (x -50)^{2}$ with a
    neighbourhood of radius $2$ and a starting point of $0$:
    <pre class="prettyprint ml">
-   # Grad_line.find_optimal 0 ~radius:2 (fun x -> (float x -. 50.) ** 2.;;
+   # Grad_line.find_optimal 0 ~radius:2 (fun x &rarr; (float x -. 50.) ** 2.;;
    - Grad_line.M.point = 50
    </pre>
    So, the generiticy of the implementation makes it possible to
@@ -6731,7 +6731,7 @@
    <pre class="prettyprint ml">
    module type OP = sig
      type t
-     val op : t -> t -> t
+     val op : t &rarr; t &rarr; t
    end;;
 
    module Pair (M : OP) = struct
@@ -6768,7 +6768,7 @@
    # module F1 (N : sig end) = struct
        module M = Pair (Simple_float)
      end;;
-   module F1 : functor (N : sig end) -> ...
+   module F1 : functor (N : sig end) &rarr; ...
    </pre>
    Type inference here can ensure the validity of the
    functor <code>F1</code> even if the functor <code>Pair</code> is
@@ -6793,7 +6793,7 @@
    constrained than it should be:
    <pre class="prettyprint ml">
    module type FLOAT_PAIR = sig
-     val make_pair : float -> float * float
+     val make_pair : float &rarr; float * float
    end;;
 
    module PAIR (M : OP) : FLOAT_PAIR = struct
@@ -6830,8 +6830,8 @@
    module type COMPLEX = sig
      type complex
      type extern_complex
-     val make : extern_complex -> complex
-     val show : complex -> extern_complex
+     val make : extern_complex &rarr; complex
+     val show : complex &rarr; extern_complex
      ...
    end;;
    </pre>
@@ -6904,8 +6904,474 @@
    struct
      ...
    end;;
+   </pre>
    <br/>
    <br/>
+   </p>
+
+   <h5>Type sharing between functor parameters</h5>
+   <p>Since n-ary functors are defined from by the nesting of unary
+   functors their respective environments are also nested. So, type
+   constraints on the signature of a parameter may use the types of
+   parameter signatures that precede it. For example:
+   <pre class="prettyprint ml">
+   module type OP = sig
+     type t
+     val op : t &rarr; t &rarr; t
+   end;;
+
+   module Mixed_pair (M1 : OP) (M2 : OP with type t = M1.t) =
+   struct
+     let make_pair x = (M1.op x x, M2.op x x)
+   end;;
+   </pre>
+   The second parameter of the functor is constrained by means of a
+   type which comes from the first parameter. It is a new case of
+   "type sharing" which this time over the parameters of
+   functors. Observe first of all in this example the type constraint
+   is not essential; it provides only a precise specification. There
+   are however situations where explicit sharing of types is required
+   for the system to type correctly. As in the case of the preceding
+   section, the implementation of a functor may make use of
+   compositions of types which impose constraints on the
+   parameters. For example, consider the following functor:
+   <pre class="prettyprint ml">
+   module Compos (M1 : OP) (M2 : OP) =
+   struct
+     let f x = M1.op (M2.op x x) (M2.op x x)
+   end;;
+   </pre>
+   The functor is incorrect when the function <code>f</code> applies a
+   composition between the elements of <code>M1</code> and
+   of <code>M2</code>. Their respective types <code>t</code> must be
+   equivalent under penalty of error. In other words, this
+   implementation of <code>Compos</code> possesses specifics which are
+   not reflected in the signatures of the parameters. An exact version
+   is thus the following:
+   <pre class="prettyprint ml">
+   module Compos (M1 : OP) (M2 : OP with type t = M1.t) =
+   struct
+     let f x = M1.op (M2.op x x) (M2.op x x)
+   end;;
+   </pre>
+   So,
+   <pre class="prettyprint ml">
+   # module Simple_float = struct
+       let t = float
+       let op = ( +. )
+     end;;
+
+   # module M = Compos (Simple_float) (Simple_float);;
+
+   # M.f 1.;
+   = : Simple_float.t = 4.
+   </pre>
+   </p>
+   <p>Here is a less formal example concerning the implementation of a
+   set type whose elements are quantifiable according to thickness,
+   depth, age etc. then associated with an order such that this
+   quantification can be refined to become itself an order. For
+   example, one may consider books ordered according to their
+   publication date and when that date is equal ordered then
+   alphabetically on their title. We can also consider horses ordered
+   according to the speed of their gallop and then according to the
+   brilliance of their coats. Here is one possible generic
+   implementation:
+   <pre class="prettyprint ml">
+   module type VALUED = sig
+     type elt
+     type eval : elt &rarr; int
+   end;;
+
+   module type ORDER = sig
+     type t
+     val less_or_equal : t &rarr; t &rarr; bool
+   end;;
+
+   module Val_ordered (Val : VALUED)
+                      (Ord : ORDER with type t = Val.elt) =
+   struct
+     type t = Val.elt
+     let less_or_equal x1 x2 =
+       let e1 = Val.eval x1 and e2 = Val.eval x2 in
+       if e1 = e2 then Ord.less_or_equal x1 x2
+       else e1 &lt; e2
+   end;;
+   </pre>
+   The explicit indication of the sharing of types in the functor
+   header is here obligated because the
+   function <code>less_or_equal</code> uses the
+   functions <code>Val.eval</code> and <code>Ord.less_or_equal</code>
+   on the same parameters <code>x1</code> and <code>x2</code>. Other
+   than books and horses, the most classic example applies to words in
+   an order called "shortlex" : $x \le y$ if $x$ is a shorter word
+   than $y$ and in the case where their lengths are equal, if $x$ is
+   ordered before $y$ lexicographically. One may then express this
+   order by a simple application of the
+   functor <code>Val_ordered</code>:
+   <pre class="prettyprint ml">
+   # module Length_str = struct
+       type elt = string
+       let eval = String.length
+     end;;
+
+   # module Order_str = struct
+       type t = string
+       let less_or_equal = ( &lt;= )
+     end;;
+
+   # module Short_lex = Val_ordered (Length_str) (Order_str);;
+
+   # Short_lex.less_or_equal "ding" "dong";;
+   - : bool = true
+
+   # Short_lex.less_or_equal "diiing" "dong";
+   - : bool = false
+   </pre>
+   </p>
+
+   <h5>A difficulty : shared types and masking</h5>
+   <p>The functors of the preceding examples make use of parameters in
+   the form of "module records". Their types were therefore not meant
+   to be masked. We could therefore think of transforming them to
+   integrate rigorous masking. The situation is however more delicate
+   here since type sharing can only be concretely established between
+   types considered equivalent by the system.
+   </p>
+   <p>Remember that a masked type is definitely distinguished and
+   named through the module that contains it. This type is
+   incompatbile with all other types except itself. There is thus an
+   obvious difficulty in the direct composition of two abstract types:
+   their representation of values being masked, the type system would
+   not be able to <i>a priori</i> verify and validate. For example,
+   reconsider the <code>Compos</code> functor applied to modules with
+   masked implementations:
+   <pre class="prettyprint ml">
+   # module Compos (M1 : OP) (M2 : OP with type t = M1.t)  =
+     struct
+       let f x = M1.op (M2.op x x) (M2.op x x)
+     end;;
+
+   # module Simple_float1 : OP = struct
+       type t = float
+       let op = ( +. )
+     end;;
+
+   # module Simple_float2 : OP = struct
+       type t = float
+       let op = ( *. )
+     end;;
+
+   # module M = Compos (Simple_float1) (Simple_float2);;
+   TYPE ERROR
+   </pre>
+   Although the respective abstract types <code>t</code> of the two
+   modules passed in as arguments appear equal, masking renders them
+   incomporable : <code>Simple_float1.t</code> is not equivalent
+   to <code>Simple_float2.t</code>.
+   </p>
+   <p>The direct composition of representations of values of abstract
+   types is thus generally impossible. This property could appear as a
+   truism. Yet, in order to grasp it properly it is necessary to
+   distinguish which is the order of the type abstractions and what is
+   the order of masking : the functor <code>Compos</code> preceding
+   usess <i>abstraction</i> over the types of the parameters, that is
+   to say <code>M1.t</code> and <code>M2.t</code>. By the type
+   constraint "<code>OP with type t = M1.t</code>" it is required that
+   these be equivalents bu masking of the types
+   of <code>Simple_float1</code> and <code>Simple_float2</code> make
+   them different.
+   </p>
+   <p>There exists however sometimes a case where an equality maa be
+   established over masked types. For example, the
+   functor <code>Compos</code> applied with success if the parameters
+   are instances of the same argument:
+   <pre class="prettyprint ml">
+   # module M = Compos (Simple_float1) (Simple_float1);;
+   module M : sig val f : Simple_float1.t -> Simple_float2.t end
+   </pre>
+   This equality between masked types is also possible when they come
+   from the same chain of application of functors. For example:
+   <pre class="prettprint ml">
+   # module F (M : OP) : OP = struct
+       type t = M.t
+       type op x y = M.op (M.op x y) (M.op x y)
+     end;;
+
+   # module M = Compos (F (Simple_float1)) (F (Simple_float1));;
+   module M : sig val f : F (Simple_float1).t -> F (Simple_float1).t end
+   </pre>
+   In fact, it will be observed here that in the full name of the
+   type <code>t</code>, the name of the applied functor makes an
+   appearance; this is what makes it comparable to other occurences of
+   the same name. In this capacity, it is said that functors in OCaml
+   are applicative. The functionality simplifies the transmission of
+   types for functor interposition but it also permis abstract data
+   types to maintain relationships through their masked
+   representations. These distinguished relations sometimes prevent
+   full application of the "principle of substitutivity" and
+   particularly when imperative programming intervenes within the
+   modular components. There does not seem to be a perfect solution to
+   this ambivalence due to the existence of generic abstract types end
+   thir possibility of integrating imperative traits. The mix of
+   styles could have reached a point where their respective
+   characteristics are no longer wholly compatible.
+   </p>
+
+   <h5>The technique of "type nuserys"</h5>
+   <p>The preceding section has show that it is rather rare to be able
+   to compose abstract data types under good conditions. That said,
+   "module records" are a construction available in the langauage and
+   functors apply to them very well. One may thus imagine situations
+   where at the outset of the first phase of building a program we
+   would only manipulate data types without masking (for example, in
+   the body of the same package). In this situation, the types may be
+   considered as "basic seeds" permittin the construction of data
+   types additionally elaborated through the application of
+   composition functors, combinations, transformations etc. The types
+   thus formed will then be able to benefit from masking <i>a
+   posteriori</i> and then become abstract data types in their own
+   right.
+   </p>
+   <p>Their exist a particular generic combinations of datatypes which
+   are conceived only for types without masking. The most important is
+   that of a union of properties of the two datatypes. Here is an
+   illustration in the form of a functor which generates datatypes
+   which present at the same time the properties of order and quantity
+   over integers:
+   <pre class="prettyprint ml">
+   module type VALUED = sig
+     type elt
+     val eval : elt -> int
+   end;;
+
+   module type ORDER = sig
+     type t
+     val less_or_equal : t -> t -> bool
+   end;;
+
+   module Val_and_order (Val : VALUED)
+                        (Ord : ORDER with type t = Val.elt) =
+   struct
+     include Ord
+     include Val
+   end;;
+   </pre>
+   Note that the indication of type sharing is not required here
+   because the two inclusions are independent (there are no
+   compositions between the types); it is however from the point of
+   view of what one wishes to express, that is to say, a sole datatype
+   integrating thhe two properties at one time. For example:
+   <pre class="prettyprint ml">
+   # module Length_str = struct
+       type elt = string
+       let eval = String.length
+     end;;
+
+   # module Order_str = struct
+       type t = string
+       let less_or_equal = ( &lt;= )
+     end;;
+
+   # module OL_str = Val_and_order (Length_str) (Order_str);;
+
+   # OL_str.less_or_equal "cycliophore" "gatrotriche";;
+   - : bool = true
+
+   # OL_str.eval "plathelminthe";;
+   - : int = 13
+   </pre>
+   The union of the two types is realized and the representation of
+   values of the result is public. We remain within the framework of
+   the "nursery". Masking can be applied <i>a posteriori</i> using the
+   following signatures:
+   <pre class="prettyprint ml">
+   module type ORDERED_VALUED = sig
+     include ORDER
+     include VALUED with type elt = t
+   end;;
+
+   module type ORDER_VALUED_MASK = sig
+     include ORDERED_VALUED
+     type extern_t
+     val make : extern_t -> t
+     val show : t -> extern_t
+   end;;
+   </pre>
+   Let us add two remarks about this combination of types technique:
+   <ul>
+   <li><i>Possible type name conflicts.</i> Inclusion of multiple
+   signatures and the preceding functors are only possible because the
+   abstract types of <code>VALUED</code> and <code>ORDERED</code> are
+   named differently. In the case name conflicts could occur, there
+   will therefore be functors of adaption. It is a consequence of the
+   "weakly algebraic" naming tactic.</li>
+   <li><i>Effects of the limitation of the construction <code>with
+   type.</code></i>In the preceding example, we used the predefined
+   type <code>string</code>. This type then directly lends itself to
+   the constraint <code>VALUED with type elt = Ord.t</code>. In
+   contrast, in the case of record or sum types, it would be necessary
+   to define them outside the modules. For example:
+   <pre class="prettyprint ml">
+   # type hash_set = Set of (char, unit) Hashtbl.t
+
+   # module Order_set = struct
+       type t = hash_set
+       let less_or_equal = ( &lt;= )
+     end;;
+
+   # module Size_set = struct
+       type elt = hash_set
+       let eval (Set s) = Hashtbl.length s
+     end;;
+
+   # module OS_set = Order_val (Order_set) (Size_set);;
+   </pre>
+   </li>
+   </ul>
+   </p>
+
+   <h4>Functor signatures</h4>
+
+   <h5>Types for functors</h5>
+   <p>The parameters of a functor have to explicit types by signatures
+   and on the other hand the result of a functior may equally be typed
+   by a signature. The linking of these signatures forms a functor
+   type (on speaks here of the <i>signature of functors</i> by a
+   somewhat abusive but convenient extension).The case is evidently
+   closer to that of types of functions. A fact that until now has
+   passed in silence, type inference produces functor types. For
+   example:
+   <pre class="prettyprint ml">
+   # module type OP = sig
+       type t
+       val op : t -> t -> t
+     end;;
+
+   # module type PAIR = sig
+       type t
+       val make_pair : t -> t * t
+     end;;
+
+   # module Pair (M : OP) : PAIR = struct
+       let t = M.t
+       let make_pair x = (x, M.op x x)
+     end;;
+   module Pair : functor (M : OP) -> PAIR
+   </pre>
+   We see thus the usual form of a functional type based on the
+   operator "<code>&rarr;</code>", and this in the modular
+   framework. The definition of new signatures of functors is
+   established in a natural syntax as follows:
+   <pre class="prettyprint ml">
+   module type &lt; Name of signatures &gt; =
+     functor (&lt; Parameter &gt; : &lt; SIGNATURE &gt;) &rarr; &lt; SIGNATURE RESULT &gt;
+   </pre>
+   Such a functor signature thus describesa "functional type between
+   two signatures". For example:
+   <pre class="prettyprint ml">
+   # module type PAIR_FUNCTOR =
+       functor (M : OP) &rarr; PAIR;;
+   </pre>
+   </p>
+   <p>The global explicit typing of a functor is also
+   possible. However, to avoid a conflict with explicit typing of the
+   result of a functor, it is necessary to return to its
+   non-abbreviated notation, namely:
+   <pre class="prettyprint ml">
+   # module Pair : PAIR_FUNCTOR =
+      functor (M : OP) &rarr; struct
+        type t = M.t
+        let make_pair x = (x, M.op x x)
+      end;;
+   module Pair : PAIR_FUNCTOR
+   </pre>
+   We type here the name of the functor and associate it with a
+   "functor value". As usual, explicit typing induces a masking iof
+   the elements contained in the body of the functor:
+   <br/>
+   <br/>
+   <b>Rule (3) of the visibility of a functor result : </b> When a
+   valid explicit typing of a functor $F$ by a signature $S1
+   \rightarrow S2$, the masking applied is similar to the explicit
+   typing of its result by $S2$.
+   <br/>
+   <br/>
+   It is not thus far possible in OCaml to add a type constraint
+   by <code>with</code> to a signature for functors. Type constrains
+   must be part of the definition of the signature. For example, we
+   may specify a systematic sharing between the types of the argument
+   and the result of the functor:
+   <pre class="prettyprint ml">
+   # module type PAIR_FUNCTOR =
+       functor (M : OP) &rarr; (PAIR with type t = M.t)
+   </pre>
+   </p>
+   <p>As for simple signatures, explict typing for functor signatures
+   is dependent on their compatibility.
+   <br/>   
+   <br/>   
+   <b>Compatibility between signatures of functors : </b> The
+   signature <code>SF : S1 -> S2</code> is <i>compatible</i> with the
+   signature <code>SF' : S1' -> S2'</code> if <code>S1</code> is
+   compatible with <code>S1'</code> and <code>S2</code> is compatible
+   with <code>S2'</code>. In this case, if the functor <code>F</code>
+   is an instance of <code>SF</code>, it is equally an instance
+   of <code>SF'</code>.
+   <br/>   
+   <br/>   
+   We illustrate this rule by the aid of a formal set of signatures:
+   <pre class="prettyprint ml">
+   module type S_SMALL = sig end;;
+   module type S       = sig val x1 : int end;;
+   module type S_LARGE = sig val x1 : int val x2 : int end;;
+   module type SF1 = functor (M1 : S) -> S;;
+   module type SF2 = functor (M1 : S) -> S_SMALL;;
+   module type SF3 = functor (M1 : S) -> S_LARGE;;
+   module type SF4 = functor (M1 : S_SMALL) -> S;;
+   module type SF5 = functor (M1 : S_LARGE) -> S;;
+   </pre>
+   Here, <code>S_LARGE</code> is evidently comptabile
+   with <code>S</code> which is compatible
+   with <code>S_SMALL</code>. But what about the signatures of
+   functors? Consider the following functor which is assuredly an
+   instance of the signature <code>SF1</code>:
+   <pre class="prettyprint ml">
+   # module F1 : SF1 = functor (M : S) -> struct let x1 = M.x1 end;;
+   </pre>
+   Without danger, it is possible to type the body of the
+   functor <code>F1</code> by a signature computed to be compatible
+   with <code>S</code> which is in this case <code>S_SMALL</code>. In
+   other words, <code>SF1</code> is compatible with <code>SF2</code>
+   and the functor <code>F1F1</code> is an instance
+   of <code>SF2</code>:
+   <pre class="prettyprint ml">
+   # module F2 : SF2 = F1;;
+   module F2 : SF2
+   </pre>
+   On the other hand, the body of the functor may not be treated as an
+   instance of <code>S_LARGE</code>, that is it is merely
+   an <code>S</code> and thus:
+   <pre class="prettyprint ml">
+   # module F3 : SF3 = F1;;
+   TYPE ERROR
+   </pre>
+   Secondly, the parameter <code>M</code> is not instansiable for a
+   moule which doesn't satisfy <code>S_SMALL</code> because the body
+   of <code>F1</code> would no longer be coherent with its parameter:
+   <pre class="prettyprint ml">
+   # module F4 : SF4 = F1;;
+   TYPE ERROR
+   </pre>
+   Finally, the parameter <code>M</code> may be instantiated for a
+   module that satisfies <code>S_LARGE</code> that is, a module richer
+   than necessary:
+   <pre class="prettyprint ml">
+   # module F5 : SF5 = F1;;
+   module F5 : SF5
+   </pre>
+   This compatibility rule thus provides a rigorous framework for the
+   re-use of functors with respect to a fixed specification.
    </p>
 
    <hr/>
