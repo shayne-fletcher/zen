@@ -7374,6 +7374,376 @@
    re-use of functors with respect to a fixed specification.
    </p>
 
+   <h5>Specification of functor signatures</h5>
+   <p>In the framework of explicit typing, functor signatures somewhat
+   duplicate with simple signatures. We can therefore limit ourselves
+   to one of these means and prefer the explicit typing of functor
+   results since it allows adaptions <i>a posteriori</i> for type
+   constraints. However:
+   <br/>
+   <br/>
+   <b>Signatures of functors and specification : </b> The signatures
+   of functors may take place in a global specification so that no
+   modular components are presented without an associated signature.
+   <br/>
+   <br/>
+   </p>
+   <p>On the other hand, signatures of functors permit somemtimes to
+   replace a specification expressed by simple signatures. Indeed,
+   type constraints within a signature may often be direct reportees
+   over the signature of the corresponding functor. Reconsider the
+   example of the specification of a container:
+   <pre class="prettyprint ml">
+   module type CONTAINER = sig
+     type elt
+     type t
+     val empty : unit -> t
+     val add : elt -> t-> t
+     ...
+   end;;
+   </pre>
+   Here first of all is a derived signature for containers of ordered
+   elements according to the classical technique:
+   <pre class="prettyprint ml">
+   module type ORDER_CONTAINER = sig
+     module O : ORDER
+     include CONTAINER with type elt = O.t
+   end;;
+   </pre>
+   And here is a functor signature that imposes directly a link
+   between the instances of <code>ORDER</code>
+   and <code>CONTAINER</code>:
+   <pre class="prettyprint ml">
+   module type ORDER_CONTAINER_F =
+     functor (Ord : ORDER) -> CONTAINER with type elt = Ord.t;;
+   </pre>
+   It is then possible to use this functor signature for the
+   explicitly typing an implementation. The
+   functor <code>Ord_list</code> is also directly implementable:
+   <pre class="prettyprint ml">
+   module Ord_list : ORDER_CONTAINER_F =
+     functor (Ord : ORDER) ->
+   struct
+     type elt = Ord.t
+     type t = elt list
+     ...
+   end;;
+   </pre>
+   We note nevertheless that such a specification by functor signature
+   is not entirely equivalent to a specification obtained by simple
+   signatures. It imposes necessarily a construction via interposed
+   functor. In the example above, <code>ORDER_CONTAINER_F</code>
+   imposes that containers with ordered elements are all issued from
+   the application of a functor. The derived
+   signature <code>ORDER_CONTAINER</code> does not.
+   </p>
+
+   <h4>Functors of functors</h4>
+
+   <h5>A first use of functors of functors</h5>
+   <p>We have shown in the preceding that functors offer a complete
+   means of specification. But the signatures are also justified
+   equally by another natural possibility of the language: the passing
+   of functors as arguments to other functors. <i>Functors of
+   functors</i> (called also "higher order functors") in fact a
+   construction available in OCaml. The signatures of functors here
+   take on all their importance because as in the case of simple
+   module parameters, it is necessary to explicitly type "fonctorial
+   parameters".
+   </p>
+   <p>Here first of all an example of the formal manipulation of
+   functors. Recall that n-ary functors are currified. On may thus
+   partially apply and so specialize. As for functions, this operation
+   depends on the order which the parameter arguments appear. We could
+   then argue on this order. Reconsider the example of the binary
+   functor <code>Optimis</code>. The signature follows:
+   <pre class="prettyprint ml">
+   module type OPTIMISATION_F =
+     functor (Metric : METRIC_SPACE) ->
+       functor (Ord : ORDER) -> OPTIMISATION;;
+   </pre>
+   A functor to invert these parameters is thus as follows:
+   <pre class="prettyprint ml">
+   module Inv (F : OPTIMISATION_F) (O : ORDER) (M : METRIC_SPACE) = 
+     struct
+       include F (M) (O)
+     end;;
+   </pre>
+   Evidently, in the bodies of functors, this inversion may not be as
+   generic as in the case of functions. It can only be on
+   implementations that satisfy the functorial
+   parameter <code>F</code> to be inverted. The
+   functor <code>Optimis</code> is one such and is made partially
+   applicable on the second parameter:
+   <pre class="prettyprint ml">
+   # module Inv_optimis = Inv (Optimis);;
+   # module Grad_float = Inv_optimis (Order_float);;
+   module Grad_float :
+     functor (M : METRIC_SPACE) -> sig ... end
+   </pre>
+   </p>
+
+   <h5>Constraints over functorial parameters</h5>
+   <p>The signatures of functorial parameters necessarily have the
+   same precision as those of module parameters : they have to
+   integrate all the type constraints necessary to specify the
+   implementation. For example, consider the following situation:
+   <pre class="prettyprint ml">
+   module type OP = sig
+     type t
+     val op : t -> t -> t
+   end;;
+
+   module type PAIR = sig
+     type t
+     val make_pair : t -> t * t
+   end;;
+
+   module type PAIR_FUNCTOR = functor (M : OP) -> PAIR;;
+
+   module F (Internal : PAIR_FUNCTOR) = struct
+     module Int = struct type t = int let op = ( + ) end
+     module Pair = Internal (Int)
+     let less_than_origin x =
+       Pair.make_pair x < (0, 0) (*comparison of a pair of integers*)
+   end;;
+   </pre>
+   The functor <code>F</code> is incorrect because the
+   function <code>less_than_origin</code> imposes the
+   function <code>Pair.make_pair</code> produce pairs of integers. On
+   the other hand, the functor <code>Internal</code> must necessarily
+   generate modules that manage these entities. Consequently, the
+   functor <code>PAIR_FUNCTOR</code> must be made precise:
+   <pre class="prettyprint ml">
+   module type PAIR_FUNCTOR =
+     functor (M : OP) -> PAIR with type t = int;;
+   </pre>
+   Based over this signature, the functor <code>F</code> above will
+   type fine. In order to make it really usable it would be preferable
+   to consider the following signature:
+   <pre class="prettyprint ml">
+   module type PAIR_FUNCTOR =
+     functor (M : OP with type t = int) -> PAIR with type t = int;;
+   </pre>
+   The type of parameter <code>M</code> of the functor is indeed the
+   thing that will probably affect the type of the
+   function <code>less_than_origin</code>. The signatures of functors
+   can also contribute to the proper transmission of types.
+   </p>
+
+   <h5>Control of generiticity of functors of functors</h5>
+   <p>A common situation in the use of functors is to simplify the
+   functors who are overly generic. For example, the implementation of
+   graphs proopsed a generticity over its elements : the keys, the
+   data and the edges. That exhaustive generiticity is not always
+   desirable. To rememdy this, it is sometimes possible to use a
+   partial instantiation of parameters of such a functor. But, we may
+   equally pass the functor an argument to be applied as a second step
+   according to the following model:
+   <br/>
+   <br/>
+   <b>Control of the generiticity of a functor : </b> A
+   functor <code>F1</code> is passed an argument of another
+   functor <code>F2</code> in a manner that the body
+   of <code>F2</code> is applied to <code>F1</code> in a specific
+   environment.
+   <br/>
+   <br/>
+
+   The generiticity expressed here thus is over the
+   functor <code>F1</code> and not over the different parameters. That
+   situation was given in the preceding example. In the case of
+   graphs, on may want focus on the generiticity from the point of
+   view of the construction of graphs, and not the keys, the data or
+   the edges. Here is an example based on the notion of finite
+   automata which are directed graphs, the vertices representing
+   states and the edges transitions between those states. These
+   automatons are very useful for example in compilers and
+   communication protocols or, more generally, for describing discrete
+   dynamic systems which have a finite number of states. For example,
+   consider the automaton describing the life of beasts consisting of
+   two states $1$ (quiet) and $2$ (excited) and the set of transitions
+   $1 \rightarrow 1$ labelled "quiet", $1 \rightarrow 2$ labelled
+   "excite" and $2 \rightarrow 1$ labelled "calm down".
+   </p>
+   <p>Automatons thus are above all graphs of specific
+   behaviors. Here, we now donsider them according to two
+   simplifications:
+   <ul>
+   <li>The vertices do not contain data</li>
+   <li>Identification of vertices is with simple integers</li>
+   </ul>
+   Here first of all is a set of signatures associated with these
+   automatons which suggests their generiticity will therefore mainly
+   be expressed on the labels of their arcs:
+   <pre class="prettyprint ml">
+   module type EQUAL = sig
+     type t
+     val eq : t -> t -> t
+   end;;
+
+   module type AUTOMATON = sig
+     module Label : EQUAL
+     type label = Label.t
+     type automaton
+     type extern_automaton
+     val make : extern_automaton -> automaton
+     val path_exist : automaton -> label list -> bool
+   end;;
+   </pre>
+   Here too a signature of functors associated with graphs and which
+   integrate type constraints linked with masked implementation (it
+   will be noted that they are a recap of the header of the graph
+   functor; their necessity is explained in the preceding section):
+   <pre class="prettyprint ml">
+   module type GRAPH_F =
+     functor (T : TYPE) ->
+       functor (Key :  EQUAL) ->
+         functor (Label : EQUAL) ->
+         GRAPH with module Key = Key and module Label = Label
+         with type vertex_data = T.t
+         with type extern_graph =
+          ((Key.t * T.t) * ((Key.t * Label.t) list)) list;;
+   </pre>
+   With this, an automaton constructor functor may use an argument of
+   signature <code>GRAPH_F</code> and apply it in order to specialize:
+   <pre class="prettyprint ml">
+   module Automaton (Label : EQUAL) (Graph_F : GRAPH_F)
+     : AUTOMATON
+       with module Label = Label
+       with type extern_automaton = (int * ((int * label) list)) list =
+   struct
+     module Label = Label
+     module State = struct type t = int let eq = ( = ) end
+     module Data_dummy = struct type t = unit end
+     module G = Graph_F (Data_dummy) (State) (Label)
+
+     type label = label.t
+     type automaton = G.graph
+     type extern_automaton = (G.Key.t * ((G.Key.t * Label.t) list)) list
+
+     let make l = G.make (List.map (fun (x, y) -> ((x, ()), y)) y)) l)
+
+     let path_exist autom word =
+       let rec aux visited word = match word with
+         | [] -> true
+         | first :: tail -> List.mem true
+               (List.map (fun v ->
+                  let nexts = List.filter (fun (), lab) -> lab = first)
+                                          (G.nexts v autom) in
+                  if nexts = [] then false
+                  else aux (List.map fst nexts) tail)
+                visited)
+       in
+        aux [1] word (*the starting state is 1 by default*)
+   end;;
+   </pre>
+   In the functor, on application of the argument <code>Graph_F</code>
+   to the private modules <code>Dummy_data</code>
+   and <code>State</code> we fix the particular form of the graphs
+   under the identifier <code>G</code> (which correspond to our
+   simplifications). The constructor <code>make</code> is based over
+   an application of the specialized constructor <code>G.make</code>
+   and the search function on a path of edges makes use of the
+   extraction function of a neighbourhood <code>G.nexts</code>. So, a
+   functor permits making an abstraction over the representation of
+   graphs and not pass certain parameters.
+   </p>
+   
+   <p>Here is an example of the construction of an automaton type with
+   edges strings end the functor passed as an argument
+   is <code>Graph</code> (from the earlier example):
+   <pre class="prettyprint ml">
+   # module Label = struct type t = string let eq = ( = ) end;;
+   # module A = Automaton (Label) (Graph);;
+   </pre>
+   One may test using the life of a beast example:
+   <pre class="prettyprint ml">
+   # let life = A.make [1, [1, "quiet"; 2, "excite"];
+                        2, [1, "calm down"]];
+   val life : A.automaton = &lt;abstr&gt;
+
+   # A.path_exist life ["excite"; "calm down"];;
+   - : bool = true
+
+   # A.path_exist life ["excite"; "excite"];;
+   - : bool = false
+
+   # A.path_exist life ["excite"; "calm down"; "quiet"; "excite"];;
+   - : bool = true
+   </pre>
+   </p>
+
+   <h5>Remarks about generalization for functors</h5>
+   <p>As in the case of functions, generalizations established from
+   functors of functors can sometimes be exaggerated. It is always
+   possible to transform a simple parameter <code>M1</code> into a
+   functor parameter capable of generating <code>M1</code>. More
+   precisely, consider a functor such as :
+   <pre class="prettyprint ml">
+   module F1 (M1 : S1) = ...
+   </pre>
+   The above can always be transformed into a functor of functors:
+   <pre class="prettyprint ml">
+   module type SF1 = functor (M0 : S0) -> S1
+
+   module FF (F1 : SF1) (M0 : S0) = struct
+     module M1 = F1 (M0)
+     ...
+   end;;
+   </pre>
+   A functor may effectively encompass a part of the applications of
+   susceptible functors and generate the arguments. This avoids the
+   user having to construct them themselves as was the case in the
+   preceding example. This form provides little benefit if it is
+   applied in a systematic way adding much more complexit to the
+   technique of realization. A generalization is obviously not
+   justified just for it's own sake.
+   </p>
+
+   <h5>Almost first class modules and functors </h5>
+   <p>Modules and functors are elements of a language whose behaviors
+     resemble the usual values. In their own world, modules and
+     functors are manipulated as typable elements which are not far
+     from being first class : one may pass arguments to a functor and
+     they can be the result of the application of a functor. However,
+     there are substantial differences between simple values and
+     modular components. Recall the fact that functions have types
+     that can be completely inferred whereas for functors, it is
+     necessary to explicitly type their parameters. The limits of the
+     reach of type inference is shown here (the case of modules is
+     undecidable).
+   </p>
+   <p>In OCaml, the two worlds of values remain thus essentially
+   parallel. This gap is all the more tangible in that modules cannot
+   appear in expressions such as the
+   classic <code>if-then-else</code>:
+   <pre class="prettyprint ml">
+   # if test then Complex else Complex_memo;;
+   TYPE ERROR
+   </pre>
+   In fact, modules in OCaml do not meet the third condition for being
+   first class, that is, "storable in a data structure". A data
+   structure is a purely dynamic element. In contrast, modules and
+   functors in OCaml are elements of a static nature.
+   </p>
+   <p>Nevertheless, that restriction is not inherent to the ML
+   languages. It is a choice of the OCaml language designers and in
+   this situation could quite possibly be made to evolve in the
+   future. In this respect, local modules already allow to make it
+   possible to use in a dynamic framework. For example, consider the
+   following functor:
+   <pre class="prettyprint ml">
+   module type S = sig
+     val f : int -> int
+   end;;
+
+   module F_add (M : S) = struct
+     let g = M.f x + 3
+     let () = print_endline "F_add applied"
+   end;;
+   </pre>
+   </p>
    <hr/>
    <p>
      References:<br/>
