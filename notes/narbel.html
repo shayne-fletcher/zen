@@ -7743,7 +7743,344 @@
      let () = print_endline "F_add applied"
    end;;
    </pre>
+   With the combination of local modules and imperative traits it is
+   possible to effect a dynamic choice of module code during
+   evaluation:
+   <pre class="prettyprint ml">
+   # module Increm_1 = struct let f x = x + 1;;
+   # module Increm_2 = struct let f x = x + 2;;
+   
+   # let dynamic_module_choice x =
+     let f = ref (fun x -> x) in (*initialization*)
+     (if x = 0
+        then let module N = F_add (Increm_1) in
+          f := N.g
+      else let module N = F_add (Increm_2) in
+          f := N.g);
+      !f
+   val dynamic_module_choice : int -> int -> int
+
+   # dynamic_module_choice 0 1;;
+   F_add APPLIED
+   - : int = 5
+
+   # dynamic_module_choice 222 1;;
+   F_add APPLIED
+   - : int = 6
+   </pre>
+   Only one of the two applications of <code>F_add</code> is effected
+   when the function <code>dynamic_module_choice</code> is called.
    </p>
+
+   <h4>The choice of generic modules</h4>
+   <p>The preceding sections have illustrated how functors are the
+   effective tools of generic modular programming. They permit
+   inheritance, adaption, links of of association and aggregation of
+   types in general environments, and offer a mechanism to control
+   instantiation of type parameters. Nevertheless, two properties
+   deserve further development:
+   <ul>
+   <li><i>"Functorial development".</i> Functors make possible a
+   modular incremental programming, in the same fashion as functions
+   make possible an incremental functional programming.</li>
+   <li><i>The setting for a means of specification.</i> Functors
+   highlight the importance and the benefits of a language means of
+   specification on which their implementation can depend in a manner
+   both explicit and effective.</li>
+   </ul>
+   These two points express to what extent functors are able to play a
+   role at the level of development of programs, that is software
+   engineering. Further, they show how functors it is possible to
+   profit fully from the type system which extends its action in the
+   modular framework and take part tangibly in the elabration of a
+   valid logical archiecture. Understanding of these points is thus
+   important for precisely these advantages of generic modular
+   programming and we will dicusss them once more in what follows.
+   </p>
+
+   <h3>Functors : another form of functional programming</h3>
+   <p>Functors induce conditions of development of programming which
+   are similar to that of functional programming. In particular, it is
+   possible to practice an "modular incremental programming" in
+   favorable conditions.
+   <br/>
+   <br/>
+
+   <b>Functors and "functorial programming":</b>
+   <ol>
+   <li><i>Localization of effects.</i> Functors may constitute total
+   functions on modules. They can be implemented in the manner of a
+   "black box" such that their behaviors are independant of the
+   environment and the conditionso of their applications.</li>
+   <li><i>Interactive development.</i> The development of a set of
+   functors may be realized in an interactive environment, that is,
+   under the same conditions as functions.</li>
+   </ol>
+   <br/>
+   <br/>
+   </p>
+   <p>This "functorial programming" is established in a principally
+   static framework. In other words, functors participate mostly in
+   the construction of programs. We can also envisage functors as a
+   tool of "edition of links" between modular components. Their
+   specificity consists however between direct integration in the
+   language and the type system. Thus, we no longer delegate
+   implementations of the relations of the different components to
+   external processes.
+   </p>
+
+   <h5>Functors : a software engineering tool</h5>
+   <p>Functors must be located in the global context of modular
+   programming if one wishes to be able to appreciate the full
+   scope. First of all, recall that modular programming induces an
+   essential difficulty : it must separate without isolating. The
+   relative complexity of the preceding pages is a definition
+   reflection of this. It is not surprising therefore to find the
+   links between the modular components take on multiple forms. We
+   summarize them here:
+   <ol>
+   <li><i>Links of direct utilization : </i>We draw directly on the
+   public elements of the available modules. Opening of modules make
+   these links even more direct.</li>
+   <li><i>Links of utilization by inclusion : </i>Elements of
+   signatures and modules are included by the
+   directive <code>include</code> and they take their place at the
+   same level as the other elements.</li>
+   <li><i>Links of utilization by sub-modules : </i>The signatures and
+   the modules are included by embedding as sub-signatures and
+   sub-modules.</li>
+   <li><i>Links of generic utilization (links by functors) : </i>The
+   use of modules is not specified; it is made effective only at the
+   very last extremeity, that is, on the applications of functors.</li>
+   </ol>
+   The links are distinguished essentially by their tendancy to fix
+   their elements, either at the level of implementation or at the
+   level of specification. To illustrate that idea and make a fair
+   synthesis of what it covers, we will combine the same example
+   according to each of them. Reconsider first of all a version of the
+   signature <code>ARITH</code> which specifies a very general type of
+   values:
+   <pre class="prettyprint ml">
+   module type ARITH = sig
+     type nb
+     val make : string -> nb        val show : nb -> string
+     val zero : nb                  val one : nb
+     val add : nb -> nb -> nb       val sub : nb -> nb -> nb
+     val mul : nb -> nb -> nb       val div : nb -> nb -> nb
+   end;;
+   </pre>
+   Here's one instance provided by a simple adaptation of the
+   module <code>Int64</code> of base-64 integers from the standard
+   library:
+   <pre class="prettyprint ml">
+   module I64 : ARITH = struct
+     include Int64
+     type nb = Int64.t
+     let make = of_string        let show = to_string
+   end;;
+   </pre>
+   Consider now the problem of using the module <code>I64</code> for
+   numerical calculations in another module, for example in a module
+   which resembles the mathematical functions module of an earlier
+   example. Here first of all is a solution based on the "links by
+   direct use":
+   <pre class="prettyprint ml">
+   module type MATH1 = sig
+     val fact : I64.nb -> I64.nb
+     val fib : I64.nb -> I64.nb
+     val sum : (I64.nb -> I64.nb) -> I64.nb -> I64.nb -> I64.nb
+   end;;
+
+   module Math : MATH1 = struct
+     let rec fact n =
+       if n &lt;= I64.one then I64.one
+       else I64.mul n
+          (fact (I64.sub n I64.one))
+      ...
+   end;;
+   </pre>
+   In this example, the module <code>Math</code> and the
+   signature <code>MATH1</code> integrate directly the elements of the
+   implementation <code>I64</code> (the case above is similar to using
+   the global type <code>int</code>). Such "links of direct use" are
+   those found in most of languages which posses an elementary modular
+   layer (e.g. C). This technique requires little effort on the part
+   of the programmer since it consists of exploiting that which is
+   public. The relationships between components are based on a simple
+   pooling of elements at our disposal. If this technique is
+   immmeidate and easy to implement, its disadvantages are far from
+   being negligble:
+   <ul>
+   <li><i>Difficult substitutions : </i>The use of the
+   module <code>I64</code> is definitely fixed in the
+   implementation. The replacement by another module thus must be
+   achieved by an explicit modification of the code or a reutilization
+   of the name <code>I64</code>. In this case, in additino to the
+   obvious management difficulties, multiple implementations can not
+   coexist in the same program.<br/></li>
+   <li><i>"Soft dependencies" : </i>By reason of the pair formed
+   by <code>Math</code> and <code>MATH1</code>, we are not obliged to
+   use an implementation which satisfies the
+   signature <code>ARITH</code>. The module <code>Math</code> and the
+   signature <code>MATH1</code> constitute disparate elements derived
+   from various modules whose coherence would then be
+   approriate. Analysis of the set of elements of <code>I64</code>
+   uses falls on the programmer. However, a good definition for a
+   module client depends on the stability of the imported modules. The
+   direct use of simply what is available leads to a weakening of
+   coherence and intelligibility of the partitioning put in place
+   between the components.<br/></li>
+   <li><i>Fixed scheduling of the implementation : </i>The direct
+   links impose which modules must be implemented ahead of the modules
+   that use them.</li>
+   </ul>
+   </p>
+   <p>The "links of using by inclusion" induce a significant
+   improvement over direct links and offer an explicit and effective
+   place to put the signatures and modules used:
+   <pre class="prettyprint ml">
+   module type MATH2 = sig
+     include ARITH
+     val fact : nb -> nb
+     ...
+   end;;
+
+   module Math : MATH2 = struct
+     include I64
+     let rec fact n = 
+       if n &lt;= one then one
+       else mul n (fact (sub n one))
+     ...
+   end;;
+   </pre>
+   In this variation, the signature <code>ARITH</code> appears in the
+   signature <code>MATH2</code>. The dependence
+   between <code>Math</code> and <code>ARITH</code> can be expressed
+   and verified by explicit typing by <code>MATH2</code>. On the other
+   hand, the module <code>Math</code> depends always on the
+   implementation <code>I64</code>. Also, the inclusions involve
+   extensions of multiple modules to establish usage links because
+   everyting included is definied newly at the level of the
+   inclusion. The modules and the signatures can then become
+   voluminous, upon which, even this pooling is not always justified.
+   </p>
+   <p>The "usage links by sub-structures" equally make apparent the
+   signatures and modules used, but retain their individual properties
+   (contrary to inclusion):
+   <pre class="prettyprint ml">
+   module type MATH3 = sig
+     module M : ARITH
+     val fact : M.nb -> N.nb
+     ...
+   end;;
+
+   module Math : MATH3 = struct
+     module M = I64
+     let rec fact n =
+       if n &lt;= M.one then M.one
+       else M.mul n
+          (fact (M.sub n M.one))
+      ...
+   end;;
+   </pre>
+   The signature <code>MATH3</code> makes apparent here the link to
+   signature <code>ARITH</code>. The implementation <code>Math</code>
+   may make use of a module verified compatible
+   with <code>ARITH</code>, but this time without mixing it with other
+   definitions. However this technique gives rise again to a
+   dependence on a definite implementation <code>I64</code>.
+   </p>
+   <p>The "links of use by functor" definitively frees the code of a
+   module from its dependence on existing implementations whether in
+   the form of sub-modules or in the form of signatures of functors:
+   <pre class="prettyprint ml">
+   (*The same as above*)
+   module type MATH3 = sig
+     module M : ARITH
+     val fact : M.nb -> N.nb
+     ...
+   end;;
+
+   module Math (Ar : ARITH) : MATH3 = struct
+     module M = Ar
+     let rec fact n =
+       if n &lt;= M.one then M.one
+       else M.mul n
+          (fact (M.sub n M.one))
+      ...
+   end;;
+
+   module Math_64 = Math (I64);;
+   </pre>
+   Here the use of the module <code>I64</code> does not emerge
+   in <code>Math</code>. It only intervenes when it is applied
+   (<code>Math</code> is now a functor). On the other hand, the
+   signature <code>ARITH</code> makes its appearance in the
+   implementation of <code>Math</code> which makes it possible to
+   verify the adequacy of its use. The "usage links by functor"
+   abstract in effect the essence of generic modular programming:
+   <br/>
+   <br/>
+   <b>Generic links : </b> Setting a usage link between two modular
+   components so that it no longer depends on a particular
+   implementation.
+   <br/>
+   <br/>
+   We can also gather here the arguments in favor of this extra level
+   of abstrction which remedies effectively the disadvantages of
+   direct usage links.
+   <ul>
+   <li><i>Substitutions are facilitated : </i>In the example, it is
+   now easy to obtain an implementation of <code>Math</code> based on
+   another instance of the signature <code>ARITH</code>.</li>
+   <li><i>Validation of dependencies and substitutions : </i>By virtue
+   of the type system, the links between modules can be specified by
+   interposed signatures then concretized by functors without the
+   above using any particular implementation. Also, the type system
+   may validate these links with the parameter signatures and functor
+   applications. The "principle of substitutivity" is thus verifiable
+   in as much as the means of specification permits.</li>
+   <li><i>Freed scheduling of implementation : </i>Functors are
+   implementable and compilable and this even though only even part of
+   their code has been specified. The order of implementation may then
+   adapt according to the contingencies of program development.</li>
+   </ul>
+   <br/>
+   <br/>
+   <b>Functors and software engineering : </b> The control exhibited
+   by the type system and the existence of functors permit techniques
+   of software engineering to find their place int he very heart of
+   the language to be integrated, assisted and promoted.
+   <br/>
+   <br/>
+   </p>
+
+   <h5>Generic modular programming in question</h5>
+   <p>The advantages due to the use of functors are obviously not
+   without counterparts:
+   <ul>
+   <li><i>Program complexity. </i>Functor make programming more
+   complicated and more technical.</li>
+   <li><i>Applications of functors.</i> Functors must be applied to
+   generate modules. These applications are added to the program and a
+   spot must be found for them.</li>
+   <li><i>Dependancy of functors on the set of existing
+   signatures. </i> The type of parameters of functors make necessary
+   the use of available signatures. Nothing however prevents the body
+   of a functor to use only a very small part of what is specified in
+   these signatures. In this case, to implement modules that satisfy
+   these requirements may require a much greater effort than is <i>a
+   priori</i> necessary</li>
+   </ul>
+   The third point is in fact an old problem common in all programming
+   languages which include a means of specification. It corresponds to
+   the counter impact of the treatment of "soft dependencies" by
+   depdencies expressed by the explicit specialization. The relations
+   between modules my in fact be "over specified".
+   </p>
+   <p>
+   </p>
+
    <hr/>
    <p>
      References:<br/>
