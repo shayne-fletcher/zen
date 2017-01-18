@@ -8078,7 +8078,256 @@
    depdencies expressed by the explicit specialization. The relations
    between modules my in fact be "over specified".
    </p>
-   <p>
+   <p>For example, reconsider the case of a signature that describes
+   the behaviors of an association table. In a realistic situation of
+   software development, this signature could quickly take important
+   proportions:
+   <pre class="prettyprint ml">
+   module type ASSOC_TABLE = sig
+     module Key : EQUAL
+     type &beta; assoc
+     val empty : unit &rarr; &beta; assoc
+     val get_pair : &beta; assoc &rarr; Key.t * &beta;
+     val add : &beta; assoc &rarr; Key.t &rarr; &beta; &rarr; &beta; assoc
+     val assoc : &beta; asoc &rarr; Key.t &rarr; &beta;
+     val assocq : &beta; assoc &rarr; Key.t &rarr; &beta;
+     val remove_assoc : Key.t &rarr; &beta; assoc &rarr; &beta; assoc
+     val remove_assocq : Key.t &rarr; &beta; assoc &rarr; &beta; assoc
+     val length : &beta; assoc &rarr; int
+     val iter : (&beta; &rarr; unit) &rarr; &beta; assoc &rarr; unit
+     val map : (&beta; &rarr; &beta;) &rarr; &beta; assoc &rarr; &beta; assoc
+     val map_full : (Key.t &rarr; &beta; &rarr; &beta;) &rarr; &beta; asoc &rarr; &beta; assoc
+     val fold_right : (Key.t &rarr; &beta; &rarr; &beta; &rarr; &beta;) &rarr; &beta; assoc &rarr; &beta; &rarr; &beta;
+     val for_all : (Key.t &rarr; bool) &rarr; &beta; assoc &rarr; bool
+     val filter : (Key.t &rarr; bool) &rarr; &beta; assoc &rarr; &beta; assoc
+     val append : &beta; assoc &rarr; &beta; assoc &rarr; &beta; assoc
+     val concat : &beta; list assoc &rarr; &beta; assoc
+     val split : &beta; assoc &rarr; Key.t list * &beta; list
+     val combine : Key.t list &rarr; &beta; list &rarr; &beta; assoc
+     ...
+   end;;
+   </pre>
+   Thus, any module that indicates a link to this signature would be
+   required to include the full implementation. For example, consider
+   the signature <code>GRAPHIC_ENVIRONMENT</code> which specifies a
+   type of adaptable graphic environments tables, precisely the
+   signature <code>ASSOC_TABLE</code>. It's implementation in the form
+   of the functor <code>G_env</code> exploited only four functions. It
+   remains the case that the module imported must satisfy the full
+   signature. In other words, there is sometimes a disproportion
+   between the content of a signature and the actual use of its
+   implementations. Here are several concrete elements in response to
+   the problem:
+   <ol>
+   <li><i>Complete implementations. </i>The implementation of a
+   complete module is always justified in anticipation of possible
+   future developments.</li>
+   <li><i>Falsely complete implementations. </i>The implementation of
+   a complete module may be obtained "by shortcut" by replacing all
+   the functions not used with ellipses as in for example:
+   <pre class="prettyprint ml">
+   # let short_cut x = failwith "Not implemented!"
+   val shortcut : &alpha; &rarr; &beta;
+   </pre></li>
+   <li><i>Decompositions and recompositions of signatures and
+   modules.</i> Signatures may be decomposed into sub-signatures,
+   modules into sub-modules. The decompositions are then exploited by
+   generic inclusions and embeddings to reconstruct instances
+   approriate to the particular development situation.</li>
+   </ol>
+   </p>
+   <p>However, the techniques of decomposition and recomposition of
+   modular components in the actual state of things in OCaml are
+   laborious (as is the case in most of the currently used
+   languages). These techniques represent in fact one of the crucial
+   points of research and the evolution of languages. One notes
+   however that OCaml provides extension tools CamlP4 and ppx, which
+   may facilitate the implementation of integrated solutions to this
+   problem. For example, by virtue of these tools one may envisage the
+   definition of operations specializing in signature construction and
+   modules as for example those associated with their unions.
+   </p>
+
+   <h4>Representing a generic architecture</h4>
+
+   <p>Up to now, we have considered small scale programs composed of a
+   few modules and functors. In the usual framework of software
+   development, the number of modular components contributed can of
+   course become high. The elaboration and comprehension of a program
+   then proceeds necessarily by structuring techniques and
+   synthesis. For example, representations from UML have become
+   standard in object oriented programming. On the other hand, the
+   representations in the form of directed graphs are a base for
+   modular programming : it simply indicates the use relationships
+   that the modules maintain among themselves. In the framework of
+   OCaml programming which is also based on such "links of direct
+   use", it is assuredly possible it is certainly possible to be
+   satisfied with such a representation. On the other hand, as generic
+   programming and functors come into play, it is no longer
+   sufficient. We thus offer here a graphical representation adapted
+   to them. This will also give us the opportunity to clarify the
+   relationship between functors and software development.
+   </p>
+
+   <h3>Software development and generic programming</h3>
+   <p>The use of functors globally influences the manner of
+   development of a program. First of all, the links specified between
+   modules in the signatures can always be realized by interposed
+   functors (by "generic links"). Reciprocally, functor make mandatory
+   the prior definition of signatures since their parameters are
+   explicitly typed. On the other hand, applications of functors are
+   essential to generate the final program. We can thus distinguish
+   three principal phases of software development with functors:
+   <ol>
+   <li><i>Specification :</i> The definition of signatures and the
+   relations between them. It will be noted that this set of
+   signatures is compilable and verifiable by the type system. In
+   OCaml, this phase can include a decoupling into compilation units,
+   that is to say package organization and signature coherence.</li>
+   <li><i>Partial implementation of the specification :</i> The
+   implementation of modules and of functors which satisfy ceterain
+   signatures of the specification obtained in phase 1.</li>
+   <li><i>Evolution of the implementation :</i> The application of
+   functors to complete the implementation partially established in
+   phase 2.</li>
+   </ol>
+   These phases may be clearly distinguished over these simple
+   examples:
+   <pre class="prettyprint ml">
+   (*specification*)
+
+   module type S1 = sig ... end
+   module type S2 = sig ... end
+   module type SF = functor (M : S1) -> S2
+
+   (*implementation*)
+
+   module M1 : S1 = struct ... end
+   module M2 : S1 = struct ... end
+   module F : SF = functor (M : S1) -> struct ... end
+
+   (*evolution*)
+   module M3 : S2 = F (M1)
+   </pre>
+   Therefore, the very notion of a software architecture is
+   transformed.
+   <br/>
+   <br/>
+   <b>Definition : </b> A <i>generic modular architecture</i> includes
+   the organization of signatures, modules and functors of a program
+   as well as possibilities for it's evolution by application of
+   functors.
+   <br/>
+   <br/>
+   On the hand, let us recall that the modules system in ML languages
+   possess certain particularities which certainly play a role in such
+   an architecture:
+   <ul>
+   <li><i>Multiplicity of implementations.</i> A signature may have
+   multiple implementations. A signature is in effect an interface :
+   it is a type to instantiate.</li>
+   <li><i>Compatibility between signatures.</i> Signatures may be
+   compatible with one another. A module or a functor may then satisfy
+   multple signatures at one time.</li>
+   </ul>
+   Let us emphasize moreover that in OCaml, signatures of functors can
+   be used explicitly during the specification of a
+   program. nevertheless, they might sometimes seem redundant. For
+   example, consider the following signature:
+   <pre class="prettyprint ml">
+   module type S1 = sig
+     module M : S2
+     ...
+   end;;
+   </pre>
+   It will generally lead to the existence of a functor signature of
+   the form:
+   <pre class="prettyprint ml">
+   module type SF = functor (M : S2) -> S1
+   </pre>
+   That said, using the signatures of functors permits treating
+   modules and functors at the same level. Recall in fact tht the
+   multiplicity of implementations and compatibility apply equally to
+   signatures of functors. Even if they are not expressed, these
+   signatures must be included in an architecture so that any typable
+   component can be found. These functor signatures may also be
+   considered as implicit.
+   </p>
+
+   <h5>Specification graphs and automatons of architecture</h5>
+   <p>We are thus far enough from the usual programming conditions. A
+   graphical representation of a generic modular architecture in ML
+   must be capable of integrating the three phases of development
+   above and, on the other hand include the specific properties of ML
+   languages.
+   </p>
+   <p>First of all, it is natural to ensure that the representation is
+   founded over the specification phase. The set of signatgures at our
+   disposal may be indeed organized in the form of a graph which we
+   will call here the "specification graph". Each vertex will denote a
+   particular signature of the architecture and we distinguish between
+   two types of vertices (see diagram):
+   <br/>
+   <br/>
+   <b>Definitions : </b>
+   <ul>
+   <li><i>Simple vertex : </i>denotes a module signature</li>
+   <li><i>Transition vertex : </i>denotes a functor signature and
+   posses a stramd that indicates its "applicability". The strand may
+   be labelled in order to indicate type constraints.</li>
+   </ul>
+   <div align="center"><img src="img/narbel_00.png"/></div>
+   <br/>
+   <br/>
+
+    We can always therefore identify a vertex of a specification graph
+   with the signature it represents. On the other hand, the <i>arc</i>
+   of such a graph are principally determined by two relations:
+   <br/>
+   <br/>
+   <b>Definitions : </b>
+   <ul>
+   <li><i>Parameter arc : </i>connects a vertex <code>S</code> to the
+   strand of a transition vertex <code>SF</code> if <code>S</code> is
+   a signature of one of the parameters of <code>SF</code></li>
+   <li><i>Result arc : </i>connects a strand of a transition
+   vertex <code>SF</code> to a vertex <code>S</code> if <code>S</code>
+   is a signature of a possible result of <code>SF</code> (recall that
+   partial applications of functors are possible).</li>
+   </ul>
+   <br/>
+   <br/>
+   Consider again an earlier formal example. The specialization was
+   summarized in the following three signatures:
+   <pre class="prettyprint ml">
+   module type S1 = sig ... end
+   module type S2 = sig ... end
+   module type SF = functor (M : S1) -> S2
+   </pre>
+   The associated graph is thus
+   : <div align="center"><img src="img/narbel_01.png"/></div> The implementations of
+   modules and functors available at a given moment can then take
+   place in a specification graph. It suffices to apply the following
+   obvious rule:
+   <br/>
+   <br/>
+   <b>Insertion of an implementation into a specification graph : </b>
+   A module or functor is associated with a vertex <code>S</code> if
+   it satisfies <code>S</code>.
+   <br/>
+   <br/>
+   In the case of the example, the implementation definitely satisfies
+   two modules and a functor:
+   <pre class="prettyprint ml">   
+   module M1 : S1 = struct ... end
+   module M2 : S1 = struct ... end
+   module F : SF = functor (M : S1) -> struct ... end
+   </pre>
+   </p>
+   <p>We can then complete the specification graph above (note
+   that <code>M1</code> and <code>M2</code> are associated with the
+   vertex <code>S1</code>):
+   <div align="center"><img src="img/narbel_02.png"/></div>
    </p>
 
    <hr/>

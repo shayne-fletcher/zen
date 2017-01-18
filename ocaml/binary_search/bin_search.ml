@@ -186,7 +186,16 @@ let rec merge (l : int list) (m : int list) : int list =
 
 let rec merge_sort : int list -> int list = function
  | [] -> []
- | [_] -> l
- | xs ->
+ | [_] as l -> l
+ | xs as l ->
    let n = (List.length xs / 2) in
    merge (merge_sort (take l n)) (merge_sort (drop l n))
+
+
+let take l k =
+  let rec loop acc xs k =
+    if k <= 0 || xs = [] then List.rev acc
+    else
+      match xs with
+      | (h :: tl) -> loop (h :: acc) tl (k - 1) in
+  loop [] l k
