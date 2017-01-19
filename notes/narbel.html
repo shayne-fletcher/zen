@@ -8327,7 +8327,278 @@
    <p>We can then complete the specification graph above (note
    that <code>M1</code> and <code>M2</code> are associated with the
    vertex <code>S1</code>):
-   <div align="center"><img src="img/narbel_02.png"/></div>
+   <div align="center"><img src="img/narbel_02.png"/></div> Thus,
+   application of functors can allow for implementation to evolve and
+   in the same way, the sets of modules and functors associated with
+   vertices of the specification graph. The result of the application
+   of a functor is denoted by the expression which corresponds to this
+   application (it is therefore not necessary to explicitly name this
+   result), or more directly by a link name if one exists. In an
+   earlier example, the architecture evolved to the unique application
+   following:
+   <pre class="prettyprint ml">
+   module M3 : S2 = F (M1);;
+   </pre>
+   On the specification graph, this evolution is made concrete by the
+   simple addition of the module <code>M3</code>:
+   <div align="center"><img src="img/narbel_03.png"/></div> This
+   description now permits the essential characteristics of the
+   proposed representation here:
+   <br/>
+   <br/>
+
+   <b>Definition : </b><i>A software architecture</i> consists of
+   three elements:
+   <ol>
+   <li>A graph of specification $G$.</li>
+   <li>A state of the implementation in which each of the modules and
+   functors available are associated with the vertices of $G$
+   according to the insertion rule.</li>
+   <li>The rule of evolution resultingfrom the applicability of
+   functors are associated with transition vertices.</li>
+   </ol>
+   <br/>
+   <br/>
+   One notes that the definition recovers the three phases of software
+   development of a generic program.
+   </p>
+   <p>To fix these ideas, here are some very simple architectures
+   based on the examples of the preceding sections. To begin, the
+   example of graphical environments based on association tables may
+   be represented so (the transition vertices implicitly represent the
+   signature of functors <code>ASSOC_TABLE &rarr;
+   GRAPHIC_ENVIRONMENT</code>):
+   <div align="center"><img src="img/narbel_04.png"/></div> The
+   software architecture of the example of "generic composites" is the
+   following (the transition vertex represents implicitly functors
+   with the signature <code>GRAPHIC_ELEM &rarr; GRAPHIC_ELEM</code>):
+   <div align="center"><img src="img/narbel_05.png"/></div> The
+   example illustrates software architectures may posses
+   loops. Finally, here is an architecture of a binary functor
+   construting an optimisation method (the transition summit
+   implicitly represents the signature <code>METRIC_SPACE &rarr; ORDER
+   &rarr; OPTIMISATION</code>):
+   <div align="center"><img src="img/narbel_06.png"/></div>
+   </p>
+ 
+   <h5>Representing the compatibility of signatures</h5>
+   <p>Compatibility between signatures proves a very important point
+   of generic modular architectures in ML. That property permits in
+   fact an indication of immediate reusability and validates the
+   modular components at our disposition. It is thus opportune to be
+   able to represent that relation within a specification graph. To do
+   this, one adds a new arc type:
+   <br/>
+   <br/>
+   <b>Definition : </b>A <i>compatibility arc</i> relies on two simple
+   vertices or two transition vertices <code>S1</code>
+   and <code>S2</code> if <code>S1</code> is compatibile
+   with <code>S2</code>.
+   <br/>
+   <br/>
+
+   Graphically, compatibility arcs are distinguished from others by
+   being dotted. Here is an example based on these three compatible
+   signatures:
+   <pre class="prettyprint ml">
+   module type S3 = sig ... end
+   module type S2 = sig include S3 ... end
+   module type S1 = sig include S2 ... end
+   module M1 : S1 = struct ... end
+   </pre>
+   By virtue of the inclusions, <code>S1</code> is compatible
+   with <code>S2</code> which is compatible
+   with <code>S3</code>. Also, the module <code>M1</code> satisfies
+   all of <code>S1</code>, <code>S2</code> and <code>S3</code>. On the
+   other hand, <code>M1</code> must be associated with all of the
+   simple vertices which are accessible from <code>S1</code> by
+   compatibility arcs. The architecture then corresponding to the
+   example is the following:
+   <div align="center"><img src="img/narbel_07.png"/></div>
+   </p>
+
+   <p>Compatibility arcs permit a particular representation of the
+   model of "generic module inheritance". Here is general form of a
+   model of the form abgridged and simple:
+   <pre class="prettyprint ml">
+   module type S1 = sig ... end
+   module type S2 = sig include S1 ... end
+   module type SF = functor (M : S1) &rarr; S2
+   </pre> The model is represented by the specification graph
+   following where inheritance implies generally a compatibility arc
+   back to the top from which we inherit:
+   <div align="center"><img src="img/narbel_08.png"/></div> 
+
+   For example, the archtecture of extension of a type of containers
+   is the the following (with application of a functor):
+   <div align="center"><img src="img/narbel_09.png"/></div> 
+
+   Generic multiple inheritance is simply obtained by multiple
+   inclusion:
+   <pre class="prettyprint ml">   
+   module type S1 = sig ... end
+   module type S2 = sig ... end
+   module type S3 = sig include S1 include S2 ... end
+   module type SF = functor (M1 : S1) (M2 : S2 with ...) -> S3;;
+   </pre>
+   The corresponding specification graph is:
+   <div align="center"><img src="img/narbel_10.png"/></div> 
+   Here is the software architecture of a program which corresponds to
+   the union of two data types:
+   <div align="center"><img src="img/narbel_11.png"/></div> Finally,
+   reconsider the "control of generiticity" example proposed for
+   finite automata and which makes use of a higher order functor. Here
+   is the software architecture:
+   <div align="center"><img src="img/narbel_12.png"/></div>
+   Notice that here the private modules of the
+   functor <code>Automaton</code> do not appear in the architecture
+   because they are only part of the specific implementation of the
+   functor. Software architectures represent only the state of what is
+   globally available.
+   </p>
+
+   <h4>Examples of software architectures</h4>
+   <p>We will implement here some supplementary examples of modular
+   and generic programs which will be a little more complete than the
+   ones seen before. The specification graphs and the software
+   architectures permit their representation in a synthetic manner.
+   </p>
+
+   <h5>Priority queues</h5>
+   <p>Here first of all is an example that implies a chain of
+   applications of two functors. It is a prototype which generates
+   priority queue types for the execution of processes (<i>execution
+   queues</i>) based on priority queues. Here is the the set of
+   specification signatures:
+   <pre class="prettyprint ml">
+   module type ORDER = sig
+     type t
+     val compare : t -> t -> int
+   end;;
+
+   module type ORDER_MASK = sig
+     type t
+     type extern_t
+     val make : extern_t -> t
+     val show : t -> extern t
+     val compare : t -> t -> int
+   end;;
+
+   module type ORDERED_CONTAINER = sig
+     module O : ORDER
+     type elt = O.t
+     type t
+     val empty : unit -> t
+     val add : elt -> t -> t
+     val max_elt : t -> elt
+     val remove_max : t -> t -> t
+   end;;
+
+   module type ORDERED_CONTAINER_F =
+     functor (Ord : ORDER) -> ORDERED_CONTAINER;;
+
+   module type EXEC_QUEUE = sig
+     module C : ORDERED_CONTAINER
+     type processus = C.elt
+     type t = C.t
+     val empty : unit -> t
+     val add : processus -> t -> t
+     val execute : (processus -> unit) -> t -> t
+   end;;
+
+   module type EXEC_QUEUE_F =
+     functor (Ord : ORDERED_CONTAINER) -> EXEC_QUEUE;;
+   </pre>
+   Let us emphasize again that this specification can be verified and
+   compiled by the OCaml compiler in particular as regards relations
+   between types. It is represented in the form of a specification
+   graph in the following figure:
+   <div align="center"><img src="img/narbel_13.png"/></div>
+   
+   Note that here we illustrate the technique of the double signature
+   (with and without preparation for masking) for the sets of ordered
+   data (<code>ORDER</code> and <code>ORDER_MASKED</code>
+   respectively). In fact, the
+   signature <code>ORDERED_CONTAINER</code> specifies a modular
+   association and as a consequence it can be satisfied with a
+   signature with a "module record".
+   </p>
+   <p>The second phase of development consists to give a minimal
+   implementation to obtain the means of realising execution
+   queues. Here two functors who correspond with priority queues
+   implemented with simple lists and another a specialization of
+   priority queues to obtain execution queues. We add a process type
+   that saisfies <code>ORDER_MASK</code>. This contains the private
+   elements which permit identifing processes in a unique manner (and
+   for compatibility, it is equally an instance
+   of <code>ORDER</code>):
+   <pre class="prettyprint ml">
+   module L (Ord : ORDER) : ORDERED_CONTAINER
+     with module O = Ord =
+   struct
+     module O = Ord
+     type elt = O.t
+     type t = O.t list
+     let empty () = []
+     let add x l = List.sort O.compare (x :: l)
+     let max_elt l = List.hd l
+     let remove_max l = List.tl l
+   end;;
+
+   module Exec_Q (Cont : ORDERED_CONTAINER) : EXEC_QUEUE
+     with module C = Cont =
+   struct
+     module C = Cont
+     type processus = C.elt
+     type t = C.t
+     let emtpy = C.empty
+     let add = C.add
+     let execute apply_process q =
+       apply_process (C.max_elt q); C.remove_max q
+   end;;
+
+   module Proc : ORDER_MASK
+     with type extern_t = int * (float -> unit) * float =
+   struct
+     type t = {priority : int;          pid : int;
+               proc : float -> unit;    para : float }
+     let extern_t = int * (float -> unit) -> float
+     let counter = ref 0
+     let make (priority, proc, param) =
+       incr counter;
+       { priority = priority; pid = !counter;
+         proc = proc;         param = param
+        }
+     let show_x = (x.priority, x.proc, x.param)
+     let compare = Pervasives.compare
+  end;;
+   </pre>
+   The corresponding software architecture is obtained by
+   incorporating the implementations into the specification
+   graph:
+   <div align="center"><img src="img/narbel_14.png"/></div>
+   From there evolution to process queues is summarized by the
+   application of the two functors, that is:
+   <pre class="prettyprint ml">
+   # module Q = Exec_Q (L (Proc));;
+   </pre>
+   We can then use the module <code>Q</code> (processes here are
+   reduced to simple input-output):
+   <pre class="prettyprint ml">
+   # let pretty_float x = Printf.printf "Very nice float : %f\n" x;;
+   # let q = Q.add (Proc.make (10, (fun x -> pretty_float x), 3.14))
+                (Q.add (Proc.make (1, (fun x -> pretty_float x), 40000.))
+                  (Q.empty ()));;
+   # let apply_process x = 
+       let (_, proc, param) = Proc.show x in proc param;;
+   val : apply_process : Proc.t -> unit
+
+   # let q = Q.execute apply_process q;;
+   Very nice float : 40000.
+
+   # let q = Q.execute apply_process q;;
+   Very nice float : 3.14
+   </pre>
    </p>
 
    <hr/>
