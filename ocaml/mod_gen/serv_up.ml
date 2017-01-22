@@ -1,8 +1,8 @@
 (* Uppercase server from
 https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora187.html#toc280
-organized in the "modulair generique" style
+organized in the "programmation modulaire generique" style
 
-Compile with `ocamlc -thread -o serv_up unix.cma threads.cma cap.ml`.
+Compile with `ocamlc -thread -o serv_up.exe unix.cma threads.cma serv_up.ml`.
 *)
 
 module type PORT = sig
@@ -18,7 +18,6 @@ module type SOCKET_ADDRESS =
   functor (P : PORT) -> ADDRESS with type t = Unix.sockaddr
 
 module type SOCKET = sig
-  val init : unit -> unit
   val get : unit -> Unix.file_descr                       
   val close : unit -> unit
 end
@@ -44,24 +43,19 @@ module Internet_address : SOCKET_ADDRESS =
 
 module TCP_socket : SOCKET_F = 
   functor (A : ADDRESS with type t = Unix.sockaddr) -> struct
-    let fd = ref None
 
-    let init () = 
-      let sa = A.get () in
-      let domain = Unix.domain_of_sockaddr sa in
-      let sock = Unix.socket domain Unix.SOCK_STREAM 0 in 
-      Unix.bind sock sa;
-      Unix.listen sock 3;
-      fd := Some sock
+    let fd = 
+      let init_fd () = 
+        let sa = A.get () in
+        let domain = Unix.domain_of_sockaddr sa in
+        let sock = Unix.socket domain Unix.SOCK_STREAM 0 in 
+        Unix.bind sock sa;
+        Unix.listen sock 3;
+        sock in
+      init_fd ()
 
-    let close () =  
-      match !fd with 
-      | Some s -> Unix.close s | _ -> ()
-
-    let get () = 
-      match !fd with 
-      | Some s -> s
-      | _ -> failwith "Invalid file descriptor"
+    let get () = fd
+    let close () = Unix.close fd
   end
   
 module Server : SERVER_F =
@@ -74,7 +68,6 @@ module Server : SERVER_F =
       close_out out_ch
 
     let run f =
-      S.init ();
       let s = S.get () in
       while true do
         let (s, caller) = Unix.accept s in
