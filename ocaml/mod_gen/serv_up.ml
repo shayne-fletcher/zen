@@ -14,7 +14,7 @@ module type ADDRESS = sig
   val get : unit -> t
 end
 
-module type SOCKET_ADDRESS = 
+module type SOCKET_ADDRESS_F = 
   functor (P : PORT) -> ADDRESS with type t = Unix.sockaddr
 
 module type SOCKET = sig
@@ -31,7 +31,7 @@ end
 
 module type SERVER_F = functor (S : SOCKET) -> SERVER
 
-module Internet_address : SOCKET_ADDRESS =
+module Internet_address : SOCKET_ADDRESS_F =
   functor (P : PORT) -> struct
     type t = Unix.sockaddr
     let get () = 
