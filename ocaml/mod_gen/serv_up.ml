@@ -14,15 +14,15 @@ module type ADDRESS = sig
   val get : unit -> t
 end
 
-module type SOCKET_ADDRESS_F = 
+module type SOCKET_ADDRESS_F =
   functor (P : PORT) -> ADDRESS with type t = Unix.sockaddr
 
 module type SOCKET = sig
-  val get : unit -> Unix.file_descr                       
+  val get : unit -> Unix.file_descr
   val close : unit -> unit
 end
 
-module type SOCKET_F = 
+module type SOCKET_F =
   functor (A : ADDRESS with type t = Unix.sockaddr) -> SOCKET
 
 module type SERVER = sig
@@ -34,21 +34,21 @@ module type SERVER_F = functor (S : SOCKET) -> SERVER
 module Internet_address : SOCKET_ADDRESS_F =
   functor (P : PORT) -> struct
     type t = Unix.sockaddr
-    let get () = 
-      Unix.ADDR_INET 
+    let get () =
+      Unix.ADDR_INET
         ((Unix.gethostbyname(
               Unix.gethostname())
          ).Unix.h_addr_list.(0), P.port_number)
   end
 
-module TCP_socket : SOCKET_F = 
+module TCP_socket : SOCKET_F =
   functor (A : ADDRESS with type t = Unix.sockaddr) -> struct
 
-    let fd = 
-      let init_fd () = 
+    let fd =
+      let init_fd () =
         let sa = A.get () in
         let domain = Unix.domain_of_sockaddr sa in
-        let sock = Unix.socket domain Unix.SOCK_STREAM 0 in 
+        let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
         Unix.bind sock sa;
         Unix.listen sock 3;
         sock in
@@ -57,7 +57,7 @@ module TCP_socket : SOCKET_F =
     let get () = fd
     let close () = Unix.close fd
   end
-  
+
 module Server : SERVER_F =
   functor (S : SOCKET) -> struct
     let thread_func f s =
@@ -88,11 +88,11 @@ let uppercase_service (ic : in_channel) (oc : out_channel) : unit =
 let main f =
   if Array.length Sys.argv < 2 then Printf.eprintf "usage : serv_up port\n"
   else try
-    let module S = 
+    let module S =
       Server (
         TCP_socket (
           Internet_address (
-            struct 
+            struct
               let port_number = int_of_string Sys.argv.(1)
             end))) in
     S.run f
