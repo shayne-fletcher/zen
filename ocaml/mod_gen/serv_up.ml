@@ -2,7 +2,7 @@
 https://caml.inria.fr/pub/docs/oreilly-book/html/book-ora187.html#toc280
 organized in the "modulair generique" style
 
-Compile with `ocamlc -thread -o serv_up unix.cma threads.cma serv_up.ml`.
+Compile with `ocamlc -thread -o serv_up unix.cma threads.cma cap.ml`.
 *)
 
 module type PORT = sig
@@ -70,9 +70,8 @@ module Server : SERVER_F =
       let in_ch = Unix.in_channel_of_descr s
       and out_ch = Unix.out_channel_of_descr s in
       f in_ch out_ch;
-      close_in in_ch;
-      close_out out_ch;
-      exit 0
+      (* close_in in_ch; *)
+      close_out out_ch
 
     let run f =
       S.init ();
@@ -91,7 +90,7 @@ let uppercase_service (ic : in_channel) (oc : out_channel) : unit =
       in output_string oc (r ^ "\n"); flush oc
     done
   with
-  | _ ->Printf.printf "End of text\n"; flush stdout; exit 0
+  | _ ->Printf.printf "End of text\n"; flush stdout
 
 let main f =
   if Array.length Sys.argv < 2 then Printf.eprintf "usage : serv_up port\n"
