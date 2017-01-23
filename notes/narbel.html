@@ -8603,6 +8603,272 @@
    </pre>
    </p>
 
+   <h5>Mangement of signature hierarchies</h5>
+   <p>The representation of compatibility permits the visualization of
+   the links that exist between specifications of modules and functors
+   always more specialized. To the extent that such compatibility is a
+   tributary of the names of elements of those signatures it is
+   equally sometimes necessary to propose adaptions of those names
+   after the creation of a principal hierarchy of compatibility. By
+   way of example, the below includes three signatures of container
+   types:
+   <pre class="prettyprint ml">
+   module type CONTAINER = sig
+     type 'a t
+     val empty : unit -> 'a t
+     val add : 'a -> 'a t -> 'a t
+     val mem : 'a -> 'a t  -> bool
+     val map : ('a -> 'b) -> 'a t -> 'b t
+   end;;
+
+   module type LINEAR_CONTAINER = sig
+     include CONTAINER
+     val build : ('a -> 'a) -> 'a -> 'a t
+     val hd : 'a t -> 'a
+     val tl : 'a t -> 'a t
+     val npeek : int -> 'a t -> 'a list
+     val length : 'a t -> int
+     val nth : 'a t -> int -> 'a
+   end;;
+
+   module type BINTREE_CONTAINER = sig
+     type 'a bintree
+     val make_empty : unit -> 'a bintree
+     val build ('a -> 'a * 'a) -> int -> 'a -> 'a bintree
+     val add : 'a -> 'a bintree -> 'a bintree
+     val mem : 'a -> 'a bintree -> bool
+     val height : 'a bintree -> int
+     val balance : 'a bintree -> 'a bintree
+   end;;
+   </pre>
+   So, the signature <code>LINEAR_CONTAINER</code> is evidently
+   compatible with <code>CONTAINER</code>, the
+   signature <code>BINTREE_CONTAINER</code> not but only due to the
+   naming of its elements. Generic adaption of the names may be
+   specified to realize that as:
+   <pre class="prettyprint ml">
+   module type BINTREE_CONTAINER' = sig
+     include BINTREE_CONTAINER
+     type 'a t = 'a bintree
+     val empty : unit -> 'a t
+   end;;
+
+   module type ADAPT_BIN_NAMES =
+     functor (T : BINTREE_CONTAINER) -> BINTREE_CONTAINER';;
+
+   module Bin_adapt (T : BINTREE_CONTAINER) : BINTREE_CONTAINER' = struct
+     include T
+     type 'a t = 'a bintree
+     let empty = make_empty
+   end;;
+   </pre>
+   <div align="center"><img src="img/narbel_15.png"/></div> By this,
+   all instances of <code>BINTREE_CONTAINER</code> may be integrated
+   into the container hierarchy by post application of the functor:
+   <pre class="prettyprint ml">
+   module Tree : BINTREE_CONTAINER = struct
+     type 'a bintree =
+       | Bin_empty
+       | Bin_node of 'a * 'a bintree * 'a bintree
+     let make_empty () = Bin_empty
+     let build f n x = ...
+     let add x t = ...
+     let mem x t = ...
+     let height t = ...
+     let balance t = ...
+     let rec map f t = ...
+   end;;
+
+   # module Tree' = Bin_adapt (Tree);;
+   </pre>
+   The module <code>Tree'</code> is from now on an instance of the
+   signature <code>BINTREE_CONTAINER</code> and the
+   signature <code>CONTAINER</code>. We remark that we have here
+   simplified the body of the example and utilized a universal
+   type. It would be possible also to develop this with a parallel
+   hierarchy of signatures using only abstract types according to the
+   "explicit generic modular programming" and integrate the adatptions
+   generically to reutilize them.
+   </p>
+
+   <h5>Building generic production lines</h5>
+   <p>Here is a new implementation of "production lines". The idea
+   here is to be able to connect lines which are not necessarily based
+   on the same implementation and on the same types. The lines may be
+   simple containers, flows, treadmills etc. Here, first of all the
+   minimal specification of a general type of production lines, as
+   well as one of its specializations which imposes a representation
+   in the form of flows (according to an earlier presented technique).
+   <pre class="prettyprint ml">
+   module type P_LINE = sig
+     type data_in               type data_out
+     type 'a input_line         type 'a output_line
+     val make : data_in input_line -> data_out output line
+     val read_fst : data_out output_line -> data_out
+     val delete_fst : data_out output_line -> data_out output_line
+   end;;
+
+   module type STREAM = sig
+     exception Empty
+     type 'a stm
+     val cons : (unit -> 'a) -> (unit -> 'a stm) -> 'a stm
+     val hd : 'a stm -> 'a
+     val tl : 'a stm -> 'a stm
+     val npeek : int -> 'a stm -> 'a list
+     val iterate : ('a -> 'a) -> 'a -> 'a stm
+     val map : ('a -> 'b) -> 'a stm -> 'b stm
+   end;;
+
+   module P_LINE_STM = sig
+     module St : STREAM
+     include P_LINE with type 'a output_line = 'a St.stm
+   end;;
+
+   module type P_LINE_STM_F =
+     functor (St : STREAM) -> P_LINE_STM
+   </pre>
+   We can also give ourselves a signature of "functor connectors"
+   which imposes the the entry of a production line necessarily comes
+   from the exit of another production line:
+   <pre class="prettyprint ml">
+   module type P_LINE_TRANSFORM_STM_F =
+     functor (St : Stm) ->
+       functor (P : P_LINE_STM) -> 
+         P_LINE_STM
+           with type data_input = P.data_output
+           with type 'a input_line = 'a P.output_line;;
+   </pre>
+   The set of signatures is represented in the following figure.
+   <div align="center"><img src="img/narbel_15.png"/></div> By this,
+   Consider maintaining two different implementations of the
+   signature <code>STREAM</code>:
+   <pre class="prettyprint ml">
+   module St1 : STREAM = struct (*strictly functional*)
+     exception Empty
+     type 'a stm = Empty_stream | Cons of 'a * (unit -> 'a stm)
+     let cons x s = Cons (x (), s)
+     ...
+   end;;
+
+   module St2 : STREAM = struct (*uses `lazy_t`*)
+     exception Empty
+     type 'a stm = Stm_emtpy | Cons of 'a lazy_t * 'a stm lazy_t
+     let cons x s = Cons (lazy (x ()), lazy (s ()))
+   end;;
+   </pre>
+   Here's a functor which satisfies the
+   signature <code>P_LINE_STREAM_F</code>. It is also a generic
+   representation of production lines which produces suites of random
+   binary numbers:
+   <pre class="prettyprint ml">
+   module Rand_bin (STREAM : STREAM) : P_LINE_STREAM
+     with type data_out = int
+     with type 'a input_line = int =
+   struct
+     module St = Stream
+     type data_in = unit
+     type data_out = int
+     type 'a input_line = int
+     type 'a output_line = 'a St.stm
+
+     let rec make init =
+       Random.init; St.iterator (fun x -> (Random.int 2)) 0
+
+     let read_first s = St.hd s
+     let delete_fst s = St.tl s
+   end;;
+   </pre>
+   Finally, here is a functor that
+   satisfies <code>P_LINE_TRANSFORM_F</code> permitting generation of
+   compressed production lines according to the following principal :
+   if the element $E$ is repeated into the production line $n$ times,
+   then the production reduces this repetition into a unique element
+   $(n, E)$ (run length encoding compression method):
+   <pre class="prettyprint ml">
+   module Compress (Stream : STREAM)
+                    (P : P_LINE_STM)
+     : P_LINE_STM
+       with type data_in = P.data_out
+       with type data_out = int * P.data_out =
+   struct
+     module St = Stream
+     type data_in = P.data_out
+     type data_out = int * P.data_out
+     type 'a input_line = 'a P.output_line
+     type 'a output_line = 'a St.stm
+
+     let rec make s =
+        let rec one_element e1 s n =
+          if e1 = P.read_fst s
+           then one_element el (P.delete_fst s) (n + 1)
+           else ((n, e1), s) in
+        let consx (pair, s) =
+          St.cons (fun () -> pair) (fun () -> make s))
+        in cons (one_element (P.read_fst s) (P.delete_fst) 1)
+
+     let read_fst s = St.hd s
+     let delete_fst s = St.tl s
+   end;;
+   </pre>
+   Even if the compression of a an already compressed production line
+   can have little "compressive effet", we can nevertheless show that
+   its application is possible and thus obtain three chained
+   production lines:
+   <pre class="prettyprint ml">
+   # module CCompressed_R = Compress (St2) (Compressed (R));;
+
+   # let s3 = CCompressed_R.make s2;;
+   - : CCompressed_R.data_out CCompressed_r.output_line = &lt;abstr&gt;
+
+   # CCompressed_R.St.npeek 5 s3;;
+   - : CCompressed_R.data_out list =
+     [(1, (2, 0)); (1, (1, 1)); (1, (4, 0)); (1, (4, 1)); (1, (1, (1, 0)))]
+   </pre>
+   Production lines thus can be implemented in a variety of manners
+   (and in particular here according to the modules <code>St1</code>
+   and <code>S2</code>) and connected, all the while preserving the
+   generic masking of their types.
+   </p>
+
+   <h5>Remarks on software architectures</h5>
+   <p>After the examples of the preceding pages illustrating certain
+   possibilities of software architectures, two remarks result:
+   <ul>
+   <li><i>The connection of architectures.</i> The more more an
+   architecture expresses generic links (and thus in the form of
+   functors), the more the better suited it is to adaptability and
+   reusability and is furthermore precise in its relation to the
+   specification. In other words, the more an architecture contains
+   arcs, the more it represents an architecture of generic
+   specification rich with possibilities. Certainly, there is no
+   obligation to express the relations between modules by interposed
+   functors. As has been remarked many times in the text, the choice
+   of construction or a style will rarely dictate definitive
+   rules. Generic programming is more complicated, more technical more
+   technique and the generalizations it allows are not always
+   indispensable. For example, it is usual to simplify a task and
+   directly use the components of the statndard libries distributed
+   with the language. It is also often convenient to associate modules
+   of globably definitions with programs. However, each time a link is
+   not expressed in a generic form - and thus vertices of the
+   specification graph are not connected with others - it implies the
+   links are fixed a the level of implementation ("direct links") with
+   the associated inconveniences.
+   <li><i>Exhaustiveness of the representation.</i> We deliberately
+   limited software architectures to have a representation of the
+   important properties, that being, the multiplicity of
+   implementations, the compatibility of signatures and the evolution
+   of architecture. We could certainly render more exhaustively (for
+   example the poijn of view of sub-modules and super-modules) or more
+   precise and more precisely and more formally (for example the point
+   of view of functor application), but the idea was here to offer a
+   simple graphical means of direct aid to the programmer. We note
+   however that it is easy to add information related to the
+   structuring that includes package sspecication : it is sufficient
+   for example to enclose the respective vertices.</li>
+   </ul>
+   </p>
+
    <hr/>
    <p>
      References:<br/>
