@@ -21,15 +21,6 @@ module type MAKE_PRODUCER_CONSUMER_QUEUE =
   functor (Task : TASK) -> 
     PRODUCER_CONSUMER_QUEUE with type task = Task.t
 
-(*A particular implementation of the signature [TASK] where the job is
-  represented by a pair of input/output channels (client connection)*)
-module Make_query : 
-  TASK with type t = in_channel * out_channel = 
-struct
-  (*The type of the task*)
-  type t = in_channel * out_channel
-end
-
 (*A functor implementing [MAKE_PRODUCER_CONSUMER_QUEUE]*)
 module Thread_safe_queue : MAKE_PRODUCER_CONSUMER_QUEUE =
   functor (Task : TASK) -> struct
