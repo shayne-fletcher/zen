@@ -5007,8 +5007,6 @@
    "<code>_impl.ml</code>".
    </p>
 
-   <!-- ******************************************************* -->
-
    <h3>Generic modular programming : functors</h3>    
 
    <p>
@@ -5589,7 +5587,7 @@
    on lists, the other on arrays:
    <pre class="prettyprint ml">
    module Simple_list : LINEAR_CONTAINER = struct
-     type 'a t = 'a list
+     type &alpha; t = &alpha; list
      let empty () &rarr; []
      let add x l = x :: l
      let mem = List.mem
@@ -5598,7 +5596,7 @@
    end;;
 
    module Simple_array  : LINEAR_CONTAINER = struct
-     type 'a t = 'a array
+     type &alpha; t = &alpha; array
      let empty () = [||]
      let add x l =
        let a = Array.make l x in Array.append a l
@@ -6013,7 +6011,7 @@
    data:
    <pre class="prettyprint ml">
    module Tree : UNIV_CONTAINER = struct
-     type 'a t = Bin_empty | Bin_node of 'a * 'a t * 'a t
+     type &alpha; t = Bin_empty | Bin_node of &alpha; * &alpha; t * &alpha; t
      let empty () = Bin_empty
  
      let rec add x t = match t with
@@ -6426,7 +6424,7 @@
 
    module type MATRIX = sig
      module Coef : OP
-     type 'a gen_mat
+     type &alpha; gen_mat
      type t = Coef.t gen_mat
      val op : t &rarr; t &rarr; t
    end;;
@@ -6440,7 +6438,7 @@
                  (S : sig val size : int end) =
    struct
      module Coef = C
-     type 'a gen_mat = 'a array array
+     type &alpha; gen_mat = &alpha; array array
      type t = Coef.t gen_mat
      let op m1 m2 =
        let mat = Array.create_matrix S.size S.size m1.(0).(0) in
@@ -7089,7 +7087,7 @@
    are instances of the same argument:
    <pre class="prettyprint ml">
    # module M = Compos (Simple_float1) (Simple_float1);;
-   module M : sig val f : Simple_float1.t -> Simple_float2.t end
+   module M : sig val f : Simple_float1.t &rarr; Simple_float2.t end
    </pre>
    This equality between masked types is also possible when they come
    from the same chain of application of functors. For example:
@@ -7100,7 +7098,7 @@
      end;;
 
    # module M = Compos (F (Simple_float1)) (F (Simple_float1));;
-   module M : sig val f : F (Simple_float1).t -> F (Simple_float1).t end
+   module M : sig val f : F (Simple_float1).t &rarr; F (Simple_float1).t end
    </pre>
    In fact, it will be observed here that in the full name of the
    type <code>t</code>, the name of the applied functor makes an
@@ -7143,12 +7141,12 @@
    <pre class="prettyprint ml">
    module type VALUED = sig
      type elt
-     val eval : elt -> int
+     val eval : elt &rarr; int
    end;;
 
    module type ORDER = sig
      type t
-     val less_or_equal : t -> t -> bool
+     val less_or_equal : t &rarr; t &rarr; bool
    end;;
 
    module Val_and_order (Val : VALUED)
@@ -7195,8 +7193,8 @@
    module type ORDER_VALUED_MASK = sig
      include ORDERED_VALUED
      type extern_t
-     val make : extern_t -> t
-     val show : t -> extern_t
+     val make : extern_t &rarr; t
+     val show : t &rarr; extern_t
    end;;
    </pre>
    Let us add two remarks about this combination of types technique:
@@ -7246,19 +7244,19 @@
    <pre class="prettyprint ml">
    # module type OP = sig
        type t
-       val op : t -> t -> t
+       val op : t &rarr; t &rarr; t
      end;;
 
    # module type PAIR = sig
        type t
-       val make_pair : t -> t * t
+       val make_pair : t &rarr; t * t
      end;;
 
    # module Pair (M : OP) : PAIR = struct
        let t = M.t
        let make_pair x = (x, M.op x x)
      end;;
-   module Pair : functor (M : OP) -> PAIR
+   module Pair : functor (M : OP) &rarr; PAIR
    </pre>
    We see thus the usual form of a functional type based on the
    operator "<code>&rarr;</code>", and this in the modular
@@ -7313,8 +7311,8 @@
    <br/>   
    <br/>   
    <b>Compatibility between signatures of functors : </b> The
-   signature <code>SF : S1 -> S2</code> is <i>compatible</i> with the
-   signature <code>SF' : S1' -> S2'</code> if <code>S1</code> is
+   signature <code>SF : S1 &rarr; S2</code> is <i>compatible</i> with the
+   signature <code>SF' : S1' &rarr; S2'</code> if <code>S1</code> is
    compatible with <code>S1'</code> and <code>S2</code> is compatible
    with <code>S2'</code>. In this case, if the functor <code>F</code>
    is an instance of <code>SF</code>, it is equally an instance
@@ -7326,11 +7324,11 @@
    module type S_SMALL = sig end;;
    module type S       = sig val x1 : int end;;
    module type S_LARGE = sig val x1 : int val x2 : int end;;
-   module type SF1 = functor (M1 : S) -> S;;
-   module type SF2 = functor (M1 : S) -> S_SMALL;;
-   module type SF3 = functor (M1 : S) -> S_LARGE;;
-   module type SF4 = functor (M1 : S_SMALL) -> S;;
-   module type SF5 = functor (M1 : S_LARGE) -> S;;
+   module type SF1 = functor (M1 : S) &rarr; S;;
+   module type SF2 = functor (M1 : S) &rarr; S_SMALL;;
+   module type SF3 = functor (M1 : S) &rarr; S_LARGE;;
+   module type SF4 = functor (M1 : S_SMALL) &rarr; S;;
+   module type SF5 = functor (M1 : S_LARGE) &rarr; S;;
    </pre>
    Here, <code>S_LARGE</code> is evidently comptabile
    with <code>S</code> which is compatible
@@ -7338,7 +7336,7 @@
    functors? Consider the following functor which is assuredly an
    instance of the signature <code>SF1</code>:
    <pre class="prettyprint ml">
-   # module F1 : SF1 = functor (M : S) -> struct let x1 = M.x1 end;;
+   # module F1 : SF1 = functor (M : S) &rarr; struct let x1 = M.x1 end;;
    </pre>
    Without danger, it is possible to type the body of the
    functor <code>F1</code> by a signature computed to be compatible
@@ -7398,8 +7396,8 @@
    module type CONTAINER = sig
      type elt
      type t
-     val empty : unit -> t
-     val add : elt -> t-> t
+     val empty : unit &rarr; t
+     val add : elt &rarr; t&rarr; t
      ...
    end;;
    </pre>
@@ -7416,14 +7414,14 @@
    and <code>CONTAINER</code>:
    <pre class="prettyprint ml">
    module type ORDER_CONTAINER_F =
-     functor (Ord : ORDER) -> CONTAINER with type elt = Ord.t;;
+     functor (Ord : ORDER) &rarr; CONTAINER with type elt = Ord.t;;
    </pre>
    It is then possible to use this functor signature for the
    explicitly typing an implementation. The
    functor <code>Ord_list</code> is also directly implementable:
    <pre class="prettyprint ml">
    module Ord_list : ORDER_CONTAINER_F =
-     functor (Ord : ORDER) ->
+     functor (Ord : ORDER) &rarr;
    struct
      type elt = Ord.t
      type t = elt list
@@ -7460,8 +7458,8 @@
    functor <code>Optimis</code>. The signature follows:
    <pre class="prettyprint ml">
    module type OPTIMISATION_F =
-     functor (Metric : METRIC_SPACE) ->
-       functor (Ord : ORDER) -> OPTIMISATION;;
+     functor (Metric : METRIC_SPACE) &rarr;
+       functor (Ord : ORDER) &rarr; OPTIMISATION;;
    </pre>
    A functor to invert these parameters is thus as follows:
    <pre class="prettyprint ml">
@@ -7480,7 +7478,7 @@
    # module Inv_optimis = Inv (Optimis);;
    # module Grad_float = Inv_optimis (Order_float);;
    module Grad_float :
-     functor (M : METRIC_SPACE) -> sig ... end
+     functor (M : METRIC_SPACE) &rarr; sig ... end
    </pre>
    </p>
 
@@ -7492,15 +7490,15 @@
    <pre class="prettyprint ml">
    module type OP = sig
      type t
-     val op : t -> t -> t
+     val op : t &rarr; t &rarr; t
    end;;
 
    module type PAIR = sig
      type t
-     val make_pair : t -> t * t
+     val make_pair : t &rarr; t * t
    end;;
 
-   module type PAIR_FUNCTOR = functor (M : OP) -> PAIR;;
+   module type PAIR_FUNCTOR = functor (M : OP) &rarr; PAIR;;
 
    module F (Internal : PAIR_FUNCTOR) = struct
      module Int = struct type t = int let op = ( + ) end
@@ -7517,14 +7515,14 @@
    functor <code>PAIR_FUNCTOR</code> must be made precise:
    <pre class="prettyprint ml">
    module type PAIR_FUNCTOR =
-     functor (M : OP) -> PAIR with type t = int;;
+     functor (M : OP) &rarr; PAIR with type t = int;;
    </pre>
    Based over this signature, the functor <code>F</code> above will
    type fine. In order to make it really usable it would be preferable
    to consider the following signature:
    <pre class="prettyprint ml">
    module type PAIR_FUNCTOR =
-     functor (M : OP with type t = int) -> PAIR with type t = int;;
+     functor (M : OP with type t = int) &rarr; PAIR with type t = int;;
    </pre>
    The type of parameter <code>M</code> of the functor is indeed the
    thing that will probably affect the type of the
@@ -7581,7 +7579,7 @@
    <pre class="prettyprint ml">
    module type EQUAL = sig
      type t
-     val eq : t -> t -> t
+     val eq : t &rarr; t &rarr; t
    end;;
 
    module type AUTOMATON = sig
@@ -7589,8 +7587,8 @@
      type label = Label.t
      type automaton
      type extern_automaton
-     val make : extern_automaton -> automaton
-     val path_exist : automaton -> label list -> bool
+     val make : extern_automaton &rarr; automaton
+     val path_exist : automaton &rarr; label list &rarr; bool
    end;;
    </pre>
    Here too a signature of functors associated with graphs and which
@@ -7599,9 +7597,9 @@
    functor; their necessity is explained in the preceding section):
    <pre class="prettyprint ml">
    module type GRAPH_F =
-     functor (T : TYPE) ->
-       functor (Key :  EQUAL) ->
-         functor (Label : EQUAL) ->
+     functor (T : TYPE) &rarr;
+       functor (Key :  EQUAL) &rarr;
+         functor (Label : EQUAL) &rarr;
          GRAPH with module Key = Key and module Label = Label
          with type vertex_data = T.t
          with type extern_graph =
@@ -7624,14 +7622,14 @@
      type automaton = G.graph
      type extern_automaton = (G.Key.t * ((G.Key.t * Label.t) list)) list
 
-     let make l = G.make (List.map (fun (x, y) -> ((x, ()), y)) y)) l)
+     let make l = G.make (List.map (fun (x, y) &rarr; ((x, ()), y)) y)) l)
 
      let path_exist autom word =
        let rec aux visited word = match word with
-         | [] -> true
-         | first :: tail -> List.mem true
-               (List.map (fun v ->
-                  let nexts = List.filter (fun (), lab) -> lab = first)
+         | [] &rarr; true
+         | first :: tail &rarr; List.mem true
+               (List.map (fun v &rarr;
+                  let nexts = List.filter (fun (), lab) &rarr; lab = first)
                                           (G.nexts v autom) in
                   if nexts = [] then false
                   else aux (List.map fst nexts) tail)
@@ -7687,7 +7685,7 @@
    </pre>
    The above can always be transformed into a functor of functors:
    <pre class="prettyprint ml">
-   module type SF1 = functor (M0 : S0) -> S1
+   module type SF1 = functor (M0 : S0) &rarr; S1
 
    module FF (F1 : SF1) (M0 : S0) = struct
      module M1 = F1 (M0)
@@ -7737,7 +7735,7 @@
    following functor:
    <pre class="prettyprint ml">
    module type S = sig
-     val f : int -> int
+     val f : int &rarr; int
    end;;
 
    module F_add (M : S) = struct
@@ -7753,14 +7751,14 @@
    # module Increm_2 = struct let f x = x + 2;;
    
    # let dynamic_module_choice x =
-     let f = ref (fun x -> x) in (*initialization*)
+     let f = ref (fun x &rarr; x) in (*initialization*)
      (if x = 0
         then let module N = F_add (Increm_1) in
           f := N.g
       else let module N = F_add (Increm_2) in
           f := N.g);
       !f
-   val dynamic_module_choice : int -> int -> int
+   val dynamic_module_choice : int &rarr; int &rarr; int
 
    # dynamic_module_choice 0 1;;
    F_add APPLIED
@@ -7865,10 +7863,10 @@
    <pre class="prettyprint ml">
    module type ARITH = sig
      type nb
-     val make : string -> nb        val show : nb -> string
+     val make : string &rarr; nb        val show : nb &rarr; string
      val zero : nb                  val one : nb
-     val add : nb -> nb -> nb       val sub : nb -> nb -> nb
-     val mul : nb -> nb -> nb       val div : nb -> nb -> nb
+     val add : nb &rarr; nb &rarr; nb       val sub : nb &rarr; nb &rarr; nb
+     val mul : nb &rarr; nb &rarr; nb       val div : nb &rarr; nb &rarr; nb
    end;;
    </pre>
    Here's one instance provided by a simple adaptation of the
@@ -7888,9 +7886,9 @@
    direct use":
    <pre class="prettyprint ml">
    module type MATH1 = sig
-     val fact : I64.nb -> I64.nb
-     val fib : I64.nb -> I64.nb
-     val sum : (I64.nb -> I64.nb) -> I64.nb -> I64.nb -> I64.nb
+     val fact : I64.nb &rarr; I64.nb
+     val fib : I64.nb &rarr; I64.nb
+     val sum : (I64.nb &rarr; I64.nb) &rarr; I64.nb &rarr; I64.nb &rarr; I64.nb
    end;;
 
    module Math : MATH1 = struct
@@ -7943,7 +7941,7 @@
    <pre class="prettyprint ml">
    module type MATH2 = sig
      include ARITH
-     val fact : nb -> nb
+     val fact : nb &rarr; nb
      ...
    end;;
 
@@ -7972,7 +7970,7 @@
    <pre class="prettyprint ml">
    module type MATH3 = sig
      module M : ARITH
-     val fact : M.nb -> N.nb
+     val fact : M.nb &rarr; N.nb
      ...
    end;;
 
@@ -7999,7 +7997,7 @@
    (*The same as above*)
    module type MATH3 = sig
      module M : ARITH
-     val fact : M.nb -> N.nb
+     val fact : M.nb &rarr; N.nb
      ...
    end;;
 
@@ -8200,13 +8198,13 @@
 
    module type S1 = sig ... end
    module type S2 = sig ... end
-   module type SF = functor (M : S1) -> S2
+   module type SF = functor (M : S1) &rarr; S2
 
    (*implementation*)
 
    module M1 : S1 = struct ... end
    module M2 : S1 = struct ... end
-   module F : SF = functor (M : S1) -> struct ... end
+   module F : SF = functor (M : S1) &rarr; struct ... end
 
    (*evolution*)
    module M3 : S2 = F (M1)
@@ -8245,7 +8243,7 @@
    It will generally lead to the existence of a functor signature of
    the form:
    <pre class="prettyprint ml">
-   module type SF = functor (M : S2) -> S1
+   module type SF = functor (M : S2) &rarr; S1
    </pre>
    That said, using the signatures of functors permits treating
    modules and functors at the same level. Recall in fact tht the
@@ -8304,7 +8302,7 @@
    <pre class="prettyprint ml">
    module type S1 = sig ... end
    module type S2 = sig ... end
-   module type SF = functor (M : S1) -> S2
+   module type SF = functor (M : S1) &rarr; S2
    </pre>
    The associated graph is thus
    : <div align="center"><img src="img/narbel_01.png"/></div> The implementations of
@@ -8323,7 +8321,7 @@
    <pre class="prettyprint ml">   
    module M1 : S1 = struct ... end
    module M2 : S1 = struct ... end
-   module F : SF = functor (M : S1) -> struct ... end
+   module F : SF = functor (M : S1) &rarr; struct ... end
    </pre>
    </p>
    <p>We can then complete the specification graph above (note
@@ -8441,7 +8439,7 @@
    module type S1 = sig ... end
    module type S2 = sig ... end
    module type S3 = sig include S1 include S2 ... end
-   module type SF = functor (M1 : S1) (M2 : S2 with ...) -> S3;;
+   module type SF = functor (M1 : S1) (M2 : S2 with ...) &rarr; S3;;
    </pre>
    The corresponding specification graph is:
    <div align="center"><img src="img/narbel_10.png"/></div> 
@@ -8475,41 +8473,41 @@
    <pre class="prettyprint ml">
    module type ORDER = sig
      type t
-     val compare : t -> t -> int
+     val compare : t &rarr; t &rarr; int
    end;;
 
    module type ORDER_MASK = sig
      type t
      type extern_t
-     val make : extern_t -> t
-     val show : t -> extern t
-     val compare : t -> t -> int
+     val make : extern_t &rarr; t
+     val show : t &rarr; extern t
+     val compare : t &rarr; t &rarr; int
    end;;
 
    module type ORDERED_CONTAINER = sig
      module O : ORDER
      type elt = O.t
      type t
-     val empty : unit -> t
-     val add : elt -> t -> t
-     val max_elt : t -> elt
-     val remove_max : t -> t -> t
+     val empty : unit &rarr; t
+     val add : elt &rarr; t &rarr; t
+     val max_elt : t &rarr; elt
+     val remove_max : t &rarr; t &rarr; t
    end;;
 
    module type ORDERED_CONTAINER_F =
-     functor (Ord : ORDER) -> ORDERED_CONTAINER;;
+     functor (Ord : ORDER) &rarr; ORDERED_CONTAINER;;
 
    module type EXEC_QUEUE = sig
      module C : ORDERED_CONTAINER
      type processus = C.elt
      type t = C.t
-     val empty : unit -> t
-     val add : processus -> t -> t
-     val execute : (processus -> unit) -> t -> t
+     val empty : unit &rarr; t
+     val add : processus &rarr; t &rarr; t
+     val execute : (processus &rarr; unit) &rarr; t &rarr; t
    end;;
 
    module type EXEC_QUEUE_F =
-     functor (Ord : ORDERED_CONTAINER) -> EXEC_QUEUE;;
+     functor (Ord : ORDERED_CONTAINER) &rarr; EXEC_QUEUE;;
    </pre>
    Let us emphasize again that this specification can be verified and
    compiled by the OCaml compiler in particular as regards relations
@@ -8560,11 +8558,11 @@
    end;;
 
    module Proc : ORDER_MASK
-     with type extern_t = int * (float -> unit) * float =
+     with type extern_t = int * (float &rarr; unit) * float =
    struct
      type t = {priority : int;          pid : int;
-               proc : float -> unit;    para : float }
-     let extern_t = int * (float -> unit) -> float
+               proc : float &rarr; unit;    para : float }
+     let extern_t = int * (float &rarr; unit) &rarr; float
      let counter = ref 0
      let make (priority, proc, param) =
        incr counter;
@@ -8588,12 +8586,12 @@
    reduced to simple input-output):
    <pre class="prettyprint ml">
    # let pretty_float x = Printf.printf "Very nice float : %f\n" x;;
-   # let q = Q.add (Proc.make (10, (fun x -> pretty_float x), 3.14))
-                (Q.add (Proc.make (1, (fun x -> pretty_float x), 40000.))
+   # let q = Q.add (Proc.make (10, (fun x &rarr; pretty_float x), 3.14))
+                (Q.add (Proc.make (1, (fun x &rarr; pretty_float x), 40000.))
                   (Q.empty ()));;
    # let apply_process x = 
        let (_, proc, param) = Proc.show x in proc param;;
-   val : apply_process : Proc.t -> unit
+   val : apply_process : Proc.t &rarr; unit
 
    # let q = Q.execute apply_process q;;
    Very nice float : 40000.
@@ -8614,31 +8612,31 @@
    types:
    <pre class="prettyprint ml">
    module type CONTAINER = sig
-     type 'a t
-     val empty : unit -> 'a t
-     val add : 'a -> 'a t -> 'a t
-     val mem : 'a -> 'a t  -> bool
-     val map : ('a -> 'b) -> 'a t -> 'b t
+     type &alpha; t
+     val empty : unit &rarr; &alpha; t
+     val add : &alpha; &rarr; &alpha; t &rarr; &alpha; t
+     val mem : &alpha; &rarr; &alpha; t  &rarr; bool
+     val map : (&alpha; &rarr; &beta;) &rarr; &alpha; t &rarr; &beta; t
    end;;
 
    module type LINEAR_CONTAINER = sig
      include CONTAINER
-     val build : ('a -> 'a) -> 'a -> 'a t
-     val hd : 'a t -> 'a
-     val tl : 'a t -> 'a t
-     val npeek : int -> 'a t -> 'a list
-     val length : 'a t -> int
-     val nth : 'a t -> int -> 'a
+     val build : (&alpha; &rarr; &alpha;) &rarr; &alpha; &rarr; &alpha; t
+     val hd : &alpha; t &rarr; &alpha;
+     val tl : &alpha; t &rarr; &alpha; t
+     val npeek : int &rarr; &alpha; t &rarr; &alpha; list
+     val length : &alpha; t &rarr; int
+     val nth : &alpha; t &rarr; int &rarr; &alpha;
    end;;
 
    module type BINTREE_CONTAINER = sig
-     type 'a bintree
-     val make_empty : unit -> 'a bintree
-     val build ('a -> 'a * 'a) -> int -> 'a -> 'a bintree
-     val add : 'a -> 'a bintree -> 'a bintree
-     val mem : 'a -> 'a bintree -> bool
-     val height : 'a bintree -> int
-     val balance : 'a bintree -> 'a bintree
+     type &alpha; bintree
+     val make_empty : unit &rarr; &alpha; bintree
+     val build (&alpha; &rarr; &alpha; * &alpha;) &rarr; int &rarr; &alpha; &rarr; &alpha; bintree
+     val add : &alpha; &rarr; &alpha; bintree &rarr; &alpha; bintree
+     val mem : &alpha; &rarr; &alpha; bintree &rarr; bool
+     val height : &alpha; bintree &rarr; int
+     val balance : &alpha; bintree &rarr; &alpha; bintree
    end;;
    </pre>
    So, the signature <code>LINEAR_CONTAINER</code> is evidently
@@ -8649,16 +8647,16 @@
    <pre class="prettyprint ml">
    module type BINTREE_CONTAINER' = sig
      include BINTREE_CONTAINER
-     type 'a t = 'a bintree
-     val empty : unit -> 'a t
+     type &alpha; t = &alpha; bintree
+     val empty : unit &rarr; &alpha; t
    end;;
 
    module type ADAPT_BIN_NAMES =
-     functor (T : BINTREE_CONTAINER) -> BINTREE_CONTAINER';;
+     functor (T : BINTREE_CONTAINER) &rarr; BINTREE_CONTAINER';;
 
    module Bin_adapt (T : BINTREE_CONTAINER) : BINTREE_CONTAINER' = struct
      include T
-     type 'a t = 'a bintree
+     type &alpha; t = &alpha; bintree
      let empty = make_empty
    end;;
    </pre>
@@ -8667,9 +8665,9 @@
    into the container hierarchy by post application of the functor:
    <pre class="prettyprint ml">
    module Tree : BINTREE_CONTAINER = struct
-     type 'a bintree =
+     type &alpha; bintree =
        | Bin_empty
-       | Bin_node of 'a * 'a bintree * 'a bintree
+       | Bin_node of &alpha; * &alpha; bintree * &alpha; bintree
      let make_empty () = Bin_empty
      let build f n x = ...
      let add x t = ...
@@ -8702,57 +8700,57 @@
    <pre class="prettyprint ml">
    module type P_LINE = sig
      type data_in               type data_out
-     type 'a input_line         type 'a output_line
-     val make : data_in input_line -> data_out output line
-     val read_fst : data_out output_line -> data_out
-     val delete_fst : data_out output_line -> data_out output_line
+     type &alpha; input_line         type &alpha; output_line
+     val make : data_in input_line &rarr; data_out output line
+     val read_fst : data_out output_line &rarr; data_out
+     val delete_fst : data_out output_line &rarr; data_out output_line
    end;;
 
    module type STREAM = sig
      exception Empty
-     type 'a stm
-     val cons : (unit -> 'a) -> (unit -> 'a stm) -> 'a stm
-     val hd : 'a stm -> 'a
-     val tl : 'a stm -> 'a stm
-     val npeek : int -> 'a stm -> 'a list
-     val iterate : ('a -> 'a) -> 'a -> 'a stm
-     val map : ('a -> 'b) -> 'a stm -> 'b stm
+     type &alpha; stm
+     val cons : (unit &rarr; &alpha;) &rarr; (unit &rarr; &alpha; stm) &rarr; &alpha; stm
+     val hd : &alpha; stm &rarr; &alpha;
+     val tl : &alpha; stm &rarr; &alpha; stm
+     val npeek : int &rarr; &alpha; stm &rarr; &alpha; list
+     val iterate : (&alpha; &rarr; &alpha;) &rarr; &alpha; &rarr; &alpha; stm
+     val map : (&alpha; &rarr; &beta;) &rarr; &alpha; stm &rarr; &beta; stm
    end;;
 
    module P_LINE_STM = sig
      module St : STREAM
-     include P_LINE with type 'a output_line = 'a St.stm
+     include P_LINE with type &alpha; output_line = &alpha; St.stm
    end;;
 
    module type P_LINE_STM_F =
-     functor (St : STREAM) -> P_LINE_STM
+     functor (St : STREAM) &rarr; P_LINE_STM
    </pre>
    We can also give ourselves a signature of "functor connectors"
    which imposes the the entry of a production line necessarily comes
    from the exit of another production line:
    <pre class="prettyprint ml">
    module type P_LINE_TRANSFORM_STM_F =
-     functor (St : Stm) ->
-       functor (P : P_LINE_STM) -> 
+     functor (St : Stm) &rarr;
+       functor (P : P_LINE_STM) &rarr; 
          P_LINE_STM
            with type data_input = P.data_output
-           with type 'a input_line = 'a P.output_line;;
+           with type &alpha; input_line = &alpha; P.output_line;;
    </pre>
    The set of signatures is represented in the following figure.
-   <div align="center"><img src="img/narbel_15.png"/></div> By this,
-   Consider maintaining two different implementations of the
+   <div align="center"><img src="img/narbel_15.png"/></div> Consider
+   nowmaintaining two different implementations of the
    signature <code>STREAM</code>:
    <pre class="prettyprint ml">
    module St1 : STREAM = struct (*strictly functional*)
      exception Empty
-     type 'a stm = Empty_stream | Cons of 'a * (unit -> 'a stm)
+     type &alpha; stm = Empty_stream | Cons of &alpha; * (unit &rarr; &alpha; stm)
      let cons x s = Cons (x (), s)
      ...
    end;;
 
    module St2 : STREAM = struct (*uses `lazy_t`*)
      exception Empty
-     type 'a stm = Stm_emtpy | Cons of 'a lazy_t * 'a stm lazy_t
+     type &alpha; stm = Stm_emtpy | Cons of &alpha; lazy_t * &alpha; stm lazy_t
      let cons x s = Cons (lazy (x ()), lazy (s ()))
    end;;
    </pre>
@@ -8763,16 +8761,16 @@
    <pre class="prettyprint ml">
    module Rand_bin (STREAM : STREAM) : P_LINE_STREAM
      with type data_out = int
-     with type 'a input_line = int =
+     with type &alpha; input_line = int =
    struct
      module St = Stream
      type data_in = unit
      type data_out = int
-     type 'a input_line = int
-     type 'a output_line = 'a St.stm
+     type &alpha; input_line = int
+     type &alpha; output_line = &alpha; St.stm
 
      let rec make init =
-       Random.init; St.iterator (fun x -> (Random.int 2)) 0
+       Random.init; St.iterator (fun x &rarr; (Random.int 2)) 0
 
      let read_first s = St.hd s
      let delete_fst s = St.tl s
@@ -8794,8 +8792,8 @@
      module St = Stream
      type data_in = P.data_out
      type data_out = int * P.data_out
-     type 'a input_line = 'a P.output_line
-     type 'a output_line = 'a St.stm
+     type &alpha; input_line = &alpha; P.output_line
+     type &alpha; output_line = &alpha; St.stm
 
      let rec make s =
         let rec one_element e1 s n =
@@ -8803,7 +8801,7 @@
            then one_element el (P.delete_fst s) (n + 1)
            else ((n, e1), s) in
         let consx (pair, s) =
-          St.cons (fun () -> pair) (fun () -> make s))
+          St.cons (fun () &rarr; pair) (fun () &rarr; make s))
         in cons (one_element (P.read_fst s) (P.delete_fst) 1)
 
      let read_fst s = St.hd s
