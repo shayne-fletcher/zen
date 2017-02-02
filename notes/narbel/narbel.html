@@ -6714,7 +6714,7 @@
        (6, "Peace River"),     [4, Km 250.;]];;
    val g1 : Geo.graph = &lt;abstr&gt;
    </pre>
-   <div align="center"><img src="img/north-east-canada.png"/></div>
+   <div align="center"><img src="img/png/north-east-canada.png"/></div>
    </p>
    <p>We have thus realized here a data structure in the framework of
    complete and controlled genericity. In addition there is an OCaml
@@ -7564,7 +7564,7 @@
    two states $1$ (quiet) and $2$ (excited) and the set of transitions
    $1 \rightarrow 1$ labelled "quiet", $1 \rightarrow 2$ labelled
    "excite" and $2 \rightarrow 1$ labelled "calm down":
-   <div align="center"><img src="img/life-of-beast.png"/></div>
+   <div align="center"><img src="img/png/life-of-beast.png"/></div>
    </p>
    <p>Automatons thus are above all graphs of specific
    behaviors. Here, we now donsider them according to two
@@ -8276,7 +8276,7 @@
    posses a stramd that indicates its "applicability". The strand may
    be labelled in order to indicate type constraints.</li>
    </ul>
-   <div align="center"><img src="img/narbel_00.png"/></div>
+   <div align="center"><img src="img/png/narbel_00.png"/></div>
    <br/>
    <br/>
 
@@ -8305,7 +8305,7 @@
    module type SF = functor (M : S1) &rarr; S2
    </pre>
    The associated graph is thus
-   : <div align="center"><img src="img/narbel_01.png"/></div> The implementations of
+   : <div align="center"><img src="img/png/narbel_01.png"/></div> The implementations of
    modules and functors available at a given moment can then take
    place in a specification graph. It suffices to apply the following
    obvious rule:
@@ -8327,7 +8327,7 @@
    <p>We can then complete the specification graph above (note
    that <code>M1</code> and <code>M2</code> are associated with the
    vertex <code>S1</code>):
-   <div align="center"><img src="img/narbel_02.png"/></div> Thus,
+   <div align="center"><img src="img/png/narbel_02.png"/></div> Thus,
    application of functors can allow for implementation to evolve and
    in the same way, the sets of modules and functors associated with
    vertices of the specification graph. The result of the application
@@ -8341,7 +8341,7 @@
    </pre>
    On the specification graph, this evolution is made concrete by the
    simple addition of the module <code>M3</code>:
-   <div align="center"><img src="img/narbel_03.png"/></div> This
+   <div align="center"><img src="img/png/narbel_03.png"/></div> This
    description now permits the essential characteristics of the
    proposed representation here:
    <br/>
@@ -8368,17 +8368,17 @@
    be represented so (the transition vertices implicitly represent the
    signature of functors <code>ASSOC_TABLE &rarr;
    GRAPHIC_ENVIRONMENT</code>):
-   <div align="center"><img src="img/narbel_04.png"/></div> The
+   <div align="center"><img src="img/png/narbel_04.png"/></div> The
    software architecture of the example of "generic composites" is the
    following (the transition vertex represents implicitly functors
    with the signature <code>GRAPHIC_ELEM &rarr; GRAPHIC_ELEM</code>):
-   <div align="center"><img src="img/narbel_05.png"/></div> The
+   <div align="center"><img src="img/png/narbel_05.png"/></div> The
    example illustrates software architectures may posses
    loops. Finally, here is an architecture of a binary functor
    construting an optimisation method (the transition summit
    implicitly represents the signature <code>METRIC_SPACE &rarr; ORDER
    &rarr; OPTIMISATION</code>):
-   <div align="center"><img src="img/narbel_06.png"/></div>
+   <div align="center"><img src="img/png/narbel_06.png"/></div>
    </p>
  
    <h5>Representing the compatibility of signatures</h5>
@@ -8414,7 +8414,7 @@
    simple vertices which are accessible from <code>S1</code> by
    compatibility arcs. The architecture then corresponding to the
    example is the following:
-   <div align="center"><img src="img/narbel_07.png"/></div>
+   <div align="center"><img src="img/png/narbel_07.png"/></div>
    </p>
 
    <p>Compatibility arcs permit a particular representation of the
@@ -8427,11 +8427,11 @@
    </pre> The model is represented by the specification graph
    following where inheritance implies generally a compatibility arc
    back to the top from which we inherit:
-   <div align="center"><img src="img/narbel_08.png"/></div> 
+   <div align="center"><img src="img/png/narbel_08.png"/></div> 
 
    For example, the archtecture of extension of a type of containers
    is the the following (with application of a functor):
-   <div align="center"><img src="img/narbel_09.png"/></div> 
+   <div align="center"><img src="img/png/narbel_09.png"/></div> 
 
    Generic multiple inheritance is simply obtained by multiple
    inclusion:
@@ -8442,14 +8442,14 @@
    module type SF = functor (M1 : S1) (M2 : S2 with ...) &rarr; S3;;
    </pre>
    The corresponding specification graph is:
-   <div align="center"><img src="img/narbel_10.png"/></div> 
+   <div align="center"><img src="img/png/narbel_10.png"/></div> 
    Here is the software architecture of a program which corresponds to
    the union of two data types:
-   <div align="center"><img src="img/narbel_11.png"/></div> Finally,
+   <div align="center"><img src="img/png/narbel_11.png"/></div> Finally,
    reconsider the "control of generiticity" example proposed for
    finite automata and which makes use of a higher order functor. Here
    is the software architecture:
-   <div align="center"><img src="img/narbel_12.png"/></div>
+   <div align="center"><img src="img/png/narbel_12.png"/></div>
    Notice that here the private modules of the
    functor <code>Automaton</code> do not appear in the architecture
    because they are only part of the specific implementation of the
@@ -8513,7 +8513,7 @@
    compiled by the OCaml compiler in particular as regards relations
    between types. It is represented in the form of a specification
    graph in the following figure:
-   <div align="center"><img src="img/narbel_13.png"/></div>
+   <div align="center"><img src="img/png/narbel_13.png"/></div>
    
    Note that here we illustrate the technique of the double signature
    (with and without preparation for masking) for the sets of ordered
@@ -8576,7 +8576,7 @@
    The corresponding software architecture is obtained by
    incorporating the implementations into the specification
    graph:
-   <div align="center"><img src="img/narbel_14.png"/></div>
+   <div align="center"><img src="img/png/narbel_14.png"/></div>
    From there evolution to process queues is summarized by the
    application of the two functors, that is:
    <pre class="prettyprint ml">
@@ -8660,7 +8660,7 @@
      let empty = make_empty
    end;;
    </pre>
-   <div align="center"><img src="img/narbel_15.png"/></div> By this,
+   <div align="center"><img src="img/png/narbel_15.png"/></div> By this,
    all instances of <code>BINTREE_CONTAINER</code> may be integrated
    into the container hierarchy by post application of the functor:
    <pre class="prettyprint ml">
@@ -8737,7 +8737,7 @@
            with type &alpha; input_line = &alpha; P.output_line;;
    </pre>
    The set of signatures is represented in the following figure.
-   <div align="center"><img src="img/narbel_15.png"/></div> Consider
+   <div align="center"><img src="img/png/narbel_15.png"/></div> Consider
    nowmaintaining two different implementations of the
    signature <code>STREAM</code>:
    <pre class="prettyprint ml">
