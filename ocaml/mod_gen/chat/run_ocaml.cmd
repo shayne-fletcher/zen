@@ -1,12 +1,10 @@
-del *.cmi *.cmo parser.mli parser.ml lexer.ml
+del *.cmi *.cmo request_parser.mli request_parser.ml request_lexer.ml
 
 ocamlc -c ast.mli
-ocamlyacc parser.mly
-ocamllex lexer.mll
-ocamlc -c parser.mli parser.ml lexer.ml 
-ocamlc -c room.ml
-ocamlc -c protocol.mli protocol.ml
+ocamlyacc request_parser.mly
+ocamllex request_lexer.mll
 
-:: ocaml parser.cmo lexer.cmo protocol.cmo
+ocamlmktop -thread -o stop.exe unix.cma threads.cma^
+  request_parser.mli request_parser.ml request_lexer.ml ^
+  server.ml
 
-:: ocamlc -thread -o parser.cmo lexer.cmo server.ml unix.cma threads.cma serv_up.ml

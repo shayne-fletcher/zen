@@ -1,6 +1,6 @@
 {
   open Lexing
-  open Parser
+  open Request_parser
 }
 
 let blank = [' ' '\009' '\012']
