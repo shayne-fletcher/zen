@@ -18,6 +18,7 @@ rule token = parse
   | "/nick"                            { T_nick }
   | "/join"                            { T_join }
   | "/privmsg"                      { T_privmsg }
+  | "/poll"                            { T_poll }
   | identchar+ { T_ident (Lexing.lexeme lexbuf) }
 
 {

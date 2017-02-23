@@ -1,5 +1,11 @@
 %{
   open Ast
+
+  let mk_connect tok = Ast_connect tok
+  let mk_nick (tok, usr) = Ast_nick (tok, usr)
+  let mk_join (tok, chan) = Ast_join (tok, chan)
+  let mk_poll (tok, chan) = Ast_poll (tok, chan)
+  let mk_privmsg (tok, (chan, msg)) = Ast_privmsg ((tok, chan), msg)
 %}
 
 /*Tokens*/
@@ -9,6 +15,7 @@
 %token <string> T_ident
 %token T_join
 %token T_nick
+%token T_poll
 %token T_privmsg
 %token <string> T_txt
 %token <string> T_token
@@ -21,11 +28,11 @@ parse_message:
  | body T_eof                                                { $1 }
  ;
 body:
- | nick                                         { Ast_connect $1 }
- | token nick                                 { Ast_nick ($1, $2) }
- | token join                                 { Ast_join ($1, $2) }
- | token privmsg 
-            { let chan, msg = $2 in Ast_privmsg (($1, chan), msg) }
+ | nick                                           { mk_connect $1 }
+ | token nick                                  { mk_nick ($1, $2) }
+ | token join                                  { mk_join ($1, $2) }
+ | token poll                                  { mk_poll ($1, $2) }
+ | token privmsg                            { mk_privmsg ($1, $2) }
  ;
 nick:
  | T_nick user                                               { $2 }
@@ -35,6 +42,9 @@ join:
  ;
 privmsg:
  | T_privmsg channel message                           { ($2, $3) }
+ ;
+poll:
+ | T_poll channel                                            { $2 }
  ;
 message:
  | T_txt                                                     { $1 }
