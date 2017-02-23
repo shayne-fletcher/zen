@@ -9,11 +9,9 @@ let write (s : string) : unit  =
   flush stdout;
   Mutex.unlock console_access
 
-(*The server provided token identifying this client*)
-let tok : string option ref = ref None
-
-(*The list of rooms the client has subscribed to*)
-let rooms : string list ref = ref []
+(*This client's state*)
+let tok : string option ref = ref None (*Server provided cookie*)
+let rooms : string list ref = ref []  (*Names of channels subscribed to*)
 
 (*[proccess_response in_ch] performs updates given server responses*)
 let rec process_response (in_ch : in_channel) : unit =
