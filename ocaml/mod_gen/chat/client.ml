@@ -1,3 +1,6 @@
+(*This is a 'nasty' client :) It's enough to prove the application
+  though.*)
+
 (*A mutex for writing to the screen*)
 let console_access : Mutex.t = Mutex.create ()
 
