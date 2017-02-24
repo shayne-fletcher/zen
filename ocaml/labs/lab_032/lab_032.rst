@@ -1,0 +1,89 @@
+
+html,
+    h1 {
+    font-family: Helvetica, Geneva, Arial,  SunSans-Regular, sans-serif 
+    }
+    body {
+    font-family:Verdana, Geneva, sans-serif; 
+   }
+Weekly Exercises : #032
+2017-02-24 by 
+Difficulty level :
+Medium/Hard
+Problem :
+Here we'll do some very basic distributed computing in OCaml using the techniques of "programmation modulaire générique" (generic modular programming).
+
+The task is to implement a service that accepts strings and returns them in upper-case. In order that the resulting program run on both Windows and Unix, we'll use threads. For basic details of an implementation refer to this section of the online book "Developing Applications with Objective Caml".
+
+Here is a specification for the program :
+
+module type PORT = sig
+  val port_number : int
+end
+ 
+module type ADDRESS = sig
+  type t
+  val get : unit -> t
+end
+ 
+module type SOCKET_ADDRESS_F = functor (P : PORT) -> ADDRESS with type t = Unix.sockaddr
+ 
+module type SOCKET = sig
+  val get : unit -> Unix.file_descr
+  val close : unit -> unit
+end
+ 
+module type SOCKET_F = functor (A : ADDRESS with type t = Unix.sockaddr) -> SOCKET
+ 
+module type SERVER = sig
+  val run : (in_channel -> out_channel -> 'a) -> unit
+end
+ 
+module type SERVER_F = functor (S : SOCKET) -> SERVER
+
+Observe of course that the specification is separately compilable as is! The task then is to fill in the details of the following skeleton:
+
+module Internet_address : SOCKET_ADDRESS_F =
+  functor (P : PORT) -> struct
+    (*...*)
+  end
+ 
+module TCP_socket : SOCKET_F =
+  functor (A : ADDRESS with type t = Unix.sockaddr) -> struct
+    (*...*)
+  end
+ 
+module Server : SERVER_F =
+  functor (S : SOCKET) -> struct
+     (*...*)
+  end
+ 
+let uppercase_service (ic : in_channel) (oc : out_channel) : unit =
+  try while true do
+      let s = input_line ic in
+      let r = String.uppercase_ascii s
+      in output_string oc (r ^ "\n"); flush oc
+    done
+  with
+  | _ -> Printf.printf "End of text\n"; flush stdout
+ 
+let main f =
+  if Array.length Sys.argv < 2 then Printf.eprintf "usage : serv_up port\n"
+  else try
+    let module S =
+      Server (
+        TCP_socket (
+          Internet_address (
+            struct
+              let port_number = int_of_string Sys.argv.(1)
+            end))) in
+    S.run f
+  with
+  | Failure _ -> Printf.eprintf "serv_up : bad port number\n"
+ 
+let _ = Unix.handle_unix_error main uppercase_service
+
+Assuming that all of the above code is assembled into a file called 'serv_up.ml', the program can be compiled with a command like:
+ocamlc -thread -o serv_up.exe unix.cma threads.cma serv_up.ml
+
+Once completed, the server can be tested by using telnet as a client.
