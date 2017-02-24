@@ -238,7 +238,7 @@ module Make_request_handler : MAKE_REQUEST_HANDLER =
 
     (*The implementation is already provided via 'ast.mli' (which is
       referenced from the module [Request_parser])*)
-    include Ast
+    include Request_ast
 
     (*The module parameter binds as the sub-module*)
     module R = R

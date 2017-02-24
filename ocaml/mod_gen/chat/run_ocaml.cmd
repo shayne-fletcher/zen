@@ -1,6 +1,6 @@
 del *.cmi *.cmo request_parser.mli request_parser.ml request_lexer.ml
 
-ocamlc -c ast.mli
+ocamlc -c request_ast.mli
 ocamlyacc request_parser.mly
 ocamllex request_lexer.mll
 

@@ -1,5 +1,5 @@
 %{
-  open Ast
+  open Request_ast
 
   let mk_connect tok = Ast_connect tok
   let mk_nick (tok, usr) = Ast_nick (tok, usr)
@@ -21,7 +21,7 @@
 %token <string> T_token
 
 %start parse_message
-%type <Ast.ast> parse_message
+%type <Request_ast.ast> parse_message
 %%
 
 parse_message:
