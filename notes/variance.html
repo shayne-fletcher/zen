@@ -157,10 +157,10 @@
     # let f (x : [`A | `B] t) = (x :&gt; [ `A ] t);;
     val f : [ `A | `B ] t -> [ `A ] t = &lt;fun&gt;
     </pre>
-    The declaration <code>-&alpha; t</code> declares that the abstract
-    type <code>t</code> is contravariant in its parameter : if $\tau$
-    is a subtype of $\sigma$ then $\sigma\;t$ is a subtype of
-    $\tau\;t$. In this example, $\tau = $<code>[ `A ]</code> and
+    The declaration <code>type -&alpha; t</code> declares that the
+    abstract type <code>t</code> is contravariant in its parameter :
+    if $\tau$ is a subtype of $\sigma$ then $\sigma\;t$ is a subtype
+    of $\tau\;t$. In this example, $\tau = $<code>[ `A ]</code> and
     $\sigma = $<code>[`A | `B]</code>, $\tau$ is a subtype of $\sigma$
     and
     <code>[ `A | `B ] t</code> is a subtype of <code>[ `A ] t</code>.
