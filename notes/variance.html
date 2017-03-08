@@ -169,27 +169,27 @@
     In the following, <code>type &alpha; t</code> is <b>not</b>
     abstract and variance can be inferred.
     <pre>
-    # type 'a t = {x : 'a} ;;
+    # type &alpha; t = {x : &alpha;} ;;
     # let f x = (x : [`A] t :> [`A | `B] t);;
     val f : [ `A ] t -> [ `A | `B ] t = &lt;fun&gt;
     </pre>
     Introducing a constraint however inhibits variance inference.
     <pre>
-    # type 'a t = {x : 'a} constraint 'a = [&lt; `A | `B ];;
+    # type &alpha; t = {x : &alpha;} constraint &alpha; = [&lt; `A | `B ];;
     # let f x = (x : [`A] t :> [`A | `B] t);;
     Error: Type [ `A ] t is not a subtype of [ `A | `B ] t 
     </pre>
     This situation can be overcome by introducing a covariance
     annotation.
     <pre>
-    # type +'a t = {x : 'a} constraint 'a = [&lt; `A | `B ];;
+    # type +&alpha; t = {x : &alpha;} constraint &alpha; = [&lt; `A | `B ];;
     # let f x = (x : [`A] t :> [`A | `B] t);;
     val f : [ `A ] t -> [ `A | `B ] t = &lt;fun&gt;
     </pre>
     In the following example, <code>&alpha;</code> does not
     participate in the definition of <code>type &alpha; t</code>.
     <pre>
-    # type 'a t = {x : int};;
+    # type &alpha; t = {x : int};;
     # let f x = (x : [`A] t :> [`B] t);;
     val f : [ `A ] t -> [ `B ] t = &lt;fun&gt;
     </pre>
