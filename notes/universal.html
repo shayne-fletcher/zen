@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+      extensions: ["tex2jax.js","TeX/AMSmath.js","TeX/AMSsymbols.js"],
+      jax: ["input/TeX", "output/HTML-CSS"],
+      tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+      },
+      "HTML-CSS": { availableFonts: ["TeX"] }
+      });
+    </script> 
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
+    <title>Universal type</title>
+  </head>
+  <body>
+    <h2>Universal type</h2>
+    <p>A universal type is a type into which all other types can be
+    embedded. A module implementing such a type will have the
+    following signature.
+      <pre class="prettyprint ml">
+module type UNIV = sig
+  type t
+  val embed : unit -> (&alpha; -> t) * (t -> &alpha; option)
+end;;
+      </pre>
+      The <code>type t</code> is the universal type and that each call
+      to embed <code>embed</code> returns a pair of functions : an
+      injection function for embeding a value into the universal type
+      and a projection function for extracting the value from its
+      representation in the universal type.
+      We can quickly put together a little test demonstrating intended
+      usage.
+      <pre class="prettyprint ml">
+module type TEST = sig
+  val run : unit -> unit
+end;;
+
+module type UNIVERSAL_TEST = functor (U : UNIVERSAL) -> TEST;;
+
+module Basic_usage : UNIVERSAL_TEST =
+  functor (U : UNIVERSAL) -> struct
+    let run () =
+      let ((of_int : int -> U.t)
+         , (to_int : U.t -> int option)) = U.embed () in
+      let ((of_string : string -> U.t)
+         , (to_string : U.t -> string option)) = U.embed () in
+
+      let r : U.t ref = ref (of_int 13) in
+
+      begin
+        assert (to_int !r = Some 13);
+        assert (to_string !r = None);
+
+        r := of_string "foo";
+
+        assert (to_string !r = Some "foo");
+        assert (to_int !r = None);
+      end
+  end;;
+      </pre>
+    </p>
+    <p>One possible implementation is via the use of exceptions
+    together with local modules, locally abstract types and the use of
+    modules as first-class values. The core idea exploits the fact
+    that the primitive type <code>exn</code> is an open extensible
+    sum. Here's the complete implementation. We'll break it down bit
+    by bit later.
+    <pre class="prettyprint ml">
+module Universal_exn : UNIVERSAL = struct
+
+  type t = exn
+
+  module type ANY = sig
+    type c
+    exception E of c
+  end
+
+  type &alpha; any = (module ANY with type c = &alpha;)
+
+  let mk : unit -> &alpha; any =
+    fun (type s) () ->
+      (module struct
+        type c = s
+        exception E of c
+      end : ANY with type c = s)
+
+  let inj (type s) (p : s any) (x : s) : t =
+    let module Any = (val p : ANY with type c = s) in
+    Any.E x
+
+  let proj (type s) (p : s any) (y : t) : s option =
+    let module Any = (val p : ANY with type c = s) in
+    match y with
+    | Any.E x -> Some x
+    | _ as e ->  None
+
+  let embed () = let p = mk () in inj p, proj p
+
+end;;
+    </pre>
+    Before delving into an explanation of the program, one can quickly
+    verify it satisfies the basic test.
+   <pre class="prettyprint ml">
+# module Test_basic = Mk_universal_test(Universal_exn);;
+# Test_basic.run ();;
+- : unit = ()
+   </pre>
+   </p>
+   <p>
+   Let us move on to examining the module implementation in
+   detail. The definition of the universal type <code>t</code> is an
+   alias to the predefined type <code>exn</code>.
+   <pre class="prettyprint ml">
+type t = exn
+   </pre>
+   A module type <code>ANY</code> is introduced. Modules that
+   implement this signature define an abstract type <code>c</code> and
+   introduce an <code>exn</code> constructor <code>E of c</code>.
+   <pre class="prettyprint ml">
+module type ANY = sig
+  type c
+  exception E of c
+end
+   </pre>
+   An alias for the type of a module value satisfying this signature
+   comes next. Using alises of this kind are helpful in reducing
+   "syntactic verbosity" in code accepting and returning module values.
+   <pre class="prettyprint ml">
+type &alpha; any = (module ANY with type c = &alpha;)
+   </pre>
+   Next follow a set of functions that are private to the
+   implementation of the module. The first of these
+   is <code>mk</code>.
+   <pre class="prettyprint ml">
+let mk : unit -> &alpha; any =
+  fun (type s) () ->
+    (module struct
+      type c = s
+      exception E of c
+    end : ANY with type c = s)
+   </pre>
+   This function <code>mk</code> takes the <code>unit</code> argument
+   and each invocation computes a new module instance which is packed
+   as a first class value and returned. The locally abstract
+   type <code>s</code> connects to the <code>&alpha;</code> in the
+   return type.
+   </p>
+   <p>
+   The next function to be defined is a function <code>inj</code>
+   which computes a universal type value from its argument.
+   <pre class="prettyprint ml">
+let inj (type s) (p : s any) (x : s) : t =
+  let module Any = (val p : ANY with type c = s) in
+  Any.E x
+   </pre>
+    As was the case for <code>mk</code>, a locally abstract type is
+    used in the definition of <code>inj</code> and observe how that
+    type ensures a coherence between the module
+    parameter <code>p</code> and the type of the parameter to be
+    embedded <code>x</code>.
+   </p>
+   <p>
+   The projection function <code>proj</code> comes next and also use a
+   locally abstract type ensuring coherence among its parameters.
+   <pre class="prettyprint ml">
+let proj (type s) (p : s any) (y : t) : s option =
+  let module Any = (val p : ANY with type c = s) in
+  match y with
+  | Any.E x -> Some x
+  | _ as e ->  None
+   </pre>
+   The body of <code>proj</code> unpacks the module value paramer into
+   a module named <code>Any</code> and then attempts to
+   match <code>y</code> against the constructor defined
+   by <code>Any</code>. Recall, at the end of the day, <code>y</code>
+   is of type <code>exn</code>. The match contains two cases : the
+   first matching the constructor <code>Any.E x</code>
+   with <code>x</code> having type <code>s</code>, the second anything
+   else. So, <code>proj</code> is total.
+   </p>
+  <hr/>
+  </body>
+</html>

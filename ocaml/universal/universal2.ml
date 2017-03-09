@@ -1,5 +1,5 @@
 (*The type of a module implementing a "universal" type*)
-module type UNIV = sig
+module type UNIVERSAL = sig
 
   (*The universal type itself*)
   type t
@@ -9,9 +9,18 @@ module type UNIV = sig
   val embed : unit -> ('a -> t) * (t -> 'a option)
 end
 
-(*An implementation of [UNIV] built on [exn], local modules and
+(*The type of a simple module with a 'run' function*)
+module type TEST = sig
+  val run : unit -> unit
+end
+
+(*The type of a functor that produces a test given a module
+  implementing a universal type*)
+module type UNIVERSAL_TEST = functor (U : UNIVERSAL) -> TEST
+
+(*An implementation of [UNIVERSAL] built on [exn], local modules and
   locally abstract types*)
-module Univ : UNIV = struct
+module Universal_exn : UNIVERSAL = struct
 
   type t = exn
 
@@ -25,8 +34,8 @@ module Univ : UNIV = struct
   (*A module value type alias*)
   type 'a any = (module ANY with type c = 'a)
 
+  module Detail = struct
   (*[mk ()] computes a new module value*)
-    return type*)
   let mk : unit -> 'a any =
     fun (type s) () ->
       (module struct
@@ -55,18 +64,38 @@ module Univ : UNIV = struct
     (*[y] is of a form [Any'.E x] (where [x] may or may not have type
       [s] - that's not relevant)*)
     | _ as e ->  None
+  end
 
   (*[embed ()] creates a new module value and computes a pair of
     injection and projection functions from it. The returned [inj]
     function will be weakly polymoprhic : first application will "fix"
     the type [c] in the module)*)
   let embed () =
-    let p = mk () in
-    inj p, proj p
+    let p = Detail.mk () in Detail.inj p, Detail.proj p
 
 end
 
-module Univ_test (U : UNIV) = struct
+module Basic_usage : UNIVERSAL_TEST =
+  functor (U : UNIVERSAL) -> struct
+    let run () =
+      let ((of_int : int -> U.t)
+              , (to_int : U.t -> int option)) = U.embed () in
+      let ((of_string : string -> U.t)
+              , (to_string : U.t -> string option)) = U.embed () in
+      let r : U.t ref = ref (of_int 13) in
+      begin
+        assert (to_int !r = Some 13);
+        assert (to_string !r = None);
+        r := of_string "foo";
+        assert (to_string !r = Some "foo");
+        assert (to_int !r = None);
+      end
+  end;;
+
+module Mk_universal_test : UNIVERSAL_TEST =
+  functor (U : UNIVERSAL) -> struct
+
+(* module Universal_test (U : UNIVERSAL) = struct *)
 
   (*This is how its supposed to work*)
   let test_0 () =
@@ -139,5 +168,5 @@ module Univ_test (U : UNIV) = struct
 end
 
 let _ =
-  let module Test = Univ_test (Univ) in
+  let module Test = Mk_universal_test (Universal_exn) in
   Test.run ()
