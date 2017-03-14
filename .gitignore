@@ -1,7 +1,9 @@
 *~
 *.cmi
 *.cmx
+*.cmo
 *.o
+*\#*
 *.obj
 *.aux
 *.log
