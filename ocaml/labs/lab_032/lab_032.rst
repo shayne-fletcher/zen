@@ -40,9 +40,7 @@ module type SERVER = sig
 end
  
 module type SERVER_F = functor (S : SOCKET) -> SERVER
-
 Observe of course that the specification is separately compilable as is! The task then is to fill in the details of the following skeleton:
-
 module Internet_address : SOCKET_ADDRESS_F =
   functor (P : PORT) -> struct
     (*...*)
@@ -82,8 +80,115 @@ let main f =
   | Failure _ -> Printf.eprintf "serv_up : bad port number\n"
  
 let _ = Unix.handle_unix_error main uppercase_service
-
 Assuming that all of the above code is assembled into a file called 'serv_up.ml', the program can be compiled with a command like:
 ocamlc -thread -o serv_up.exe unix.cma threads.cma serv_up.ml
-
 Once completed, the server can be tested by using telnet as a client.
+Solutions:
+This one deviates slightly from the specification in that it is implemented in terms of fork rather than lightweight threads but hey, we'll take it.
+module Internet_address : SOCKET_ADDRESS_F =
+  functor (P : PORT) -> struct
+    type t = Unix.sockaddr
+    let get = fun () -> P.port_number
+  end
+module TCP_socket : SOCKET_F =
+  functor (A : ADDRESS with type t = Unix.sockaddr) -> struct
+    let get = fun () ->
+      let sock_fdecr = (Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0) in
+      let sock_address = Unix.ADDR_INET( Unix.inet_addr_of_string "127.0.0.1", (A.get ()) )
+      in
+      Unix.bind sock_fdecr sock_address;
+      sock_fdecr
+    let close = fun () -> ()
+  end
+module Server : SERVER_F =
+  functor (S : SOCKET) -> struct
+    let run server_func =
+      let sock = S.get () in
+      Unix.listen sock 3;
+      while true do
+        print_string("lkajdfkl \n");
+        let (s, caller) = Unix.accept sock
+        in match Unix.fork() with
+        | 0 ->
+          if Unix.fork() <> 0 then exit 0;
+          let inchan  = Unix.in_channel_of_descr s in
+          let outchan  = Unix.out_channel_of_descr s
+          in server_func inchan outchan;
+          close_in inchan;
+          close_out outchan;
+        | id -> Unix.close s; ignore(Unix.waitpid [] id)
+      done
+  end
+
+Here's one that uses lightweight threads.
+module Internet_address : SOCKET_ADDRESS_F = functor (P : PORT) -> struct
+  type t = Unix.sockaddr
+  let get () =
+    let address = Unix.inet_addr_of_string "127.0.0.1" in
+    Unix.ADDR_INET (address, P.port_number)
+end
+module TCP_socket : SOCKET_F = functor (A : ADDRESS with type t = Unix.sockaddr) -> struct
+  let get () =
+    let addrs = A.get () in
+    let domain = Unix.domain_of_sockaddr addrs in
+    let sock = Unix.socket domain SOCK_STREAM 0 in
+    Unix.bind sock addrs;
+    sock
+  let close () = Unix.close @@ get ()
+end
+module Server : SERVER_F = functor (S : SOCKET) -> struct
+  let run serve =
+    let sock = S.get () in
+    Unix.listen sock 3;
+    while true do
+      let (s, caller) = Unix.accept sock in
+      let handle () =
+        let inchan = Unix.in_channel_of_descr s in
+        let outchan = Unix.out_channel_of_descr s in
+        serve inchan outchan;
+        close_in inchan;
+        close_out outchan;
+        Thread.exit ()
+      in
+      Thread.create handle ()
+    done
+end
+Here's another that on the face of it, appears to make more sophisticated use of the Unix module.
+module Internet_address : SOCKET_ADDRESS_F =
+  functor (P : PORT) -> struct
+    type t = Unix.sockaddr
+    let m_sockaddr =
+      Unix.ADDR_INET (Unix.inet_addr_of_string "0.0.0.0", P.port_number)
+    let get () = m_sockaddr
+  end
+module TCP_socket : SOCKET_F =
+  functor (A : ADDRESS with type t = Unix.sockaddr) -> struct
+      let m_fd = Unix.(socket PF_INET SOCK_STREAM 0)
+      let get () =
+        Unix.(setsockopt m_fd SO_REUSEADDR true);
+        Unix.(setsockopt_optint m_fd SO_LINGER (Some 3));
+        Unix.bind m_fd (A.get ());
+        m_fd
+      and close () = Unix.close m_fd
+  end
+module Server : SERVER_F =
+  functor (S : SOCKET) -> struct
+  let tfunc (f, client_sock) =
+    Unix.(setsockopt_optint client_sock SO_LINGER (Some 3));
+    f (Unix.in_channel_of_descr client_sock) (Unix.out_channel_of_descr client_sock);
+    begin
+      try
+        Unix.(shutdown client_sock SHUTDOWN_ALL);
+      with
+      | _ -> ()
+    end
+    let rec process sock f =
+      let client_sock, client_sockaddr = Unix.accept sock in
+      ignore (Thread.create tfunc (f, client_sock));
+      process sock f
+    let run f =
+      let sock = S.get () in
+      Unix.listen sock 64;
+      process sock f
+  end
+Good job all. Looking forward to seeing you at the upcoming modules and functor course!
