@@ -236,8 +236,8 @@ module type MAKE_REQUEST_HANDLER =
 module Make_request_handler : MAKE_REQUEST_HANDLER =
   functor (R : ROOM) -> struct
 
-    (*The implementation is already provided via 'ast.mli' (which is
-      referenced from the module [Request_parser])*)
+    (*The implementation is already provided via 'request_ast.mli'
+      (which is referenced from the module [Request_parser])*)
     include Request_ast
 
     (*The module parameter binds as the sub-module*)
