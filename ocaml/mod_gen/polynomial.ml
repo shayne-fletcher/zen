@@ -58,12 +58,11 @@ module type POLYNOMIAL = sig
   type coeff_extern_t (*Type of coeff. external rep*)
 
   (*Polynomials satisfy the ring interface*)
-  include RING (*Defines a type [t] and [extern_t]*)
+  include RING (*Declares a type [t] and [extern_t]*)
 
   (*Function to evaluate a polynomial at a point*)
   val eval : t -> coeff -> coeff
-end
-;;
+end;;
 
 (*Functor for building polynomials from rings*)
 module Polynomial (R : RING) :
