@@ -2,6 +2,8 @@
   {{:https://caml.inria.fr/pub/docs/u3-ocaml/ocaml-modules.html#Exo-31}"Using,
   Understanding, and Unraveling the OCaml Language"} -- Didier Remy*)
 
+#load "nums.cma";;
+
 (*Type of a module implementing arithmetic*)
 module type ARITH = sig
   type t
@@ -13,37 +15,8 @@ module type ARITH = sig
   val compare : t -> t -> int        val equal : t -> t -> bool
 end;;
 
-(*Type of a module implementing a set equipped with two binary
-  operations that generalize the arithmetic operations of addition and
-  multiplication*)
-module type RING = sig
-  type t                              type extern_t
-  val make : extern_t -> t            val show : t -> extern_t
-  val print : t -> unit
-  val zero : t                        val one : t
-  val add : t -> t -> t               val mul : t -> t -> t
-  val equal : t -> t -> bool
-end;;
-
-(*Build a ring over an arithmetic using [int] for the external
-  representation type [extern_t]*)
-module Ring (A : ARITH) :
-  RING  with type t = A.t and type extern_t = int =
-struct
-  include A
-  type extern_t = int
-
-  let make = of_int
-  let show = to_int
-  let print x = print_int (show x)
-end;;
-
-(*Rings over various specific arithmetic types*)
-module Ring_int32 = Ring (Int32);;
-module Ring_int64 = Ring (Int64);;
-module Ring_nativeint = Ring (Nativeint);;
-module Ring_int = Ring (
-  struct
+(*Arithmetic with [int]*)
+module Int : ARITH = struct
     type t = int
     let of_int x = x                   let to_int x = x
     let of_string = int_of_string      let to_string = string_of_int
@@ -51,15 +24,91 @@ module Ring_int = Ring (
     let add = ( + )                    let sub = ( - )
     let mul = ( * )                    let div = ( / )
     let compare = Pervasives.compare   let equal = ( = )
-  end
-);;
+end;;
+
+(*Arithmetic with [float]*)
+module Float : ARITH = struct
+  type t = float
+  let of_int = float_of_int          let to_int = int_of_float
+  let of_string = float_of_string    let to_string = string_of_float
+  let zero = 0.                       let one = 1.
+  let add = ( +. )                    let sub = ( -. )
+  let mul = ( *. )                    let div = ( /. )
+  let compare = Pervasives.compare   let equal = ( = )
+end;;
+
+(*Arithmetic with [Num.num] (rational numbers)*)
+module Rat : ARITH = struct
+  include Num
+  type t = num
+  let of_int = num_of_int            let to_int = int_of_num
+  let of_string = num_of_string      let to_string = string_of_num
+  let compare = compare_num          let equal x y = compare x y = 0
+  let zero = Int 0                   let one = Int 1
+  let add = add_num                  let sub = sub_num
+  let mul = mult_num                 let div = div_num
+end;;
+
+(*The type of an additive group*)
+module type ADDITIVE_GROUP = sig
+  type t                              type extern_t
+  val make : extern_t -> t            val show : t -> extern_t
+  val print : t -> unit               val zero : t
+  val add : t -> t -> t               val inverse : t -> t
+  val equal : t -> t -> bool
+end;;
+
+(*The type of a set equipped with two binary operations that
+  generalize the arithmetic operations of addition and
+  multiplication*)
+module type RING = sig
+  include ADDITIVE_GROUP
+  val one : t                          val mul : t -> t -> t
+end;;
+
+(*Build a ring over an arithmetic using [int] for the external
+  representation type [extern_t]*)
+module Ring_int (A : ARITH) :
+  RING  with type t = A.t and type extern_t = int =
+struct
+  include A
+  type extern_t = int
+
+  let make = of_int
+  let show = to_int
+  let inverse = sub zero
+  let print x = print_int (show x)
+end;;
+
+(*Build a ring over an arithmetic using [string] for the external
+  representation type [extern_t]*)
+module Ring_str (A : ARITH) :
+  RING  with type t = A.t and type extern_t = string =
+struct
+  include A
+  type extern_t = string
+
+  let make = of_string
+  let show = to_string
+  let inverse = sub zero
+  let print x = print_string (show x)
+end;;
+
+(*Rings over various arithmetics*)
+module Ring_int32 = Ring_int (Int32);;
+module Ring_int64 = Ring_int (Int64);;
+module Ring_nativeint = Ring_int (Nativeint);;
+module Ring_int_intr = Ring_int (Int);;
+module Ring_rat = Ring_str (Rat);;
+module Ring_float = Ring_str (Float);;
 
 (*The type of polynomials*)
 module type POLYNOMIAL = sig
   type coeff (*Type of coefficients*)
   type coeff_extern_t (*Type of coeff. external rep*)
 
-  (*Polynomials satisfy the ring interface*)
+  (*Polynomials with coefficients drawn from a ring are themselves are
+    rings*)
   include RING (*Declares a type [t] and [extern_t]*)
 
   (*Function to evaluate a polynomial at a point*)
@@ -128,6 +177,12 @@ struct
   (*[show p] produces an external representation of [p]*)
   let show p =
     List.fold_right (fun (c, k) acc -> (R.show c, k) :: acc) p []
+
+  (*[inverse p] is the additive inverse of [p]*)
+  let inverse (p : t ) : t = 
+    List.rev (
+      List.fold_left (
+        fun acc (a, k) -> (R.inverse a, k) :: acc) zero p)
 
   (*Premultiply a polynomial by a monomial*)
   let rec times (c, k) = function
