@@ -18,8 +18,8 @@ end;;
   multiplication*)
 module type RING = sig
   type t                              type extern_t
-  val print : t -> unit
   val make : extern_t -> t            val show : t -> extern_t
+  val print : t -> unit
   val zero : t                        val one : t
   val add : t -> t -> t               val mul : t -> t -> t
   val equal : t -> t -> bool
@@ -32,14 +32,16 @@ module Ring (A : ARITH) :
 struct
   include A
   type extern_t = int
-  let make = of_int                  let show = to_int
+
+  let make = of_int
+  let show = to_int
   let print x = print_int (show x)
 end;;
 
 (*Rings over various specific arithmetic types*)
-module Ring32 = Ring (Int32);;
-module Ring64 = Ring (Int64);;
-module Ring_native = Ring (Nativeint);;
+module Ring_int32 = Ring (Int32);;
+module Ring_int64 = Ring (Int64);;
+module Ring_nativeint = Ring (Nativeint);;
 module Ring_int = Ring (
   struct
     type t = int

@@ -254,7 +254,37 @@
     # P.equal p q;;
     - : bool = true
     </pre>
+    Polynomials in two variables, can be treated as univariate
+    polynomials with polynomial coefficients. For example, the
+    polynomial $(X + Y)$ can be regarded as $(1 \times X^{1})Y^{0} +
+    (1 \times X^{0})Y^{1}$. Similarly we can write $X - Y$ as $(1
+    \times X^{1})Y^{0} + (-1 \times X^{0}) Y^1$ and now check the
+    equivalence $(X + Y)(X - Y) = (X^{2} - Y^{2})$.
     </p>
+    <pre>
+    #module Y = Polynomial (P);;
+    
+    #(* (X + Y) *)
+    #let r = Y.make [
+    #  ([1, 1], 0); (*(1 X^1) Y^0*)
+    #  ([1, 0], 1)  (*(1 X^0) Y^1*)
+    #];;
+
+    #(* (X - Y) *)
+    #let s = Y.make [
+    #  ([1, 1], 0); (*(1 X^1) Y^0*)
+    #  ([-1, 0], 1) (*((-1) X^0) Y^1*)
+    #];;
+
+    #(* (X^2 - Y^2) *)
+    #let t = Y.make [
+    #  ([1, 2], 0);   (*(1 X^2) Y^0*)
+    #  ([-1, 0], 2)  (* (-1 X^0) Y^2*)
+    #];;
+
+    #Y.equal (Y.mul r s) t;;
+    - : bool = true
+    </pre>
    <hr/>
   </body>
 </html>
