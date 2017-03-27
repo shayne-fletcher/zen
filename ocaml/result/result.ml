@@ -4,7 +4,7 @@
   program}.
 *)
 
-(*The type of a result datatype in modular form*)
+(*The type of result values in modular form*)
 module type RESULT = sig
 
   (*Results*)
@@ -123,6 +123,7 @@ module type RESULT = sig
   (* Example (cont. from above):
    {[
    # error_msg_to_invalid_arg (error_to_msg pp_err_t r);;
+
    Exception: Invalid_argument "foo     3.140000".
    ]}
   *)
@@ -146,6 +147,7 @@ module type RESULT = sig
    {[
    # Result.pp_exn_trap std_formatter 
      (R.get_error (Result.trap_exn (fun _ -> failwith "foo") ()));;
+
    Failure("foo")
    - : unit = ()
    ]}
@@ -158,6 +160,7 @@ module type RESULT = sig
    {[
    # Result.error_exn_trap_to_msg (
        Result.trap_exn (fun _ -> failwith "foo") ());;
+
    - : ('a, [> Result.msg ]) Result.result =
    Error (`Msg "Unexpected exception :\nFailure(\"foo\")\n")
    ]}
