@@ -1,1 +1,2 @@
-.SUBDIRS:utils parsing typing repl
+# .SUBDIRS:utils parsing typing repl
+.SUBDIRS:utils parsing repl
