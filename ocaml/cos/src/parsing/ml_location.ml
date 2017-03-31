@@ -217,13 +217,13 @@ let pp_ksprintf
     ppf fmt
 
 (*[errorf_prefixed] computes a function. The function it computes
-  provides the mean to convert an ['error_t] to an [error] by way of
+  provides the means to convert an ['error_t] to an [error] by way of
   formatting operations to produce the [msg] field of the [error]
   result. The formatting operations include prefixing the [msg] field
   with the [error_prefix] string.
 
-  The type of the function computed unifies with the type variable
-  ['a].
+  The type of the arguments of the computed function unifies with the
+  return type variable ['a].
 *)
 let errorf_prefixed 
     ?(loc:t = none) 
