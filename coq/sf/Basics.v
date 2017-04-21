@@ -1,3 +1,5 @@
+(*Enumerated types*)
+
 Inductive day : Type :=
   | monday : day
   | tuesday : day
@@ -23,8 +25,9 @@ Compute (next_weekday (next_weekday saturday)).
 
 Example test_next_weekday : 
   (next_weekday (next_weekday saturday)) = tuesday.
-
 Proof. simpl. reflexivity. Qed.
+
+(*Booleans*)
 
 Inductive bool : Type :=
   | true : bool
@@ -73,7 +76,6 @@ Definition nandb (b1:bool) (b2:bool) : bool :=
     | (false, true) => true
   end.
 
-
 Example test_nandb1: (nandb true false) = true.
 Proof. simpl. reflexivity. Qed.
 Example test_nandb2: (nandb false false) = true.
@@ -101,21 +103,27 @@ Proof. simpl. reflexivity. Qed.
 Example test_andb34: (andb3 true true false) = false.
 Proof. simpl. reflexivity. Qed.
 
+(*Function types*)
+
 Check true.
 Check (negb true).
 Check (negb).
 
+(*Modules*)
+
 Module NatPlayground.
 
-  Inductive nat : Type : Type :=
-  | O : nat
-  | S : nat -> nat.
+(*Numbers*)
 
-  Definition pred (n : nat) : nat :=
-  match n with
-  | O => O
-  | S n' => n'
-  end.
+Inductive nat : Type : Type :=
+| O : nat
+| S : nat -> nat.
+
+Definition pred (n : nat) : nat :=
+match n with
+| O => O
+| S n' => n'
+end.
 
 End NatPlayground.
 
@@ -241,6 +249,8 @@ Proof. simpl. reflexivity. Qed.
 Example test_blt_nat3 : (blt_nat 4 2) = false.
 Proof. simpl. reflexivity. Qed.
 
+(*Proof by simplification*)
+
 Theorem plus_O_n : forall n : nat, 0 + n = n.
 Proof.
   intros n. simpl. reflexivity. Qed.
@@ -257,25 +267,16 @@ Theorem mult_0_1 : forall n : nat, 0 * n = 0.
 Proof.
   intros n. simpl. reflexivity. Qed.
 
-Theorem plus_n_O : forall n, n = n + 0.
-Proof.
-  intros n. simpl. Abort.
-
 Theorem plus_id_example : forall n m : nat,
   n = m -> n + n = m + m.
-
 Proof.
-  (*Move both quantifiers into the context*)
   intros n m.
-  (*Move the hypothesis into the context*)
   intros H.
-  (*Rewrite the goal using the hypothesis*)
   rewrite <- H.
   reflexivity. Qed.
 
 Theorem plus_id_exercise : forall n m o : nat,
   n = m -> m = o -> n + m = m + o.
-
 Proof.
   intros n m o.
   intros .
@@ -302,12 +303,20 @@ Proof.
   reflexivity.
   Qed.
 
-Theorem plus_1_neq_O_firsttry : forall n : nat,
+Theorem plus_1_neq_O : forall n : nat,
   beq_nat (n + 1) 0 = false.
 Proof.
   intros n. destruct n as [ | n'].
   - simpl. reflexivity.
   - simpl. reflexivity. Qed.
+
+Theorem plus_1_neq_0' : forall n : nat,
+  beq_nat (n + 1) 0 = false.
+Proof.
+  intros [ | n].
+  - reflexivity.
+  - reflexivity.
+Qed.
 
 Theorem negb_involutive : forall b : bool,
   negb (negb b) = b.
@@ -340,7 +349,7 @@ Proof.
     { reflexivity. } }
 Qed.
 
-Theorem andb_exchange :
+Theorem andb3_exchange :
   forall b c d, andb (andb b c) d = andb (andb b d) c.
 Proof.
   intros b c d. destruct b.
@@ -359,14 +368,6 @@ Proof.
      - reflexivity.
      - reflexivity. }
   Qed.
-
-Theorem plus_1_neq_0' : forall n : nat,
-  beq_nat (n + 1) 0 = false.
-Proof.
-  intros [ | n].
-  - reflexivity.
-  - reflexivity.
-Qed.
 
 Theorem andb_commutative'' :
   forall b c, andb b c = andb c b.
@@ -434,50 +435,3 @@ Proof.
   - reflexivity.
   - reflexivity.
 Qed.
-
-Theorem plus_n_0 : forall n : nat, n = n + 0.
-Proof.
-  intros n. 
-  induction n as [ | n' IHn'].
-  - (*n = 0*) reflexivity.
-  - (*n = S n'
-
-    We need to show S n' = S n' + 0. By simplification the right
-    hand side can be written S (n' + 0) and n' + 0 = n' by the
-    induction hypothesis.
-
-   *)
-    simpl. rewrite <- IHn'. reflexivity. Qed.
-
-Theorem minus_diag : forall n, minus n n = 0.
-Proof.
-  intros n.
-  induction n as [ | n' IHn'].
-  - (*n = 0*)
-    simpl. reflexivity.
-  - (*n = S n'*)
-    simpl. rewrite -> IHn'. reflexivity. Qed.
-
-Theorem mult_0_r : forall n : nat, n * 0 = 0.
-Proof.
-  intros n.
-  induction n as [ | n' IHn'].
-  - (*n = 0*)
-    simpl. reflexivity.
-  - (*n = S n'
-
-      We need to show that (S n') * 0 = 0.
-
-      But, S n' * 0 = 0 + (n' * 0) = n' * 0 by simplification and n' *
-      0 = 0 holds due to the induction hypothesis.
-
- *)
-  simpl. rewrite -> IHn'. reflexivity. Qed.
-
-Theorem mult_0_plus' : forall n m : nat,
-  (0 + n) * m = n * m.
-Proof.
-  intros n m.
-  assert (H : 0 + n = n). { reflexivity. }
-  rewrite -> H.
-  reflexivity. Qed.
