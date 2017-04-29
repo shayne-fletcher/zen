@@ -76,7 +76,9 @@ Theorem silly_ex :
      evenb 3 = true ->
      oddb 4 = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros h e.
+  apply h, e.
+Qed.
 (** [] *)
 
 (** To use the [apply] tactic, the (conclusion of the) fact
@@ -109,7 +111,11 @@ Theorem rev_exercise1 : forall (l l' : list nat),
      l = rev l' ->
      l' = rev l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros l l' l1.
+  rewrite -> l1.
+  symmetry.
+  apply rev_involutive.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, optionalM (apply_rewrite)  *)
@@ -177,7 +183,12 @@ Example trans_eq_exercise : forall (n m o p : nat),
      (n + p) = m ->
      (n + p) = (minustwo o).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m o p eq1 eq2.
+  apply trans_eq with (m :=minustwo o).
+  rewrite -> eq2.
+  apply eq1.
+  reflexivity.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -254,7 +265,11 @@ Example inversion_ex3 : forall (X : Type) (x y z : X) (l j : list X),
   y :: l = x :: j ->
   x = y.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X x y z l j H1 H2.
+  inversion H2.
+  reflexivity.
+Qed.
+
 (** [] *)
 
 (** When used on a hypothesis involving an equality between
@@ -318,7 +333,7 @@ Example inversion_ex6 : forall (X : Type)
   y :: l = z :: j ->
   x = z.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X x y z l j contra. inversion contra. Qed.
 (** [] *)
 
 (** To summarize this discussion, suppose [H] is a hypothesis in the
@@ -389,6 +404,7 @@ Proof.
   symmetry in H. apply eq in H. symmetry in H.
   apply H.  Qed.
 
+
 (** Forward reasoning starts from what is _given_ (premises,
     previously proven theorems) and iteratively draws conclusions from
     them until the goal is reached.  Backward reasoning starts from
@@ -404,12 +420,41 @@ Proof.
 (** Practice using "in" variants in this exercise.  (Hint: use
     [plus_n_Sm].) *)
 
+  (* S (n + m) = n + (S m). *)
 Theorem plus_n_n_injective : forall n m,
      n + n = m + m ->
      n = m.
 Proof.
   intros n. induction n as [| n'].
-    (* FILL IN HERE *) Admitted.
+  - (*n = 0*)
+    { destruct m.
+      { (*m = 0*)
+        reflexivity.
+      }
+      {
+        (*m = S m'*)
+        intros H. inversion H.
+      }
+    }
+- (*n = S n'*)
+  destruct m.
+  { (* m = 0*)
+    intros H.
+    inversion H.
+  }
+  {
+    (*m = S m'*)
+    intros H.
+    inversion H.
+    rewrite <- plus_n_Sm in H1.
+    rewrite <- plus_n_Sm in H1.
+    inversion H1.
+    apply IHn' in H2.
+    rewrite -> H2.
+    reflexivity.
+  }
+Qed.
+
 (** [] *)
 
 (* ################################################################# *)
@@ -565,7 +610,22 @@ Proof.
 Theorem beq_nat_true : forall n m,
     beq_nat n m = true -> n = m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n as [|n'].
+  - (*n = 0*) simpl. intros m H. destruct m as [|m'].
+    + (*m = 0*)
+      reflexivity.
+    + (*m = S m'*)
+      inversion H.
+  - (*n = S n'*)
+    intros m H. destruct m as [|m'].
+    + (*m = 0*)
+      simpl in H. inversion H.
+    + (*m = S m'*)
+      apply IHn' in H.
+      rewrite -> H.
+      reflexivity.
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 2 stars, advancedM (beq_nat_true_informal)  *)
@@ -690,7 +750,21 @@ Theorem nth_error_after_last: forall (n : nat) (X : Type) (l : list X),
      length l = n ->
      nth_error l n = None.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n X l. 
+  generalize dependent n.
+  induction l as [| h l' Ihl'].
+  - (*l = nil*)
+    simpl.
+    reflexivity.
+  - (*l = h :: l'*)
+    intros n H.
+    rewrite <- H.
+    simpl.
+    rewrite -> Ihl'.
+    reflexivity.
+    reflexivity.
+Qed.
+
 (** [] *)
 
 
@@ -858,8 +932,23 @@ Theorem combine_split : forall X Y (l : list (X * Y)) l1 l2,
   split l = (l1, l2) ->
   combine l1 l2 = l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X Y l. 
+  induction l as [ | [x y] l'].
+  - intros .
+    inversion H.
+    reflexivity.
+  - intros .
+    inversion H.
+    simpl in *.
+    rewrite -> IHl'.
+    reflexivity.
+    destruct (split l') as [d1 d2].
+    simpl.
+    reflexivity.
+Qed.
+
 (** [] *)
+   
 
 (** However, [destruct]ing compound expressions requires a bit of
     care, as such [destruct]s can sometimes erase information we need
