@@ -14,13 +14,225 @@
       });
     </script> 
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
-    <title>Polynomials over rings</title>
+    <title>Extension points</title>
   </head>
   <body>
-   <hr/>
-   <p>
+  <h2>The extension points API</h2>
+  <p>
+  <ul>
+  <li>A syntax extension is a function from an AST to an AST.</li>
+  <li>To enable syntax extensions, OCaml syntax is enriched
+  with <i>attributes</i>.
+  <p>
+  Attributes can be attached to most any syntactic construct :
+  expressions, types, constructors, fields, modules and so on. By
+  default, attributes are ignored by the OCaml compiler.
+  </p>
+  <p>
+
+  Atrributes can contain a structure, expression or pattern as
+  their <i>payload</i>.
+
+  For example, one could implement a syntax extension that would acctp
+  type declarations of the form
+  <pre class="prettyprint ml">
+    type t = A [@id 1] | B [@id 4] of int [@@id_of]
+  </pre>
+  and generate a function mapping a value of type <code>t</code> to
+  its integer code.
+  </p>
+  </li>
+  <li>
+  To make syntax extensions useful for implementing custom syntactic
+  constructs, the OCaml syntax is enriched with <i>extension
+  nodes</i>.
+  <p>
+  Extension nodes designate a custom, incompatible variant of an
+  existing syntactic construct. They're only avaialable for expression
+  constructs : <code>fun</code>, <code>let</code>, <code>if</code> and
+  so on. When the OCaml compiler encounters an extension node, it
+  signals an error.
+  </p>
+  <p>
+  Extension nodes have the same payloads as attributes.
+  </p>
+  <p>
+  For example, one could implement a syntax extension which would
+  accept a <i>let</i> binding of the form <code>let%lwt (x, y) = f in
+  x + y</code> and translate them to <code>Lwt.bind f (fun (x, y) -> x
+  + y)</code>.
+  </p>
+  </li>
+  <li>
+  To make it possible to insert fragments of code written in entirely
+  unrelated syntax into OCaml code, the OCaml syntax is enriched
+  with <i>quoted strings</i>.
+  <p>
+  Quoted strings are strings delimited
+  with <code>&lt;delim&gt;|</code> and <code>|&lt;delim&gt;</code>
+  where <code>&lt;delim&gt;</code> is a (possibly empty) sequence of
+  lowercase letters. They behave like regular OCaml strings except
+  that syntactic extensions may extract the delimiter.
+  </p>
+  </li>
+  </ul>
+  </p>
+  <h2>Using the extension points API</h2>
+  <p>
+  Concretely, a syntax extension is an executable that receives a
+  marshalled AST and emits a marshalled AST. The OCaml compiler
+  accepts a <code>-ppx</code> option, specifiying one or more
+  extensions to preprocess code with. To aid this, internals of the
+  compiler are exported in the
+  directory <code>$OCAMLLIB/compiler-libs</code>. Of particular note
+  are the modules <code>Asttypes</code> and <code>Parsetree</code> and
+  a set of helpers for writing syntax extensions :
+  modules <code>Ast_mapper</code> and <code>Ast_helper</code>. While
+  it is possible to pattern-match and construct ASTs manually, the
+  extension points API makes it easier:
+  <ul>
+  <li>It provides an <code>Ast_mapper.mapper</code> type and an <code>Ast_mapper.default_mapper</code> value:
+   <pre class="prettyprint ml">
+type mapper = {
+  (* ... *)
+  expr: mapper -> expression -> expression;
+  (* ... *)
+  structure: mapper -> structure -> structure;
+  structure_item: mapper -> structure_item -> structure_item;
+  typ: mapper -> core_type -> core_type;
+  type_declaration: mapper -> type_declaration -> type_declaration;
+  type_kind: mapper -> type_kind -> type_kind;
+  value_binding: mapper -> value_binding -> value_binding;
+  (* ... *)
+}
+val default_mapper : mapper
+</pre>
+  The <code>default_mapper</code> is a "deep identity" mapper, i.e. it traverses every node of the AST, but changes nothing.
+  <p>
+  Together, they provide an easy way to use open recursion, i.e. to only handle the parts of the AST which are interesting to you.
+  </p>
+  </li>
+  <li>It provides a set of helpers in the <code>Ast_helper</code> module which simplify constructing the AST.
+  <p>For example,
+  <pre class="prettyprint ml">
+  Exp.tuple [Exp.constant (Const_int 1); Exp.constant (Const_int 2)]
+  </pre>
+  would construct the AST for <code>(1, 2)</code>. This is easier than
+  building such an AST directly.
+  </p>
+  </li>
+  <li>Lastly, it provides an <code>Ast_mapper.run_main</code> function
+  which handles command line arguments and I/O.</li>
+  </ul>
+  </p>
+  <h2>AST quasiquotation</h2>
+  <p>The <code>ppx_tools</code> library provides <i>AST
+  quasiquotation</i>: it allows to embed AST fragments as literals
+  inside the source code. See
+  the <a href="https://github.com/alainfrisch/ppx_tools">README</a>.
+  </p>
+  <h2>Example:</h2>
+  <p>
+  This example implements an extension that
+  replaces <code>&lsqb;%getenv "&lt;var&gt;"&rsqb;</code> with the
+  compile-time contents of <code>var</code>.
+  </p>
+  <p>
+  First, generate a look at the AST that <code>&lsqb;%getenv
+  "&lt;var&gt;"&rsqb;</code> parses to. To do this, invoke <code>ocamlc
+  -dparsetree foo.ml</code> on <code>foo.ml</code> with contents:
+  <pre class="prettyprint ml">
+  let _ = [%getenv "USER"]
+  </pre>
+  This prints:
+  <pre>
+[
+  structure_item (foo.ml[1,0+0]..[1,0+24])
+    Pstr_value Nonrec
+    [
+      <def>
+        pattern (foo.ml[1,0+4]..[1,0+5])
+          Ppat_any
+        expression (foo.ml[1,0+8]..[1,0+24])
+          Pexp_extension "getenv"
+          [
+            structure_item (foo.ml[1,0+17]..[1,0+23])
+              Pstr_eval
+              expression (foo.ml[1,0+17]..[1,0+23])
+                Pexp_constant PConst_string("USER",None)
+          ]
+    ]
+]
+  </pre>
+  From this we can determine that the grammar category we need is
+  "expression" so we override the <code>expr</code> field of
+  the <code>default_mapper</code> (<code>ppx_getenv.ml</code>):
+  <pre class="prettyprint ml">
+open Ast_mapper
+open Ast_helper
+open Asttypes
+open Parsetree
+open Longident
+
+let getenv s = try Sys.getenv s with Not_found -> ""
+
+let getenv_mapper argv = 
+  (*[getenv_mapper] only overrides the handling of expressions*)
+  {
+    default_mapper with
+      expr = fun mapper expr ->
+        match expr with
+          (*Is this an extension node?*)
+        | {pexp_desc =
+            (*Should have name "getenv"*)
+            Pexp_extension ({ txt = "getenv"; loc }, pstr)} ->
+            begin match pstr with
+            (*Should have a single structure item which is
+             evaluation of a constant string*)
+            |  PStr 
+                [
+                  {pstr_desc =
+                      Pstr_eval ({
+                        pexp_loc=loc;
+                        pexp_desc = 
+                          Pexp_constant (Pconst_string (sym, None))}, _)
+                  }
+                ] -> Exp.constant ~loc (Pconst_string (getenv sym, None))
+            | _ ->
+              raise (Location.Error (
+                Location.error ~loc 
+                  "[%getenv] accepts a string, e.g. [%getenv \"USER\"]"
+              ))
+            end
+          (*Delegate to the default mapper*)
+              | x -> default_mapper.expr mapper x;
+  }
+
+let () = register "getenv" getenv_mapper
+  </pre>
+  </p>
+  <p>Building the extension is achieved with the following commands:
+  <pre>
+ocamlc.opt -c -I 'c:/project/local/refroot/opt/bb/lib64/mlfi/compiler-libs' -o ppx_getenv.cmo ppx_getenv.ml
+ocamlopt.opt -c -I 'c:/project/local/refroot/opt/bb/lib64/mlfi/compiler-libs' -o ppx_getenv.cmx ppx_getenv.ml
+ocamlopt.opt -I 'c:/project/local/refroot/opt/bb/lib64/mlfi/compiler-libs' 'c:/project/local/refroot/opt/bb/lib64/mlfi/compiler-libs/ocamlcommon.cmxa' ppx_getenv.cmx -o ppx_getenv.exe
+  </pre>
+  <p>The result can be verified by pretty-printing the transformed source. E.g.
+  <pre>
+$ ocamlc -verbose -dsource -ppx "c:/temp/ppx_getenv.exe" foo.ml
++ c:/temp/ppx_getenv.exe "C:\cygwin\tmp\camlppx8422e9" "C:\cygwin\tmp\camlppxb2bd29"
+let _ = "sfletcher13"
+  </pre>
+  </p>
+  </p>
+  <hr/>
+  <p>
      References:<br/>
-     <a href="https://whitequark.org/blog/2014/04/16/a-guide-to-extension-points-in-ocaml/">"A Guide to Extension Points in OCaml" -- Whitequark (blog post 2014)</a> 
+     <a href="https://whitequark.org/blog/2014/04/16/a-guide-to-extension-points-in-ocaml/">"A
+     Guide to Extension Points in OCaml" -- Whitequark (blog post
+     2014)</a>
    </p>
   </body>
 </html>
+
+
