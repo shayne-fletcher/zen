@@ -15,23 +15,11 @@ open Asttypes
 open Parsetree
 open Longident
 
-(*[case (decl, num)] produces a [Parsetree.case] from a constructor
-  declaration and its code*)
-let case : constructor_declaration * string -> case = function
-  | ({pcd_name={txt; loc};pcd_args; pcd_attributes; _}, id) ->
-    Exp.case 
-      (Pat.construct 
-         {txt=Lident txt; loc=(!default_loc)}  
-         (match pcd_args with 
-         | Pcstr_tuple [] -> None | _ -> Some (Pat.any ()))
-      )
-      (Exp.constant (Pconst_integer (id, None)))
-
 (*[case_of_construct_declaration] makes a [Parsetree.case] from a
   value of [Parsetree.constructor_declaration]*)
 let case_of_constructor_declaration : 
     constructor_declaration -> case =  function
-  | {pcd_name={loc; _}; pcd_attributes; _} as decl ->
+  | {pcd_name={txt;loc};pcd_args;pcd_attributes; _} ->
     match List.filter (fun ({txt;_}, _) -> txt="id") pcd_attributes with
     (*No "@id"*)
     | [] -> raise (Location.Error (Location.error ~loc "[@id] : Missing"))
@@ -40,14 +28,20 @@ let case_of_constructor_declaration :
       begin match payload with 
         | PStr [{pstr_desc=Pstr_eval ({pexp_desc=
             Pexp_constant (Pconst_integer (id, None)); _}, _)
-          }] -> case (decl, id)
+          }] ->
+          Exp.case 
+            (Pat.construct 
+               {txt=Lident txt; loc=(!default_loc)}  
+               (match pcd_args with 
+               | Pcstr_tuple [] -> None | _ -> Some (Pat.any ())))
+            (Exp.constant (Pconst_integer (id, None)))
         | _ -> 
           raise (Location.Error (Location.error ~loc 
           "[@id] : Bad (or missing) argument (should be int e.g. [@id 4])"))
       end
     (*Many "@id"s*)
-    | (_ :: _) -> raise (Location.Error (Location.error ~loc 
-                  "[@id] : Multiple occurences"))
+    | (_ :: _) -> 
+      raise (Location.Error (Location.error ~loc "[@id] : Multiple occurences"))
 
 (*[eval_structure_item mapper item acc] computes structure items to
   push on the front of [acc]. If [item] is a single declaration of an
@@ -108,15 +102,16 @@ let structure_mapper
     (structure : structure) : structure =
   List.fold_right (eval_structure_item mapper) structure []
 
-(*[type_declaration_mapper mapper decl] computes a new
-  [type_declaration] as [decl] stripped of [@@id_of] attributes*)
-let type_declaration_mapper mapper decl =
+(*[type_declaration_mapper mapper decl] computes a new type
+  declaration as [decl] stripped of [@@id_of] attributes*)
+let type_declaration_mapper 
+    (mapper : mapper) 
+    (decl : type_declaration) : type_declaration  =
   match decl with
     (*Case of an inductive type "t"*)
   | {ptype_name = {txt = "t"; _};
      ptype_kind = Ptype_variant constructor_declarations;
-     ptype_attributes;
-     _} ->
+     ptype_attributes;_} ->
     let (_, attrs) = 
       List.partition (fun ({txt;_},_) ->txt="id_of") ptype_attributes in
     {(default_mapper.type_declaration mapper decl) 
@@ -125,14 +120,16 @@ let type_declaration_mapper mapper decl =
   | _ -> default_mapper.type_declaration mapper decl
 
 (*[constructor_declaration_mapper mapper decl] computes a new
-  [constructor_declaration] as [decl] stripped of [@id] attributes*)
-let constructor_declaration_mapper mapper decl =
+  constructor declaration as [decl] stripped of [@id] attributes*)
+let constructor_declaration_mapper 
+    (mapper : mapper) 
+    (decl : constructor_declaration) : constructor_declaration =
   match decl with
   | {pcd_name={loc; _}; pcd_attributes; _} ->
     let (_, attrs) = 
       List.partition (fun ({txt;_}, _) -> txt="id") pcd_attributes  in
     {(default_mapper.constructor_declaration mapper decl) 
-      with pcd_attributes=attrs}
+    with pcd_attributes=attrs}
 
 (*[id_of_mapper argv] is a function from a [string list] (arguments)
   producing a [mapper] record with [structure], [type_declaration] and
