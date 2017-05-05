@@ -125,7 +125,7 @@ let constructor_declaration_mapper
     (mapper : mapper) 
     (decl : constructor_declaration) : constructor_declaration =
   match decl with
-  | {pcd_name={loc; _}; pcd_attributes; _} ->
+  | {pcd_attributes; _} ->
     let (_, attrs) = 
       List.partition (fun ({txt;_}, _) -> txt="id") pcd_attributes  in
     {(default_mapper.constructor_declaration mapper decl) 

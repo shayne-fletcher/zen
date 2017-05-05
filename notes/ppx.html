@@ -2,236 +2,302 @@
           "http://www.w3.org/TR/html4/strict.dtd">
 <html>
   <head>
-    <script type="text/x-mathjax-config">
-      MathJax.Hub.Config({
-      extensions: ["tex2jax.js","TeX/AMSmath.js","TeX/AMSsymbols.js"],
-      jax: ["input/TeX", "output/HTML-CSS"],
-      tex2jax: {
-      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-      displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
-      },
-      "HTML-CSS": { availableFonts: ["TeX"] }
-      });
-    </script> 
-    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
-    <title>Extension points</title>
+    <title>PPX</title>
   </head>
   <body>
-  <h2>The extension points API</h2>
-  <p>
-  <ul>
-  <li>A syntax extension is a function from an AST to an AST.</li>
-  <li>To enable syntax extensions, OCaml syntax is enriched
-  with <i>attributes</i>.
-  <p>
-  Attributes can be attached to most any syntactic construct :
-  expressions, types, constructors, fields, modules and so on. By
-  default, attributes are ignored by the OCaml compiler.
+  <h2>Preprocessor extensions for code generation</h2>
+  <p>"A Guide to Extension Points in OCaml"[1] provides a great
+  "quick-start" on using the OCaml extension points API to implement
+  preprocessor extensions for abstract syntax tree rewrites. This post
+  picks up where that tutorial leaves off by showing how to write a
+  ppx that does code generation.
   </p>
-  <p>
+  <p>The problem treated here is one posed in Whitequark's blog :
+  "Implement a syntax extension that would accept type declarations of
+  the form 
+  <code>type t = A [@id 1] | B of int [@id 4] [@@id_of]</code> 
+  to generate a function mapping a value of type <code>t</code> to its
+  integer representation."
+  </p>
 
-  Atrributes can contain a structure, expression or pattern as
-  their <i>payload</i>.
+  <h2>Implementing the "<code>id_of</code>" ppx</h2>
 
-  For example, one could implement a syntax extension that would acctp
-  type declarations of the form
+  <h3>The basic strategy</h3>
+  <p>In the OCaml parse tree, structures are lists of structure
+  items. Type declarations are structure items as are let-bindings to
+  functions.
+  </p>
+  <p>In this program, analysis of an inductive type declaration <code>t</code> 
+  may result in the production of a new structure item, the AST of an <code>of_id</code> function
+  to be appended to the structure containing <code>t</code>.
+  </p>
+  <p>Now the general strategy in writing a ppx is to provide a record
+  of type <code>Ast_mapper.mapper</code>. That record is based on
+  the <code>Ast_mapper.default_mapper</code> record but selectively
+  overriding those fields for those sytactic categories that the ppx
+  is intending to transform.
+  </p>
+  <p>Now, as we determined above, the effect of the ppx is to provide
+  a function from a structure to a new structure. Accordingly, at a
+  minimum then we'll want to override the <code>structure</code> field
+  of the default mapper. Schematically then our ppx code will take on
+  the following shape.
   <pre class="prettyprint ml">
-    type t = A [@id 1] | B [@id 4] of int [@@id_of]
-  </pre>
-  and generate a function mapping a value of type <code>t</code> to
-  its integer code.
-  </p>
-  </li>
-  <li>
-  To make syntax extensions useful for implementing custom syntactic
-  constructs, the OCaml syntax is enriched with <i>extension
-  nodes</i>.
-  <p>
-  Extension nodes designate a custom, incompatible variant of an
-  existing syntactic construct. They're only avaialable for expression
-  constructs : <code>fun</code>, <code>let</code>, <code>if</code> and
-  so on. When the OCaml compiler encounters an extension node, it
-  signals an error.
-  </p>
-  <p>
-  Extension nodes have the same payloads as attributes.
-  </p>
-  <p>
-  For example, one could implement a syntax extension which would
-  accept a <i>let</i> binding of the form <code>let%lwt (x, y) = f in
-  x + y</code> and translate them to <code>Lwt.bind f (fun (x, y) -> x
-  + y)</code>.
-  </p>
-  </li>
-  <li>
-  To make it possible to insert fragments of code written in entirely
-  unrelated syntax into OCaml code, the OCaml syntax is enriched
-  with <i>quoted strings</i>.
-  <p>
-  Quoted strings are strings delimited
-  with <code>&lt;delim&gt;|</code> and <code>|&lt;delim&gt;</code>
-  where <code>&lt;delim&gt;</code> is a (possibly empty) sequence of
-  lowercase letters. They behave like regular OCaml strings except
-  that syntactic extensions may extract the delimiter.
-  </p>
-  </li>
-  </ul>
-  </p>
-  <h2>Using the extension points API</h2>
-  <p>
-  Concretely, a syntax extension is an executable that receives a
-  marshalled AST and emits a marshalled AST. The OCaml compiler
-  accepts a <code>-ppx</code> option, specifiying one or more
-  extensions to preprocess code with. To aid this, internals of the
-  compiler are exported in the
-  directory <code>$OCAMLLIB/compiler-libs</code>. Of particular note
-  are the modules <code>Asttypes</code> and <code>Parsetree</code> and
-  a set of helpers for writing syntax extensions :
-  modules <code>Ast_mapper</code> and <code>Ast_helper</code>. While
-  it is possible to pattern-match and construct ASTs manually, the
-  extension points API makes it easier:
-  <ul>
-  <li>It provides an <code>Ast_mapper.mapper</code> type and an <code>Ast_mapper.default_mapper</code> value:
-   <pre class="prettyprint ml">
-type mapper = {
-  (* ... *)
-  expr: mapper -> expression -> expression;
-  (* ... *)
-  structure: mapper -> structure -> structure;
-  structure_item: mapper -> structure_item -> structure_item;
-  typ: mapper -> core_type -> core_type;
-  type_declaration: mapper -> type_declaration -> type_declaration;
-  type_kind: mapper -> type_kind -> type_kind;
-  value_binding: mapper -> value_binding -> value_binding;
-  (* ... *)
-}
-val default_mapper : mapper
-</pre>
-  The <code>default_mapper</code> is a "deep identity" mapper, i.e. it traverses every node of the AST, but changes nothing.
-  <p>
-  Together, they provide an easy way to use open recursion, i.e. to only handle the parts of the AST which are interesting to you.
-  </p>
-  </li>
-  <li>It provides a set of helpers in the <code>Ast_helper</code> module which simplify constructing the AST.
-  <p>For example,
-  <pre class="prettyprint ml">
-  Exp.tuple [Exp.constant (Const_int 1); Exp.constant (Const_int 2)]
-  </pre>
-  would construct the AST for <code>(1, 2)</code>. This is easier than
-  building such an AST directly.
-  </p>
-  </li>
-  <li>Lastly, it provides an <code>Ast_mapper.run_main</code> function
-  which handles command line arguments and I/O.</li>
-  </ul>
-  </p>
-  <h2>AST quasiquotation</h2>
-  <p>The <code>ppx_tools</code> library provides <i>AST
-  quasiquotation</i>: it allows to embed AST fragments as literals
-  inside the source code. See
-  the <a href="https://github.com/alainfrisch/ppx_tools">README</a>.
-  </p>
-  <h2>Example:</h2>
-  <p>
-  This example implements an extension that
-  replaces <code>&lsqb;%getenv "&lt;var&gt;"&rsqb;</code> with the
-  compile-time contents of <code>var</code>.
-  </p>
-  <p>
-  First, generate a look at the AST that <code>&lsqb;%getenv
-  "&lt;var&gt;"&rsqb;</code> parses to. To do this, invoke <code>ocamlc
-  -dparsetree foo.ml</code> on <code>foo.ml</code> with contents:
-  <pre class="prettyprint ml">
-  let _ = [%getenv "USER"]
-  </pre>
-  This prints:
-  <pre>
-[
-  structure_item (foo.ml[1,0+0]..[1,0+24])
-    Pstr_value Nonrec
-    [
-      <def>
-        pattern (foo.ml[1,0+4]..[1,0+5])
-          Ppat_any
-        expression (foo.ml[1,0+8]..[1,0+24])
-          Pexp_extension "getenv"
-          [
-            structure_item (foo.ml[1,0+17]..[1,0+23])
-              Pstr_eval
-              expression (foo.ml[1,0+17]..[1,0+23])
-                Pexp_constant PConst_string("USER",None)
-          ]
-    ]
-]
-  </pre>
-  From this we can determine that the grammar category we need is
-  "expression" so we override the <code>expr</code> field of
-  the <code>default_mapper</code> (<code>ppx_getenv.ml</code>):
-  <pre class="prettyprint ml">
-open Ast_mapper
-open Ast_helper
-open Asttypes
-open Parsetree
-open Longident
+  open Ast_mapper
+  open Ast_helper
+  open Asttypes
+  open Parsetree
+  open Longident
 
-let getenv s = try Sys.getenv s with Not_found -> ""
+  let structure_mapper mapper structure =
+    ...
 
-let getenv_mapper argv = 
-  (*[getenv_mapper] only overrides the handling of expressions*)
-  {
+   let id_of_mapper =  {
+     default_mapper with structure = structure_mapper
+   }
+
+   let () = register "id_of" id_of_mapper
+  </pre>
+  </p>
+  <p>
+  This program goes just a little bit further
+ though. Any <code>@id</code> or <code>@@id_of</code> attributes that
+  get as far as the OCaml compiler would be ignored. So, it's not
+  neccessary that they be removed by our ppx once they've been acted
+  upon but it seems tidy to do so. Accordingly, there are two more
+  syntactic constructs that this ppx operates on.
+  <pre class="prettyprint ml">
+  open Ast_mapper
+  open Ast_helper
+  open Asttypes
+  open Parsetree
+  open Longident
+
+  let structure_mapper mapper structure =
+    ...
+
+  let type_declaration_mapper mapper decl =
+    ...
+
+  let constructor_declaration_mapper mapper decl =
+    ...
+
+  let id_of_mapper argv = {
     default_mapper with
-      expr = fun mapper expr ->
-        match expr with
-          (*Is this an extension node?*)
-        | {pexp_desc =
-            (*Should have name "getenv"*)
-            Pexp_extension ({ txt = "getenv"; loc }, pstr)} ->
-            begin match pstr with
-            (*Should have a single structure item which is
-             evaluation of a constant string*)
-            |  PStr 
-                [
-                  {pstr_desc =
-                      Pstr_eval ({
-                        pexp_loc=loc;
-                        pexp_desc = 
-                          Pexp_constant (Pconst_string (sym, None))}, _)
-                  }
-                ] -> Exp.constant ~loc (Pconst_string (getenv sym, None))
-            | _ ->
-              raise (Location.Error (
-                Location.error ~loc 
-                  "[%getenv] accepts a string, e.g. [%getenv \"USER\"]"
-              ))
-            end
-          (*Delegate to the default mapper*)
-              | x -> default_mapper.expr mapper x;
+      structure = structure_mapper;
+      type_declaration = type_declaration_mapper;
+      constructor_declaration = constructor_declaration_mapper
   }
+  </pre>
+  </p>
+  <h3>Implementing the mappings</h3>
+  <p>To warm up, lets start with the easy mappers.</p>
+  <p>The role of <code>type_declaration_mapper</code> is a function
+  from a <code>type_declaration</code> argument to
+  a <code>type_declaration</code> result that is the argument in all
+  but that any <code>@@id_of</code> attribute has been removed.
+  <pre class="prettyprint ml">
+  let type_declaration_mapper 
+      (mapper : mapper) 
+      (decl : type_declaration) : type_declaration  =
+    match decl with
+      (*Case of an inductive type "t"*)
+    | {ptype_name = {txt = "t"; _};
+       ptype_kind = Ptype_variant constructor_declarations;
+       ptype_attributes;_} ->
+      let (_, attrs) = 
+        List.partition (fun ({txt;_},_) ->txt="id_of") ptype_attributes in
+      {(default_mapper.type_declaration mapper decl) 
+      with ptype_attributes=attrs}
+    (*Not an inductive type named "t"*)
+    | _ -> default_mapper.type_declaration mapper decl
+    </pre>
+  </p>
+  <p><code>constructor_declaration_mapper</code> is analogous
+  to <code>type_declaration_mapper</code> above but this time
+  its <code>@id</code> attributes that are removed.
+  <pre class="prettyprint ml">
+  let constructor_declaration_mapper 
+      (mapper : mapper) 
+      (decl : constructor_declaration) : constructor_declaration =
+    match decl with
+    | {pcd_name={loc; _}; pcd_attributes; _} ->
+      let (_, attrs) = 
+        List.partition (fun ({txt;_}, _) -> txt="id") pcd_attributes  in
+      {(default_mapper.constructor_declaration mapper decl) 
+      with pcd_attributes=attrs}
+    </pre>
+  </p>
+  <p>Now to the raison d'etre of the
+  ppx, <code>structure_mapper</code>. 
+  </p>
+  <p>First, a utility function that computes from
+  a <code>constructor_declaration</code> with an <code>@id</code>
+  attribute, a (function) <code>case</code> for it. For example,
+  suppose "<code>Bar of int [@id 4]</code>" is the constructor
+  declaration, then the <code>case</code> to be computed is the AST
+  corresponding to the code "<code>| Bar _ -> 4</code>".
+  <pre class="prettyprint ml">
+  let case_of_constructor_declaration : 
+      constructor_declaration -> case =  function
+    | {pcd_name={txt;loc};pcd_args;pcd_attributes; _} ->
+      match List.filter (fun ({txt;_}, _) -> txt="id") pcd_attributes with
+      (*No "@id"*)
+      | [] -> 
+        raise (Location.Error (Location.error ~loc "[@id] : Missing"))
+      (*Single "@id"*)
+      | [(_, payload)] -> 
+        begin match payload with 
+          | PStr [{pstr_desc=Pstr_eval ({pexp_desc=
+              Pexp_constant (Pconst_integer (id, None)); _}, _)
+            }] ->
+            Exp.case 
+              (Pat.construct 
+                 {txt=Lident txt; loc=(!default_loc)}  
+                 (match pcd_args with 
+                 | Pcstr_tuple [] -> None | _ -> Some (Pat.any ())))
+              (Exp.constant (Pconst_integer (id, None)))
+          | _ -> 
+            raise (Location.Error (Location.error ~loc 
+            "[@id] : Bad (or missing) argument (should be int e.g. [@id 4])"))
+        end
+      (*Many "@id"s*)
+      | (_ :: _) -> 
+        raise (Location.Error (Location.error ~loc 
+        "[@id] : Multiple occurences"))
+  </pre>
+  <p>One more utility function is required.</p>
+  <p><code>eval_structure_item item acc</code> computes structure
+  items to push on the front of <code>acc</code>. If <code>item</code>
+  is a single declaration of an inductive type <code>t</code>
+  attributed with <code>@@id_of</code>, then two structure items will
+  be produced : one for <code>t</code> and one synthesized
+  for <code>t</code>'s <code>of_id</code> function. In all other
+  cases, just one structure item will be pushed onto <code>acc</code>.
+  <pre class="prettyprint ml">
+  let eval_structure_item
+      (mapper : mapper) 
+      (item : structure_item) 
+      (acc : structure) : structure =
+    match item with
+    (*Case of a single inductive type declaration*)
+    | { pstr_desc = Pstr_type (_, [type_decl]); pstr_loc} ->
+      begin
+        match type_decl with
+        (*Case where the type identifer is [t]*)
+        | {ptype_name = {txt = "t"; _};
+           ptype_kind = Ptype_variant constructor_declarations;
+           ptype_attributes;
+           _} ->
+          begin
+            match List.filter (fun ({txt;_},_) ->txt="id_of") 
+              ptype_attributes 
+            with
+            (*No [@@id_of]*)
+            | [] -> default_mapper.structure_item mapper item :: acc
+  
+            (*At least one [@@id_of] (treat multiple occurences as if
+              one)*)
+            | _ ->
+              (*Cases of an [id_of] function for [t], one for each
+                of its constructors*)
+              let cases= 
+                List.fold_right 
+                  (fun x acc -> 
+                    case_of_constructor_declaration x :: acc) 
+                  constructor_declarations [] in
+              (*The [id_of] function itself*)
+              let id_of : structure_item = 
+                Str.value Nonrecursive [
+                  Vb.mk 
+                    (Pat.var {txt="id_of"; loc=(!default_loc)}) 
+                    (Exp.function_ cases)] in
+  
+              default_mapper.structure_item mapper item :: id_of :: acc
+          end
+        (*Case the type identifier is something other than [t]*)
+        | _ -> default_mapper.structure_item mapper item :: acc
+      end
+    (*Case this structure item is something other than a single type
+      declaration*)
+    | _ -> default_mapper.structure_item mapper item :: acc
+  </pre>
+  </p>
+  <p>Finally we can write <code>structure_mapper</code> itself as a
+  simple fold over a structure.
+  <pre class="prettyprint ml">
+  let structure_mapper 
+      (mapper : mapper) 
+      (structure : structure) : structure =
+    List.fold_right (eval_structure_item mapper) structure []
+  </pre>
+  </p>
+ <h3>Building and testing</h3>
+  <p>So that's it, this preprocessor extension is complete. Assuming
+  the code is contained in a file called <code>ppx_id_of.ml</code> it
+  can be compiled with a command along the lines of the following.
+  <pre>
+  ocamlc -o ppx_id_of.exe  -I +compiler-libs ocamlcommon.cma ppx_id_of.ml
+  </pre>
+  When built, it can be tested with a command like
+  <code> ocamlc -dsource -ppx ppx_id_of.exe test.ml</code>.
+  </p>
+  <p>
+  For example, when invoked on the following program,
+  <pre class="prettyprint ml">
+  type t = 
+    | A [@id 2] 
+    | B of int [@id 4] [@@id_of]
 
-let () = register "getenv" getenv_mapper
+  module M = struct
+    type t =
+    | Foo of int [@id 42]
+    | Bar [@id 43] [@@id_of]
+
+    module N = struct
+       type t = 
+       | Baz [@id 8] 
+       | Quux of string * int [@id 7] [@@id_of]
+
+      module Q = struct
+        type t = 
+          | U [@id 0] [@@id_of]
+      end
+    end
+  end
   </pre>
-  </p>
-  <p>Building the extension is achieved with the following commands:
-  <pre>
-ocamlc.opt -c -I 'c:/project/local/refroot/opt/bb/lib64/mlfi/compiler-libs' -o ppx_getenv.cmo ppx_getenv.ml
-ocamlopt.opt -c -I 'c:/project/local/refroot/opt/bb/lib64/mlfi/compiler-libs' -o ppx_getenv.cmx ppx_getenv.ml
-ocamlopt.opt -I 'c:/project/local/refroot/opt/bb/lib64/mlfi/compiler-libs' 'c:/project/local/refroot/opt/bb/lib64/mlfi/compiler-libs/ocamlcommon.cmxa' ppx_getenv.cmx -o ppx_getenv.exe
-  </pre>
-  <p>The result can be verified by pretty-printing the transformed source. E.g.
-  <pre>
-$ ocamlc -verbose -dsource -ppx "c:/temp/ppx_getenv.exe" foo.ml
-+ c:/temp/ppx_getenv.exe "C:\cygwin\tmp\camlppx8422e9" "C:\cygwin\tmp\camlppxb2bd29"
-let _ = "sfletcher13"
-  </pre>
-  </p>
+  the resulting output is,
+  <pre class="prettyprint ml">
+  type t =
+    | A
+    | B of int
+  let id_of = function | A  -> 2 | B _ -> 4
+  module M =
+    struct
+      type t =
+        | Foo of int
+        | Bar
+      let id_of = function | Foo _ -> 42 | Bar  -> 43
+      module N =
+        struct
+          type t =
+            | Baz
+            | Quux of string * int
+          let id_of = function | Baz  -> 8 | Quux _ -> 7
+          module Q = struct type t =
+                              | U
+                            let id_of = function | U  -> 0  end
+        end
+    end
+    </pre>
   </p>
   <hr/>
   <p>
-     References:<br/>
-     <a href="https://whitequark.org/blog/2014/04/16/a-guide-to-extension-points-in-ocaml/">"A
+    References:<br/>
+     [1] <a href="https://whitequark.org/blog/2014/04/16/a-guide-to-extension-points-in-ocaml/">"A
      Guide to Extension Points in OCaml" -- Whitequark (blog post
      2014)</a>
-   </p>
+  </p>
   </body>
 </html>
 
