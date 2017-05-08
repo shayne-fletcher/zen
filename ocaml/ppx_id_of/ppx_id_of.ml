@@ -3,9 +3,9 @@
   - The idea is to to transform declarations of the form type
   declarations of the form [type t = A [@id 1] | B of int [@id 4]
   [@@id_of]] into [type t A | B of int;; let id_of = function | A -> 1
-  | B _ -> 4]];
-  - Compile with [ocamlc -o ppx_id_of2.exe 
-    -I +compiler-libsocamlcommon.cma ppx_id_of2.ml];
+  | B _ -> 4;;];
+  - Compile with [ocamlc -o ppx_id_of.exe 
+    -I +compiler-libsocamlcommon.cma ppx_id_of.ml];
   - Test with [ocamlc -dsource -ppx ppx_id_of.exe test.ml].
 *)
 
@@ -55,7 +55,7 @@ let eval_structure_item
     (acc : structure) : structure =
   match item with
   (*Case of a single inductive type declaration*)
-  | { pstr_desc = Pstr_type (_, [type_decl]); pstr_loc} ->
+  | { pstr_desc = Pstr_type (_, [type_decl]); _} ->
     begin
       match type_decl with
       (*Case where the type identifer is [t]*)
@@ -64,11 +64,11 @@ let eval_structure_item
          ptype_attributes;
          _} ->
         begin
-          match List.filter (fun ({txt;_},_) ->txt="id_of") ptype_attributes with
-
+          match 
+            List.filter (fun ({txt;_},_) ->txt="id_of") 
+              ptype_attributes with
           (*No [@@id_of]*)
           | [] -> default_mapper.structure_item mapper item :: acc
-
           (*At least one [@@id_of] (treat multiple occurences as if
             one)*)
           | _ ->
