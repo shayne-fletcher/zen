@@ -79,7 +79,7 @@
               <li>We are required to show for an arbitrary <code>(x' : &alpha;)</code>:
                 <ul><li><code>mem y (map f (x' :: l)) &Implies; &exist;(x : &alpha;), f x = y &and; mem x (x' :: l)</code>.</li></ul></li>
               <li>By simplification, we can rewrite the above to:
-                <ul><li><code>f x' = y &or; mem y (map f l) &Implies; &exist;x, f x = y &and; (x' = x &or; mem x l).</code></li></ul></li>
+                <ul><li><code>f x' = y &or; mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code></li></ul></li>
               <li>
                 We assume then an <code>(x' : &alpha;)</code> and a <code>(y : &beta;)</code> such
                 that:
