@@ -344,7 +344,13 @@ Qed.
 Theorem or_commut : forall P Q : Prop,
   P \/ Q  -> Q \/ P.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q [Hp | Hq].
+  - right.
+    apply Hp.
+  - left.
+    apply Hq.
+Qed.
+
 (** [] *)
 
 (* ================================================================= *)
@@ -399,7 +405,12 @@ Proof.
 Fact not_implies_our_not : forall (P:Prop),
   ~ P -> (forall (Q:Prop), P -> Q).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P H Q HP.
+  unfold not in H.
+  apply H in HP.
+  destruct HP.
+Qed.
+
 (** [] *)
 
 (** This is how we use [not] to state that [0] and [1] are different
@@ -458,14 +469,27 @@ Proof.
 Theorem contrapositive : forall (P Q : Prop),
   (P -> Q) -> (~Q -> ~P).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q H1 H2.
+  unfold not in H2.
+  unfold not.
+  intros H3.
+  apply H1 in H3.
+  apply H2 in H3.
+  inversion H3.
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 1 star (not_both_true_and_false)  *)
 Theorem not_both_true_and_false : forall P : Prop,
   ~ (P /\ ~P).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P.
+  unfold not.
+  intros [HP HQ].
+  apply HQ.
+  apply HP.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, advancedM (informal_not_PNP)  *)
@@ -487,7 +511,8 @@ Proof.
 Theorem not_true_is_false : forall b : bool,
   b <> true -> b = false.
 Proof.
-  intros [] H.
+   intros b H.
+   destruct b.
   - (* b = true *)
     unfold not in H.
     apply ex_falso_quodlibet.
@@ -571,19 +596,62 @@ Qed.
 Theorem iff_refl : forall P : Prop,
   P <-> P.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros P. split.
+  - (* -> *) 
+    intros H. apply H.
+  - (* <- *)
+    intros H. apply H.
+Qed.
+             
 Theorem iff_trans : forall P Q R : Prop,
   (P <-> Q) -> (Q <-> R) -> (P <-> R).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q R [HPQ HQP] [HQR HRQ].
+  split.
+  - (* -> *)
+    intros.
+    apply HPQ in H.
+    apply HQR in H.
+    apply H.
+  - (* <- *) 
+    intros.
+    apply HRQ in H.
+    apply HQP in H.
+    apply H.
+Qed.    
+
 (** [] *)
 
 (** **** Exercise: 3 stars (or_distributes_over_and)  *)
 Theorem or_distributes_over_and : forall P Q R : Prop,
   P \/ (Q /\ R) <-> (P \/ Q) /\ (P \/ R).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q R.
+  split.
+  {
+    intros.
+    destruct H as [HP | [HQ HR]]. 
+    {
+      split.
+      - left. apply HP.
+      - left. apply HP.
+    }
+    {
+      split.
+      - right. apply HQ.
+      -right. apply HR.
+    }
+  }
+  {
+    intros.
+    destruct H as [[HP | HQ] [HPP| HR]].
+    - left. apply HP.
+    - left. apply HP.
+    - left. apply HPP.
+    - right. split. apply HQ. apply HR.
+  }
+Qed.
+
 (** [] *)
 
 (** Some of Coq's tactics treat [iff] statements specially, avoiding
@@ -683,7 +751,14 @@ Proof.
 Theorem dist_not_exists : forall (X:Type) (P : X -> Prop),
   (forall x, P x) -> ~ (exists x, ~ P x).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X P H.
+  unfold not.
+  intros E.
+  destruct E as [x Hx].
+  apply Hx.
+  apply H.
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 2 stars (dist_exists_or)  *)
@@ -693,7 +768,31 @@ Proof.
 Theorem dist_exists_or : forall (X:Type) (P Q : X -> Prop),
   (exists x, P x \/ Q x) <-> (exists x, P x) \/ (exists x, Q x).
 Proof.
-   (* FILL IN HERE *) Admitted.
+  intros.
+  split.
+  {
+    intros.
+    destruct H as [x0 Hx].
+    destruct Hx as [Hxl | Hxr].
+    - left. exists x0. apply Hxl.
+    - right. exists x0. apply Hxr.
+  }
+  {
+    intros.
+    destruct H as [Hxl | Hxr].
+    {
+      destruct Hxl as [x0 Hx].
+      exists x0.
+      left. apply Hx.
+    }
+    {
+      destruct Hxr as [x0 Hx].
+      exists x0.
+      right. apply Hx.
+    }
+  }
+Qed.
+
 (** [] *)
 
 (* ################################################################# *)
@@ -778,7 +877,42 @@ Lemma In_map_iff :
     In y (map f l) <->
     exists x, f x = y /\ In x l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros A B f.
+  split.
+  - induction l as [|x l P].
+    + simpl. intros H. inversion H.
+    + simpl.
+      intros H.
+      destruct H.
+      * exists x.
+        split.
+        ** apply H.
+        ** left. reflexivity.
+      * destruct P as [x' PC].
+        ** apply H.
+        ** exists x'.
+           destruct PC as [PC0 PC1].
+           split.
+           ++ apply PC0.
+           ++ right. apply PC1.
+  -  intros H.
+     destruct H as [x0 H].
+     induction l as [| x l IHl].
+     + simpl. 
+       destruct H as [H0 H1].
+       inversion H1.
+     + simpl.
+       simpl in H.
+       destruct H as [H1 [H2 | H3]].
+       * left. rewrite -> H2. apply H1.
+       * right.
+         apply IHl. 
+         split. 
+         ** apply H1.
+         ** apply H3.
+Qed.
+
+
 (** [] *)
 
 (** **** Exercise: 2 stars (in_app_iff)  *)

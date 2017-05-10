@@ -1,0 +1,157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <title></title>
+  </head>
+  <body>
+    <p>
+      Here are two well known "classic" functions over polymorphic
+      lists.
+    </p>
+    <p>
+      <code>map f l</code> computes a new list from <code>l</code>
+      by applying <code>f</code> to each of its elements.
+      <pre class="prettyprint ml">
+        let rec map (f : 'a -> 'b) : 'a list -> 'b list = function
+        | [] -> []
+        | h :: t -> f h :: map f t
+        ;;
+      </pre>
+    </p>
+
+    <p><code>mem x l</code> returns <code>true</code> is <code>x</code>
+      is an element of <code>l</code> and returns <code>false</code> if it
+      is not.
+      <pre class="prettyprint ml">
+        let rec mem (x : 'a) (l : 'a list) =
+        match l with
+        | [] -> false
+        | x' :: l' -> x' = x || mem x l'
+        ;;
+      </pre>
+    </p>
+    <p>
+      If <code>y</code> is an element of the list obtained by
+      mapping <code>f</code> over <code>l</code> then there must be an
+      element <code>x</code> in <code>l</code> such that <code>f x =
+        y</code>. Conversely, if there exists an <code>x</code>
+      in <code>l</code> such that <code>y = f x</code>,
+      then <code>y</code> must be a member of the list obtained by
+      mapping <code>f</code> over <code>l</code>.
+   </p>
+    <p>
+      We attempt a proof of correctness of the given definitions with
+      respect to this property.
+    </p>
+
+    <b>Lemma</b> <code>mem_map_iff</code>:
+    <pre>
+    &forall; (f : &alpha; &rarr; &beta;) (l : &alpha; list) (y : &beta;),
+      mem y (map f l) &iff; &exist;(x : &alpha;), f x = y &and; mem x l.
+    </pre>
+    <b>Proof:</b><br/>
+    <ul>
+
+      <li>We first treat the forward implication
+        <pre>
+    &forall; (f : &alpha; &rarr; &beta;) (l : &alpha; list) (y : &beta;), 
+      mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; mem x l
+        </pre>
+        and proceed by induction on <code>l</code>.
+        <br/>
+        <br/>
+
+        <ul>
+          <li><code>l = []</code>: <br/><br/>
+            <ul>
+              <li>We desire to show we need <code>mem y (map f []) &Implies; &exist;(x : &alpha;), f x = y &and; mem x []</code>.</li>
+              <li><code>mem y (map f []) &equiv; False</code>.</li>
+              <li><code>&exist;(x : &alpha;), f x = y &and; mem x []</code> is proven <i>(ex falso quodlibet)</i>.</li>
+            </ul>
+            <br/>
+          </li>
+
+          <li><code>l</code> is non-empty: <br/><br/>
+            <ul>
+              <li>Assume the induction hypothesis:
+                <ul><li><code>mem y (map f l) &Implies; &exist;x, f x = y &and; mem x l</code>.</li></ul></li>
+              <li>We are required to show for an arbitrary <code>(x' : &alpha;)</code>:
+                <ul><li><code>mem y (map f (x' :: l)) &Implies; &exist;(x : &alpha;), f x = y &and; mem x (x' :: l)</code>.</li></ul></li>
+              <li>By simplification, we can rewrite the above to:
+                <ul><li><code>f x' = y &or; mem y (map f l) &Implies; &exist;x, f x = y &and; (x' = x &or; mem x l).</code></li></ul></li>
+              <li>
+                We assume then an <code>(x' : &alpha;)</code> and a <code>(y : &beta;)</code> such
+                that:
+                <ol>
+                  <li><code>f x' = y &or; mem y (map f l)</code>.</li>
+                  <li><code>mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; mem x l</code>.</li>
+                </ol>
+              </li>
+              <li>Under these assumptions we desire to show <code>&exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code>
+                <ul>
+                  <li>First consider the case <code>f x' = y</code>.
+                    <ul>
+                      <li>Take <code>x = x'</code> in the goal.</li>
+                      <li>Then certainly, <code>f x = y</code>.</li>
+                      <li>Further, <code>x' = x</code> so <code>x' = x &or; mem x l</code> holds too.
+                      <li>So <code>x'</code> is a witness in <code>&exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l)</code>.</li>
+                    </ul>
+                  </li>
+                  <li>Now consider the case <code>mem y (map f l)</code>.
+                    <ul>
+                      <li>Then by (2.), <code>&exist;(x<sup>*</sup> : &alpha;), f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code>.</li>
+                      <li>Take <code>x = x<sup>*</sup></code> in the goal.</li>
+                      <li>By the above <code>f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code></li>
+                      <li>So <code>x<sup>*</sup></code> is a witness in <code>(&exist;x : &alpha;), f x = y &and; (x' = x &or; mem x l)</code>.</li>
+                    </ul>
+                  </li>
+              </li>
+          </li>
+        </ul>
+
+    <hr/>
+  </body>
+</html>
+
+
+
+    <!--   We now work on the reverse implication. We want to show that -->
+    <!--   <pre> -->
+    <!-- &forall; (f : &alpha; &rarr; &beta;) (l : &alpha; list) (y : &beta;),  -->
+    <!--   &exist;x, f x = y &and; mem x l &Implies; mem y (map f l) -->
+    <!--   </pre> -->
+    <!--   and to do so, we assume the goal hypothesis and proceed by -->
+    <!--   induction on <code>l</code>. -->
+    <!--   <ul> -->
+    <!--     <li> -->
+    <!--       <p> -->
+    <!--       In the case <code>l = []</code> we aim to show <code>In (map -->
+    <!--       f []) (&equiv; false)</code>. Destructing the hypothesis, we -->
+    <!--       assume an <code>x</code> such that <code>mem x []</code> -->
+    <!--       which reduces to <code>false &Implies; false</code> and this -->
+    <!--       case is proven. -->
+    <!--       </p> -->
+    <!--     </li> -->
+    <!--     <li> -->
+    <!--       <p>In the case <code>l</code> is non-empty, we add the -->
+    <!--       induction hypothesis to our assumptions -->
+    <!--       <pre> -->
+    <!-- (&exist;x', f x' = y &and; mem x' l) &Implies; mem y (map f l) -->
+    <!--       </pre> -->
+    <!--       and are required to show for an arbitrary <code>x</code>, -->
+    <!--       <code>mem y (map f (x :: l))</code> or simplifying,<code>f x -->
+    <!--       = y &or; mem y (map f l)</code>. -->
+    <!--       </p> -->
+    <!--       <p>Destructing the hypothesis, the complete set of assumptions is -->
+    <!--       <ol> -->
+    <!--       <li><code>f</code></li> -->
+    <!--       <li><code>x</code></li> -->
+    <!--       <li><code>l</code></li> -->
+    <!--       <li><code>y</code></li> -->
+    <!--       <li><code>x<sub>0</sub></code></li> -->
+    <!--       <li><code>f x<sub>0</sub> = y</code></li> -->
+    <!--       <li><code>x = x<sub>0</sub> &or; mem x0 l</code></li> -->
+    <!--       <li><code>&exist;x', f x' = y &and; mem x' l &Implies; In y (map f l)</code></li> -->
+    <!--       </ol> -->
+    <!--       </p> -->
