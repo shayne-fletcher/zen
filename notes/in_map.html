@@ -24,9 +24,9 @@
       is an element of <code>l</code> and returns <code>false</code> if it
       is not.
       <pre class="prettyprint ml">
-        let rec mem (x : &alpha;) : &alpha; list &rarr; bool  = function
+        let rec mem (a : &alpha;) : &alpha; list &rarr; bool  = function
         | [] &rarr; false
-        | x' :: l &rarr; x' = x || mem x l
+        | x :: l &rarr; a = x || mem a l
         ;;
       </pre>
     </p>
@@ -64,9 +64,9 @@
         <ul>
           <li><code>l = []</code>:
             <ul>
-              <li>We desire to show  <code>mem y (map f []) &Implies; &exist;(x : &alpha;), f x = y &and; mem x []</code>.</li>
+              <li>Show <code>mem y (map f []) &Implies; &exist;(x : &alpha;), f x = y &and; mem x []</code>.</li>
               <li><code>mem y (map f []) &equiv; False</code>.</li>
-              <li><code>&exist;(x : &alpha;), f x = y &and; mem x []</code> is proven <i>(ex falso quodlibet)</i>.</li>
+              <li>Proof follows <i>(ex falso quodlibet)</i>.</li>
             </ul>
             <br/>
           </li> <!-- l is empty -->
@@ -75,38 +75,34 @@
             <ul>
               <li>Assume the induction hypothesis:
                 <ul><li><code>mem y (map f l) &Implies; &exist;x, f x = y &and; mem x l</code>.</li></ul></li>
-
               <li>We are required to show for an arbitrary <code>(x' : &alpha;)</code>:
                 <ul><li><code>mem y (map f (x' :: l)) &Implies; &exist;(x : &alpha;), f x = y &and; mem x (x' :: l)</code>.</li></ul>
               </li>
-
               <li>By simplification, we can rewrite the above to:
                 <ul><li><code>f x' = y &or; mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code></li></ul>
               </li>
-
               <li>We assume then an <code>(x' : &alpha;)</code> and a <code>(y : &beta;)</code> such
                 that:
                 <ol>
-                  <li><code>f x' = y &or; mem y (map f l)</code> (the antecedent of the goal).</li>
-                  <li><code>mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; mem x l</code> (the induction hypothesis).</li>
+                  <li><code>f x' = y &or; mem y (map f l)</code>.</li>
+                  <li><code>mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; mem x l</code>.</li>
                 </ol>
               </li>
-
-              <li>Under these assumptions we desire to show <code>&exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code>
+              <li>Show <code>&exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code>
                 <ul>
-                  <li>First consider the case <code>f x' = y</code> in (1).
+                  <li>First consider <code>f x' = y</code> in (1).
                     <ul>
                       <li>Take <code>x = x'</code> in the goal.</li>
                       <li>Then by (1) <code>f x = y &and; x = x'</code>.</li>
-                      <li>So <code>x'</code> is a witness in <code>&exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l)</code>.</li>
+                      <li>So <code>x'</code> is a witness.</li>
                     </ul>
                   </li>
-                  <li>Now consider the case <code>mem y (map f l)</code> in (1).
+                  <li>Now consider <code>mem y (map f l)</code> in (1).
                     <ul>
-                      <li>Then by (2.), <code>&exist;(x<sup>*</sup> : &alpha;), f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code>.</li>
+                      <li><code>&exist;(x<sup>*</sup> : &alpha;), f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code> by (2).</li>
                       <li>Take <code>x = x<sup>*</sup></code> in the goal.</li>
                       <li>By the above <code>f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code></li>
-                      <li>So <code>x<sup>*</sup></code> is a witness in <code>(&exist;x : &alpha;), f x = y &and; (x' = x &or; mem x l)</code>.</li>
+                      <li>So <code>x<sup>*</sup></code> is a witness</code>.</li>
                     </ul>
                   </li>
                 </ul>
@@ -123,15 +119,16 @@
     &forall; (f : &alpha; &rarr; &beta;) (l : &alpha; list) (y : &beta;),
        &exist;(x : &alpha;), f x = y &and; mem x l &Implies; mem y (map f l)
       </pre>
-      and in the last case, proceed by induction on <code>l</code>.
+      and proceed by induction on <code>l</code>.
       <br/><br/>
       <ul>
         <li><code>l = []:</code>
         <ul>
-          <li>Let <code>x</code> and <code>y</code> be such that <code>f x = y &and; mem x []</code>. We wish to show <code>mem y (map f [])</code></li>
+          <li>Assume <code>x</code>, <code>y</code> with <code>f x = y &and; mem x []</code>.</li>
+          <li>Show <code>mem y (map f [])</code>:</li>
            <ul>
              <li><code>mem x [] &equiv; false</code>.</li>
-             <li><code>mem y (map f [])</code> is proven <i>(ex falso quodlibet)</i>.</li>
+             <li>Proof follows <i>(ex falso quodlibet)</i>.</li>
            </ul>
         </ul>
         </li><!-- l = [] -->
@@ -149,7 +146,7 @@
             </li>
             <li>Assume the goal and induction hypotheses:
               <ul>
-                <li>There is <code>x</code> and <code>y</code> such that:
+                <li>There is <code>(x : &alpha;)</code> and <code>(y : &beta;)</code> such that:
                   <ol>
                     <li><code>f x = y &and; (x = x' &or; mem x l)</code></li>
                     <li><code>f x = y &and; mem x l &Implies; mem y (map f l)</code></li>
@@ -157,17 +154,17 @@
                 </li>
               </ul>
             </li>
-            <li>Under these assumptions we desire to show <code>f x' = y &or; mem y (map f l)</code>.
+            <li>Show <code>f x' = y &or; mem y (map f l)</code>.
               <ul>
-                <li>First consider the case <code>x = x'</code> in (1) and show <code>f x' = y</code>:
+                <li>Assume <code>x = x'</code> in (1) and show <code>f x' = y</code>:
                   <ul>
                    <li>Since, <code>f x = y</code> is given by (1.), <code>f x' = y</code>.</li>
                   </ul>
                 </li>
-                <li>Now consider the case <code>mem x l</code> in (1) and show <code>mem y (map f l)</code>:
+                <li>Assume <code>mem x l</code> in (1) and show <code>mem y (map f l)</code>:
                   <ul> 
                     <li>Rewrite <code>mem y (map f l)</code> via (2) to <code>f x = y &and; mem x l</code>.</li>
-                    <li><code>f x = y</code> is provided by (1) and so <code>mem y (map f l)</code>.</li>
+                    <li><code>f x = y</code> by (1) so <code>mem y (map f l)</code>.</li>
                   </ul>
                 </li>
               </ul>
@@ -179,5 +176,9 @@
     </ul>
 &#8718;
     <hr/>
+    <p>
+    References:<br/>
+    <a href="https://www.cis.upenn.edu/~bcpierce/sf/current/index.html">"Sofware Foundations"</a> -- Pierce et. al.
+    </p>
   </body>
 </html>
