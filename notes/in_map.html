@@ -2,6 +2,19 @@
           "http://www.w3.org/TR/html4/strict.dtd">
 <html>
   <head>
+<style>
+.keyword { font-weight : bold ; color : Red }
+.keywordsign { color : #C04600 }
+.comment { color : Green }
+.constructor { color : Blue }
+.type { color : #5C6585 }
+.string { color : Maroon }
+.warning { color : Red ; font-weight : bold }
+.info { margin-left : 3em; margin-right: 3em }
+.param_info { margin-top: 4px; margin-left : 3em; margin-right : 3em }
+.code { color : #465F91 ; }
+pre { margin-bottom: 4px; font-family: monospace; }
+pre.verbatim, pre.codepre { }</style>
     <title></title>
   </head>
   <body>
@@ -10,34 +23,32 @@
       lists.
     </p>
     <p>
-      <code>map f l</code> computes a new list from <code>l</code>
-      by applying <code>f</code> to each of its elements.
-      <pre class="prettyprint ml">
-        let rec map (f : &alpha; &rarr; &beta;) : &alpha; list &rarr; &beta; list = function
-        | [] &rarr; []
-        | h :: t &rarr; f h :: map f t
+      <code class="code">map f l</code> computes a new list from <code class="code">l</code>
+      by applying <code class="code">f</code> to each of its elements.
+<pre><code class="code"><span class="keyword">let</span> <span class="keyword">rec</span> map (f : <span class="keywordsign">'</span>a <span class="keywordsign">-&gt;</span> <span class="keywordsign">'</span>b) : <span class="keywordsign">'</span>a list <span class="keywordsign">-&gt;</span> <span class="keywordsign">'</span>b list = <span class="keyword">function</span>
+        <span class="keywordsign">|</span> [] <span class="keywordsign">-&gt;</span> []
+        <span class="keywordsign">|</span> h :: t <span class="keywordsign">-&gt;</span> f h :: map f t
         ;;
-      </pre>
+</code></pre>
     </p>
 
-    <p><code>mem x l</code> returns <code>true</code> is <code>x</code>
-      is an element of <code>l</code> and returns <code>false</code> if it
+    <p><code class="code">mem x l</code> returns <code class="code">true</code> is <code class="code">x</code>
+      is an element of <code class="code">l</code> and returns <code class="code">false</code> if it
       is not.
-      <pre class="prettyprint ml">
-        let rec mem (a : &alpha;) : &alpha; list &rarr; bool  = function
-        | [] &rarr; false
-        | x :: l &rarr; a = x || mem a l
+<pre><code class="code"><span class="keyword">let</span> <span class="keyword">rec</span> mem (a : <span class="keywordsign">'</span>a) : <span class="keywordsign">'</span>a list <span class="keywordsign">-&gt;</span> bool  = <span class="keyword">function</span>
+        <span class="keywordsign">|</span> [] <span class="keywordsign">-&gt;</span> <span class="keyword">false</span>
+        <span class="keywordsign">|</span> x :: l <span class="keywordsign">-&gt;</span> a = x <span class="keywordsign">||</span> mem a l
         ;;
-      </pre>
+</code></pre>
     </p>
     <p>
-      If <code>y</code> is an element of the list obtained by
-      mapping <code>f</code> over <code>l</code> then there must be an
-      element <code>x</code> in <code>l</code> such that <code>f x =
-        y</code>. Conversely, if there exists an <code>x</code>
-      in <code>l</code> such that <code>y = f x</code>,
-      then <code>y</code> must be a member of the list obtained by
-      mapping <code>f</code> over <code>l</code>.
+      If <code class="code">y</code> is an element of the list obtained by
+      mapping <code class="code">f</code> over <code class="code">l</code> then there must be an
+      element <code class="code">x</code> in <code class="code">l</code> such that 
+      <code class="code">f x = y</code>. Conversely, if there exists an <code class="code">x</code>
+      in <code class="code">l</code> such that <code class="code">y = f x</code>,
+      then <code class="code">y</code> must be a member of the list obtained by
+      mapping <code class="code">f</code> over <code class="code">l</code>.
    </p>
     <p>
       We attempt a proof of correctness of the given definitions with
@@ -45,64 +56,65 @@
     </p>
 
     <b>Lemma</b> <code>mem_map_iff</code>:
-    <pre>
+    <pre><code class="code">
     &forall; (f : &alpha; &rarr; &beta;) (l : &alpha; list) (y : &beta;),
         mem y (map f l) &iff; &exist;(x : &alpha;), f x = y &and; mem x l.
-    </pre>
+    </code></pre>
     <b>Proof:</b><br/>
     <ul>
 
       <li>We first treat the forward implication
         <pre>
-    &forall; (f : &alpha; &rarr; &beta;) (l : &alpha; list) (y : &beta;), 
+          <code class="code">
+    &forall; (f : &alpha; &rarr; &beta;) (l : &alpha; list) (y : &beta;),
       mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; mem x l
-        </pre>
-        and proceed by induction on <code>l</code>.
+        </code></pre>
+        and proceed by induction on <code class="code">l</code>.
         <br/>
         <br/>
 
         <ul>
-          <li><code>l = []</code>:
+          <li><code class="code">l = []</code>:
             <ul>
-              <li>Show <code>mem y (map f []) &Implies; &exist;(x : &alpha;), f x = y &and; mem x []</code>.</li>
-              <li><code>mem y (map f []) &equiv; False</code>.</li>
+              <li>Show <code class="code">mem y (map f []) &Implies; &exist;(x : &alpha;), f x = y &and; mem x []</code>.</li>
+              <li><code class="code">mem y (map f []) &equiv; False</code>.</li>
               <li>Proof follows <i>(ex falso quodlibet)</i>.</li>
             </ul>
             <br/>
           </li> <!-- l is empty -->
 
-        <li><code>l</code> has form <code>x' :: l</code> (use <code>l</code> now to refer to the tail):
+        <li><code class="code">l</code> has form <code class="code">x' :: l</code> (use <code class="code">l</code> now to refer to the tail):
             <ul>
               <li>Assume the induction hypothesis:
-                <ul><li><code>mem y (map f l) &Implies; &exist;x, f x = y &and; mem x l</code>.</li></ul></li>
-              <li>We are required to show for an arbitrary <code>(x' : &alpha;)</code>:
-                <ul><li><code>mem y (map f (x' :: l)) &Implies; &exist;(x : &alpha;), f x = y &and; mem x (x' :: l)</code>.</li></ul>
+                <ul><li><code class="code">mem y (map f l) &Implies; &exist;x, f x = y &and; mem x l</code>.</li></ul></li>
+              <li>We are required to show for an arbitrary <code class="code">(x' : &alpha;)</code>:
+                <ul><li><code class="code">mem y (map f (x' :: l)) &Implies; &exist;(x : &alpha;), f x = y &and; mem x (x' :: l)</code>.</li></ul>
               </li>
               <li>By simplification, we can rewrite the above to:
-                <ul><li><code>f x' = y &or; mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code></li></ul>
+                <ul><li><code class="code">f x' = y &or; mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code></li></ul>
               </li>
-              <li>We assume then an <code>(x' : &alpha;)</code> and a <code>(y : &beta;)</code> such
+              <li>We assume then an <code class="code">(x' : &alpha;)</code> and a <code class="code">(y : &beta;)</code> such
                 that:
                 <ol>
-                  <li><code>f x' = y &or; mem y (map f l)</code>.</li>
-                  <li><code>mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; mem x l</code>.</li>
+                  <li><code class="code">f x' = y &or; mem y (map f l)</code>.</li>
+                  <li><code class="code">mem y (map f l) &Implies; &exist;(x : &alpha;), f x = y &and; mem x l</code>.</li>
                 </ol>
               </li>
-              <li>Show <code>&exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code>
+              <li>Show <code class="code">&exist;(x : &alpha;), f x = y &and; (x' = x &or; mem x l).</code>
                 <ul>
-                  <li>First consider <code>f x' = y</code> in (1).
+                  <li>First consider <code class="code">f x' = y</code> in (1).
                     <ul>
-                      <li>Take <code>x = x'</code> in the goal.</li>
-                      <li>Then by (1) <code>f x = y &and; x = x'</code>.</li>
-                      <li>So <code>x'</code> is a witness.</li>
+                      <li>Take <code class="code">x = x'</code> in the goal.</li>
+                      <li>Then by (1) <code class="code">f x = y &and; x = x'</code>.</li>
+                      <li>So <code class="code">x'</code> is a witness.</li>
                     </ul>
                   </li>
-                  <li>Now consider <code>mem y (map f l)</code> in (1).
+                  <li>Now consider <code class="code">mem y (map f l)</code> in (1).
                     <ul>
-                      <li><code>&exist;(x<sup>*</sup> : &alpha;), f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code> by (2).</li>
-                      <li>Take <code>x = x<sup>*</sup></code> in the goal.</li>
-                      <li>By the above <code>f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code></li>
-                      <li>So <code>x<sup>*</sup></code> is a witness</code>.</li>
+                      <li><code class="code">&exist;(x<sup>*</sup> : &alpha;), f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code> by (2).</li>
+                      <li>Take <code class="code">x = x<sup>*</sup></code> in the goal.</li>
+                      <li>By the above <code class="code">f x<sup>*</sup> = y &and; mem x<sup>*</sup> l</code></li>
+                      <li>So <code class="code">x<sup>*</sup></code> is a witness</code>.</li>
                     </ul>
                   </li>
                 </ul>
@@ -115,56 +127,56 @@
 
       <li>
       We now work on the reverse implication. We want to show that
-      <pre>
+      <pre><code class="code">
     &forall; (f : &alpha; &rarr; &beta;) (l : &alpha; list) (y : &beta;),
        &exist;(x : &alpha;), f x = y &and; mem x l &Implies; mem y (map f l)
-      </pre>
-      and proceed by induction on <code>l</code>.
+      </code></pre>
+      and proceed by induction on <code class="code">l</code>.
       <br/><br/>
       <ul>
-        <li><code>l = []:</code>
+        <li><code class="code">l = []</code>:
         <ul>
-          <li>Assume <code>x</code>, <code>y</code> with <code>f x = y &and; mem x []</code>.</li>
-          <li>Show <code>mem y (map f [])</code>:</li>
+          <li>Assume <code class="code">x</code>, <code class="code">y</code> with <code class="code">f x = y &and; mem x []</code>.</li>
+          <li>Show <code class="code">mem y (map f [])</code>:</li>
            <ul>
-             <li><code>mem x [] &equiv; false</code>.</li>
+             <li><code class="code">mem x [] &equiv; false</code>.</li>
              <li>Proof follows <i>(ex falso quodlibet)</i>.</li>
            </ul>
         </ul>
         </li><!-- l = [] -->
 
-        <li><code>l</code> has form <code>x' :: l</code> (use <code>l</code> now to refer to the tail):
+        <li><code class="code">l</code> has form <code class="code">x' :: l</code> (use <code class="code">l</code> now to refer to the tail):
           <ul>
             <li>Assume the induction hypothesis:
-            <ul><li><code>&exist;(x : &alpha;), f x = y &and; mem x l &Implies; mem y (map f l)</code>.</li></ul>
+            <ul><li><code class="code">&exist;(x : &alpha;), f x = y &and; mem x l &Implies; mem y (map f l)</code>.</li></ul>
             </li>
-            <li>We are required to show for an arbitrary <code>(x' : &alpha;)</code>:
-              <ul><li><code>&exist; (x : &alpha;), f x = y &and; mem x (x' :: l) &Implies; mem y (map f (x' :: l))</code></li></ul>
+            <li>We are required to show for an arbitrary <code class="code">(x' : &alpha;)</code>:
+              <ul><li><code class="code">&exist; (x : &alpha;), f x = y &and; mem x (x' :: l) &Implies; mem y (map f (x' :: l))</code></li></ul>
             </li>
             <li>By simplification, we can rewrite the above to:
-              <ul><li><code>&exist; (x : &alpha;), f x = y &and; x = x' &or; mem x l &Implies; f x' = y &or; mem y (map f l)</code>.</li></ul>
+              <ul><li><code class="code">&exist; (x : &alpha;), f x = y &and; x = x' &or; mem x l &Implies; f x' = y &or; mem y (map f l)</code>.</li></ul>
             </li>
             <li>Assume the goal and induction hypotheses:
               <ul>
-                <li>There is <code>(x : &alpha;)</code> and <code>(y : &beta;)</code> such that:
+                <li>There is <code class="code">(x : &alpha;)</code> and <code class="code">(y : &beta;)</code> such that:
                   <ol>
-                    <li><code>f x = y &and; (x = x' &or; mem x l)</code></li>
-                    <li><code>f x = y &and; mem x l &Implies; mem y (map f l)</code></li>
+                    <li><code class="code">f x = y &and; (x = x' &or; mem x l)</code></li>
+                    <li><code class="code">f x = y &and; mem x l &Implies; mem y (map f l)</code></li>
                   </ol>
                 </li>
               </ul>
             </li>
-            <li>Show <code>f x' = y &or; mem y (map f l)</code>.
+            <li>Show <code class="code">f x' = y &or; mem y (map f l)</code>.
               <ul>
-                <li>Assume <code>x = x'</code> in (1) and show <code>f x' = y</code>:
+                <li>Assume <code class="code">x = x'</code> in (1) and show <code class="code">f x' = y</code>:
                   <ul>
-                   <li>Since, <code>f x = y</code> is given by (1.), <code>f x' = y</code>.</li>
+                   <li>Since, <code class="code">f x = y</code> is given by (1.), <code class="code">f x' = y</code>.</li>
                   </ul>
                 </li>
-                <li>Assume <code>mem x l</code> in (1) and show <code>mem y (map f l)</code>:
-                  <ul> 
-                    <li>Rewrite <code>mem y (map f l)</code> via (2) to <code>f x = y &and; mem x l</code>.</li>
-                    <li><code>f x = y</code> by (1) so <code>mem y (map f l)</code>.</li>
+                <li>Assume <code class="code">mem x l</code> in (1) and show <code class="code">mem y (map f l)</code>:
+                  <ul>
+                    <li>Rewrite <code class="code">mem y (map f l)</code> via (2) to <code class="code">f x = y &and; mem x l</code>.</li>
+                    <li><code class="code">f x = y</code> by (1) so <code class="code">mem y (map f l)</code>.</li>
                   </ul>
                 </li>
               </ul>

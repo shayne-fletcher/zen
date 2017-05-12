@@ -19,7 +19,7 @@ let input_file_as_string (name : string) : string  =
   close_in ic;
   Buffer.contents buf
 
-let default_style_options =
+let default_style_options : string list =
   [ ".keyword { font-weight : bold ; color : Red }" ;
     ".keywordsign { color : #C04600 }" ;
     ".comment { color : Green }" ;
@@ -34,7 +34,7 @@ let default_style_options =
     "pre.verbatim, pre.codepre { }";
   ]
 
-let print_code buf code source =
+let print_code (buf : Buffer.t) (code : string) (source : string) : unit =
   Buffer.add_string buf "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
   Buffer.add_string buf "<html>\n";
   Buffer.add_string buf "<head>\n";
@@ -51,7 +51,8 @@ let print_code buf code source =
   Buffer.add_string buf "</pre>";
   Buffer.add_string buf "</body></html>"
 
-let version,file=ref false, ref ""
+let (version : bool ref) 
+    ,(file : string ref) = ref false, ref ""
 
 let read_args : unit -> unit  = fun () ->
   let specification =
