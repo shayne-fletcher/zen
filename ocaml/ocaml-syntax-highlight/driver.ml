@@ -1,24 +1,3 @@
-let input_file_as_string (name : string) : string  =
-  let ic = open_in_bin name in
-  let len = 1024 in
-  let s = Bytes.create len in
-  let buf = Buffer.create len in
-  let rec iter () =
-    try
-      let n = input ic s 0 len in
-      if n = 0 then()
-      else
-        begin
-          Buffer.add_subbytes buf s 0 n;
-          iter ()
-        end
-    with
-      End_of_file -> ()
-  in
-  iter ();
-  close_in ic;
-  Buffer.contents buf
-
 let default_style_options : string list =
   [ ".keyword { font-weight : bold ; color : Red }" ;
     ".keywordsign { color : #C04600 }" ;
@@ -75,7 +54,7 @@ let ()  =
       raise (Failure (Printf.sprintf 
         "Bad argument : The file '%s' does not exist" !file)) ;
    try
-     let code = input_file_as_string (!file) in
+     let code = Odoc_misc.input_file_as_string (!file) in
      let buf  = Buffer.create 1024 in
      print_code buf code (!file);
      print_string (Buffer.contents buf)
