@@ -1,3 +1,5 @@
+ocamllex odoc_ocamlhtml.mll
+
 ocamlc -verbose -o ocaml_syntax_highlight.exe \
   -I +compiler-libs -I +ocamldoc \
      str.cma  \
