@@ -1,3 +1,4 @@
 FILES[] = $(harvest_modules $(SYS_ROOT)/src/parsing)
+OCAMLINCLUDES += ../utils/
 LIB = ml_parser
 .DEFAULT: $(OCamlLibrary $(LIB), ml_lexer ml_parser $(FILES))
