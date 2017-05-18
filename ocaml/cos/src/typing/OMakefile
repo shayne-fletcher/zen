@@ -1,9 +1,10 @@
-OCAMLINCLUDES += $(SYS_BUILD)/parsing
+OCAMLINCLUDES += ../utils ../parsing
 
 FILES[] = 
   ml_ident
   ml_path
   ml_types
+  ml_typedtree
 
 LIB = ml_typing
 .DEFAULT: $(OCamlLibrary $(LIB), $(FILES))

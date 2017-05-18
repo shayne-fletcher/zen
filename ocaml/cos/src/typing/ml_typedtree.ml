@@ -1,21 +1,14 @@
-(** Abstract syntax tree after typing *)
+open Ml_misc
+open Ml_asttypes
+open Ml_types
 
-open Ml_asttypes (*[type rec_flag], [type 'a loc]*)
-open Ml_types (*Constructor and value descriptions*)
-
-(**{2 Types}*)
-
-(**The type of "partiality" information indiciating partial or total
-   patten matchings*)
 type partial = | Partial | Total
 
-(**The type of a pattern*)
 type pattern = {
   pat_desc : pattern_desc;
   pat_loc : Ml_location.t;
 }
 
-(**The type of a pattern description*)
 and pattern_desc =
   | Tpat_any
         (** _ *)
@@ -31,7 +24,7 @@ and pattern_desc =
              Invariant : n >= 2
         *)
   | Tpat_construct of
-      Ml_longident.t loc * Ml_types.constructor_description * pattern list
+      Ml_longident.t loc * constructor_description * pattern list
         (** C                []
             C P              [P]
             C (P1, ..., Pn)  [P1; ...; Pn]
@@ -39,13 +32,11 @@ and pattern_desc =
   | Tpat_or of pattern * pattern
         (** P1 | P2 *)
 
-(**The type of an expression*)
 and expression =
   { exp_desc : expression_desc;
     exp_loc : Ml_location.t;
   }
 
-(**The type of an expression description*)
 and expression_desc =
   | Texp_ident of Ml_path.t * Ml_longident.t loc * Ml_types.value_description
         (** x
@@ -88,34 +79,30 @@ and expression_desc =
   | Texp_tuple of expression list
         (** (E1, ..., EN) *)
   | Texp_construct of
-      Ml_longident.t loc * Ml_types.constructor_description * expression list
+      Ml_longident.t loc * constructor_description * expression list
         (** C                []
             C E              [E]
             C (E1, ..., En)  [E1;...;En]
          *)
   | T_expifthenelse of expression * expression * expression
 
-(**The type of a case*)
 and case = 
   {
     c_lhs : pattern;
     c_rhs : expression;
   }
 
-(**The type of a structure*)
 and structure = 
   {
     str_desc : structure_item_desc;
     str_loc : Ml_location.t;
   }
 
-(**The type of a structure item*)
 and structure_item_desc =
   | Tstr_eval of expression
   | Tstr_value of rec_flag * value_binding list
-  | Tstr_primitive of Ml_types.value_description
+  | Tstr_primitive of value_description
 
-(**The type of a value binding*)
 and value_binding = 
   {
     vb_pat : pattern;
@@ -123,36 +110,68 @@ and value_binding =
     vb_loc : Ml_location.t;
   }
 
-(** {2 Functions over the AST} *)
+let iter_pattern_desc f = function 
+  | Tpat_alias (p, _, _) -> f p
+  | Tpat_tuple ps -> List.iter f ps
+  | Tpat_construct (_, _, ps) -> List.iter f ps
+  | Tpat_or (p1, p2) -> f p1; f p2
+  | Tpat_any | Tpat_var _ | Tpat_constant _ -> ()
 
-(**An alisas for [Ml_location.mknoloc]*)
-val mknoloc : 'a -> 'a Ml_asttypes.loc
+let map_pattern_desc f d = match d with
+  | Tpat_alias (p, id, loc) -> Tpat_alias (f p, id, loc)
+  | Tpat_tuple ps -> Tpat_tuple (List.map f ps)
+  | Tpat_construct (lid, c, ps) -> Tpat_construct (lid, c, List.map f ps)
+  | Tpat_or (p1, p2) -> Tpat_or (f p1, f p2)
+  | Tpat_any | Tpat_var _ | Tpat_constant _ -> d
 
-(**An alias for [Ml_location.loc]*)
-val mkloc : 'a -> Ml_location.t -> 'a Ml_asttypes.loc
+(*List the identifiers bound by a pattern or a let*)
 
-(**[iter_pattern_desc f p] iterates [f] over [p]*)
-val iter_pattern_desc : (pattern -> unit) -> pattern_desc -> unit
+let idents = ref ([] : (Ml_ident.t * string loc) list)
 
-(**[map_pattern_desc f p] produces a new pattern description by
-   mapping [f] over [p]*)
-val map_pattern_desc : (pattern -> pattern) -> pattern_desc -> pattern_desc
+let rec bound_idents pat = match pat.pat_desc with
+  | Tpat_var (id, s) -> idents := (id, s) :: !idents
+  | Tpat_alias (p, id, s) ->
+      bound_idents p; idents := (id, s) :: !idents
+  | Tpat_or (p1, _) ->
+    (*Invariant : both arguments bind the same variables*)
+    bound_idents p1
+  | d -> iter_pattern_desc bound_idents d
 
-(**[let_bound_idents vbs] produces a list of the identifiers in the
-   bound in a let (value binding list) [vbs]*)
-val let_bound_idents : value_binding list -> Ml_ident.t list
+let pat_bound_idents pat =
+  idents := [];
+  bound_idents pat;
+  let res = !idents in
+  idents := [];
+  List.map fst res
 
-(**[rev_let_bound_idents vbs] as above but in reverse order*)
-val rev_let_bound_idents : value_binding list -> Ml_ident.t list
+let rev_let_bound_idents_with_loc bindings =
+  idents := [];
+  List.iter (fun vb -> bound_idents vb.vb_pat) bindings;
+  let res = !idents in idents := []; res
 
-(**Like [let_bind_idents_with_loc] but with locations*)
-val let_bound_idents_with_loc : 
-  value_binding list -> (Ml_ident.t * string loc) list
+let let_bound_idents_with_loc pat_expr_list =
+  List.rev (rev_let_bound_idents_with_loc pat_expr_list)
 
-(**[pat_bound_idents p] produces a list of the identifiers in the
-   bound in the pattern [p]*)
-val pat_bound_idents : pattern -> Ml_ident.t list
+let rev_let_bound_idents pat = List.map fst (rev_let_bound_idents_with_loc pat)
+let let_bound_idents pat = List.map fst (let_bound_idents_with_loc pat)
 
-(** [alpha_pat env p] produces a new pattern from [p] by substitution
-    of identifiers in [env]*)
-val alpha_pat : (Ml_ident.t * Ml_ident.t) list -> pattern -> pattern
+let alpha_var env id = List.assoc id env
+
+let rec alpha_pat env p = match p.pat_desc with
+  | Tpat_var (id, s) -> (* note the [Not_found] case*)
+    {p with pat_desc = 
+    try Tpat_var (alpha_var env id, s) with
+    | Not_found -> Tpat_any }
+  | Tpat_alias (p1, id, s) ->
+    let new_p = alpha_pat env p1 in
+    begin try
+      {p with pat_desc = Tpat_alias (new_p, alpha_var env id, s)}
+      with
+      | Not_found -> new_p
+    end
+  | d -> 
+    {p with pat_desc = map_pattern_desc (alpha_pat env) d}
+
+let mkloc = Ml_location.mkloc
+let mknoloc = Ml_location.mknoloc
+
