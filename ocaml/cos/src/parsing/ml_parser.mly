@@ -3,7 +3,7 @@
 
   open Ml_location
   open Ml_asttypes
-  open Ml_ast
+  open Ml_parsetree
 
   (*Associate the text of the [pos]th element of right-hand-side of
     the matched rule with its location*)
@@ -310,11 +310,11 @@
 /*Entry points*/
 
 %start parse_pattern
-%type <Ml_ast.pattern> parse_pattern
+%type <Ml_parsetree.pattern> parse_pattern
 %start parse_expression
-%type <Ml_ast.expression> parse_expression
+%type <Ml_parsetree.expression> parse_expression
 %start toplevel_phrase
-%type <Ml_ast.toplevel_phrase> toplevel_phrase
+%type <Ml_parsetree.toplevel_phrase> toplevel_phrase
 %%
 toplevel_phrase:
  | top_structure T_eof                                       { Ptop_def $1 }

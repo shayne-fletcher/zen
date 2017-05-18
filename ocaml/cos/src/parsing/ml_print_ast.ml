@@ -1,5 +1,5 @@
 open Ml_asttypes
-open Ml_ast
+open Ml_parsetree
 open Ml_location
 open Lexing
 open Format

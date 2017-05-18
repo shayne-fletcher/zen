@@ -5,6 +5,8 @@ FILES[] =
   ml_path
   ml_types
   ml_typedtree
+  ml_env
+  ml_typecore
 
 LIB = ml_typing
 .DEFAULT: $(OCamlLibrary $(LIB), $(FILES))

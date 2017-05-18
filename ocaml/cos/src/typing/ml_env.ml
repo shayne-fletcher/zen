@@ -1,3 +1,14 @@
+
+type summary =
+    Env_empty
+
+type t = {
+  summary : summary;
+}
+
+let empty = {summary = Env_empty}
+
+(*
 (*
 #load "ident.cmo";;
 *)
@@ -84,4 +95,4 @@ module Env_tbl = struct
     Ident.fold_name (fun k (d, _) -> f k d)
 
 end
-
+*)
