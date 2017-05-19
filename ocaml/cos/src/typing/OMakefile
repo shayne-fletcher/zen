@@ -6,7 +6,7 @@ FILES[] =
   ml_types
   ml_typedtree
   ml_predef
-  # ml_env
+  ml_env
   # ml_btype
   # ml_ctype
   # ml_typetexp

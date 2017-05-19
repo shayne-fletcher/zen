@@ -1,3 +1,4 @@
+open Ml_path
 
 type summary =
     Env_empty
@@ -7,6 +8,19 @@ type t = {
 }
 
 let empty = {summary = Env_empty}
+
+let store_type ~check slot id path info env renv = 
+  failwith "Not implemented"
+
+let add_type ~check id info env =
+  store_type ~check None id (Pident id) info env env
+
+let initial_env = 
+  Ml_predef.build_initial_env
+    (add_type ~check:false)
+    empty
+
+
 
 (*
 (*
