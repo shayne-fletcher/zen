@@ -61,6 +61,7 @@ and value_binding = {
   pvb_loc : Ml_location.t; (**Location in the source*)
 }
 
+(**The type of cases*)
 and case = (*(P -> E) or (P when E0 -> E)*)
 {
   pc_lhs : pattern;
