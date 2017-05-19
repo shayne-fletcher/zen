@@ -4,3 +4,5 @@ type summary =
 type t
 
 val empty : t
+val initial_safe_string : t
+

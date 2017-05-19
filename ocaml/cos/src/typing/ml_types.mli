@@ -26,7 +26,7 @@ and type_desc =
 (**[Tarrow (e1, e2)] => [e1 -> e2]*)
 | Ttuple of type_expr list
 (** [Ttuple [t1; ...; tn] => (t1 * ... * tn)]*)
-| Tconstr of string * type_expr list
+| Tconstr of Ml_path.t * type_expr list
 (**[Tconstr (t, [t1; ... tn])] => [(t1, ..., tn) t]*)
 | Tlink of type_expr 
 (**Indirection used by the unification engine*)
@@ -67,12 +67,13 @@ type type_declaration = {
   type_arity : int;
   type_kind : type_kind;
   type_manifest : type_expr option;
-  type_new_type_level : (int * int) option;
-  (*definition level * expansion level*)
+  type_newtype_level : (int * int) option;
+                        (*definition level * expansion level*)
   type_loc: Ml_location.t;
 }
 
 and type_kind = 
+| Type_abstract
 | Type_variant of constructor_declaration list
 
 and constructor_declaration = {
