@@ -468,16 +468,150 @@ So, how do we resolve the conflict? We again have two choices : either modify th
    </p>
   <p>Here's the <code>ocamlyacc</code> trick : don't do anything. We can see from our discussion above that the correct action when this conflict arises - when "<code>if (ident) stmt</code>" is on the stack and else is the look-ahead token - is to shift. Now look again at the <code>ocamlyacc</code> output above. It says, "<code>else shift 12</code>" indicating it will shift when it sees an else. In other words, <code>ocamlyacc</code> does the the right thing - at least it's right in this case - without our doing anything.
   </p>
-  <p>The only remaining issue is that it is annoying to keep getting the error message, even if we know it's harmless. You can avoid that with yet another <code>ocamlyacc</code> trick:
-  <pre>
-  </pre>
+
+  <h2>Parser States</h2>
+  <p><code>ocamlyacc</code> generated parsers are implemented as finite state machines. The values pushed on the parser stack are not simply token type codes; they represent the entire sequence of terminal and nonterminal sybmols at or near the top of the stack. The current state collects all the information about previous input which is relevant to deciding what to do next.
   </p>
+  <p>Each time a look-ahead token is read, the current parser state together with the type of look-ahead token are looked up in a table. This table entry can say, "Shift the look-ahead token". In this case, it also specifies the new parser state, which is pushed onto the top of the parser stack. Or it can say, "Reduce ysing rule number <i>n</i>." This means that a certain number of tokens or groupings are taken off the top of the stack, and replaced by one grouping. In other words, that number of states are popped from the top of the stack, and one new state is pushed.
+  </p>
+  <p>There is one other alternative : the table can say that the look-ahead token is erroneous in thte current state. This causes error processing to begin (see section Error Recovery).
+  </p>
+
+  <h2>Reduce/reduce conflicts</h2>
+  <p>A reduce/reduce conflict occurs if there are two or more rules that apply to the same sequence of input. This usually indicates a serious error in the grammar.
+  </p>
+  <p>For example, here is an erroneous attempt to define a sequence of zero or more <code>word</code> groupings.
+  <pre>sequence:
+  | /*empty*/ { Printf.printf "empty sequence\n" }
+  | maybeword { $1 }
+  | sequence word { Printf.printf "added word %s\n" $2 }
+  ;
+
+maybeword:
+  | /*empty*/ { Printf.printf "empty maybeword\n" }
+  | word { Printf.printf "single word %s" $1 }
+  ;</pre>
+The error is an ambiguity : there is more than one way to parse a single <code>word</code> into a <code>sequence</code>. It could be reduced to a <code>maybeword</code> and then into a <code>sequence</code> via the second rule. Alternatively, nothing-at-all could be reduced into a <code>sequence</code> via the first rule, and this could be combined with the <code>word</code> using the third rule for <code>sequence</code>.
+  </p>
+  <p>There is also more than one way to reduce nothing-at-all into a <code>sequence</code>. This can be done directly via the first rule, or indirectly via <code>maybeword</code> and the second rule.
+  </p>
+  <p>You might think this is a distinction without a difference, because it does not change whether any particular input is valid or not. But it does affect which actions are run. One parsing order runs the second rule's action; the other runs the first rule's action and the third rule's action. In this example, the output of the program changes.
+  </p>
+  <p><code>ocamlyacc</code> resolves a reduce/reduce conflict by choosing to use the rule that appears first in the grammar, but it is very risky to rely on this. Every reduce/reduce conflict must be studied and usually eliminated. here is the proper way to define <code>sequence</code>:
+  <pre>sequence:
+  | /*empty*/ { Printf.printf "empty sequence\n" }
+  | sequence word { Printf.printf "added word %s\n" $2 }
+  ;</pre>
+Here is another comon error that yields a reduce/reduce conflict:
+  <pre>sequence:
+  | sequence words
+  | sequence redirects
+  ;
+
+words:
+  | /*empty*/
+  | words word
+  ;
+
+redirects:
+  | /*empty*/
+  | redirects redirect
+  ;</pre>
+The intention here is to define a sequence which can contain either <code>word</code> or <code>redirect</code> groupings. The individual definitions of <code>sequence</code>, <code>words</code> and <code>redirects</code> are error-free, but the three together make a subtle ambiguity: even an empty input can be parsed in infinitely many ways!
+  </p>
+  <p>Consider: nothing-at-all could be a <code>words</code>. Or it could be two <code>words</code> in a row, or three, or any number. It could equally well be a <code>redirects</code>, or two, or any number. Or, it could be a <code>words</code> followed by three <code>redirects</code> and another <code>words</code>. And so on.
+  </p>
+  <p>Here are two ways to correct these rules. First, to make a single level of sequence:
+  <pre>sequence:
+  | /*empty*/
+  | sequence word
+  | sequence redirect
+  ;</pre>
+Second, to prevent either a <code>words</code> or a <code>redirects</code> from being empty:
+  <pre>sequence:
+  | /*empty*/
+  | sequence words
+  | sequence redirects
+  ;
+
+words:
+  | word
+  | words word
+  ;
+
+redirects:
+  | redirect
+  | redirects redirect
+  ;</pre>
+  </p>
+ 
+  <h2>Mysterious Reduce/Reduce Conflicts</h2>
+  <p>Sometimes reduce/reduce conflicts can appear that don't look warranted. Here is an example:
+  <pre>%token T_ident T_comma T_colon
+
+%start def
+%type ...
+
+%%
+def:
+ | param_spec return_spec T_comma
+ ;
+
+param_spec:
+ | type_
+ | name_list T_colon type_
+ ;
+
+return_spec:
+ | type_
+ | name T_colon type_
+ ;
+
+type_:
+ | T_ident
+ ;
+
+name:
+ | T_ident
+ ;
+
+name_list:
+ | name
+ | name T_comma name_list
+ ;</pre>
+It sould seem that this grammar can be parsed with only a single token of look-ahead : when a <code>param_spec</code> is being read, an <code>T_ident</code> is a <code>name</code> if a comma or colon follows, or a <code>type_</code> if another <code>T_ident</code> follows. In other words, this grammar is LR(1).
+  </p>
+  <p>However, <code>ocamlyacc</code>, like most parser generators, cannot actually handle all LR(1) grammars. In this grammar, two contexts, that after a <code>T_ident</code> at the beginning of a <code>param_spec</code> and likewise at the beginning of a <code>return_spec</code>, are similar enough that <code>ocamlyacc</code> assumes they are the same. They appear similar because the same set of rules would be active - the rule for reducing to a <code>name</code> and that for reducing to a <code>type</code>. <code>ocamlyacc</code> is unable to determine at that stage of processing that rules would require different look-ahead tokebns in the two contexts, so it makes a single parser state for them both. Combining the two contexts causes a conflict later. In parser terminology, this occurence means the grammar is not LALR(1)
+  </p>
+  <p>In general, it is better to fix deficiencies than to document them. But this particular deficiency is intrinsically hard to fix; parser generators that can handle LR(1) grammars are hard to write and tend to produce parsesrs that are very large. In practice, <code>ocamlyacc</code> is more useful as it is now.
+  </p>
+  <p>When the problem arises, you can often fix it by identifying the two parser states that are being confused, and adding something to make them look distinct. In the above example, adding one rule to <code>return_spec</code> as follows makes the problem go away:
+  <pre>%token T_ident T_comma T_colon T_bogus
+...
+return_spec:
+ | type_
+ | name T_colon type_
+ | T_ident T_bogus /*This rule is never used.*/
+ ;</pre>
+This corrects the problem because it introduces the possibility of an additional active rule in the context after <code>T_ident</code>, so the contexts receive distinct parser states. As long as the token <code>T_bogus</code> is never generated by the lexer, the added rule cannot alter the way actual input is parsed.
+  </p>
+  <p>In this particular example, there is another way to solve the problem: rewrite the rule for <code>return_spec</code> to use <code>T_ident</code> directly instead of via <code>name</code>. This also causes the two confusing context to have different sets of active rules, because the one for <code>return_spec</code> activates the altered rule for <code>return_spec</code> rather than the one for <code>name</code>.
+  <pre>param_spec:
+ | type_
+ | name_list T_colon type_
+ ;
+return_spec:
+ | type_
+ | T_ident T_colon type_
+ ;</pre>
+  </p>
+
   <hr/>
   <p>References:<br/>
    [1] "BISON : The YACC-Compatible Parser Generator" -- Donelly & Stallman, 1995<br/>
    [2] <a href="http://caml.inria.fr/pub/docs/manual-ocaml-4.00/manual026.html">Chapter 12 Lexer and parser generators (ocamllex, ocamlyacc)</a> (The OCaml system release 4.04) -- Leroy et.al.<br/>
    [3] <a href="https://courses.engr.illinois.edu/cs421/sp2010/lectures/lecture%2010%20supp.pdf">"Notes on shift-reduce parsing and resolving conflicts in <code>ocamlyacc</code>" -- <a href="http://kamin.cs.illinois.edu/">Prof. Kamin )University of Illinois</a>
   </p>
-  
+
   </body>
 </html>
