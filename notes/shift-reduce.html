@@ -20,7 +20,7 @@
   <pre>expr : expr * expr;</pre>
   Then the stack contains just these three elements:
   <pre>1 + 15</pre>
-  At this point, another reduction can be made, resulting in the single value <code>16</code>. Then the newline token can be shifted.
+At this point, another reduction can be made, resulting in the single value <code>16</code>. Then the newline token can be shifted.
   </p>
   <p>The parser tries, by shifts and reductions, to reduce the entire input down to a single grouping whose symbol is the grammar's start-symbol.
   </p>
@@ -43,7 +43,7 @@ term:
   | term '!'
   | NUMBER
   ;</pre>
-  Suppose that the tokens '<code>1 + 2</code>' have been read and shifted; what should be done? If the following token is '<code>)</code>', then the first three tokens must be reduced to form an <code>expr</code>. This is the only valid course, because shifting the '<code>)</code>' would produce a sequence of sybmols <code>term ')'</code>, and no rule allows this.
+Suppose that the tokens '<code>1 + 2</code>' have been read and shifted; what should be done? If the following token is '<code>)</code>', then the first three tokens must be reduced to form an <code>expr</code>. This is the only valid course, because shifting the '<code>)</code>' would produce a sequence of sybmols <code>term ')'</code>, and no rule allows this.
   </p>
   <p>If the following token is '<code>!</code>', then it must be shifted immediately so that '<code>2 !</code>' can be reduced to make a <code>term</code>. If instead the parser were to reduce before shifting, '<code>1 + 2</code>' would become an <code>expr</code>. It would then be impossible to shift the '<code>!</code>' because doing so would produce on the stack the sequence of symbols <code>expr '!'</code>. No rule allows that sequence.
   </p>
@@ -54,7 +54,7 @@ term:
   | IF expr THEN stmt
   | IF expr THEN stmt ELSE stmt
   ;</pre>
-  Here we assume <code>IF</code>, <code>THEN</code> and <code>ELSE</code> are teminal symbols for specific keyword tokens.
+Here we assume <code>IF</code>, <code>THEN</code> and <code>ELSE</code> are teminal symbols for specific keyword tokens.
   </p>
   <p>When the <code>ELSE</code> token is read and becomes the look-ahead token, the contents of the stack (assuming the input is valid) are just right for reduction by the first rule. But it is also legitimate to shift the <code>ELSE</code>, because that would lead to eventual reduction by the second rule.
   </p>
@@ -66,7 +66,7 @@ if x then do; if y then win (); else lose; end</pre>
   But if the parser chose to reduce when possible rather than shift, the result would be to attach the else-clause to the outermost if-statement, making these two inputs equivalent:
   <pre>if x then if y then win (); else lose;
 if x then do; if y then win (); end; else lose;</pre>
-  The conflict exists because the grammar as written is ambiguous: either parsing of the simple nested if-statement is legitimate. The established convention is that these ambiguities are resolved by attaching the else-clause to the innermost if-statement; this is what is accomplished by choosing to shift rather than reduce. (It would ideally be cleaner to write an unambiguous grammar, but that is very hard to do in this case.) This particular ambiguity was first encountered in the specifications of Algol60 and is called the "dangling else" ambiguity.
+The conflict exists because the grammar as written is ambiguous: either parsing of the simple nested if-statement is legitimate. The established convention is that these ambiguities are resolved by attaching the else-clause to the innermost if-statement; this is what is accomplished by choosing to shift rather than reduce. (It would ideally be cleaner to write an unambiguous grammar, but that is very hard to do in this case.) This particular ambiguity was first encountered in the specifications of Algol60 and is called the "dangling else" ambiguity.
   </p>
   <p>The definition of <code>if_stmt</code> above is solely to blame for the conflict, but the conflict does not actually appear without additional rules. here is a complete input file that actually manifests the conflict:
   <pre>%token IF THEN ELSE variable
@@ -96,7 +96,7 @@ state 10
 	ELSE  shift 11
 	$end  reduce 3</pre>
   </p>
-  The output explains that state 10 has a conflict on the <code>ELSE</code>. The <code>shift 11</code> means that one action is to shift the <code>ELSE</code> and go to state 11 the other option is to reduce using rule 3 where rule 3 is with respect to the list at the beginning of the output file i.e.:
+The output explains that state 10 has a conflict on the <code>ELSE</code>. The <code>shift 11</code> means that one action is to shift the <code>ELSE</code> and go to state 11 the other option is to reduce using rule 3 where rule 3 is with respect to the list at the beginning of the output file i.e.:
   <pre>3  if_stmt : IF expr THEN stmt</pre>
 
   <h2>Operator precedence</h2>
@@ -112,7 +112,7 @@ state 10
   | expr '(' expr ')'
   ...
   ;</pre>
-  Suppose the parser has seen the tokens '<code>1</code>', '<code>-</code>' and '<code>2</code>'; should it reduce them via the rule for the subtraction operator? It depends on the next token. Of course, if the next token is '<code>)</code>', we must reduce; shifting is invalid because no single rule can reduce the token sequence '<code>- 2 )</code>' or anything starting with that. But if the next token is '<code>*</code>' or '<code><</code>', we have a choice : either shifting or reduction would allow the parse to complete, but with different results.
+Suppose the parser has seen the tokens '<code>1</code>', '<code>-</code>' and '<code>2</code>'; should it reduce them via the rule for the subtraction operator? It depends on the next token. Of course, if the next token is '<code>)</code>', we must reduce; shifting is invalid because no single rule can reduce the token sequence '<code>- 2 )</code>' or anything starting with that. But if the next token is '<code>*</code>' or '<code><</code>', we have a choice : either shifting or reduction would allow the parse to complete, but with different results.
   </p>
   <p>To decide which one the parser must do, we must consider the results. If the next operator token <i>op</i> is shifted, then it must be reduced first in order to permit another opportunity to reduce the sum. The result is (in effect), '<code>1 - (2 op 3)</code>'. On the other hand, if the subtraction is reduced before shifting <i>op</i>, the result is '<code>(1 - 2) op 3</code>'. Clearly, then, the choice of shift or reduce should depend on the relative precedence of the operators '<code>-</code>' and <i>op</i> : '<code>*</code>' should be shifted first, but not '<code>&lt;</code>'.
   </p>
@@ -130,7 +130,7 @@ state 10
   <pre>%left '<'
 %left '-'
 %left '*'</pre>
-  In a more complete example, which supports other operators as well, we would declare them in groups of equal precedence. For example, '<code>+</code>' is declared with '<code>-</code>':
+In a more complete example, which supports other operators as well, we would declare them in groups of equal precedence. For example, '<code>+</code>' is declared with '<code>-</code>':
   <pre>%left '<' '>' '=' NE LE GE
 %left '+' '-'
 %left '*' '/'</pre>
@@ -193,7 +193,7 @@ expr:
  | expr T_slash expr          { $1 / $3 }
  | T_minus expr %prec prec_uminus {- $2 }
  ;</pre>
-  Here is the definition for the corresponding lexer:
+Here is the definition for the corresponding lexer:
   <pre>(*File lexer.mll*)
 {
   open Parser
@@ -231,10 +231,253 @@ ocamlc -c parser.ml
 ocamlc -c calc.ml
 ocamlc -o calc lexer.cmo parser.cmo calc.cmo</pre>
   </p>
+
+  <h2>Resolving shift/reduce conflicts</h2>
+
+  <h3>Example 1</h3>
+  <p>This grammar is unambigous. <code>ocamlyacc</code> reports a shift/reduce conflict.
+  <pre>%token <string> T_ident
+%token T_lparen T_rparen T_semi T_dot T_int T_eq
+%start stmt
+%type &lt;unit%gt; stmt
+%%
+
+stmt:
+ | method_call                                         { () }
+ | array_assign                                        { () }
+ ;
+
+method_call:
+ | target T_lparen T_rparen  T_semi                    { () }
+ ;
+
+target:
+ | T_ident                                             { () }
+ | T_ident T_dot T_ident                               { () }
+ ;
+
+array_assign:
+ | T_ident T_lparen T_int T_rparen T_eq T_int T_semi   { () }
+ ;</pre>
+The output regarding the conflict reads:
+  <pre>3: shift/reduce conflict (shift 8, reduce 4) on T_lparen
+state 3
+	target : T_ident .  (4)
+	target : T_ident . T_dot T_ident  (5)
+	array_assign : T_ident . T_lparen T_int T_rparen T_eq T_int T_semi  (6)
+
+	T_lparen  shift 8
+	T_dot  shift 9</pre>
+This says : if there is a <code>T_ident</code> on the stack and the look-ahead token is '<code>(</code>', the parser cannot choose between shifting and reducing. We know the look-ahead symbols is '<code>(</code>' because it says that on the first line. We know the token on the top of the stack is <code>T_ident</code> because the three productions have a period after a <code>T_ident</code>. Most importantly, in the line "<code>target : T_ident .</code>", the period is <i>at the end</i> of the production, while in the other two lines it is in the middle. This is where the shift/reduce conflict comes in : there can be an input where, with <code>T_ident</code> on the stack and '<code>(</code>' in the input, the correct action is to reduce <code>T_ident</code> to <code>target</code> and another input that will later reduce to <code>target</code> but where shifting is the correct action.
+  </p>
+  <p>Looking back at the grammar, it is easy to see where an <code>T_ident</code> on the stack should be reduced to <code>target</code>. <code>target</code> is used in <code>method_call</code> and is followed by an <code>T_lparen</code>. So we can consider a simple sentence like "<code>x();</code>". It is also easy to see where this same configuration requires a shift action : in the rule for <code>array_assign</code>, a <code>T_ident</code> is followed by a '<code>(</code>' and the <code>'('</code> should be shifted so that eventually this production can reduced. This suggests a sentence like "<code>x(1) = 2;</code>". Let us look at the parse trees for these two inputs. The parse tree involving the <code>array_assign</code> rule looks like this:
+<div align="center"><img src="img/pt2.png"/></div>
+The parse tree involving the <code>target</code> rule looks like this:
+<div align="center"><img src="img/pt1.png"/></div>
+Thus we see where the conflict comes in : in the bottom image, the <code>x</code> needs to be reduced to put <code>target</code> on the stack, in the top image the '<code>(</code>' needs to be shifted.
+  </p>
+  <p>We can resolve the conflict here by observing that the <code>target &rarr; ident</code> production is what's causing the problem. Suppose we eliminate it and just put the <code>T_ident</code> directly in the <code>method_call</code> production:
+  <pre>method_call:
+ | target T_lparen T_rparen  T_semi                    { () }
+ | T_ident T_lparen T_rparen T_semi                    { () }
+ ;
+
+target:
+ | T_ident T_dot T_ident                               { () }
+ ;</pre>
+Now the parse tree for "<code>x();</code>" is:
+<div align="center"><img src="img/pt3.png"/></div>
+and there is no conflict : with <code>x</code> on the stack and '<code>(</code>' as the look-ahead symbol, the correct action in both cases is to shift. (Note that the other kind of target <code>T_ident T_dot T_ident</code>, does not present a problem; a period in the input should always be shifted; while, if the stack contains "<code>T_ident T_dot T_ident</code>" and the look-ahead token is '<code>(</code>' the correct action is to reduce.)
+  </p>
+
+  <h3>Example 2</h3>
+  <p>This grammar too is unabmiguous. <code>ocamlyacc</code> reports a shift/reduce conflict.
+  <pre>%token <string> T_ident
+%token T_lbrace T_rbrace T_return T_semi T_plus T_eq
+%start method_body
+%type <unit> method_body
+%%
+
+method_body:
+ | T_lbrace stmt_list T_return T_ident T_semi T_rbrace { () }
+ ;
+
+stmt_list:
+ | stmt stmt_list                                      { () }
+ | stmt                                                { () }
+ ;
+
+stmt:
+ | T_return T_ident T_semi                             { () }
+ | T_ident T_eq T_ident T_plus T_ident T_semi          { () }
+ ;</pre>
+The output regarding this conflict reads:
+  <pre>7: shift/reduce conflict (shift 4, reduce 3) on T_return
+state 7
+	stmt_list : stmt . stmt_list  (2)
+	stmt_list : stmt .  (3)
+
+	T_ident  shift 3
+	T_return  shift 4
+
+	stmt_list  goto 11
+	stmt  goto 7</pre>
+This says : when <code>stmt</code> is on the stack (more precisely, a parse tree whose root is labeled <code>stmt</code>), and the '<code>return</code>' keyword is in the input, the parser can either shift the token or reduce by <code>stmt_list &rarr; stmt</code>. We know this is the reduction because in the fourth line, the period appears at the end of the production.
+  </p>
+  <p>Again, let us look for sentences that illustrate the conflict. We want to look for an example of using each of the two productions for <code>stmt_list</code>. This is not hard : the <code>stmt_list &rarr; stmt stmt_list</code> proudction is used whenever the method body has more than one statement (not counting the ending "return" statement); the <code>stmt_list &rarr; stmt</code> is always used, even if the method body just has one statement. So let's try those two possibilities "<code>{return x; return y; return z;}</code>" and "<code>{return x; return y;}</code>". Here is the parse tree for the first sentence:
+<div align="center"><img src="img/pt4.png"/></div>
+Here is the parse tree for the second sentence:
+<div align="center"><img src="img/pt5.png"/></div>
+Here is the problem : in both cases, after shifting "<code>return x;</code>", we reduce to <code>stmt</code>. Now the stack contains <code>stmt</code> and the input is "<code>return</code>". However, in the first parse tre we need to continue shifting so that we can eventually reduce "<code>return y;</code>" to <code>stmt</code>, then to <code>stmt_list</code> and finally use <code>stmt_list &rarr; stmt stmt_list</code>; in the second parse tree, we should instead immediately reduce using <code>stmt_list &rarr; stmt</code>.
+  </p>
+  <p>In this case, the conflict can be resolved simply by using left-recursion in the <code>stmt_list</code> productions instead of right-recursion:
+  <pre>stmt_list:
+ | stmt_list stmt                                      { () }
+ | stmt                                                { () }
+ ;</pre>
+Now the first sentence has this parse tree:
+<div align="center"><img src="img/pt6.png"/></div>
+and the second sentence has this parse tree:
+<div align="center"><img src="img/pt5.png"/></div>
+The second sentence's parse tree is unchanged. But now consider the tree on the left and note what happens after we've reduced "<code>return x;</code>" to <code>stmt</code> and we see "<code>return</code>" as the look-ahead token : we reduce to <code>stmt_list</code>. So there is no longer a choice : with <code>stmt</code> on the stack and "<code>return</code>" in the input, reduce by <code>stmt_list &rarr; stmt</code>. (Recall that left-recursion can never be used in top-down parsing; in bottom-up parsing, both left- and right-recursion are possible, but left-recursion often works better.)
+  </p>
+
+  <h3>Example 3</h3>
+  <p>This is our ambiguous expression grammar:
+  <pre>expr &rarr; expr '+' expr | expr '*' expr | ident | '(' expr ')' </pre>
+In terms of <code>ocamlyacc</code> input this is written:
+  <pre>%token T_plus T_star T_ident T_lparen T_rparen
+%start expr
+%type <unit> expr
+%%
+
+expr:
+ | expr T_plus expr                     { () }
+ | expr T_star expr                     { () }
+ | T_ident                              { () }
+ | T_lparen expr T_rparen               { () }
+ ;</pre>
+There are 4 shift/reduce conflicts for this grammar. It is probably safe to say that most grammar conflicts reported by <code>ocamlyacc</code> are a result of ambiguity in the grammar. No ambiguous grammar can be conflict-free. Here is part of the output for this grammar:
+  <pre>10: shift/reduce conflict (shift 7, reduce 1) on T_plus
+10: shift/reduce conflict (shift 8, reduce 1) on T_star
+state 10
+	expr : expr . T_plus expr  (1)
+	expr : expr T_plus expr .  (1)
+	expr : expr . T_star expr  (2)
+
+	T_plus  shift 7
+	T_star  shift 8
+	$end  reduce 1
+	T_rparen  reduce 1</pre>
+As you can see, there are two conflicts in this one rule. (In this grammar '<code>+</code>' and '<code>*</code>' are treated identically, so any conflicts will involve both of them or neither. The other two conflicts are similarly associated with a single state but we won't discuss that here because it's quite similar.)
+  </p>
+  <p>As usual, we see one production here that has the period all the way on the right. This says that the parser can get to a state in which the stack contains "<code>expr T_plus expr</code>" and if the look-ahead symbol is either '<code>+</code>' or '<code>*</code>', it cannot know whether to shift or reduce by that production.
+  </p>
+  <p>The problem here is directly related to the ambiguity of the grammar. Consider the input "<code>x + y + z</code>". It has two parse trees:
+<div align="center"><img src="img/pt7.png"/><img src="img/pt8.png"/></div>
+It may not be obvious, but in each case, we get to a point where we have "<code>expr + expr</code>" on the stack. In both cases, the parse begins by shifting and reducing <code>x</code>, shifting <code>+</code> and shifting and reducing <code>y</code>, leaving "<code>expr + expr</code>" on the stack and <code>+</code> as the look-ahead symbol. But at this point we make a different choice : If we now reduce using <code>expr &rarr; expr + expr</code>, we will get the tree on the left; if we shift the <code>+</code>, we will reduce using <code>expr &rarr; expr + expr</code> later and end up with the tree on the right.
+  </p>
+  <p>Both actions are "correct" in the sense that they will lead to a parse tree for the input, but we know they are not both "correct" in the sense of the language semantics; plus should associate to the left, so the tree on the left is the one we want. The same issue arises if we mix plus and times in an expression : the parse tree should reflect the precedence of times over plus.
+  </p>
+  <p>For this grammar, there are two solutions.
+  </p>
+  <h4>Solution 1</h4>
+  <p>We can modify the grammar, turning it into a "stratified" grammar:
+  <pre>expr &rarr; expr + term | term
+term &rarr; term * factor | factor
+factor &rarr; ident | (expr)</pre>
+You might care to convince yourselft that this grammar is unambigous. The only parse tree for "<code>x + y + z</code>" is:
+<div align="center"><img src="img/pt9.png"/></div>
+which correctly associates to the left.
+  </p>
+  <h4>Solution 2</h4>
+  <p><code>ocamlyacc</code> provides a completely different way of solving this problem, using associativity and precedence declarations. To understand these, consider the four situations that lead to conflict in this grammar:
+  <ol>
+    <li>Stack contains : <code>expr + expr</code>, look-ahead token is <code>+</code></li>
+    <li>Stack contains : <code>expr + expr</code>, look-ahead token is <code>*</code></li>
+    <li>Stack contains : <code>expr * expr</code>, look-ahead token is <code>+</code></li>
+    <li>Stack contains : <code>expr * expr</code>, look-ahead token is <code>*</code></li>
+  </ol>
+Consider first what the correct parse trees are in each of these cases. Since both <code>+</code> and <code>*</code> are left-associative in cases 1 and 4 we want a tree that "leans to the left". Since <code>*</code> has precedence over <code>+</code>, we also want a tree that "leans to the left". However, for the same reason, in case 2, we want the tree to "lean to the right".
+  </p>
+  <p>Now think of these cases in terms of parse actions. In each of the four cases, reducing by the approriate production (either <code>expr &rarr; expr + expr</code> or <code>expr &rarr; expr * expr</code>) will produce the left-leaning tree, while shifting will produce the right-leaning tree. If we only had a way to tell the parser : "When this conflict arises, reduce in every case except case 2.". More precisely, "if the top-most symbol on the stack is <code>+</code>, then if the look-ahead token is <code>*</code>, shift, and if the look-ahead symbol is <code>+</code>, reduce; if the top-most symbol on the stack is <code>*</code>, then if the lookahead symbol is either <code>+</code> or <code>*</code>, reduce.". Or, more generally: "If the top-most symbol on the stack is the same as the look-ahead symbol, then reduce; otherwise, if the look-ahead symbol has lower precedence, reduce, and if it has higher precedence, shift.".
+  </p>
+  <p><code>ocamlyacc</code> provides a a way to say exactly that to the parser generator. Just after the <code>%token</code> line, add these two lines:
+  <pre>%left T_plus
+%left T_star</pre>
+These indicate that both are left-associative, and, because the <code>T_plus</code> comes first, it has lower precedence. Because the grammar itself has not changed, the number of "states", and in fact the overall structure of the output, will be the same. So we can look directly at the corresponding place in the output:
+  <pre>state 10
+	expr : expr . T_plus expr  (1)
+	expr : expr T_plus expr .  (1)
+	expr : expr . T_star expr  (2)
+
+	T_star  shift 8
+	$end  reduce 1
+	T_plus  reduce 1
+	T_rparen  reduce 1</pre>
+As you can see, this looks almost identical (except there are no conflicts reported). The important difference is in the last line. Previouly, there was a line "<code>T_plus shift 7</code>" indicating that when the stack had <code>expr + expr</code> on top and the look-ahead symbol was <code>+</code>, the parser would shift. As we have seen, this would lead to a right-associating parse. Now, we have "<code>T_plus reduce 1</code>", indicating to reduce in that case, giving the correct left-leaning tree. When star is the look-ahead token, it still shifts giving the correct <i>right</i>-leaning tree.
+  </p>
+  <p>As another sanity check, let's look at the analogous case for <code>*</code> : when the stack has <code>expr * expr</code> on the top and the look-ahead symbol is <code>+</code> or <code>*</code>. The parser should reduce in both cases - in the first case because <code>*</code> has higher precedence than <code>+</code> and in the second because <code>*</code> is left-associative. Here is what the corresponding part of the output says:
+  <pre>state 11
+	expr : expr . T_plus expr  (1)
+	expr : expr . T_star expr  (2)
+	expr : expr T_star expr .  (2)
+
+	.  reduce 2</pre>
+And that is exactly what it does, as shown in the very last line.
+  </p>
+
+  <h3>Example 4</h3>
+  <p><pre>stmt &rarr; ident = ident | if (ident) stmt | if (ident) stmt else stmt</pre>
+This grammar represents in simplified form, the syntax of if statements in C or Java. The condition has been simplified and included just one other statement in order to focus on the interesting part of this which is the optional "else" clause. This grammar is ambiguous:
+  <pre>%token T_ident T_lparen T_rparen T_if T_else T_eq
+
+%start stmt
+%type <unit> stmt
+%%
+
+stmt:
+ | T_ident T_eq T_ident                               { () }
+ | T_if T_lparen T_ident T_rparen stmt                { () }
+ | T_if T_lparen T_ident T_rparen stmt T_else stmt    { () }
+ ;</pre>
+Here's the relevant part of the output:
+  <pre>11: shift/reduce conflict (shift 12, reduce 2) on T_else
+state 11
+	stmt : T_if T_lparen T_ident T_rparen stmt .  (2)
+	stmt : T_if T_lparen T_ident T_rparen stmt . T_else stmt  (3)
+
+	T_else  shift 12
+	$end  reduce 2</pre>
+Here's what it says : If we have "<code>if (s) stmt</code>" on the stack, and the look-ahead token is "<code>else</code>", the we don't know whether to shift or reduce. Again, we should see if we can find a statement that gets us into the problem. Doing so will reveal the source of the ambiguity. A first try might be the statement "<code>if (x) y = y else z = z</code>". This does lead to a state in which the stack contains "<code>if (x) stmt</code>" and the input token is "<code>else</code>". However, there is no ambiguity here; the only correct action is shift which produces this (correct) parse tree:
+<div align="center"><img src="img/pt10.png"/></div>
+Looking closer, we can find another sentence that leads to this stack configuration, and which does cause a problem: "<code>if (x) if (y) z = z else w = w</code>". This is a nested if, and the problem is that the else clause may belong to either the first or second if. That is, if we had braces, we might disambiguate this either as "<code>if (x) { if (y) z = z else w = w}</code>" or "<code>if (x) { if (y) z = z} else w = w</code>". We don't have braces but that's really not the point : the point is that the parser will produce a parse tree that reflects one of these two ways of interpreting the statement. It will be one of these:
+<div align="center"><img src="img/pt11.png"/></div>
+<div align="center"><img src="img/pt12.png"/></div>
+These trees represent the two ways of grouping the statements, that is, they say which "if" the "else" belongs to. They represent different meanings for the statmement - in the first, "<code>w = w</code>" is executed only if <code>x</code> and <code>y</code> are false, while in the second, it is executed if <code>x</code> is false - and therefore only one of them can be correct.
+  </p>
+   <p>Again, both parse trees lead to a configuration of the form "<code>if (ident) stmt</code>" with <code>else</code> in the input. More specifically, in both cases the the entire stack will contain "<code>if (x) if (y) stmt</code>". The first tree will be obtained if we shift the else; this will eventually lead to the configuration "<code>if (x) if (y) stmt else stmt</code>" and we will then reduce by <code>stmt &rarr; if (ident) stmt else stmt</code> and then by <code>stmt &rarr; if (ident) stmt</code>. The second will be obtained if we reduce by <code>stmt &rarr; if (ident) stmt</code>; we will then end up with the configuration "<code>if (x) stmt else stmt</code>" and reduce by <code>stmt &rarr; if (ident) stmt else stmt</code>. (The difference is which production we reduce by first.)
+   </p>
+   <p>So, the question is whether to shift or reduce, which comes down to the question : which parse tree is correct, in the sense that it gives the meaning the language specification requires. In fact, in every programming language you've ever used, the specification says that the first parse given above is the correct one - it associates the else clause with the closest if. To put it differently, it corresponds to what you intend if you write the statement with this indentation:
+  <pre>if (x)
+  if (y)
+    z = z
+  else
+    w = w</pre>
+So, how do we resolve the conflict? We again have two choices : either modify the grammar, or use an <code>ocamlyacc</code> trick. In this case, modifying the actual grammar is actually quite tricky.
+   </p>
+  <p>Here's the <code>ocamlyacc</code> trick : don't do anything. We can see from our discussion above that the correct action when this conflict arises - when "<code>if (ident) stmt</code>" is on the stack and else is the look-ahead token - is to shift. Now look again at the <code>ocamlyacc</code> output above. It says, "<code>else shift 12</code>" indicating it will shift when it sees an else. In other words, <code>ocamlyacc</code> does the the right thing - at least it's right in this case - without our doing anything.
+  </p>
+  <p>The only remaining issue is that it is annoying to keep getting the error message, even if we know it's harmless. You can avoid that with yet another <code>ocamlyacc</code> trick:
+  <pre>
+  </pre>
+  </p>
   <hr/>
   <p>References:<br/>
    [1] "BISON : The YACC-Compatible Parser Generator" -- Donelly & Stallman, 1995<br/>
-   [2] <a href="http://caml.inria.fr/pub/docs/manual-ocaml-4.00/manual026.html">Chapter 12 Lexer and parser generators (ocamllex, ocamlyacc)</a> (The OCaml system release 4.04) -- Leroy et.al.
+   [2] <a href="http://caml.inria.fr/pub/docs/manual-ocaml-4.00/manual026.html">Chapter 12 Lexer and parser generators (ocamllex, ocamlyacc)</a> (The OCaml system release 4.04) -- Leroy et.al.<br/>
+   [3] <a href="https://courses.engr.illinois.edu/cs421/sp2010/lectures/lecture%2010%20supp.pdf">"Notes on shift-reduce parsing and resolving conflicts in <code>ocamlyacc</code>" -- <a href="http://kamin.cs.illinois.edu/">Prof. Kamin )University of Illinois</a>
   </p>
+  
   </body>
 </html>
