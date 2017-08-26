@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+<style>
+.keyword { font-weight : bold ; color : Red }
+.keywordsign { color : #C04600 }
+.comment { color : Green }
+.constructor { color : Blue }
+.type { color : #5C6585 }
+.string { color : Maroon }
+.warning { color : Red ; font-weight : bold }
+.info { margin-left : 3em; margin-right: 3em }
+.param_info { margin-top: 4px; margin-left : 3em; margin-right : 3em }
+.code { color : #465F91 ; }
+pre { margin-bottom: 4px; font-family: monospace; }
+pre.verbatim, pre.codepre { }</style>
+  <title>RecordIO</title>
+  </head>
+  <body>
+   <p>
+     RecordIO format is a format suitable for implementing a streaming response. One particular real world API gives a BNF grammar for their RecordIO-encoded streaming response as:
+    <span align="left">
+      <pre><code>    &lt;records&gt; := &lt;record&gt;*
+    &lt;record&gt;  ::= &lt;record-size&gt; line-feed &lt;record-data&gt;    
+    &lt;record-size&gt; ::= 1 digit*
+    &lt;record-data&gt; ::= octet octet ... octet {record-size times}
+    </code></pre></span>
+    In the above, <code>record-size</code> should be interpreted as an unsigned 64-bit integer and there is one more rule to the game : you can't assume anything about the chunk boundaries.
+    </p>
+    <p>Here's a general parser for the above specification. The core function of the implementation is <code>read</code>. Explanation of the code is given inline in comments.
+
+<pre><code class="code"><span class="keyword">open</span> <span class="constructor">Core</span>
+<span class="keyword">open</span> <span class="constructor">Async</span>
+
+<span class="comment">(* [read buf] tries to read a record from the provided buffer. The
+   result is a pair of strings : the first field of the pair is empty
+   or a record, the second field is that part of [buf] that remains
+   unconsumed. *)</span>
+<span class="keyword">let</span> read (buf : string) : (string * string) =
+  <span class="keyword">let</span> (rec_size_, rec_size) =
+    <span class="keyword">match</span> <span class="constructor">String</span>.lsplit2 ~on:(<span class="string">'\n'</span>) buf <span class="keyword">with</span>
+    <span class="keywordsign">|</span> <span class="constructor">None</span> <span class="keywordsign">-&gt;</span>
+      <span class="comment">(* The newline that terminates a record size not available
+         yet. *)</span>
+      (<span class="string">""</span>, <span class="constructor">Int64</span>.zero)
+    <span class="keywordsign">|</span> <span class="constructor">Some</span> (rec_size, _) <span class="keywordsign">-&gt;</span>
+      <span class="comment">(* Parse out the size of the coming record. *)</span>
+      rec_size, <span class="constructor">Int64</span>.of_string rec_1size
+  <span class="keyword">in</span> <span class="keyword">match</span> rec_size_ = <span class="string">""</span> <span class="keyword">with</span>
+  <span class="keywordsign">|</span> <span class="keyword">true</span> <span class="keywordsign">-&gt;</span>
+    <span class="comment">(* No size available, no record. All of [buf] remains unconsumed. *)</span>
+    <span class="string">""</span>, buf
+  <span class="keywordsign">|</span> <span class="keyword">false</span> <span class="keywordsign">-&gt;</span>
+    <span class="comment">(* We know the size of the next record. *)</span>
+    <span class="keyword">let</span> len = <span class="constructor">String</span>.length buf - (<span class="constructor">String</span>.length rec_size_ + 1) <span class="keyword">in</span>
+    <span class="keyword">match</span> (<span class="keyword">let</span> <span class="keyword">open</span> <span class="constructor">Int64</span>.<span class="constructor">O</span> <span class="keyword">in</span> (<span class="constructor">Int64</span>.of_int len) &lt; rec_size) <span class="keyword">with</span>
+    <span class="keywordsign">|</span> <span class="keyword">true</span> <span class="keywordsign">-&gt;</span>
+      <span class="comment">(* Not all of the record data is yet available. All of [buf]
+         remains unconsumed. *)</span>
+      <span class="string">""</span>, buf
+    <span class="keywordsign">|</span> <span class="keyword">false</span> <span class="keywordsign">-&gt;</span>
+      <span class="comment">(* Compute the slice of [buf] that contains the record data. *)</span>
+      <span class="keyword">let</span> start = (<span class="constructor">String</span>.length rec_size_ + 1) <span class="keyword">in</span>
+      <span class="keyword">let</span> stop = start + (<span class="constructor">Option</span>.value_exn (<span class="constructor">Int64</span>.to_int rec_size)) <span class="keyword">in</span>
+      (
+        <span class="comment">(* A record. *)</span>
+        <span class="constructor">String</span>.slice buf start stop,
+        <span class="keyword">if</span> stop + 1 &gt;= <span class="constructor">String</span>.length buf <span class="keyword">then</span>
+          <span class="comment">(* There's no trailing characters after the record (that
+             part of [buf] that remains unconsumed). *)</span>
+          <span class="string">""</span>
+        <span class="keyword">else</span>
+          <span class="comment">(* Compute the slice of [buf] that contains the start of the
+             next record (that part of [buf] that remains
+             unconsumed). *)</span>
+          <span class="keyword">let</span> start = stop <span class="keyword">in</span>
+          <span class="keyword">let</span> stop = <span class="constructor">String</span>.length buf <span class="keyword">in</span>
+          <span class="constructor">String</span>.slice buf start stop
+      )
+</code></pre>
+Assuming that the streaming response is coming down a <a href="https://ocaml.janestreet.com/ocaml-core/111.28.00/doc/async/#Std.Pipe"><code>Async.Pipe</code></a>, it's then natural to abstract over <code>read</code> with a higher-order function <code>with_record</code>
+<pre><code class="code"><span class="comment">(* [with_pipe ~f ~exhausted buf pipe] reads a record from the pipe and
+   invokes [f] on it. If the pipe is dry, then [exhausted] is
+   invoked. *)</span>
+<span class="keyword">let</span> with_record (buf, pipe) ~f ~exhausted =
+  <span class="keyword">let</span> <span class="keyword">rec</span> loop buf pipe =
+    <span class="constructor">Pipe</span>.read pipe &gt;&gt;= <span class="keyword">function</span>
+    <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Eof</span> <span class="keywordsign">-&gt;</span> exhausted ()
+    <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Ok</span> s <span class="keywordsign">-&gt;</span>
+      <span class="keyword">match</span> read (buf ^ s) <span class="keyword">with</span>
+      <span class="keywordsign">|</span> <span class="string">""</span>, buf <span class="keywordsign">-&gt;</span> loop buf pipe
+      <span class="keywordsign">|</span> (record, buf) <span class="keywordsign">-&gt;</span> f record (buf, pipe) <span class="keyword">in</span>
+  loop buf pipe
+</code></pre>
+    </p>
+    <p>Clients of this function can be spared knowledge of the buffer. Accordingly, we add the following type definition for the stream and a factory function for initializing one from a pipe:
+<pre><code class="code"><span class="keyword">type</span> t = (string * string <span class="constructor">Pipe</span>.<span class="constructor">Reader</span>.t)
+
+<span class="keyword">let</span> create pipe = (<span class="string">""</span>, pipe)
+</code></pre>
+</p>
+<p>
+The corresponding module signature marks this type abstract:
+<pre><code class="code"><span class="keyword">open</span> <span class="constructor">Core</span>
+<span class="keyword">open</span> <span class="constructor">Async</span>
+
+<span class="comment">(* The type of a record stream. *)</span>
+<span class="keyword">type</span> t
+
+<span class="keyword">val</span> create : string <span class="constructor">Pipe</span>.<span class="constructor">Reader</span>.t <span class="keywordsign">-&gt;</span> t
+<span class="comment">(* [create pipe] makes a record stream from [pipe]. *)</span>
+
+<span class="keyword">val</span> with_record:
+    t <span class="keywordsign">-&gt;</span>
+    f : (string <span class="keywordsign">-&gt;</span> t <span class="keywordsign">-&gt;</span> <span class="keywordsign">'</span>a <span class="constructor">Deferred</span>.t) <span class="keywordsign">-&gt;</span>
+    exhausted : (unit <span class="keywordsign">-&gt;</span> <span class="keywordsign">'</span>a <span class="constructor">Deferred</span>.t) <span class="keywordsign">-&gt;</span>
+    <span class="keywordsign">'</span>a  <span class="constructor">Deferred</span>.t
+<span class="comment">(* [with_record ~f ~exhausted stream] reads a record from the stream
+    and invokes [f] on it. If there are no more records in the stream
+    then [exhausted] is invoked. *)</span>
+</code></pre>
+    </p>
+   <p>The following fragment gives an idea of how this interface might be used to implement an "event-loop".
+<pre><code class="code"><span class="keyword">let</span> handle_events
+      ((({status;headers;_}), body) :
+         (<span class="constructor">Cohttp_async</span>.<span class="constructor">Response</span>.t * <span class="constructor">Cohttp_async</span>.<span class="constructor">Body</span>.t))
+    : unit <span class="constructor">Deferred</span>.<span class="constructor">Or_error</span>.t =
+  <span class="comment">(* [exhausted ()] will be invoked when there's no more
+      events. *)</span>
+  <span class="keyword">let</span> exhausted () =
+    return @@ <span class="constructor">Ok</span> () <span class="keyword">in</span>
+  <span class="comment">(* [f event events] handles the provided [event] then calls
+      [with_record ~f ~exhausted events] to handle the
+      subsequent events. *)</span>
+  <span class="keyword">let</span> <span class="keyword">rec</span> f (event : string)
+            (events : <span class="constructor">Record_io</span>.t) : unit <span class="constructor">Or_error</span>.t <span class="constructor">Deferred</span>.t =
+    handle_event (of_string event) &gt;&gt;= <span class="keyword">fun</span> () <span class="keywordsign">-&gt;</span>
+      <span class="constructor">Record_io</span>.with_record ~f ~exhausted events <span class="keyword">in</span>
+  <span class="comment">(* Event loop. *)</span>
+  <span class="constructor">Record_io</span>.with_record
+    ~f
+    ~exhausted
+    (<span class="constructor">Record_io</span>.create (<span class="constructor">Cohttp_async</span>.<span class="constructor">Body</span>.to_pipe body))
+</code></pre>
+   </p>
+  </body>
+</html>
