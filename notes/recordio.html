@@ -79,9 +79,7 @@ pre.verbatim, pre.codepre { }</style>
       )
 </code></pre>
 Assuming that the streaming response is coming down a <a href="https://ocaml.janestreet.com/ocaml-core/111.28.00/doc/async/#Std.Pipe"><code>Async.Pipe</code></a>, it's then natural to abstract over <code>read</code> with a higher-order function <code>with_record</code>
-<pre><code class="code"><span class="comment">(* [with_pipe ~f ~exhausted buf pipe] reads a record from the pipe and
-   invokes [f] on it. If the pipe is dry, then [exhausted] is
-   invoked. *)</span>
+<pre><code class="code">
 <span class="keyword">let</span> with_record (buf, pipe) ~f ~exhausted =
   <span class="keyword">let</span> <span class="keyword">rec</span> loop buf pipe =
     <span class="constructor">Pipe</span>.read pipe &gt;&gt;= <span class="keyword">function</span>
