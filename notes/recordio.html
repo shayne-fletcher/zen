@@ -45,7 +45,7 @@ pre.verbatim, pre.codepre { }</style>
       (<span class="string">""</span>, <span class="constructor">Int64</span>.zero)
     <span class="keywordsign">|</span> <span class="constructor">Some</span> (rec_size, _) <span class="keywordsign">-&gt;</span>
       <span class="comment">(* Parse out the size of the coming record. *)</span>
-      rec_size, <span class="constructor">Int64</span>.of_string rec_1size
+      rec_size, <span class="constructor">Int64</span>.of_string rec_size
   <span class="keyword">in</span> <span class="keyword">match</span> rec_size_ = <span class="string">""</span> <span class="keyword">with</span>
   <span class="keywordsign">|</span> <span class="keyword">true</span> <span class="keywordsign">-&gt;</span>
     <span class="comment">(* No size available, no record. All of [buf] remains unconsumed. *)</span>
