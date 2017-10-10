@@ -7,19 +7,19 @@ open Format
 (*[line i f s] formats whitespace on [pp] proportional to the depth
   indicator [i] before computing the format operation indicated by
   [s]*)
-let line 
-    (i : int) 
-    (ppf : formatter) 
+let line
+    (i : int)
+    (ppf : formatter)
     (s : ('a, formatter, unit) format) : 'a =
   fprintf ppf "%s" (String.make ((2 * i) mod 72) ' ');
   fprintf ppf s
 
 (*[pair i f ppf p] formats a pair on [ppf] with a depth indicator
   given by [i] by way of [f]*)
-let pair 
+let pair
     (i : int)
     (f : int -> formatter -> 'a -> 'b)
-    (ppf:formatter) 
+    (ppf:formatter)
     ((u, v) : 'a * 'a ) : unit =
     line i ppf "(\n";
     f (i + 1) ppf u;
@@ -28,7 +28,7 @@ let pair
 
 (*[list i f ppf p] formats a list on [ppf] with a depth indicator
   given by [i] by way of [f]*)
-let list 
+let list
     (i : int)
     (f : int -> formatter -> 'a -> unit)
     (ppf : formatter)
@@ -86,24 +86,24 @@ let fmt_ident_loc (ppf : formatter) (x : string Ml_location.loc) : unit =
   fprintf ppf "\"%s\" %a" x.txt fmt_location x.loc
 
 (*Format function for top-level phrases*)
-let rec toplevel_phrase 
-    (i : int) 
-    (ppf : formatter) 
+let rec toplevel_phrase
+    (i : int)
+    (ppf : formatter)
     (x : toplevel_phrase) : unit =
   match x with
   | Ptop_def s ->
     line i ppf "Ptop_def\n";
     structure (i + 1) ppf s
 (*Format function for structures*)
-and structure 
-    (i : int) 
-    (ppf : formatter) 
-    (x : structure) : unit = 
-  list i structure_item ppf x 
+and structure
+    (i : int)
+    (ppf : formatter)
+    (x : structure) : unit =
+  list i structure_item ppf x
 (*Format function for structure items*)
-and structure_item 
-    (i : int) 
-    (ppf : formatter) 
+and structure_item
+    (i : int)
+    (ppf : formatter)
     (x : structure_item) : unit =
   line i ppf "structure_item %a\n" fmt_location x.pstr_loc;
   let i = i + 1 in
@@ -122,7 +122,7 @@ and pattern (i : int) (ppf : formatter) (x : pattern) : unit =
   | Ppat_any -> line i ppf "Ppat_any\n";
   | Ppat_var s -> line i ppf "Ppat_var %a\n" fmt_string_loc s;
   | Ppat_constant c -> line i ppf "Ppat_constant %a\n" fmt_constant c;
-  | Ppat_construct (li, po) -> 
+  | Ppat_construct (li, po) ->
     line i ppf "Ppat_construct %a\n" fmt_ident_loc li;
     option i pattern ppf po
   | Ppat_tuple l ->

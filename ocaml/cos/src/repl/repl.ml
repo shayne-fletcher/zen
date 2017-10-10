@@ -1,5 +1,5 @@
-let parse 
-    (pe : 'a -> Lexing.lexbuf -> 'b) 
+let parse
+    (pe : 'a -> Lexing.lexbuf -> 'b)
     (le : 'a)
     (lexbuf : Lexing.lexbuf)  : 'b =
   try
@@ -10,8 +10,8 @@ let parse
     raise (Ml_syntaxerr.Error (Ml_syntaxerr.Other loc))
   | x -> raise x
 
-let from_bytes ?(file : string = "<string>") (str : string) 
-    (pe : 'a -> Lexing.lexbuf -> 'b) 
+let from_bytes ?(file : string = "<string>") (str : string)
+    (pe : 'a -> Lexing.lexbuf -> 'b)
     (le : 'a)
      =
   let set_filename lexbuf name =
@@ -36,13 +36,13 @@ let safe_proc ?finally f =
   try f ()
   with exn -> handle_interpreter_error ?finally exn
 
-let reduce 
+let reduce
     (eval : 'b -> 'c)
     (pe : 'd -> Lexing.lexbuf -> 'b)
     (le : 'd)
-    (to_bytes : 'c -> 'e) 
+    (to_bytes : 'c -> 'e)
     (buf : Buffer.t) : 'e =
-  let t = 
+  let t =
     eval (from_bytes (Buffer.contents buf) pe le) in
   to_bytes t
 
@@ -50,10 +50,10 @@ let repl
     (eval : 'b -> 'c)
     (pe : 'd -> Lexing.lexbuf -> 'b)
     (tok : 'd)
-    (to_bytes : 'c -> 'e) : unit = 
+    (to_bytes : 'c -> 'e) : unit =
   let initial_capacity = 4*1024 in
   let buf = Buffer.create initial_capacity in
-  try 
+  try
     while true do
       let f () =
         let l = read ((Buffer.length buf)!=0) in
