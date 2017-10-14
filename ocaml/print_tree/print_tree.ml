@@ -26,8 +26,11 @@ let rec print_tree
 let tree =
   `Node ("."
         , [
-            `Node ("S", [`Node ("T", [`Node ("U", [])])])
-          ;  `Node ("V", [])
+            `Node ("S", [
+                      `Node ("T", [
+                                `Node ("U", [])]);
+                      `Node ("V", [])])
+          ;  `Node ("W", [])
           ])
 ;;
 
