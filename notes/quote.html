@@ -1,0 +1,78 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .keyword { font-weight : bold ; color : Red }
+      .keywordsign { color : #C04600 }
+      .comment { color : Green }
+      .constructor { color : Blue }
+      .type { color : #5C6585 }
+      .string { color : Maroon }
+      .warning { color : Red ; font-weight : bold }
+      .info { margin-left : 3em; margin-right: 3em }
+      .param_info { margin-top: 4px; margin-left : 3em; margin-right : 3em }
+      .code {
+      color : #465F91 ; 
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace; 
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Quoting</title>
+  </head>
+  <body>
+    <p>
+According to the lexical conventions of OCaml, characters different from <code class="code">\</code> and <code class="code">"</code> can be enclosed in single quotes and appear in strings. The special characters <code class="code">\</code> and <code class="code">"</code> are represented in these contexts by their <em>escape sequences</em>. The 
+escape sequence <code class="code">\\</code> denotes the character <code class="code">\</code> and <code class="code">\"</code> denotes the character <code>"</code>.
+</p>
+<p>Here we print the string <code class="code">"Hello world!</code>". The quotes delimit the string and are not themselves part of the string.
+<pre><code class="code">utop[0]&gt; <span class="constructor">Caml</span>.<span class="constructor">Printf</span>.printf <span class="string">"Hello world!"</span>;;
+<span class="string">Hello world!</span>- : unit = ()
+</code></pre>
+<p>
+To capture the quotes we need to write them into the string by their escape sequence.
+<pre><code class="code">utop[1]&gt; <span class="constructor">Caml</span>.<span class="constructor">Printf</span>.printf <span class="string">"\"Hello world!\""</span>;;
+<span class="string">"Hello world!"</span>- : unit = ()
+</code></pre>
+</p>
+<p>
+What now if we wish to quote a string within a string?
+<pre><code class="code">utop[3]&gt; <span class="constructor">Caml</span>.<span class="constructor">Printf</span>.printf 
+<span class="string">"\"A quoted string with \\\"a nested quoted string\\\"\""</span>;;
+<span class="string">"A quoted string with \"a nested quoted
+string\""</span>- : unit = ()
+</code></pre>
+<p>
+We see that in rendering the above string, <code class="code">printf</code> has rendered the escape sequence <code class="code">\"</code> as <code class="code">"</code> and <code class="code">\\\"</code> as <code class="code">\"</code> as required. The pattern continues if we now wish to quote a string within a quoted string within a quoted string.
+<pre><code class="code">utop[4]&gt; <span class="constructor">Caml</span>.<span class="constructor">Printf</span>.printf 
+<span class="string">"\"A quoted string with \\\"a nested \\\\\\\"nested\\\\\\\"
+quoted string\\\"\""</span>;;
+<span class="string">"A quoted string with \"a nested \\\"nested\\\"
+quoted string\""</span>- : unit = ()
+</code></pre>
+</p>
+<p>As you can see, things get crazy pretty quickly and you can easily drive yourself mad working out the correct escape sequences to get the desired nesting!
+</p>
+<p>Here's a hack : If the string has <i>k</i> levels of quoting, then count how many occurences of <code class="code">\</code>s precede the <code class="code">"</code> at that level. Let that number be <i>n</i> say. To get the next level of quoting you need to concatenate a sequence of <i>n + 1</i> <code class="code">\</code>s to them to get a total of <i>2n + 1</i> <code class="code">\</code>s. To illustrate, look again at the last example:
+<pre><code class="code">utop[4]&gt; <span class="constructor">Caml</span>.<span class="constructor">Printf</span>.printf 
+<span class="string">"\"A quoted string with \\\"a nested \\\\\\\"nested\\\\\\\"
+quoted string\\\"\""</span>;;
+<span class="string">"A quoted string with \"a nested \\\"nested\\\"
+quoted string\""</span>- : unit = ()
+</code></pre>
+That's three level of quoting. At the third level we have the sequence <code class="code">\\\\\\\"</code>. That's <i>7</i> <code class="code">\</code>s. To quote to the fourth level then we need to <i>8 + 7 = 15</i> <code class="code">\</code>s:
+<pre><code class="code">utop[5]&gt; <span class="constructor">Caml</span>.<span class="constructor">Printf</span>.printf 
+<span class="string">"\"A quoted string with \\\"a nested \\\\\\\"nested
+\\\\\\\\\\\\\\\"nested\\\\\\\\\\\\\\\" \\\\\\\" quoted string\\\"\""</span>;;
+<span class="string">"A quoted string with \"a nested \\\"nested
+\\\\\\\"nested\\\\\\\" \\\" quoted string\""</span>- : unit = ()
+</code></pre>
+</p>      
+    <hr/>
+  </body>
+</html>
