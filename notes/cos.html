@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        extensions: ["tex2jax.js","TeX/AMSmath.js","TeX/AMSsymbols.js","TeX/AMStheorem.js"],
+        jax: ["input/TeX", "output/HTML-CSS"],
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+      },
+      "HTML-CSS": { availableFonts: ["TeX"] }
+      });
+    </script> 
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
+    <title>Static typing, polymorphism and type synthesis</title>
+  </head>
+  <body>
+    <p>
+      A <i>type scheme</i>, is a type where some variables are
+      distinguished as being <i>generic</i>. We can represent type
+      schemes by: $\forall \alpha_{1}, ... , \alpha_{n}.\tau$ where
+      $\tau$ is a type. We write $FV(\sigma)$ for the set
+      of <i>unknowns</i> occuring in the type scheme $\sigma$. Unknowns
+      (free variables) are not bound by a $\forall$ quantifier. We write
+      $BV(\sigma)$ (bound type variables of $\sigma$) for the set of
+      type variables occuring in $\sigma$ which are not free (i.e. the
+      set of variables universally quantified). For example, if $\sigma$
+      denotes the type scheme $\forall\alpha.(\alpha \rightarrow int)
+      \rightarrow \beta \rightarrow \beta$, then we have $FV(\sigma) =
+      {\beta}$ and $BV(\sigma) = {\alpha}$.
+    </p>
+    <p>A <i>substitution instance</i> $\sigma'$ of a type scheme
+      $\sigma$ is the type scheme $S(\sigma)$ where $S$ is a
+      substitution of types for <i>free</i> type variables appearing in
+      $\sigma$. When applying a substitution to a type scheme, a
+      renaming of some bound type variables may become necessary, in
+      order to avoid the capture of a free type variable by a
+      quantifier.
+    </p>
+    <p>Example:
+      <ul>
+        <li>If $\sigma$ denotes $\forall\beta.(\beta \rightarrow
+          \alpha) \rightarrow \alpha$ and $\sigma'$ is
+          $\forall\delta.(\delta \rightarrow (\beta \rightarrow
+          \beta)) \rightarrow (\beta \rightarrow \beta)$, then
+          $\sigma'$ is a substitution instance of $\sigma$ because
+          $\sigma' = S(\sigma)$ where $S = {\alpha \leftarrow (\beta
+          \rightarrow \beta)}$. In this case, the renaming of $\beta$
+          into $\delta$ was necessary : we did not want the variable
+          $\beta$ introduced by $S$ to be captured by the universal
+          quantification $\forall \beta$.</li>
+      </ul>
+    </p>
+    <p>The type scheme $\sigma' = \forall\beta_{1}...\beta_{m}.\tau'$
+      is said to be a <i>generic instance</i> of $\sigma =
+      \forall\alpha_{1}...\alpha_{n}.\tau$ if there exists a
+      substitution $S$ such that the domain of $S$ is included in
+      ${\alpha_{1},...\alpha_{n}}$, $\tau' = S(\tau)$ and no $\beta_{i}$
+      occurs free in $\sigma$. In other words, a generic instance of a
+      type scheme is obtained by giving more precise values to some
+      generic variables , and (possibly) quantifying some of the new
+      type variables introduced.
+    </p>
+    <p>Example:</br></br> If $\sigma = \forall\beta.(\beta \rightarrow
+      \alpha) \rightarrow \alpha$, then $\sigma' =
+      \forall\gamma.((\gamma \rightarrow \gamma) \rightarrow \alpha)
+      \rightarrow \alpha$ is a generic instance of $\sigma$. We
+      changed $\beta$ into $(\gamma \rightarrow \gamma)$ and we
+      universally quantified on the newly introduced type variable
+      $\gamma$.
+    </p>
+    <p>Type systems are expressed by means of inference rules. In the
+    premises and conclusions appear <i>judgements</i> having the form:
+    $\Gamma \vdash e : \sigma$. Such a judgment should be read as "under
+    the typing environment $\Gamma$, the expression $e$ has the type
+    scheme $\sigma$". Typing environments are sets of <i>typing
+    hypotheses</i> of the form $x : \sigma$ where $x$ is an identifier
+    name and $\sigma$ is a type scheme : typing environments give
+    types to the variables free (i.e. unbound) in the expression.
+    </p>
+    <p>When typing $\lambda$-calculus terms, the typing environment is
+    managed as a stack (because identifiers possess local scopes). We
+    represent that fact in the presentation of the type system by
+    removing the typing hypothesis concerning an indentifier named $x$
+    (if such a hypthesis exists) before adding a new hypothesis
+    concerning $x$. We write $\Gamma - \Gamma(x)$ for the set of typing
+    hypotheses obtained from $\Gamma$ by removing the typing
+    hypothesis concerning $x$ (if it exists).
+    </p>
+    <p>Any numeric constant is of type $Number$:
+      \[\ \frac{}{\Gamma\vdash\texttt{Const}\; n : Number}\tag{NUM} \]
+    </p>
+    <p>We obtain type schemes for variables from the typing environment $\Gamma$:
+      \[ \frac{}{\Gamma \cup {x : \sigma} \vdash x : \sigma}\tag{TAUT} \]
+    </p>
+    <p>It is possible to instantiate type schemes. The "instantiation"
+      relation represents generic instantiation.
+      \[
+      \frac{\Gamma \vdash e : \sigma\;\;\;\; \sigma' = instance(\sigma)}
+      {\Gamma \vdash e : \sigma'}\tag{INST} \]
+    </p>
+    <p>It is possible to generalize type schemes with respect to
+      variables that do not occur free in the set of hypotheses:
+      \[
+      \frac{\Gamma \vdash e : \sigma\;\;\;\; \alpha \notin FV(\Gamma)}
+      {\Gamma \vdash e : \forall\alpha.\sigma} \tag{GEN}
+      \]
+    </p>
+    <p>Typing a conditional:
+      \[
+      \frac{\Gamma \vdash e_{1}: Number\;\;\;\; \Gamma \vdash e_{2}:\tau\;\;\;\; \Gamma \vdash e_{3} : \tau}
+      {\Gamma \vdash (\texttt{if}\;e_{1}\;\texttt{then}\;e_{2}\;\texttt{else}\;e_{3}) : \tau} \tag{IF}
+      \]
+    </p>
+    <p>Typing an application:
+      \[
+      \frac {\Gamma \vdash e_{1} : \tau \rightarrow \tau'\;\;\;\; \Gamma \vdash e_{2} : \tau }{\Gamma \vdash (e_{1}\; e_{2} : \tau')} \tag{APP}
+      \]
+    </p>
+    <p>Typing an abstraction:
+      \[
+      \frac{(\Gamma - \Gamma(x)) \cup \{x : \tau\} \vdash e : \tau'}
+      {\Gamma \vdash (\lambda x.e) : \tau \rightarrow \tau'} \tag{ABS}
+      \]
+    </p>
+    <p>The special rule below is the one that introduces polymorphism
+    : this corresponds to the ML <code>let</code> construct.
+      \[
+      \frac{\Gamma e : \sigma\;\;\;\; (\Gamma - \Gamma(x)) \cup {x : \sigma} \vdash e' : \tau}{\Gamma \vdash (\lambda x. e') e : \tau} \tag{LET}
+      \]
+    </p>
+    <p>This type system does not tell us how to find the best type for
+    an expression. But what is the best type for an expression? It
+    must be such that any other possible type for that expression is
+    more specific; in other words, the best type is the most general.
+    </p>
+    <p>How doe we find the most general type for an expression of our
+    language? The problem with the set of rules above, is that we
+    could instantiate and generalize types at any time, introducing
+    type schemes, while the most important rules (application and
+    abstraction) used only types.
+    </p>
+    <p>Let us write a new set of inference rules that we will read as
+    an algorithm (close to a Prolog program):
+    </p>
+    <p>Any numeric constant is of type $Number$:
+      \[\ \frac{}{\Gamma\vdash\texttt{Const}\; n : Number}\tag{NUM} \]
+    </p>
+    <p>The types of identifiers are obtained by taking generic
+    instances of type schemes appearing in the typing
+    environment. These generic instances will be <i>types</i> and not
+    type schemes : this restriction appears in the rule below, where
+    the type $\tau$ is expected to be a generic instance of the type
+    scheme $\sigma$.
+    </p>
+    <p>As it is presented (belonging to a deduction system), the
+    following rule will have to anticipate the effect of the equality
+    constraints between types in the other rules (multiple occurences
+    of a type metavariable), when choosing the instance $\tau$.
+      \[
+      \frac{\tau = instance (\sigma)}
+      {\Gamma \cup {x : \sigma} \vdash \texttt{Var}\;x : \tau}\tag{INST}
+      \]
+      When we read this set of inference rules as an algorithm, the
+      (INST) rule will be implemented by
+      <ol>
+        <li>taking $\tau$ the "most general generic instance" of
+        $\sigma$ that is a type (thte rule requires $\tau$ to be a
+        type and not a type scheme),</li>
+        <li>making $\tau$ more specific by <i>unification</i> when
+        encountering equality constraints.</li>
+      </ol>
+    </p>
+    <p>Typing a conditional requires only the test part to be of type
+    Number , and both alternatives to be of the same type $\tau$. This
+    is an example of equality constraint between the types of two
+    expressions.
+      \[
+      \frac{\Gamma \vdash e_{1}: Number\;\;\;\; \Gamma \vdash e_{2}:\tau\;\;\;\; \Gamma \vdash e_{3} : \tau}
+      {\Gamma \vdash (\texttt{if}\;e_{1}\;\texttt{then}\;e_{2}\;\texttt{else}\;e_{3}) : \tau} \tag{IF}
+      \]
+    </p>
+    <p>
+      Typing an application also produces equality constraints that are
+      to be solved by unification:
+      \[
+      \frac {\Gamma \vdash e_{1} : \tau \rightarrow \tau'\;\;\;\; \Gamma \vdash e_{2} : \tau }{\Gamma \vdash (e_{1}\; e_{2} : \tau')} \tag{APP}
+      \]
+    </p>
+    <p>Typing an abstraction "pushes" a typing hypothesis for the abstracted identifier : unification makes it more precise during the typing of the abstraction body:
+      \[
+      \frac{(\Gamma - \Gamma(x)) \cup \{x : \forall.\tau\} \vdash e : \tau'}
+      {\Gamma \vdash (\lambda x.e) : \tau \rightarrow \tau'} \tag{ABS}
+      \]
+    </p>
+    <p>Typing a <code>let</code> construct involves a generalization
+    step : we generalize as much as possible.
+      \[
+      \frac
+      {\Gamma \vdash e : \tau'\;\;\;\; \{\alpha_{1},...\alpha_{n}\} = FV(\tau') - FV(\Gamma)
+      \;\;\;\; (\Gamma - \Gamma(x')) \cup \{x :\forall\alpha_{1}...\alpha_{n}.\tau'\ \vdash e' : \tau\}}
+      {\Gamma \vdash (\lambda x.e') e : \tau} \tag{LET}
+      \]
+    </p>
+    <hr/>
+    <p>
+      References:<br/>
+      [1] <cite>Functional programming using Caml light</cite> by Michel Mauny 1995.</p>
+    </p>
+  </body>
+</html>
+
+
