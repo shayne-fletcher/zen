@@ -204,6 +204,56 @@
       {\Gamma \vdash (\lambda x.e')\;e : \tau} \tag{LET}
       \]
     </p>
+    <p>Generalization $gen(\Gamma, \tau)$ of the type $\tau$ with
+    respect to the environment $\Gamma$ is quantifying free type
+    variables of $\tau$ that do not occur free in $\Gamma$. That is,
+    $gen(\Gamma, \tau) = \forall\alpha_{1}...\alpha_{n}.t$ where
+    $\{\alpha_{1},...,\alpha_{n}\} = FV(\tau) - FV(\Gamma)$. A
+    Hindley-Milner system applies the generalization, to convert a
+    type to a type schema, when type checking <code>let</code>: \[
+    \frac {\Gamma \vdash e_{1} : \tau\;\;\;\;(\Gamma -\Gamma(x)) \cup
+    (x:gen(\Gamma, \tau)) \vdash e_{2} : \tau'} {\Gamma \vdash
+    \texttt{let}\; x = e_{1} \texttt{in}\; e_{2} : \tau'} \] That is,
+    when inferring the type for <code>let x
+    = </code>$e_{1}$ <code>in</code> $e_{2}$, a free type variable in
+    the type of $e_{1}$ is quantified if the type variable does not
+    occur int the type environment $\Gamma$. ML adds another condition
+    for generalization, the so-called <i>value restriction</i> : the
+    type $e_{1}$ is generalized only if $e_{1}$, by the look of it,
+    has no visible side-effect &mdash; technically, $e_{1}$ passes the
+    syntactic test of being <i>nonexpansive</i>. OCaml relaxes the
+    value restriction (more on that later).
+    </p>
+    <p>A trivial example of generalization is : <code>fun x -> let y =
+    fun z -> z in y (* 'a -> ('b -> 'b) *)</code>. The type checker
+    infers for <code>fun z -> z</code> the type $\beta \rightarrow
+    \beta$ with the fresh, and hence unique, type variable
+    $\beta$. The expression <code>fun z -> z</code> is syntactically a
+    value, generalization proceeeds, and <code>y</code> gets the type
+    $\forall\beta.\beta \rightarrow \beta$. Because of the polymorphic
+    type, <code>y</code> may occur in differently typed contexts &mdash;
+    may be applied to arguments of different types, &mdash; as in
+      <pre>  fun x ->
+    let y = fun z -> z in
+      (y 1, y true)
+  (* 'a -> int * bool *) 
+      </pre>
+    </p>
+    <p>Generalization $gen(\Gamma, \tau)$ quantifies over only those
+    free type variables of $\tau$ that do not occur in $\Gamma$. This
+    condition is subtle but cruicial : without it, the unsound type
+    $\alpha \rightarrow \beta$ is inferred for the
+    function <code>fun x -> let y = x in y</code>. To elaborate : to
+    infer the type of a function, we infer the type of its body in an
+    environment in which $x:\alpha$ where $\alpha$ is a fresh type
+    variable. The form <code>let y = x in ...</code> adds to the
+    environment $y : gen(\{x:\alpha\}, \alpha)$. Clearly, $\alpha$
+    does occur in the environment $\{x : \alpha\}$. If we quantify
+    over it nonetheless, $y$ receives the polymorphic type
+    $\forall\alpha.\alpha$, which can then be instantiated to any
+    type. The result is the function ostensibly converts its argument
+    to the value of any type whatsoever.
+    </p>
     <hr/>
     <p>
       References:<br/>
