@@ -200,8 +200,8 @@
       \[
       \frac
       {\Gamma \vdash e : \tau'\;\;\;\; \{\alpha_{1},...\alpha_{n}\} = FV(\tau') - FV(\Gamma)
-      \;\;\;\; (\Gamma - \Gamma(x')) \cup \{x :\forall\alpha_{1}...\alpha_{n}.\tau'\ \vdash e' : \tau\}}
-      {\Gamma \vdash (\lambda x.e') e : \tau} \tag{LET}
+      \;\;\;\; (\Gamma - \Gamma(x)) \cup \{x :\forall\alpha_{1}...\alpha_{n}.\tau'\ \vdash e' : \tau\}}
+      {\Gamma \vdash (\lambda x.e')\;e : \tau} \tag{LET}
       \]
     </p>
     <hr/>
