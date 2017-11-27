@@ -3,16 +3,5 @@
 (executable (
   (name id_of_test)
   (public_name id-of-test)
-
-  ; `ocaml-migrate-parsetree` now has a driver
-  ; `ocaml-migrate-parsetree.driver-main` and `jbuilder` uses it by
-  ; default. If we were satisfied with that, we'd just write  here
-  ; (preprocess (pps (solvuu-ppx.id-of)))
-
-  ; I'm preferring to use the custom driver `ppx_driver.runner`
-  ; instead since that arranges for the production of a cli that can
-  ; be used with ocamlc for testing.
-
-  ; (preprocess (pps (ppx_id_of ppx_driver.runner)))
   (preprocess (pps (ppx_id_of)))
 ))
