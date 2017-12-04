@@ -2,8 +2,8 @@ include Mini_ml_types
 
 module Parse_tools = struct
 
-  let string_of_list f l = 
-    "[" ^ String.concat ";" (List.map f l) ^ "]" 
+  let string_of_list f l =
+    "[" ^ String.concat ";" (List.map f l) ^ "]"
 
   let open_read_bin f =
     let ic = open_in_bin f in
@@ -14,16 +14,16 @@ module Parse_tools = struct
     Bytes.to_string s
 
   let set_filename lexbuf name =
-    lexbuf.Lexing.lex_curr_p <- 
+    lexbuf.Lexing.lex_curr_p <-
       {
         lexbuf.Lexing.lex_curr_p with Lexing.pos_fname = name
       }
 
   let parse_buf_exn lexbuf =
     let file = lexbuf.Lexing.lex_curr_p.Lexing.pos_fname in
-    try 
+    try
       (Mini_ml_parser.main Mini_ml_lexer.token lexbuf)
-    with 
+    with
     | Unclosed_comment ->
       let msg =  Printf.sprintf "Error : Unclosed comment in file \"%s\"" file in
       raise (Failure msg)
@@ -31,22 +31,22 @@ module Parse_tools = struct
     | exn ->
       begin
         let curr = lexbuf.Lexing.lex_curr_p in
-        let line, cnum = 
-          curr.Lexing.pos_lnum,  curr.Lexing.pos_cnum - curr.Lexing.pos_bol 
+        let line, cnum =
+          curr.Lexing.pos_lnum,  curr.Lexing.pos_cnum - curr.Lexing.pos_bol
         in
-        raise  (Failure  (Printf.sprintf 
+        raise  (Failure  (Printf.sprintf
          "Error : Syntax error in file \"%s\", line %d, character %d" file line cnum))
       end
 
   let parse_string ?(file="<string>") str =
-    let lexbuf = Lexing.from_string str 
+    let lexbuf = Lexing.from_string str
     in set_filename lexbuf file ; parse_buf_exn lexbuf
 
   let string_of_loc (from, until) =
-    let line = from.Lexing.pos_lnum 
+    let line = from.Lexing.pos_lnum
     and anchor = from.Lexing.pos_bol in
     Printf.sprintf "file %S, line %i, characters %i-%i"
-      from.Lexing.pos_fname line 
+      from.Lexing.pos_fname line
       (from.Lexing.pos_cnum - anchor) (until.Lexing.pos_cnum - anchor)
 end
 
@@ -67,10 +67,10 @@ let rec string_of_expression = function
   | E_unit _ -> "()"
   | E_bool (b, _) -> "bool ("^(string_of_bool b)^")"
   | E_tuple (l, _) -> "tuple ("^String.concat "," (List.map string_of_expression l)^")"
-  | E_number (n, _) -> 
+  | E_number (n, _) ->
     begin
-      match n with 
-      | E_int (i, _) -> "num ( int ("^(string_of_int i)^"))" 
+      match n with
+      | E_int (i, _) -> "num ( int ("^(string_of_int i)^"))"
       | E_float (f, _) -> "num ( float ("^(string_of_float f)^"))"
     end
   | E_let_rec (x, e, _) -> "let_rec ("^(string_of_expression x)^", "^(string_of_expression e)^")"
@@ -87,7 +87,7 @@ let rec string_of_expression = function
 let string_of_expression_list exprs =
   Parse_tools.string_of_list string_of_expression exprs
 
-type value = 
+type value =
   | V_unit
   | V_bool of bool
   | V_int of int
@@ -100,7 +100,7 @@ type environment = ((string*value) list) ref
 let raise_eval_error pos msg =
   raise (Failure (Printf.sprintf "%s\n%s" (Parse_tools.string_of_loc pos) msg))
 
-let bool pos x = match x with | V_bool p -> p 
+let bool pos x = match x with | V_bool p -> p
   | _ -> raise_eval_error pos "Error: Bool expected"
 let int pos x = match x with | V_int n -> n
   | _ -> raise_eval_error pos "Error: Int expected"
@@ -122,7 +122,7 @@ let prefixops:(string*prefixop_builtin) list=
     "log", (fun pos x -> V_float (log (float pos x))) ;
     "sqrt", (fun pos x -> V_float (sqrt (float pos x))) ;
     "not", (fun pos x -> V_bool (not (bool pos x))) ;
-    "len", (fun pos x -> 
+    "len", (fun pos x ->
       match x with
       | V_unit -> V_int 0
       | V_tuple l -> V_int (List.length l)
@@ -134,7 +134,7 @@ let prefixops:(string*prefixop_builtin) list=
       | Failure _ -> raise_eval_error pos "Error: Empty list"
     );
     "tl", (fun pos x ->
-      try 
+      try
         V_tuple (List.tl (tuple pos x))
       with
       | Failure _ -> raise_eval_error pos "Error: Empty list"
@@ -222,12 +222,12 @@ let rec tuple_match acc x y =
       | Failure _ ->raise_eval_error pos
         "Error : Can't match this (the 'rhs' value being matched is not a tuple)"
     in
-    let accumulate = tuple_match acc 
-      (E_tuple (t, pos)) 
+    let accumulate = tuple_match acc
+      (E_tuple (t, pos))
       (V_tuple (List.tl l)) in
     tuple_match accumulate h (List.hd l)
   | E_tuple ([], _) -> acc
-  | _ as unk -> 
+  | _ as unk ->
     raise_eval_error (sref_of_expression unk) "Error : Variable (or tuple) expected"
 
 let make_bindings lhs rhs pos =
@@ -238,7 +238,7 @@ let make_bindings lhs rhs pos =
 
 let rec eval_unop (env:((string*value) list) ref) a =
   match a with
-  | (tag, e, pos) -> 
+  | (tag, e, pos) ->
     try
       (List.assoc tag prefixops) pos (eval env e)
     with
@@ -246,7 +246,7 @@ let rec eval_unop (env:((string*value) list) ref) a =
       raise_eval_error pos (Printf.sprintf "Error : '%s' not implemented" tag)
 and eval_binop (env:((string*value) list) ref) a =
   match a with
-  | (tag, l, r, pos) -> 
+  | (tag, l, r, pos) ->
     try
       (List.assoc tag infixops) pos (eval env l, eval env r)
         with
@@ -264,13 +264,13 @@ and eval (env:((string*value) list) ref) =
           match x with
           | E_var (s, _) ->
             let h : ((string*value) list ref) = ref []
-            in (h := (s, arg)::env') ; 
+            in (h := (s, arg)::env') ;
             eval h e
           | E_tuple (t, _) ->
             let bindings = make_bindings t arg pos in
             let h : ((string*value) list ref) = ref [] in
-            (h := bindings@env');  
-            eval h e 
+            (h := bindings@env');
+            eval h e
           | E_unit _ ->
             let h : ((string*value) list ref) = ref []
             in (h := env') ; eval h e
@@ -284,15 +284,15 @@ and eval (env:((string*value) list) ref) =
   | E_unop (o, e, pos) -> eval_unop env (o, e, pos)
   | E_binop (o, e1, e2, pos) -> eval_binop env (o, e1, e2, pos)
   | E_if (p, t, f, loc) -> eval env (if (bool loc (eval env p)) then t else f)
-  | E_number (n, _) -> 
-    begin 
-      match n with | E_int (i, _) -> V_int i | E_float (f, _) -> V_float f 
+  | E_number (n, _) ->
+    begin
+      match n with | E_int (i, _) -> V_int i | E_float (f, _) -> V_float f
     end
   | E_var (tag, pos) ->
     begin
       try List.assoc tag (!env)
-      with 
-      | Not_found -> 
+      with
+      | Not_found ->
         raise (Failure (Printf.sprintf
          "%s\nError: '%s' is not bound in the environment"
          (Parse_tools.string_of_loc pos) tag))
@@ -360,7 +360,7 @@ and eval_exprs acc env l =
   match l with
   | [] -> acc
   | (h::t) -> eval_exprs (acc@[eval env h]) env t
- 
+
 let value_list_of_string ?file env s =
   eval_exprs [] env (expression_list_of_string ?file s)
 
@@ -373,7 +373,7 @@ let value_list_of_file env f =
     let msg=Printf.sprintf "'%s' filename does not exist" f in
     raise (Failure msg)
   else
-    eval_exprs [] env 
+    eval_exprs [] env
       (expression_list_of_string ~file:f (Parse_tools.open_read_bin f))
 
 let value_of_file env f =
@@ -388,5 +388,5 @@ let rec string_of_value = function
   | V_int n -> string_of_int n
   | V_float f -> string_of_float f
 
-let string_of_value_list values = 
+let string_of_value_list values =
   Parse_tools.string_of_list string_of_value values
