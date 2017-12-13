@@ -30,3 +30,16 @@ let tests () =
 
 let command : Command.t =
   Command.async' ~summary:"blah" (Command.Param.return tests)
+
+(*
+let command : Command.t =
+  let open Command.Let_syntax in
+  Command.async'
+    ~summary:"Test user uploading"
+    [%map_open
+      let formats = flag "-formats" (optional string) ~doc:"format registry"
+      and data_root = flag "-data-root" (optional string) ~doc:"data root"
+      and solvuu_client = flag "-solvuu-client" (optional string) ~doc:"solvuu client"
+      in setup formats data_root solvuu_client
+    ]
+*)
