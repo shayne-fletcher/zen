@@ -1,5 +1,6 @@
-(* "The art of Prolog" - Sterling, Shaprio "GADTs and exhaustiveness :
-   Looking for the impossible" - Garrigue, Le Normand
+(* - "The art of Prolog" - Sterling, Shaprio
+   - "GADTs and exhaustiveness :
+     Looking for the impossible" - Garrigue, Le Normand
 *)
 
 (*
