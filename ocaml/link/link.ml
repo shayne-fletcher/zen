@@ -26,7 +26,7 @@ module type S = sig
   (*A type for membership evidence. A value of type [('sink, 'set)
     accepts] is a witness that ['set] will accept a link with sink type
     ['sink]*)
-  type ('sink, 'set) accepts 
+  type ('sink, 'set) accepts
   (*Abstract so that there is no means of faking evidence*)
 
   val mk_sink : string -> 'sink sink
@@ -40,7 +40,7 @@ module type S = sig
     have unique types), so we use records with existential types*)
 
   (*The result of the [create_set] operation*)
-  type 'sink fresh_set = 
+  type 'sink fresh_set =
   | Fresh_set : {
     set : 'set set;
     accepts : ('sink, 'set) accepts;
@@ -95,9 +95,9 @@ module type S = sig
   (*The [insert_link] operation takes three arguments: the link to
     insert, the set into which the link is inserted and evidence that
     the insertion is acceptable *)
-  val insert_link : 
+  val insert_link :
     ('source, 'sink) link ->
-    'parent set -> 
+    'parent set ->
     ('sink, 'parent) accepts ->
     ('source, 'parent) augmented_set
 
@@ -114,22 +114,22 @@ module M : S = struct
 
   let mk_sink (name : string) : 'sink sink = {name}
   let mk_source (name : string) : 'source source = {name}
-  let mk_link ((source, sink) : 'source source * 'sink sink) 
+  let mk_link ((source, sink) : 'source source * 'sink sink)
       : ('source, 'sink) link = (source, sink)
 
-  type ('sink, 'set) accepts = 
+  type ('sink, 'set) accepts =
   | Accepts : ('sink, 'set) accepts
 
-  type 'sink fresh_set = 
+  type 'sink fresh_set =
   | Fresh_set : {
     set : 'set set;
-    accepts : ('sink, 'set) accepts; 
+    accepts : ('sink, 'set) accepts;
     }                        -> 'sink fresh_set
 
   let create_set (s : 'sink sink) : 'sink fresh_set =
-    Fresh_set { set = ([] : 'set set); 
+    Fresh_set { set = ([] : 'set set);
                 accepts = (Accepts : ('sink, 'set) accepts) }
-  
+
   type ('sink, 'parent) augmented_set =
   | Augmented_set : {
     set : 'set set;
@@ -137,8 +137,8 @@ module M : S = struct
     cc : 's. ('s, 'parent) accepts -> ('s, 'set) accepts
   } -> ('sink, 'parent) augmented_set
 
-  let insert_link 
-      (l : ('source, 'sink) link) 
+  let insert_link
+      (l : ('source, 'sink) link)
       (s : 'parent set)
       (a : ('sink, 'parent) accepts)  : ('source, 'parent) augmented_set =
     let {name = src} : 'source source = fst l in
@@ -169,18 +169,18 @@ module Test (E : S) = struct
   let link3 : (t3,  t2) link = mk_link (src2, snk2) (*t3 src, t2 sink*)
   let link4 : (t3,  t4) link = mk_link (src2, snk3) (*t3 src, t4 sink*)
 
-  let test () = 
+  let test () =
 
     (*Create a fresh set from a sink of type [t1]*)
-    let (Fresh_set {set; accepts = a} : t1 fresh_set) = 
+    let (Fresh_set {set; accepts = a} : t1 fresh_set) =
       create_set snk1 in
     (*
       - [a] is evidence [set] accepts links with sink type [t1]
     *)
 
     (*Insert a [(t2, t1) link]*)
-    let Augmented_set 
-        {set = set1; accepts = a1; cc = cc1} = 
+    let Augmented_set
+        {set = set1; accepts = a1; cc = cc1} =
       insert_link link1 set a in
     (*
       - [a1] is evidence [set1] accepts links with sink type [t2] ([t2] is
@@ -228,4 +228,3 @@ module Test (E : S) = struct
 end
 
 let _ = let module T = Test (M) in T.test ()
-
