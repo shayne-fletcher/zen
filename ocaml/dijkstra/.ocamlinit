@@ -6,3 +6,7 @@ let () =
 #use "topfind";;
 #thread;;
 #require "core";;
+#require "ppx_deriving";;
+#require "sexplib";;
+#require "ppx_sexp_conv";;
+open Sexplib.Conv;;

@@ -3,5 +3,6 @@
 (executable (
   (name shortest_path)
   (public_name dijkstra)
+  (preprocess (pps (ppx_jane)))
   (libraries (core))
 ))
