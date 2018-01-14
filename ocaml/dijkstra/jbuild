@@ -1,0 +1,7 @@
+(jbuild_version 1)
+
+(executable (
+  (name shortest_path)
+  (public_name dijkstra)
+  (libraries (core))
+))

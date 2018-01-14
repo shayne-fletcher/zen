@@ -16,7 +16,7 @@ end
 
 module type GRAPH = sig
 
-  module type Ord=sig 
+  module type Ord=sig
     type t val compare : t -> t -> int
   end
 
@@ -29,7 +29,7 @@ end
 
 module Graph : GRAPH = struct
 
-  module type Ord = sig 
+  module type Ord = sig
     type t val compare : t -> t -> int
   end
 
@@ -51,7 +51,7 @@ module Graph : GRAPH = struct
       acc : 'a ; (*user specified type used by 'fold'*)
     }
 
-    let of_adjacency (l : (node * node list) list) : t = 
+    let of_adjacency (l : (node * node list) list) : t =
       List.fold_right (fun ((x : node), (y : node list)) -> Node_map.add x y) l Node_map.empty
 
     let breadth_first_fold (g : t) (s : node) (init : 'b) ~(f : 'b -> node -> 'b) : 'b state =
@@ -98,10 +98,10 @@ type 'a graph = (module Graph.S with type node = 'a)
 (*Function to create a module for an ordered type*)
 let mk_ord : 'a. unit -> 'a ord =
   fun (type s) () ->
-    (module 
-     struct 
-       type t = s 
-       let compare = Pervasives.compare 
+    (module
+     struct
+       type t = s
+       let compare = Pervasives.compare
      end : Graph.Ord with type t = s
     )
 
@@ -112,10 +112,10 @@ let mk_graph : 'a. 'a ord -> 'a graph =
     (module Graph.Make (Ord) : Graph.S with type node = s)
 
 (*[breadth_first_fold] as a free function*)
-let breadth_first_fold (type a) 
-    ~(g : a graph) ~(adj : (a * a list) list) 
+let breadth_first_fold (type a)
+    ~(g : a graph) ~(adj : (a * a list) list)
     ~(start : a) ~(init : 'b) ~(f : 'b -> a -> 'b) : 'b =
-  let module G : Graph.S with type node = a = 
+  let module G : Graph.S with type node = a =
         (val g : Graph.S with type node = a) in
   let inst : G.t = G.of_adjacency adj in
   G.value_of_state (G.breadth_first_fold inst start init ~f)
@@ -157,5 +157,3 @@ let times : (G.node * int) list = G.discovery_of_state s
 let colors : (G.node * G.colors) list = G.colors_of_state s
 let l : G.node list = List.rev (G.value_of_state s)
 (*#val l : Char_graph.node list = ['s'; 'r'; 'w'; 'v'; 'x'; 't'; 'y'; 'u']*)
-
-    

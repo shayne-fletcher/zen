@@ -17,3 +17,7 @@ html
 *.ilk
 *.pdb
 *.suo
+.DS_Store
+.merlin
+_build
+*.install
