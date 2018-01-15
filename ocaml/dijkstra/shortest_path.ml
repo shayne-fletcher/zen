@@ -1,29 +1,29 @@
 open Core
 
 module type Graph_sig = sig
-  type node
+  type vertex_t
   type t
   type extern_t
 
   val of_adjacency : extern_t -> t
   val to_adjacency : t -> extern_t
 
-  exception Error of [`Duplicate_node ][@@deriving sexp]
+  exception Load_error of [ `Duplicate_vertex_t ][@@deriving sexp]
 
   module Dijkstra : sig
     type state
 
-    exception Error of [ `Find_min | `Relax ][@@deriving sexp]
+    exception Dijkstra_error of [ `Find_min | `Relax ][@@deriving sexp]
 
-    val dijkstra : node -> t -> state
-    val d : state -> (node * float) list
-    val shortest_paths : state -> (node * node list) list
+    val dijkstra : vertex_t -> t -> state
+    val d : state -> (vertex_t * float) list
+    val shortest_paths : state -> (vertex_t * vertex_t list) list
   end
 
 end
 
 module type GRAPH = sig
-  module type Ord = sig
+  module type Vert = sig
     type t
     include Comparable.S with type t := t
   end
@@ -32,13 +32,13 @@ module type GRAPH = sig
     include Graph_sig
   end
 
-  module Make : functor (M : Ord) ->
-    S with type node = M.t
-       and type extern_t = (M.t * (M.t * float) list) list
+  module Make : functor (V : Vert) ->
+    S with type vertex_t = V.t
+       and type extern_t = (V.t * (V.t * float) list) list
 end
 
 module Graph : GRAPH = struct
-  module type Ord = sig
+  module type Vert = sig
     type t
     include Comparable.S with type t := t
   end
@@ -47,38 +47,38 @@ module Graph : GRAPH = struct
     include Graph_sig
   end
 
-  module Make : functor (M : Ord) ->
-    S with type node = M.t
-       and type extern_t = (M.t * (M.t * float) list) list
+  module Make : functor (V : Vert) ->
+    S with type vertex_t = V.t
+       and type extern_t = (V.t * (V.t * float) list) list
     =
-    functor (M : Ord) -> struct
-      module Map = M.Map
-      module Set = M.Set
+    functor (V : Vert) -> struct
+      module Map = V.Map
+      module Set = V.Set
 
-      type node = M.t
-      type extern_t = (node * (node * float) list) list
-      type t = (node * float) list Map.t
+      type vertex_t = V.t
+      type extern_t = (vertex_t * (vertex_t * float) list) list
+      type t = (vertex_t * float) list Map.t
 
-      exception Error of [`Duplicate_node ][@@deriving sexp]
+      exception Load_error of [`Duplicate_vertex_t ][@@deriving sexp]
 
       let to_adjacency g = Map.to_alist g
       let of_adjacency l =
         match Map.of_alist l with
         | `Ok t -> t
-        | `Duplicate_key _ -> raise (Error `Duplicate_node)
+        | `Duplicate_key _ -> raise (Load_error `Duplicate_vertex_t)
 
       module Dijkstra = struct
 
         type state = {
-          src    :                 node
-        ; g      :                    t
-        ; d      :          float Map.t
-        ; pred   :           node Map.t
-        ; s      :                Set.t
-        ; v_s    :  (node * float) list
+          src    :                 vertex_t
+        ; g      :                        t
+        ; d      :              float Map.t
+        ; pred   :           vertex_t Map.t
+        ; s      :                    Set.t
+        ; v_s    :  (vertex_t * float) list
         }
 
-        exception Error of [ `Find_min | `Relax ][@@deriving sexp]
+        exception Dijkstra_error of [ `Find_min | `Relax ][@@deriving sexp]
 
         let init src g =
           let vs = Map.keys g in
@@ -88,7 +88,7 @@ module Graph : GRAPH = struct
           {
             src
           ; g
-          ; s = M.Set.empty
+          ; s = Set.empty
           ; d
           ; pred = Map.empty
           ; v_s = Map.to_alist d
@@ -99,7 +99,7 @@ module Graph : GRAPH = struct
                   ~cmp:(fun (_, e1) (_, e2) -> Float.compare e1 e2)
           with
           | Some min -> min
-          | None -> raise (Error `Find_min)
+          | None -> raise (Dijkstra_error `Find_min)
 
         let relax state u v w =
           let {d; pred; _} = state in
@@ -109,7 +109,7 @@ module Graph : GRAPH = struct
               d = Map.change d v
                   ~f:(function
                       | Some _ -> Some (du +. w)
-                      | None -> raise (Error `Relax)
+                      | None -> raise (Dijkstra_error `Relax)
                     )
             ; pred = Map.add (Map.remove pred v) ~key:v ~data:u
             }
@@ -125,7 +125,7 @@ module Graph : GRAPH = struct
                 List.fold (Map.find_exn g u)
                   ~init:{
                     state with
-                    s = M.Set.add s u
+                    s = Set.add s u
                   ; v_s = List.filter v_s ~f:(fun (x, _) -> x <> u)
                   }
                   ~f:(fun state (v, w) -> relax state u v w) in
@@ -136,7 +136,7 @@ module Graph : GRAPH = struct
               }
           in loop (init src g)
 
-        let d state = M.Map.to_alist (state.d)
+        let d state = Map.to_alist (state.d)
 
         let path state n =
           let rec loop acc x =
@@ -151,7 +151,7 @@ module Graph : GRAPH = struct
 end
 
 module G : Graph.S with
-  type node = char and type extern_t = (char * (char * float) list) list
+  type vertex_t = char and type extern_t = (char * (char * float) list) list
   =
   Graph.Make (Char)
 
