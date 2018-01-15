@@ -1,27 +1,26 @@
 open Core
 
 module type Graph_sig = sig
-  type node [@@deriving sexp]
-  type t [@@deriving sexp]
+  type node
+  type t
   type extern_t
 
-  type state
-
-  val to_sexp : t -> Sexp.t
-  val of_sexp : Sexp.t -> t
-
-  val of_adjacency : extern_t -> [ | `Ok of t | `Duplicate_key of node ]
+  val of_adjacency : extern_t -> t
   val to_adjacency : t -> extern_t
 
-  val dijkstra : node -> t -> state
-  val d : state -> (node * float) list
-  val shortest_paths : state -> (node * node list) list
+  module Dijkstra : sig
+    type state
+
+    val dijkstra : node -> t -> state
+    val d : state -> (node * float) list
+    val shortest_paths : state -> (node * node list) list
+  end
 
 end
 
 module type GRAPH = sig
   module type Ord = sig
-    type t [@@deriving sexp]
+    type t
     include Comparable.S with type t := t
   end
 
@@ -36,109 +35,110 @@ end
 
 module Graph : GRAPH = struct
   module type Ord = sig
-    type t [@@deriving sexp]
+    type t
     include Comparable.S with type t := t
-end
+  end
 
   module type S = sig
     include Graph_sig
   end
 
-  module Make : functor (M : Ord) -> S
-    with type node = M.t
-     and type extern_t = (M.t * (M.t * float) list) list
+  module Make : functor (M : Ord) ->
+    S with type node = M.t
+       and type extern_t = (M.t * (M.t * float) list) list
     =
     functor (M : Ord) -> struct
-      type node = M.t [@@deriving sexp]
+      module Map = M.Map
+      module Set = M.Set
+
+      type node = M.t
       type extern_t = (node * (node * float) list) list
-      type t = (node * float) list M.Map.t [@@deriving sexp]
+      type t = (node * float) list Map.t
 
-      let to_sexp g = sexp_of_t g
-      let of_sexp s = t_of_sexp s
-      let to_adjacency g = M.Map.to_alist g
-      let of_adjacency l = M.Map.of_alist l
+      let to_adjacency g = Map.to_alist g
+      let of_adjacency l =
+        match Map.of_alist l with
+        | `Ok t -> t
+        | `Duplicate_key _ -> failwith "Graph.of_adjacency: duplicate node"
 
-      type state = {
-        src    :                 node
-      ; g      :                    t
-      ; d      :        float M.Map.t
-      ; pred   :         node M.Map.t
-      ; s      :              M.Set.t
-      ; v_s    :  (float * node) list
-      }
+      module Dijkstra = struct
 
-      let initial_state src g =
-        let vs = M.Map.keys g in
-        let d =
-          List.fold vs ~init:M.Map.empty
-            ~f:(
-              fun acc x ->
-                M.Map.add acc
-                  ~key:x
-                  ~data:(if src = x then 0.0
-                         else Float.infinity)) in
-        {
-          src
-        ; g
-        ; s = M.Set.empty
-        ; d
-        ; pred = M.Map.empty
-        ; v_s = (List.map (M.Map.to_alist d) ~f:(fun (n, e) -> (e, n)))
+        type state = {
+          src    :                 node
+        ; g      :                    t
+        ; d      :          float Map.t
+        ; pred   :           node Map.t
+        ; s      :                Set.t
+        ; v_s    :  (node * float) list
         }
 
-      let relax state u v w =
-        let {d; pred; _} = state in
-        let dv = M.Map.find_exn d v in
-        let du = M.Map.find_exn d u in
-        let state' =
+        let init src g =
+          let vs = Map.keys g in
+          let init s x = if s = x then 0.0 else Float.infinity in
+          let d = List.fold vs ~init:Map.empty
+              ~f:(fun acc x -> Map.add acc ~key:x ~data:(init src x)) in
+          {
+            src
+          ; g
+          ; s = M.Set.empty
+          ; d
+          ; pred = Map.empty
+          ; v_s = Map.to_alist d
+          }
+
+        let find_min v_s =
+          match List.min_elt v_s
+                  ~cmp:(fun (_, e1) (_, e2) -> Float.compare e1 e2)
+          with
+          | Some min -> min
+          | None -> failwith "dijkstra: find-min failure"
+
+        let relax state u v w =
+          let {d; pred; _} = state in
+          let dv = Map.find_exn d v and du = Map.find_exn d u in
           if dv > du +. w then
             { state with
-              d = M.Map.change d v
+              d = Map.change d v
                   ~f:(function
                       | Some _ -> Some (du +. w)
-                      | None -> failwith "relax : missing"
+                      | None -> failwith "dijkstra: relax failure"
                     )
-            ; pred = M.Map.add (M.Map.remove pred v) ~key:v ~data:u }
-          else state in
-        state'
+            ; pred = Map.add (Map.remove pred v) ~key:v ~data:u
+            }
+          else state
 
-      let find_min (v_s : (float * node) list) =
-        match List.min_elt v_s
-                ~cmp:(fun (e1, _) (e2, _) -> Float.compare e1 e2)
-        with
-        | Some m -> m
-        | None -> failwith "find_min : min. element not found"
+        let dijkstra src g =
+          let rec loop ({s; v_s; _} as state) =
+            match List.is_empty v_s with
+            | true -> state
+            | false ->
+              let u, _ = find_min v_s in
+              let state' =
+                List.fold (Map.find_exn g u)
+                  ~init:{
+                    state with
+                    s = M.Set.add s u
+                  ; v_s = List.filter v_s ~f:(fun (x, _) -> x <> u)
+                  }
+                  ~f:(fun state (v, w) -> relax state u v w) in
+              loop {
+                state' with
+                v_s = List.fold state'.v_s ~init:[]
+                    ~f:(fun acc (n, _) -> (n, Map.find_exn state'.d n) :: acc)
+              }
+          in loop (init src g)
 
-      let dijkstra src g =
-        let rec loop ({s; v_s; _} as state) =
-          if List.is_empty v_s then state
-          else
-            let (_, u) = find_min v_s in
-            let state' =
-              List.fold (M.Map.find_exn g u)
-                ~init:{
-                  state with
-                  s = M.Set.add s u
-                ; v_s = List.filter v_s ~f:(fun (_, x) -> x <> u)
-                }
-                ~f:(fun state (v, w) -> relax state u v w) in
-            let v_s =
-              List.fold state'.v_s ~init:[]
-                ~f:(fun acc (_, n) -> (M.Map.find_exn state'.d n, n) :: acc)
-            in  loop {state' with v_s} in
-        loop (initial_state src g)
+        let d state = M.Map.to_alist (state.d)
 
-      let d state = M.Map.to_alist (state.d)
+        let path state n =
+          let rec loop acc x =
+            if x = state.src then state.src :: acc
+            else loop (x :: acc) (Map.find_exn state.pred x) in
+          loop [] n
 
-      let path state n =
-        let rec loop acc x =
-          if x = (state.src) then state.src :: acc
-          else loop (x :: acc) (M.Map.find_exn state.pred x) in
-        loop [] n
-
-      let shortest_paths state =
-        List.map (M.Map.keys state.g) ~f:(fun n -> (n, path state n))
-
+        let shortest_paths state =
+          List.map (Map.keys state.g) ~f:(fun n -> (n, path state n))
+      end
     end
 end
 
@@ -148,17 +148,14 @@ module G : Graph.S with
   Graph.Make (Char)
 
 let g : G.t =
-  match G.of_adjacency
-   [   's', ['u', 3.0; 'x', 5.0]
-     ; 'u', ['x',  2.0; 'v', 6.0]
-     ; 'x', ['v',  4.0; 'y', 6.0; 'u', 1.0]
-     ; 'v', ['y',  2.0]
-     ; 'y', ['v',  7.0]
-    ] with
-  | `Ok g -> g
-  | `Duplicate_key c -> failwithf "of_adjacency : duplicate key '%c'" c ()
+  G.of_adjacency
+    [ 's', ['u',  3.0; 'x', 5.0]
+    ; 'u', ['x',  2.0; 'v', 6.0]
+    ; 'x', ['v',  4.0; 'y', 6.0; 'u', 1.0]
+    ; 'v', ['y',  2.0]
+    ; 'y', ['v',  7.0]
+    ]
 
-(* ;; Printf.printf "%s" (Sexp.to_string (G.to_sexp g)) *)
-let s = (G.dijkstra 's' g)
-;; G.d s
-;; G.shortest_paths s
+let s = (G.Dijkstra.dijkstra 's' g)
+;; G.Dijkstra.d s
+;; G.Dijkstra.shortest_paths s
