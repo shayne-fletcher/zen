@@ -8,8 +8,12 @@ module type Graph_sig = sig
   val of_adjacency : extern_t -> t
   val to_adjacency : t -> extern_t
 
+  exception Error of [`Duplicate_node ][@@deriving sexp]
+
   module Dijkstra : sig
     type state
+
+    exception Error of [ `Find_min | `Relax ][@@deriving sexp]
 
     val dijkstra : node -> t -> state
     val d : state -> (node * float) list
@@ -55,11 +59,13 @@ module Graph : GRAPH = struct
       type extern_t = (node * (node * float) list) list
       type t = (node * float) list Map.t
 
+      exception Error of [`Duplicate_node ][@@deriving sexp]
+
       let to_adjacency g = Map.to_alist g
       let of_adjacency l =
         match Map.of_alist l with
         | `Ok t -> t
-        | `Duplicate_key _ -> failwith "Graph.of_adjacency: duplicate node"
+        | `Duplicate_key _ -> raise (Error `Duplicate_node)
 
       module Dijkstra = struct
 
@@ -71,6 +77,8 @@ module Graph : GRAPH = struct
         ; s      :                Set.t
         ; v_s    :  (node * float) list
         }
+
+        exception Error of [ `Find_min | `Relax ][@@deriving sexp]
 
         let init src g =
           let vs = Map.keys g in
@@ -91,7 +99,7 @@ module Graph : GRAPH = struct
                   ~cmp:(fun (_, e1) (_, e2) -> Float.compare e1 e2)
           with
           | Some min -> min
-          | None -> failwith "dijkstra: find-min failure"
+          | None -> raise (Error `Find_min)
 
         let relax state u v w =
           let {d; pred; _} = state in
@@ -101,7 +109,7 @@ module Graph : GRAPH = struct
               d = Map.change d v
                   ~f:(function
                       | Some _ -> Some (du +. w)
-                      | None -> failwith "dijkstra: relax failure"
+                      | None -> raise (Error `Relax)
                     )
             ; pred = Map.add (Map.remove pred v) ~key:v ~data:u
             }
