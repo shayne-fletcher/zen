@@ -1,21 +1,31 @@
 open Core
 
+(** Dijkstra's algorithm for the single source shortest paths
+   problem. *)
+
 module type Graph_sig = sig
-  type vertex_t
-  type t
+  type vertex_t[@@deriving sexp]
+  type t[@@deriving sexp]
   type extern_t
 
-  val of_adjacency : extern_t -> t
-  val to_adjacency : t -> extern_t
+  type load_error = [ `Duplicate_vertex of vertex_t ] [@@deriving sexp]
+  exception Load_error of load_error [@@deriving sexp]
 
-  exception Load_error of [ `Duplicate_vertex_t ][@@deriving sexp]
+  val of_adjacency : extern_t -> [ `Ok of t | `Load_error of load_error ]
+  val to_adjacency : t -> extern_t
 
   module Dijkstra : sig
     type state
 
-    exception Dijkstra_error of [ `Find_min | `Relax ][@@deriving sexp]
+    type dijkstra_error = [
+      | `Relax of vertex_t
+      | `Find_min of (vertex_t * float) list
+    ] [@@deriving sexp]
+    exception Dijkstra_error of dijkstra_error[@@deriving sexp]
 
-    val dijkstra : vertex_t -> t -> state
+    val dijkstra : vertex_t -> t ->
+      [ `Ok of state | `Dijkstra_error of dijkstra_error ]
+
     val d : state -> (vertex_t * float) list
     val shortest_paths : state -> (vertex_t * vertex_t list) list
   end
@@ -24,7 +34,7 @@ end
 
 module type GRAPH = sig
   module type Vert = sig
-    type t
+    type t[@@deriving sexp]
     include Comparable.S with type t := t
   end
 
@@ -39,7 +49,7 @@ end
 
 module Graph : GRAPH = struct
   module type Vert = sig
-    type t
+    type t[@@deriving sexp]
     include Comparable.S with type t := t
   end
 
@@ -55,17 +65,24 @@ module Graph : GRAPH = struct
       module Map = V.Map
       module Set = V.Set
 
-      type vertex_t = V.t
+      type vertex_t = V.t[@@deriving sexp]
       type extern_t = (vertex_t * (vertex_t * float) list) list
-      type t = (vertex_t * float) list Map.t
+      type t = (vertex_t * float) list Map.t[@@deriving sexp]
 
-      exception Load_error of [`Duplicate_vertex_t ][@@deriving sexp]
+      type load_error = [ `Duplicate_vertex of vertex_t][@@deriving sexp]
+      exception Load_error of load_error [@@deriving sexp]
 
       let to_adjacency g = Map.to_alist g
-      let of_adjacency l =
+      let of_adjacency_exn l =
         match Map.of_alist l with
         | `Ok t -> t
-        | `Duplicate_key _ -> raise (Load_error `Duplicate_vertex_t)
+        | `Duplicate_key c -> raise (Load_error (`Duplicate_vertex c))
+
+      let of_adjacency l =
+        try
+          `Ok (of_adjacency_exn l)
+        with
+        | Load_error err -> `Load_error err
 
       module Dijkstra = struct
 
@@ -78,7 +95,11 @@ module Graph : GRAPH = struct
         ; v_s    :  (vertex_t * float) list
         }
 
-        exception Dijkstra_error of [ `Find_min | `Relax ][@@deriving sexp]
+        type dijkstra_error = [
+          | `Relax of vertex_t
+          | `Find_min of (vertex_t * float) list
+        ] [@@deriving sexp]
+        exception Dijkstra_error of dijkstra_error [@@deriving sexp]
 
         let init src g =
           let vs = Map.keys g in
@@ -99,7 +120,7 @@ module Graph : GRAPH = struct
                   ~cmp:(fun (_, e1) (_, e2) -> Float.compare e1 e2)
           with
           | Some min -> min
-          | None -> raise (Dijkstra_error `Find_min)
+          | None -> raise (Dijkstra_error (`Find_min v_s))
 
         let relax state u v w =
           let {d; pred; _} = state in
@@ -109,13 +130,13 @@ module Graph : GRAPH = struct
               d = Map.change d v
                   ~f:(function
                       | Some _ -> Some (du +. w)
-                      | None -> raise (Dijkstra_error `Relax)
+                      | None -> raise (Dijkstra_error (`Relax v))
                     )
             ; pred = Map.add (Map.remove pred v) ~key:v ~data:u
             }
           else state
 
-        let dijkstra src g =
+        let dijkstra_exn src g =
           let rec loop ({s; v_s; _} as state) =
             match List.is_empty v_s with
             | true -> state
@@ -135,6 +156,12 @@ module Graph : GRAPH = struct
                     ~f:(fun acc (n, _) -> (n, Map.find_exn state'.d n) :: acc)
               }
           in loop (init src g)
+
+        let dijkstra src g =
+          try
+            `Ok (dijkstra_exn src g)
+          with
+          | Dijkstra_error err -> `Dijkstra_error err
 
         let d state = Map.to_alist (state.d)
 
@@ -156,14 +183,19 @@ module G : Graph.S with
   Graph.Make (Char)
 
 let g : G.t =
-  G.of_adjacency
+  match G.of_adjacency
     [ 's', ['u',  3.0; 'x', 5.0]
     ; 'u', ['x',  2.0; 'v', 6.0]
     ; 'x', ['v',  4.0; 'y', 6.0; 'u', 1.0]
     ; 'v', ['y',  2.0]
     ; 'y', ['v',  7.0]
-    ]
-
-let s = (G.Dijkstra.dijkstra 's' g)
+    ] with
+  | `Ok g -> g
+  | `Load_error _ -> failwith "error loading graph"
+;;
+let s =
+  match (G.Dijkstra.dijkstra 's' g) with
+  | `Ok s -> s
+  | `Dijkstra_error _ -> failwith "error running dijkstra"
 ;; G.Dijkstra.d s
 ;; G.Dijkstra.shortest_paths s
