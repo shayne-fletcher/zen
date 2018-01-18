@@ -1,0 +1,13 @@
+let () =
+  try Topdirs.dir_directory (Sys.getenv "OCAML_TOPLEVEL_PATH")
+  with Not_found -> ()
+;;
+
+#use "topfind";;
+#thread;;
+#require "core";;
+#require "async";;
+#require "ppx_deriving";;
+#require "sexplib";;
+#require "ppx_sexp_conv";;
+open Sexplib.Conv;;

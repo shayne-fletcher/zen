@@ -1,0 +1,18 @@
+(jbuild_version 1)
+
+(executable (
+  (name echo)
+  (public_name echo)
+  (preprocess (pps (ppx_jane)))
+  (libraries (async))
+  (modules (echo))
+))
+
+(executable (
+  (name file)
+  (public_name file)
+  (preprocess (pps (ppx_jane)))
+  (libraries (async))
+  (modules (file))
+))
+
