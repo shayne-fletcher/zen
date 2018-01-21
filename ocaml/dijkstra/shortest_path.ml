@@ -124,7 +124,15 @@ module Graph : GRAPH = struct
 
         let relax state u v w =
           let {d; pred; _} = state in
-          let dv = Map.find_exn d v and du = Map.find_exn d u in
+          let dv = match Map.find d v with
+            | Some dv -> dv
+            | None -> raise (Dijkstra_error (`Relax v)) in
+          let du = match Map.find d u with
+            | Some du -> du
+            | None -> raise (Dijkstra_error (`Relax u)) in
+
+          (* let dv = Map.find_exn d v and du = Map.find_exn d u in *)
+
           if dv > du +. w then
             { state with
               d = Map.change d v
