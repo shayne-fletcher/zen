@@ -69,7 +69,7 @@ module Graph : GRAPH = struct
       type extern_t = (vertex_t * (vertex_t * float) list) list
       type t = (vertex_t * float) list Map.t[@@deriving sexp]
 
-      type load_error = [ `Duplicate_vertex of vertex_t][@@deriving sexp]
+      type load_error = [ `Duplicate_vertex of vertex_t ][@@deriving sexp]
       exception Load_error of load_error [@@deriving sexp]
 
       let to_adjacency g = Map.to_alist g
@@ -105,7 +105,7 @@ module Graph : GRAPH = struct
           let vs = Map.keys g in
           let init s x = if s = x then 0.0 else Float.infinity in
           let d = List.fold vs ~init:Map.empty
-              ~f:(fun acc x -> Map.add acc ~key:x ~data:(init src x)) in
+              ~f:(fun acc x -> Map.set acc ~key:x ~data:(init src x)) in
           {
             src
           ; g
@@ -132,7 +132,7 @@ module Graph : GRAPH = struct
                       | Some _ -> Some (du +. w)
                       | None -> raise (Dijkstra_error (`Relax v))
                     )
-            ; pred = Map.add (Map.remove pred v) ~key:v ~data:u
+            ; pred = Map.set (Map.remove pred v) ~key:v ~data:u
             }
           else state
 
