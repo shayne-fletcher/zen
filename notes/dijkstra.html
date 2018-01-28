@@ -1,0 +1,260 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .keyword { font-weight : bold ; color : Red }
+      .keywordsign { color : #C04600 }
+      .comment { color : Green }
+      .constructor { color : Blue }
+      .type { color : #5C6585 }
+      .string { color : Maroon }
+      .warning { color : Red ; font-weight : bold }
+      .info { margin-left : 3em; margin-right: 3em }
+      .param_info { margin-top: 4px; margin-left : 3em; margin-right : 3em }
+      .code {
+      color : #465F91 ; 
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace; 
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Shortest Path</title>
+  </head>
+  <body>
+    <p>
+In 1965, to demonstrate the usefulness of a new computer to non-computing people, Edsger W. Dijkstra conceived of a problem non-mathematicians could easily understand. What is the shortest route between two cities on a map of the Netherlands? The answer is the algorithm for the shortest path. This algorithm, in Dijkstra's own words, was "designed in about 20 minutes ... If, these days, you want go from here to there and you have a car with a GPS and a screen, it can give you the shortest way".
+</p>
+<p>
+<pre><code class="code"><span class="keyword">open</span> <span class="constructor">Core</span>
+</code><code class="code">
+
+<span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">Graph_sig</span> = <span class="keyword">sig</span>
+  <span class="keyword">type</span> vertex_t[@@deriving sexp]
+  <span class="keyword">type</span> t[@@deriving sexp]
+  <span class="keyword">type</span> extern_t
+
+  <span class="keyword">type</span> load_error = [ <span class="keywordsign">`</span><span class="constructor">Duplicate_vertex</span> <span class="keyword">of</span> vertex_t ] [@@deriving sexp]
+  <span class="keyword">exception</span> <span class="constructor">Load_error</span> <span class="keyword">of</span> load_error [@@deriving sexp]
+
+  <span class="keyword">val</span> of_adjacency : extern_t <span class="keywordsign">-&gt;</span> [ <span class="keywordsign">`</span><span class="constructor">Ok</span> <span class="keyword">of</span> t <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Load_error</span> <span class="keyword">of</span> load_error ]
+  <span class="keyword">val</span> to_adjacency : t <span class="keywordsign">-&gt;</span> extern_t
+
+  <span class="keyword">module</span> <span class="constructor">Dijkstra</span> : <span class="keyword">sig</span>
+    <span class="keyword">type</span> state
+
+    <span class="keyword">type</span> dijkstra_error = [
+      <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Relax</span> <span class="keyword">of</span> vertex_t
+      <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Find_min</span> <span class="keyword">of</span> (vertex_t * float) list
+    ] [@@deriving sexp]
+    <span class="keyword">exception</span> <span class="constructor">Dijkstra_error</span> <span class="keyword">of</span> dijkstra_error[@@deriving sexp]
+
+    <span class="keyword">val</span> dijkstra : vertex_t <span class="keywordsign">-&gt;</span> t <span class="keywordsign">-&gt;</span>
+      [ <span class="keywordsign">`</span><span class="constructor">Ok</span> <span class="keyword">of</span> state <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Dijkstra_error</span> <span class="keyword">of</span> dijkstra_error ]
+
+    <span class="keyword">val</span> d : state <span class="keywordsign">-&gt;</span> (vertex_t * float) list
+    <span class="keyword">val</span> shortest_paths : state <span class="keywordsign">-&gt;</span> (vertex_t * vertex_t list) list
+  <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+</code></pre>
+
+<pre><code class="code"><span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">GRAPH</span> = <span class="keyword">sig</span>
+  <span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">Vert</span> = <span class="keyword">sig</span>
+    <span class="keyword">type</span> t[@@deriving sexp]
+    <span class="keyword">include</span> <span class="constructor">Comparable</span>.<span class="constructor">S</span> <span class="keyword">with</span> <span class="keyword">type</span> t := t
+  <span class="keyword">end</span>
+
+  <span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">S</span> = <span class="keyword">sig</span>
+    <span class="keyword">include</span> <span class="constructor">Graph_sig</span>
+  <span class="keyword">end</span>
+
+  <span class="keyword">module</span> <span class="constructor">Make</span> : <span class="keyword">functor</span> (<span class="constructor">V</span> : <span class="constructor">Vert</span>) <span class="keywordsign">-&gt;</span>
+    <span class="constructor">S</span> <span class="keyword">with</span> <span class="keyword">type</span> vertex_t = <span class="constructor">V</span>.t
+       <span class="keyword">and</span> <span class="keyword">type</span> extern_t = (<span class="constructor">V</span>.t * (<span class="constructor">V</span>.t * float) list) list
+<span class="keyword">end</span>
+</code></pre>
+
+<pre><code class="code"><span class="keyword">module</span> <span class="constructor">Graph</span> : <span class="constructor">GRAPH</span> = <span class="keyword">struct</span>
+  <span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">Vert</span> = <span class="keyword">sig</span>
+    <span class="keyword">type</span> t[@@deriving sexp]
+    <span class="keyword">include</span> <span class="constructor">Comparable</span>.<span class="constructor">S</span> <span class="keyword">with</span> <span class="keyword">type</span> t := t
+  <span class="keyword">end</span>
+
+  <span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">S</span> = <span class="keyword">sig</span>
+    <span class="keyword">include</span> <span class="constructor">Graph_sig</span>
+  <span class="keyword">end</span>
+
+  <span class="keyword">module</span> <span class="constructor">Make</span> : <span class="keyword">functor</span> (<span class="constructor">V</span> : <span class="constructor">Vert</span>) <span class="keywordsign">-&gt;</span>
+    <span class="constructor">S</span> <span class="keyword">with</span> <span class="keyword">type</span> vertex_t = <span class="constructor">V</span>.t
+       <span class="keyword">and</span> <span class="keyword">type</span> extern_t = (<span class="constructor">V</span>.t * (<span class="constructor">V</span>.t * float) list) list
+    =
+    <span class="keyword">functor</span> (<span class="constructor">V</span> : <span class="constructor">Vert</span>) <span class="keywordsign">-&gt;</span> <span class="keyword">struct</span>
+      <span class="keyword">module</span> <span class="constructor">Map</span> = <span class="constructor">V</span>.<span class="constructor">Map</span>
+      <span class="keyword">module</span> <span class="constructor">Set</span> = <span class="constructor">V</span>.<span class="constructor">Set</span>
+
+      <span class="keyword">type</span> vertex_t = <span class="constructor">V</span>.t[@@deriving sexp]
+      <span class="keyword">type</span> extern_t = (vertex_t * (vertex_t * float) list) list
+      <span class="keyword">type</span> t = (vertex_t * float) list <span class="constructor">Map</span>.t[@@deriving sexp]
+
+      <span class="keyword">type</span> load_error = [ <span class="keywordsign">`</span><span class="constructor">Duplicate_vertex</span> <span class="keyword">of</span> vertex_t][@@deriving sexp]
+      <span class="keyword">exception</span> <span class="constructor">Load_error</span> <span class="keyword">of</span> load_error [@@deriving sexp]
+
+      <span class="keyword">let</span> to_adjacency g = <span class="constructor">Map</span>.to_alist g
+      <span class="keyword">let</span> of_adjacency_exn l =
+        <span class="keyword">match</span> <span class="constructor">Map</span>.of_alist l <span class="keyword">with</span>
+        <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Ok</span> t <span class="keywordsign">-&gt;</span> t
+        <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Duplicate_key</span> c <span class="keywordsign">-&gt;</span> raise (<span class="constructor">Load_error</span> (<span class="keywordsign">`</span><span class="constructor">Duplicate_vertex</span> c))
+
+      <span class="keyword">let</span> of_adjacency l =
+        <span class="keyword">try</span>
+          <span class="keywordsign">`</span><span class="constructor">Ok</span> (of_adjacency_exn l)
+        <span class="keyword">with</span>
+        <span class="keywordsign">|</span> <span class="constructor">Load_error</span> err <span class="keywordsign">-&gt;</span> <span class="keywordsign">`</span><span class="constructor">Load_error</span> err
+
+      <span class="keyword">module</span> <span class="constructor">Dijkstra</span> = <span class="keyword">struct</span>
+
+        <span class="keyword">type</span> state = {
+          src    :                 vertex_t
+        ; g      :                        t
+        ; d      :              float <span class="constructor">Map</span>.t
+        ; pred   :           vertex_t <span class="constructor">Map</span>.t
+        ; s      :                    <span class="constructor">Set</span>.t
+        ; v_s    :  (vertex_t * float) list
+        }
+
+        <span class="keyword">type</span> dijkstra_error = [
+          <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Relax</span> <span class="keyword">of</span> vertex_t
+          <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Find_min</span> <span class="keyword">of</span> (vertex_t * float) list
+        ] [@@deriving sexp]
+        <span class="keyword">exception</span> <span class="constructor">Dijkstra_error</span> <span class="keyword">of</span> dijkstra_error [@@deriving sexp]
+
+        <span class="keyword">let</span> init src g =
+          <span class="keyword">let</span> vs = <span class="constructor">Map</span>.keys g <span class="keyword">in</span>
+          <span class="keyword">let</span> init s x = <span class="keyword">if</span> s = x <span class="keyword">then</span> 0.0 <span class="keyword">else</span> <span class="constructor">Float</span>.infinity <span class="keyword">in</span>
+          <span class="keyword">let</span> d = <span class="constructor">List</span>.fold vs ~init:<span class="constructor">Map</span>.empty
+              ~f:(<span class="keyword">fun</span> acc x <span class="keywordsign">-&gt;</span> <span class="constructor">Map</span>.add acc ~key:x ~data:(init src x)) <span class="keyword">in</span>
+          {
+            src
+          ; g
+          ; s = <span class="constructor">Set</span>.empty
+          ; d
+          ; pred = <span class="constructor">Map</span>.empty
+          ; v_s = <span class="constructor">Map</span>.to_alist d
+          }
+
+        <span class="keyword">let</span> find_min v_s =
+          <span class="keyword">match</span> <span class="constructor">List</span>.min_elt v_s
+                  ~cmp:(<span class="keyword">fun</span> (_, e1) (_, e2) <span class="keywordsign">-&gt;</span> <span class="constructor">Float</span>.compare e1 e2)
+          <span class="keyword">with</span>
+          <span class="keywordsign">|</span> <span class="constructor">Some</span> min <span class="keywordsign">-&gt;</span> min
+          <span class="keywordsign">|</span> <span class="constructor">None</span> <span class="keywordsign">-&gt;</span> raise (<span class="constructor">Dijkstra_error</span> (<span class="keywordsign">`</span><span class="constructor">Find_min</span> v_s))
+
+        <span class="keyword">let</span> relax state u v w =
+          <span class="keyword">let</span> {d; pred; _} = state <span class="keyword">in</span>
+          <span class="keyword">let</span> dv = <span class="constructor">Map</span>.find_exn d v <span class="keyword">and</span> du = <span class="constructor">Map</span>.find_exn d u <span class="keyword">in</span>
+          <span class="keyword">if</span> dv &gt; du +. w <span class="keyword">then</span>
+            { state <span class="keyword">with</span>
+              d = <span class="constructor">Map</span>.change d v
+                  ~f:(<span class="keyword">function</span>
+                      <span class="keywordsign">|</span> <span class="constructor">Some</span> _ <span class="keywordsign">-&gt;</span> <span class="constructor">Some</span> (du +. w)
+                      <span class="keywordsign">|</span> <span class="constructor">None</span> <span class="keywordsign">-&gt;</span> raise (<span class="constructor">Dijkstra_error</span> (<span class="keywordsign">`</span><span class="constructor">Relax</span> v))
+                    )
+            ; pred = <span class="constructor">Map</span>.add (<span class="constructor">Map</span>.remove pred v) ~key:v ~data:u
+            }
+          <span class="keyword">else</span> state
+
+        <span class="keyword">let</span> dijkstra_exn src g =
+          <span class="keyword">let</span> <span class="keyword">rec</span> loop ({s; v_s; _} <span class="keyword">as</span> state) =
+            <span class="keyword">match</span> <span class="constructor">List</span>.is_empty v_s <span class="keyword">with</span>
+            <span class="keywordsign">|</span> <span class="keyword">true</span> <span class="keywordsign">-&gt;</span> state
+            <span class="keywordsign">|</span> <span class="keyword">false</span> <span class="keywordsign">-&gt;</span>
+              <span class="keyword">let</span> u, _ = find_min v_s <span class="keyword">in</span>
+              <span class="keyword">let</span> state' =
+                <span class="constructor">List</span>.fold (<span class="constructor">Map</span>.find_exn g u)
+                  ~init:{
+                    state <span class="keyword">with</span>
+                    s = <span class="constructor">Set</span>.add s u
+                  ; v_s = <span class="constructor">List</span>.filter v_s ~f:(<span class="keyword">fun</span> (x, _) <span class="keywordsign">-&gt;</span> x &lt;&gt; u)
+                  }
+                  ~f:(<span class="keyword">fun</span> state (v, w) <span class="keywordsign">-&gt;</span> relax state u v w) <span class="keyword">in</span>
+              loop {
+                state' <span class="keyword">with</span>
+                v_s = <span class="constructor">List</span>.fold state'.v_s ~init:[]
+                    ~f:(<span class="keyword">fun</span> acc (n, _) <span class="keywordsign">-&gt;</span> (n, <span class="constructor">Map</span>.find_exn state'.d n) :: acc)
+              }
+          <span class="keyword">in</span> loop (init src g)
+
+        <span class="keyword">let</span> dijkstra src g =
+          <span class="keyword">try</span>
+            <span class="keywordsign">`</span><span class="constructor">Ok</span> (dijkstra_exn src g)
+          <span class="keyword">with</span>
+          <span class="keywordsign">|</span> <span class="constructor">Dijkstra_error</span> err <span class="keywordsign">-&gt;</span> <span class="keywordsign">`</span><span class="constructor">Dijkstra_error</span> err
+
+        <span class="keyword">let</span> d state = <span class="constructor">Map</span>.to_alist (state.d)
+
+        <span class="keyword">let</span> path state n =
+          <span class="keyword">let</span> <span class="keyword">rec</span> loop acc x =
+            <span class="keyword">if</span> x = state.src <span class="keyword">then</span> state.src :: acc
+            <span class="keyword">else</span> loop (x :: acc) (<span class="constructor">Map</span>.find_exn state.pred x) <span class="keyword">in</span>
+          loop [] n
+
+        <span class="keyword">let</span> shortest_paths state =
+          <span class="constructor">List</span>.map (<span class="constructor">Map</span>.keys state.g) ~f:(<span class="keyword">fun</span> n <span class="keywordsign">-&gt;</span> (n, path state n))
+      <span class="keyword">end</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+</code></pre>
+
+<pre><code class="code"><span class="keyword">module</span> <span class="constructor">G</span> : <span class="constructor">Graph</span>.<span class="constructor">S</span> <span class="keyword">with</span>
+  <span class="keyword">type</span> vertex_t = char <span class="keyword">and</span> <span class="keyword">type</span> extern_t = (char * (char * float) list) list
+  =
+  <span class="constructor">Graph</span>.<span class="constructor">Make</span> (<span class="constructor">Char</span>)
+
+<span class="keyword">let</span> g : <span class="constructor">G</span>.t =
+  <span class="keyword">match</span> <span class="constructor">G</span>.of_adjacency
+    [ <span class="string">'s'</span>, [<span class="string">'u'</span>,  3.0; <span class="string">'x'</span>, 5.0]
+    ; <span class="string">'u'</span>, [<span class="string">'x'</span>,  2.0; <span class="string">'v'</span>, 6.0]
+    ; <span class="string">'x'</span>, [<span class="string">'v'</span>,  4.0; <span class="string">'y'</span>, 6.0; <span class="string">'u'</span>, 1.0]
+    ; <span class="string">'v'</span>, [<span class="string">'y'</span>,  2.0]
+    ; <span class="string">'y'</span>, [<span class="string">'v'</span>,  7.0]
+    ] <span class="keyword">with</span>
+  <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Ok</span> g <span class="keywordsign">-&gt;</span> g
+  <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Load_error</span> _ <span class="keywordsign">-&gt;</span> failwith <span class="string">"error loading graph"</span>
+;;
+</code></pre>
+
+<pre><code class="code"><span class="keyword">let</span> s =
+  <span class="keyword">match</span> (<span class="constructor">G</span>.<span class="constructor">Dijkstra</span>.dijkstra <span class="string">'s'</span> g) <span class="keyword">with</span>
+  <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Ok</span> s <span class="keywordsign">-&gt;</span> s
+  <span class="keywordsign">|</span> <span class="keywordsign">`</span><span class="constructor">Dijkstra_error</span> _ <span class="keywordsign">-&gt;</span> failwith <span class="string">"error running dijkstra"</span>
+;; <span class="constructor">G</span>.<span class="constructor">Dijkstra</span>.d s
+;; <span class="constructor">G</span>.<span class="constructor">Dijkstra</span>.shortest_paths s
+</code></pre>
+
+<pre><code class="code"><span class="keywordsign">#</span><span class="keyword">val</span> s : <span class="constructor">G</span>.<span class="constructor">Dijkstra</span>.state = &lt;abstr&gt;
+<span class="keywordsign">#</span> <span class="constructor">G</span>.<span class="constructor">Dijkstra</span>.d s;;
+- : (char * float) list =
+[(<span class="string">'s'</span>, 0.); (<span class="string">'u'</span>, 3.); (<span class="string">'v'</span>, 9.); (<span class="string">'x'</span>, 5.); (<span class="string">'y'</span>, 11.)]
+<span class="keywordsign">#</span> <span class="constructor">G</span>.<span class="constructor">Dijkstra</span>.shortest_paths s;;
+- : (char * char list) list =
+[   (<span class="string">'s'</span>, [<span class="string">'s'</span>])
+  ; (<span class="string">'u'</span>, [<span class="string">'s'</span>; <span class="string">'u'</span>])
+  ; (<span class="string">'v'</span>, [<span class="string">'s'</span>; <span class="string">'u'</span>; <span class="string">'v'</span>])
+  ; (<span class="string">'x'</span>, [<span class="string">'s'</span>; <span class="string">'x'</span>]);
+    (<span class="string">'y'</span>, [<span class="string">'s'</span>; <span class="string">'x'</span>; <span class="string">'y'</span>])
+]
+</code></pre>
+
+    </p>
+    <hr/>
+   <p>
+     References:<br/>
+     "Introduction to Algorithms" Section 24.3:Dijkstra's alorithm -- Cormen et. al. (Second ed.) 2001.<br/>
+   </p>
+  </body>
+</html>
