@@ -30,6 +30,7 @@
 In 1965, to demonstrate the usefulness of a new computer to non-computing people, Edsger W. Dijkstra conceived of a problem non-mathematicians could easily understand. What is the shortest route between two cities on a map of the Netherlands? The answer is the algorithm for the shortest path. This algorithm, in Dijkstra's own words, was "designed in about 20 minutes ... If, these days, you want go from here to there and you have a car with a GPS and a screen, it can give you the shortest way".
 </p>
 <p>
+Implicit in the following is that Dijkstra's algorithm is formulated for adjacency list representations of graphs. The module type captures the fundamental nature of how we will think of graphs. Modules implementing the signature define a vertex type <code>vertex_t</code> a graph type <code>t</code> and an external representation type of graphs <code>extern_t</code>. A value of <code>type load_error</code> can occur when moving between values of <code>extern_t</code> and <code>t</code> by means of the function <code>of_adjancey</code>. The complementary function <code>to_adjacency</code> can't fail. Such modules contain a sub-module <code>Dijkstra</code> which introduces additional types and functions that we will study in further detail later.
 <pre><code class="code"><span class="keyword">open</span> <span class="constructor">Core</span>
 </code><code class="code">
 
@@ -62,7 +63,8 @@ In 1965, to demonstrate the usefulness of a new computer to non-computing people
 
 <span class="keyword">end</span>
 </code></pre>
-
+</p>
+<p>This next module type <code>GRAPH</code> is for modules that provide the means of producing graphs together with an implementation of Dijkstra's algorithm. That is, they contain a functor <code>Make</code> the instantiations of which will satisfy the <code>Graph_sig</code> signature above available as the module type <code>S</code>. The functor <code>Make</code> is unary. The type of it's argument is a module satisfying the signature <code>Vert</code>. Modules that satisfy <code>Vert</code> contain a type <code>t</code>, values of which can be lexically ordered. The signature of the <code>Make</code> functor is rather intricate in its sharing constraints. The return type <code>S</code> is specialized on the provided <code>Vert</code> module and the <code>extern_t</code> in <code>S</code> is derived from the type <code>Vertex.t</code>. The presence of <code>float</code> in the specification of <code>extern_t</code> is for edge weights.
 <pre><code class="code"><span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">GRAPH</span> = <span class="keyword">sig</span>
   <span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">Vert</span> = <span class="keyword">sig</span>
     <span class="keyword">type</span> t[@@deriving sexp]
@@ -78,7 +80,9 @@ In 1965, to demonstrate the usefulness of a new computer to non-computing people
        <span class="keyword">and</span> <span class="keyword">type</span> extern_t = (<span class="constructor">V</span>.t * (<span class="constructor">V</span>.t * float) list) list
 <span class="keyword">end</span>
 </code></pre>
-
+This ends the specification of the program which is for this exercise, complete.
+</p>
+<p>Module <code>Graph</code> is a realization of the module type <code>GRAPH</code>. It provides an implementation of <code>Make</code> which can be used to materialize graphs and peform shortest path computations on them.
 <pre><code class="code"><span class="keyword">module</span> <span class="constructor">Graph</span> : <span class="constructor">GRAPH</span> = <span class="keyword">struct</span>
   <span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">Vert</span> = <span class="keyword">sig</span>
     <span class="keyword">type</span> t[@@deriving sexp]
