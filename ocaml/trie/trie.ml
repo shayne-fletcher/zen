@@ -51,19 +51,19 @@ module Trie : TRIE = struct
   type trie = Letter of char * bool * (trie list)
   type t = trie
 
-  let exists (t : trie) (w : string) : bool = 
-    let rec exists_aux ((Letter (d, e, nodes)) : trie) : (char list) -> bool = 
+  let exists (t : trie) (w : string) : bool =
+    let rec exists_aux ((Letter (d, e, nodes)) : trie) : (char list) -> bool =
       function
       | [] -> false
       | [h] when e -> d = h
       | (h :: tl) -> d = h && List.exists (fun e -> exists_aux e tl) nodes in
     explode w |> exists_aux t
 
-  let insert (t : trie) (w : string) : trie = 
+  let insert (t : trie) (w : string) : trie =
     let rec insert_aux ((Letter (d, e, l) as n) : trie) : (char list) -> trie =
-      function  
+      function
       | [] -> n
-      | (x :: tl) -> 
+      | (x :: tl) ->
          if x = d then insert_aux (Letter (d, tl = [], l)) tl
          else match List.partition (fun (Letter (e, _, _)) -> e = x) l with
            | [], _ -> Letter (d, e, (insert_aux (Letter (x, tl = [], [])) tl) :: l)
@@ -84,7 +84,7 @@ module Trie : TRIE = struct
     let rec loop (path : char list) (acc : (char list) list) = function
       | Letter (d, terminal, cs) ->
          let path = d :: path in
-         List.fold_left (loop path) 
+         List.fold_left (loop path)
             (if terminal then (path :: acc) else acc) cs
     in (loop [] [] t) |> List.map (fun s -> implode (List.rev s))
 
