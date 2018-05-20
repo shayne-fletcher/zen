@@ -92,11 +92,6 @@ module Graph : GRAPH = struct
         ; v_s    : (vertex_t * float) Heap.t
         }
 
-        type error = [
-          | `Relax of vertex_t
-        ] [@@deriving sexp]
-        exception Error of error [@@deriving sexp]
-
         let init src g =
           let init x = match V.equal src x with
             | true -> 0.0 | false -> Float.infinity in
@@ -111,6 +106,11 @@ module Graph : GRAPH = struct
           ; v_s = Heap.of_list (Map.to_alist d)
                 ~cmp:(fun (_, e1) (_, e2) -> Float.compare e1 e2)
           }
+
+        type error = [
+          | `Relax of vertex_t
+        ] [@@deriving sexp]
+        exception Error of error [@@deriving sexp]
 
         let relax state (u, v, w) =
           let {d; pred; v_s; _} = state in
