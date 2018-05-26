@@ -29,7 +29,7 @@ let () = never_returns (Scheduler.go ())
 (* It's more idiomatic to let the [Command] module do that. *)
 let command : Command.t =
   let open Command.Let_syntax in
-  Command.async'
+  Command.async
     ~summary:"pipe example"
     [%map_open
       let src = anon ("SRC" %: string) in
