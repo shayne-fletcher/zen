@@ -1,6 +1,6 @@
 open! Core
-open! Patdiff_lib
 open! Soup.Infix
+open! Patdiff_lib
 
 let process (src : string) : unit =
   let infile = Filename.realpath src in
