@@ -30,7 +30,7 @@ let print_code (buf : Buffer.t) (code : string) (source : string) : unit =
   Buffer.add_string buf "</pre>";
   Buffer.add_string buf "</body></html>"
 
-let (version : bool ref) 
+let (version : bool ref)
     ,(file : string ref) = ref false, ref ""
 
 let read_args : unit -> unit  = fun () ->
@@ -38,20 +38,20 @@ let read_args : unit -> unit  = fun () ->
     [("-v", Arg.Set version, "Print the version number") ;
      ("-f", Arg.String (fun s -> file := s), "File") ;
     ]
-  in Arg.parse specification 
-  (fun s -> 
-    Printf.printf "Warning : Ignoring unrecognized argument \"%s\"\n" s) 
+  in Arg.parse specification
+  (fun s ->
+    Printf.printf "Warning : Ignoring unrecognized argument \"%s\"\n" s)
   ("Usage : "^(Sys.argv.(0))^" options")
 
-let ()  = 
+let ()  =
   read_args () ;
-  if !version then print_string "0.0.0\n" 
+  if !version then print_string "0.0.0\n"
   else
-    if !file = "" then 
-    raise (Failure 
+    if !file = "" then
+    raise (Failure
       "Missing argument : file") ;
-   if not (Sys.file_exists (!file)) then  
-      raise (Failure (Printf.sprintf 
+   if not (Sys.file_exists (!file)) then
+      raise (Failure (Printf.sprintf
         "Bad argument : The file '%s' does not exist" !file)) ;
    try
      let code = Odoc_misc.input_file_as_string (!file) in
