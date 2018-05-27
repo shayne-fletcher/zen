@@ -1,0 +1,6 @@
+(library (
+  (name odoc_ocamlhtml)
+  (libraries (str))
+))
+
+(ocamllex (odoc_ocamlhtml))

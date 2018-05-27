@@ -1,0 +1,11 @@
+opam-version: "1.2"
+version: "1.0"
+maintainer: "shayne@shaynefletcher.org"
+authors: ["shayne@shaynefletcher.org"]
+homepage: "https://github.com/shayne-fletcher/zen/ocaml/ocaml-syntax-highlight2"
+bug-reports: "https://github.com/shayne-fletcher/zen/issues"
+dev-repo: "https://github.com/shayne-fletcher/zen.git"
+license: "Apache-2.0"
+build: [
+  ["jbuilder" "build" "--only" "syntax_highlight" "--root" "." "-j" jobs "@install"]
+]
