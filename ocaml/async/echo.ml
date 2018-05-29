@@ -5,7 +5,7 @@ let rec copy_blocks buf r w =
   Reader.read r buf >>= function
   | `Eof -> return ()
   | `Ok bytes_read ->
-    Writer.write w buf ~len:bytes_read;
+    Writer.write w (Bytes.to_string buf) ~len:bytes_read;
     Writer.flushed w >>= fun () ->
     copy_blocks buf r w
 
