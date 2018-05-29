@@ -12,8 +12,8 @@ let process (src : string) : unit =
     ~f:(fun c ->
         let s = Core.In_channel.input_all c in
         let s' = Syntax_highlight_core.highlight s in
-        let from_ = {Patdiff_core.name="before"; text=s } in
-        let to_   = {Patdiff_core.name=" after"; text=s'} in
+        let from_ = { Patdiff_core.name="before"; text=s } in
+        let to_   = { Patdiff_core.name=" after"; text=s'} in
         printf "%s\n" (Patdiff_core.patdiff ~keep_ws:true ~from_ ~to_ ());
         Core.Out_channel.with_file outfile
           ~f:(fun w -> Core.Out_channel.output_string w s')
