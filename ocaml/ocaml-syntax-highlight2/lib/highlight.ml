@@ -23,3 +23,10 @@ let code soup =
           ~inner_text:(Soup.require (Soup.leaf_text n))
       )
     )
+
+let all src =
+  let soup = Soup.parse src in
+  code soup;
+  pre  soup;
+  Soup.to_string soup
+
