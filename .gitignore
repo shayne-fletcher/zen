@@ -21,3 +21,4 @@ html
 .merlin
 _build
 *.install
+*.depend

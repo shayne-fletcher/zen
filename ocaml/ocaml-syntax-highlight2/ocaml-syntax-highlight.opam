@@ -7,5 +7,11 @@ bug-reports: "https://github.com/shayne-fletcher/zen/issues"
 dev-repo: "https://github.com/shayne-fletcher/zen.git"
 license: "Apache-2.0"
 build: [
-  ["jbuilder" "build" "--only" "syntax_highlight" "--root" "." "-j" jobs "@install"]
+  ["jbuilder" "build" "-p" name "-j" jobs]
 ]
+depends: [
+  "core"
+  "lambdasoup"
+  "ppx_jane"
+  "jbuilder" {build}
+  ]

@@ -1,5 +1,5 @@
 (library (
-  (name ocaml_syntax_highlight.lib)
+  (name syntax_highlight)
   (public_name ocaml-syntax-highlight.lib)
   (libraries (str))
   (synopsis "OCaml syntax highlighting.")

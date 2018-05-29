@@ -1,46 +1,15 @@
 open! Core
 open! Soup.Infix
 open! Patdiff_lib
-open! Ocaml_syntax_highlight
-
-let _default_style_options : string list =
-  [ ".keyword { font-weight : bold ; color : Red }" ;
-    ".keywordsign { color : #C04600 }" ;
-    ".comment { color : Green }" ;
-    ".constructor { color : Blue }" ;
-    ".type { color : #5C6585 }" ;
-    ".string { color : Maroon }" ;
-    ".warning { color : Red ; font-weight : bold }" ;
-    ".info { margin-left : 3em; margin-right: 3em }" ;
-    ".param_info { margin-top: 4px; margin-left : 3em; margin-right : 3em }" ;
-    ".code { color : #465F91 ; }" ;
-    "pre { margin-bottom: 4px; font-family: monospace; }" ;
-    "pre.verbatim, pre.codepre { }";
-  ]
-
-(*
-let print_template (buf : Buffer.t) (source : string) : unit =
-  Buffer.add_string buf "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
-  Buffer.add_string buf "<html>\n";
-  Buffer.add_string buf "<head>\n";
-  Buffer.add_string buf "<style>\n";
-  Buffer.add_string buf (String.concat "\n" default_style_options);
-  Buffer.add_string buf "</style>\n";
-  Buffer.add_string buf "<meta content=\"text/html; charset=utf-8\" http-equiv=\"Content-Type\">\n";
-  Buffer.add_string buf "<title>";
-  Buffer.add_string buf source ;
-  Buffer.add_string buf "</title>\n</head>\n";
-  Buffer.add_string buf "<body>\n";
-  Buffer.add_string buf "</body></html>"
-*)
+open! Syntax_highlight
 
 let process (src : string) : unit =
 
   let infile = Filename.realpath src in
   let outfile = infile ^ ".highlighted" in
 
-  printf "+++ Reading %S\n" infile;
-  printf "+++ Writing %S\n" outfile;
+  printf "[Info] Reading %S\n" infile;
+  printf "[Info] Writing %S\n" outfile;
 
   Core.In_channel.with_file infile
     ~f:(fun c ->
