@@ -3,7 +3,7 @@
 (executable (
  (name syntax_highlight_cli)
  (public_name ocaml-syntax-highlight)
- (libraries (syntax_highlight core lambdasoup patdiff.lib))
+ (libraries (syntax_highlight core patdiff.lib))
  (preprocess (pps (ppx_jane)))
  (package ocaml-syntax-highlight)
 ))

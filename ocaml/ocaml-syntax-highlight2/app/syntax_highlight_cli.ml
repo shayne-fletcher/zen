@@ -4,61 +4,19 @@ open! Patdiff_lib
 open! Syntax_highlight
 
 let process (src : string) : unit =
-
   let infile = Filename.realpath src in
   let outfile = infile ^ ".highlighted" in
-
   printf "[Info] Reading %S\n" infile;
   printf "[Info] Writing %S\n" outfile;
-
   Core.In_channel.with_file infile
     ~f:(fun c ->
-
-        (* Parse the source document. *)
         let s = Core.In_channel.input_all c in
-        let soup = Soup.parse s in
-
-        (* Select all <code> elements that have empty class lists and
-           replace them with <code class="code"> elements. *)
-        soup $$ "code" |>
-        Soup.filter (fun n -> List.is_empty (Soup.classes n)) |>
-        Soup.iter (fun n ->
-            Soup.replace n (
-              Soup.create_element "code"
-                ~class_:"code"
-                ~inner_text:(Soup.require (Soup.leaf_text n))
-            )
-          )
-        ;
-
-        (* Select all <pre> elements, filter out those that have a
-           <code> children and replace them with syntax highlighted
-           ones. *)
-        soup $$ "pre" |>
-        Soup.filter (fun n -> Soup.count (n $$ "code") = 0) |>
-        Soup.iter (fun n ->
-            let buf = Buffer.create 1024 in
-            let code = Soup.require (Soup.leaf_text n) in
-            (Odoc_ocamlhtml.html_of_code buf ~with_pre:true code;
-             let node = Soup.parse (Buffer.contents buf) in
-             Soup.clear n;
-             Soup.append_child n node)
-          )
-        ;
-
-        (* Extract the html text of the new document and write it to
-           disk. *)
-        let s' = Soup.to_string soup in
-        Core.Out_channel.with_file outfile
-          ~f:(fun w -> Core.Out_channel.output_string w s')
-        ;
-
-        (* Print a patience diff of the two documents to the
-           console. *)
+        let s' = Syntax_highlight_core.highlight s in
         let from_ = {Patdiff_core.name="before"; text=s } in
         let to_   = {Patdiff_core.name=" after"; text=s'} in
-        printf "%s\n" (Patdiff_core.patdiff ~keep_ws:true ~from_ ~to_ ())
-
+        printf "%s\n" (Patdiff_core.patdiff ~keep_ws:true ~from_ ~to_ ());
+        Core.Out_channel.with_file outfile
+          ~f:(fun w -> Core.Out_channel.output_string w s')
       )
 
 let command : Command.t =
@@ -66,7 +24,7 @@ let command : Command.t =
   Command.basic
     ~summary:"syntax highlight ocaml code in html"
     [%map_open
-      let src = anon ("SRC" %: string) in
+      let src = anon ("FILE" %: string) in
       fun () ->
         match Sys.file_exists src with
         | `Yes -> process src

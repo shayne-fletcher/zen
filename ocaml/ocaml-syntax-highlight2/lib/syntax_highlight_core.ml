@@ -32,5 +32,9 @@ let template source =
   Buffer.add_string buf "</body></html>";
   Buffer.contents buf
 
-
+let highlight src =
+  let soup = Soup.parse src in
+  Highlight.code soup;
+  Highlight.pre soup;
+  Soup.to_string soup
 
