@@ -1,6 +1,9 @@
 (library (
-  (name odoc_ocamlhtml)
+  (name ocaml_syntax_highlight.lib)
+  (public_name ocaml-syntax-highlight.lib)
   (libraries (str))
+  (synopsis "OCaml syntax highlighting.")
+  (library_flags (-linkall))
 ))
 
 (ocamllex (odoc_ocamlhtml))

@@ -1,6 +1,7 @@
 open! Core
 open! Soup.Infix
 open! Patdiff_lib
+open! Ocaml_syntax_highlight
 
 let _default_style_options : string list =
   [ ".keyword { font-weight : bold ; color : Red }" ;
@@ -25,7 +26,7 @@ let print_template (buf : Buffer.t) (source : string) : unit =
   Buffer.add_string buf "<style>\n";
   Buffer.add_string buf (String.concat "\n" default_style_options);
   Buffer.add_string buf "</style>\n";
-  Buffer.add_string buf "<meta content=\"text/html; charset=iso-8859-1\" http-equiv=\"Content-Type\">\n";
+  Buffer.add_string buf "<meta content=\"text/html; charset=utf-8\" http-equiv=\"Content-Type\">\n";
   Buffer.add_string buf "<title>";
   Buffer.add_string buf source ;
   Buffer.add_string buf "</title>\n</head>\n";
