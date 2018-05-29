@@ -1,7 +1,7 @@
 (library (
   (name syntax_highlight)
   (public_name ocaml-syntax-highlight.lib)
-  (libraries (str))
+  (libraries (str core lambdasoup))
   (synopsis "OCaml syntax highlighting.")
   (library_flags (-linkall))
 ))

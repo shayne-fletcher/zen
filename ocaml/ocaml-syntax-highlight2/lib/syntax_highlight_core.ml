@@ -1,3 +1,6 @@
+open! Core
+open! Soup.Infix
+
 let default_style_options : string list =
   [ ".keyword { font-weight : bold ; color : Red }" ;
     ".keywordsign { color : #C04600 }" ;
@@ -13,13 +16,13 @@ let default_style_options : string list =
     "pre.verbatim, pre.codepre { }";
   ]
 
-let template (source : string) : string =
+let template source =
   let buf = Buffer.create 1024 in
   Buffer.add_string buf "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
   Buffer.add_string buf "<html>\n";
   Buffer.add_string buf "<head>\n";
   Buffer.add_string buf "<style>\n";
-  Buffer.add_string buf (String.concat "\n" default_style_options);
+  Buffer.add_string buf (String.concat ~sep:"\n" default_style_options);
   Buffer.add_string buf "</style>\n";
   Buffer.add_string buf "<meta content=\"text/html; charset=utf-8\" http-equiv=\"Content-Type\">\n";
   Buffer.add_string buf "<title>";
@@ -28,3 +31,6 @@ let template (source : string) : string =
   Buffer.add_string buf "<body>\n";
   Buffer.add_string buf "</body></html>";
   Buffer.contents buf
+
+
+
