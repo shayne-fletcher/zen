@@ -25,6 +25,6 @@
   (action (chdir ${ROOT}
           (progn
             (run ${<} inline-test-runner syntax_highlight_unit_test)
-            (echo "[Ok] syntax-highlight-test\n")
+            (echo "\n[Ok] syntax-highlight-test\n")
            )))
 ))

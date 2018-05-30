@@ -1,7 +1,8 @@
 open! Core
+open! Syntax_highlight
 
 let%expect_test "template" =
-  printf "%s" (Syntax_highlight.Syntax_highlight_core.template "foo");
+  printf "%s" (Syntax_highlight_core.template "foo");
   [%expect {|
     <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
     <html>
@@ -23,4 +24,5 @@ let%expect_test "template" =
     <title>foo</title>
     </head>
     <body>
-    </body></html> |}]
+    </body>
+    </html> |}]

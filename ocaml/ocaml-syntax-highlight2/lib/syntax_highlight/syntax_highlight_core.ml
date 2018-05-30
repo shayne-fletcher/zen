@@ -29,7 +29,8 @@ let template source =
   Buffer.add_string buf source ;
   Buffer.add_string buf "</title>\n</head>\n";
   Buffer.add_string buf "<body>\n";
-  Buffer.add_string buf "</body></html>";
+  Buffer.add_string buf "</body>\n";
+  Buffer.add_string buf "</html>\n";
   Buffer.contents buf
 
 let all = Highlight.all
