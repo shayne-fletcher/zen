@@ -1,5 +1,4 @@
 open! Core
-open! Soup.Infix
 
 let default_style_options : string list =
   [ ".keyword { font-weight : bold ; color : Red }" ;
