@@ -1,0 +1,23 @@
+(jbuild_version 1)
+
+(executable (
+ (name syntax_highlight_test)
+  (flags (
+    :standard
+    -open Core
+  ))
+ (libraries (syntax_highlight core patdiff.lib))
+ (preprocess (pps (ppx_jane)))
+))
+
+(alias (
+  (name runtest)
+  (deps (syntax_highlight_test.exe))
+  (package ocaml-syntax-highlight)
+  (action (chdir ${ROOT}
+          (progn
+            (run ${<} inline-test-runner syntax_highlight_test)
+            (echo "[Ok] syntax-highlight-test\n")
+           )))
+
+))
