@@ -1,0 +1,14 @@
+(jbuild_version 1)
+
+(library (
+  (name syntax_highlight_unit_test)
+  (flags (
+    :standard
+    -open Core
+  ))
+  (library_flags (-linkall))
+  (libraries (core expect_test_helpers_kernel syntax_highlight))
+  ; (inline_tests)
+  (preprocess (pps (ppx_jane)))
+  (synopsis "Syntax highlight unit test.")
+))

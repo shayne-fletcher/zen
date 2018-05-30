@@ -6,8 +6,16 @@
     :standard
     -open Core
   ))
- (libraries (syntax_highlight core patdiff.lib))
- (preprocess (pps (ppx_jane)))
+ (libraries (
+   ppx_expect.evaluator
+   ppx_inline_test.runner.lib
+   syntax_highlight_unit_test
+ ))
+))
+
+(rule (
+  (targets (syntax_highlight_test.ml))
+  (action (write-file ${@} "Ppx_inline_test_lib.Runtime.exit ()"))
 ))
 
 (alias (
@@ -16,8 +24,7 @@
   (package ocaml-syntax-highlight)
   (action (chdir ${ROOT}
           (progn
-            (run ${<} inline-test-runner syntax_highlight_test)
+            (run ${<} inline-test-runner syntax_highlight_unit_test)
             (echo "[Ok] syntax-highlight-test\n")
            )))
-
 ))
