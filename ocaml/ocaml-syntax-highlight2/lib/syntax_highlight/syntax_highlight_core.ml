@@ -15,9 +15,11 @@ let default_style_options : string list =
     "pre.verbatim, pre.codepre { }";
   ]
 
+let doctype = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
+
 let template source =
   let buf = Buffer.create 1024 in
-  Buffer.add_string buf "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
+  Buffer.add_string buf doctype;
   Buffer.add_string buf "<html>\n";
   Buffer.add_string buf "<head>\n";
   Buffer.add_string buf "<style>\n";
