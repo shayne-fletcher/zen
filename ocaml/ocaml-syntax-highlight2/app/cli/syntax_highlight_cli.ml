@@ -24,7 +24,15 @@ let command : Command.t =
   Command.basic
     ~summary:"syntax highlight ocaml code in html"
     [%map_open
-      let src = anon ("FILE" %: string) in
+      let src = anon ("FILE" %: string)
+      and _ = flag "template"
+          (no_arg_abort
+             ~exit:(fun () ->
+                 printf "%s" @@ Syntax_highlight_core.template "foo";
+                 never_returns (exit 0)
+               )
+          ) ~doc:"print a template and exit"
+      in
       fun () ->
         match Sys.file_exists src with
         | `Yes -> process src
@@ -35,5 +43,5 @@ let command : Command.t =
     ]
 
 let () =
-  try Command.run ~version:"0.1" command
+  try Command.run ~version:"0.1.0" command
   with e -> eprintf "%s\n" (Exn.to_string e)

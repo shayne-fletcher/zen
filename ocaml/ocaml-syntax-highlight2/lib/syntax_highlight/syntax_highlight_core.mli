@@ -1,6 +1,11 @@
-val doctype : string (** [doctype] `<!DOCTYPE>` declaration. *)
-val meta : string (** [meta] stock `<meta content=...>`. *)
-val stylesheet : string (** [stylesheet] default style options. *)
+val doctype : string
+ (** [doctype] `<!DOCTYPE>` declaration. *)
+
+val meta : string
+ (** [meta] stock `<meta content=...>`. *)
+
+val stylesheet : string
+ (** [stylesheet] default style options. *)
 
 val template : string -> string
 (** [template src] produces a default html template for syntax
