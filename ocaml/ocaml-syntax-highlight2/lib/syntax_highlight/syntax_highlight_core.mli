@@ -1,9 +1,11 @@
-val doctype : string
-(** [doctype] is a stock `<!DOCTYPE>` declaration. *)
+val doctype : string (** [doctype] `<!DOCTYPE>` declaration. *)
+val meta : string (** [meta] stock `<meta content=...>`. *)
+val stylesheet : string (** [stylesheet] default style options. *)
 
 val template : string -> string
-(** [template src] produces a html template with a default style-sheet
-   for syntax highlighted blocks. *)
+(** [template src] produces a default html template for syntax
+   highlighted blocks. *)
 
 val all : string -> string
-(** [all src] translates [src] to a new syntax highlighted version. *)
+(** [all src] syntax highlights code blocks. *)
+
