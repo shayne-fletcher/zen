@@ -10,20 +10,27 @@ let default_style_options : string list =
     ".warning { color : Red ; font-weight : bold }" ;
     ".info { margin-left : 3em; margin-right: 3em }" ;
     ".param_info { margin-top: 4px; margin-left : 3em; margin-right : 3em }" ;
-    ".code { color : #465F91 ; }" ;
-    "pre { margin-bottom: 4px; font-family: monospace; }" ;
+    ".code { color : #465F91 ; background-color: #F5F5F5; }" ;
+    "pre { margin-bottom: 4px; font-family: monospace; background-color: #F5F5F5; }" ;
     "pre.verbatim, pre.codepre { }";
   ]
 
+let doctype =
+  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
+
+let stylesheet =
+  "<style>"^(String.concat ~sep:"\n" default_style_options)^"</style>\n"
+
+let meta =
+  "<meta content=\"text/html; charset=utf-8\" http-equiv=\"Content-Type\">\n"
+
 let template source =
   let buf = Buffer.create 1024 in
-  Buffer.add_string buf "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
+  Buffer.add_string buf doctype;
   Buffer.add_string buf "<html>\n";
   Buffer.add_string buf "<head>\n";
-  Buffer.add_string buf "<style>\n";
-  Buffer.add_string buf (String.concat ~sep:"\n" default_style_options);
-  Buffer.add_string buf "</style>\n";
-  Buffer.add_string buf "<meta content=\"text/html; charset=utf-8\" http-equiv=\"Content-Type\">\n";
+  Buffer.add_string buf stylesheet;
+  Buffer.add_string buf meta;
   Buffer.add_string buf "<title>";
   Buffer.add_string buf source ;
   Buffer.add_string buf "</title>\n</head>\n";
