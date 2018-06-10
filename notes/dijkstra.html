@@ -73,22 +73,7 @@
        <span class="keyword">and</span> <span class="keyword">type</span> extern_t = (<span class="constructor">V</span>.t * (<span class="constructor">V</span>.t * float) list) list
 <span class="keyword">end</span>
 </code></pre>
-<pre><code class="code"><span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">GRAPH</span> = <span class="keyword">sig</span>
-  <span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">VERT</span> = <span class="keyword">sig</span>
-    <span class="keyword">type</span> t[@@deriving sexp]
-    <span class="keyword">include</span> <span class="constructor">Comparable</span>.<span class="constructor">S</span> <span class="keyword">with</span> <span class="keyword">type</span> t := t
-  <span class="keyword">end</span>
-
-  <span class="keyword">module</span> <span class="keyword">type</span> <span class="constructor">S</span> = <span class="keyword">sig</span>
-    <span class="keyword">include</span> <span class="constructor">Graph_sig</span>
-  <span class="keyword">end</span>
-
-  <span class="keyword">module</span> <span class="constructor">Make</span> : <span class="keyword">functor</span> (<span class="constructor">V</span> : <span class="constructor">VERT</span>) <span class="keywordsign">-&gt;</span>
-    <span class="constructor">S</span> <span class="keyword">with</span> <span class="keyword">type</span> vertex_t = <span class="constructor">V</span>.t
-       <span class="keyword">and</span> <span class="keyword">type</span> extern_t = (<span class="constructor">V</span>.t * (<span class="constructor">V</span>.t * float) list) list
-<span class="keyword">end</span>
-</code></pre>
-The two module types <code class="code">Graph_sig</code> and <code class="code">Graph</code> together provide the specification for the program. <code class="code">module Graph</code> in the next section implements this specification.
+The two module types <code class="code">Graph_sig</code> and <code class="code">GRAPH</code> together provide the specification for the program. <code class="code">module Graph</code> in the next section implements this specification.
     </p>
     <p>Implementation of module <code class="code">Graph</code> is in outline this.
 <pre><code class="code"><span class="keyword">module</span> <span class="constructor">Graph</span> : <span class="constructor">GRAPH</span> = <span class="keyword">struct</span>
