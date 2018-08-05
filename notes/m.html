@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+ "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js","TeX/AMSmath.js","TeX/AMSsymbols.js"],
+    jax: ["input/TeX", "output/HTML-CSS"],
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+    },
+   "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+    </script> 
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
+    <title>Monads</title>
+  </head>
+  <body>
+  <h2>Functor</h2>
+  <p>
+  An abstract datatype <code>f a</code> which has the ability for its values to be mapped over can become an instance of the <code>Functor</code> typeclass:
+  <pre>class Functor f where
+  fmap :: (a -> b) -> f a -> f b
+  (<$) :: a -> f b -> f a
+  </pre>
+  where,
+  \[
+  \begin{eqnarray}
+  fmap\;id &=& id \\
+  fmap\;(f \circ g) &=& fmap\;f \circ \; fmap\;g
+  \end{eqnarray}
+  \]
+  and,
+   <ul>
+    <li><pre>fmap :: (a -> b) -> f a -> f b</pre>
+    &nbsp;&nbsp;creates a new <code>f b</code> from an <code>f a</code> using the results of calling a function on every value in the <code>f a</code>;</li>
+    <li><pre>($<) :: a -> f b -> f a</pre>
+    &nbsp;&nbsp;creates a new <code>f a</code> from an <code>f b</code> by replacing all the values in the <code>f b</code> by a given value of type <code>a</code>.</li>
+    </ul>
+  </p>
+  <p>Some further related functions are available in the <code>Data.Functor</code> package.
+    <ul>
+    <li><pre>($>) :: f a -> b -> f b</pre>
+    &nbsp;&nbsp;create a new <code>f b</code> from an <code>f a</code> by replacing all the values in the <code>f a</code> by a given value of type <code>b</code>;</li>
+    <li><pre>(<$>) :: (a -> b) -> f a -> f b</pre>
+    &nbsp;&nbsp;Infix synonym for <code>fmap</code>;</li>
+    <li><pre>void :: Functor f => f a -> f ()</pre>
+    &nbsp;&nbsp;create a new <code>f ()</code> from an <code>f a</code> by replacing all values in the <code>f a</code> by <code>()</code>.</li>
+  <p>
+    Consider this : let <code>f</code> be <code>Maybe</code>. Now, <code>(+)</code> has type <code>int -> int -> int</code>. So, in <code>fmap (+)</code>, <code>a</code> is <code>int</code>, <code>b</code> is <code>int -> int</code> and the type of <code>fmap (+)</code> is <code>Maybe int -> Maybe (int -> int)</code>. Since <code>(+3)</code> has type <code>int -> int</code>, in <code>fmap (+3)</code>, <code>a</code> takes type <code>int</code>, <code>b</code> takes type <code>int</code> and so <code>fmap (+3)</code> has type <code>Maybe int -> Maybe int</code>.
+  </p>
+  <hr/>
+  <p>
+    References:<br/>
+    [1] <cite>The Haskell Programming Language</cite> <a href="https://wiki.haskell.org/Functor">https://wiki.haskell.org</a></p>
+  </p>
+  </body>
+</html>
