@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Implementing a new GHC Language Extension</title>
+  </head>
+  <body>
+    <p>This note describes the mechanics of adding a new language extension to the GHC compiler. The example code will illustrate adding a <code>Foo</code> extension.
+    </p>
+    <h2>Implementing the extension</h2>
+    <p>The first step is adding a <code>Foo</code> constructor to the <code>Extension</code> type in <code>libraries/ghc-boot-th/GHC/LanguageExtensions/Type.hs</code> like so:
+<pre><code class="code">data Extension
+    = Cpp
+    | OverlappingInstances
+    ...
+    | Foo
+</code></pre>
+    </p>
+    <p>The next job is to extend the constant list <code>xFlagsDeps</code> in <code>compiler/main/DynFlags.hs</code>.
+<pre><code class="code">xFlagsDeps = [
+  flagSpec "AllowAmbiguousTypes" LangExt.AllowAmbiguousTypes,
+  ...
+  flagSpec "Foo"                 LangExt.Foo
+]</code></pre>
+    </p>
+    <p>Believe it or not, that's all it takes. With these two changes, it is now possible to enable <code>Foo</code> in Haskell source files by writing <code>{-# LANGUAGE Foo #-}</code> or from a compile command by passing the argument <code>-XFoo</code>.
+    </p>
+    <h2>Testing for the extension</h2>
+  </body>
+</html>
