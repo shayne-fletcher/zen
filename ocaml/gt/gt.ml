@@ -30,7 +30,7 @@ module type Directed_graph_sig = sig
   include Graph_sig
 
   val transpose : t -> t
-  val strongly_connected_components : t -> (node list) list 
+  val strongly_connected_components : t -> (node list) list
   val to_dot_digraph : (node -> string) -> t -> string
 
 end
@@ -155,29 +155,29 @@ module Graph : GRAPH = struct
         t , {d; f=(Node_map.add u t f); pred;
              color=Node_map.add u Black color; acc}
       in
-       if Node_map.find c init.color = White 
+       if Node_map.find c init.color = White
        then
          (snd (dfs_visit 0 c init))
        else init
 
-    let dfs_traverse 
-        (g : t) 
-        (vs : node list) 
-        (fn : 'a -> node -> 'a) 
+    let dfs_traverse
+        (g : t)
+        (vs : node list)
+        (fn : 'a -> node -> 'a)
         (init : 'a state) : 'a state =
       let f (acc : 'a state) (u : node) : 'a state = dfs_fold g u fn acc in
       List.fold_left f init vs
 
     let dfs_trees_fold
-        (g : t) 
+        (g : t)
         (vs : node list)
-        (fn : 'a -> node list -> 'a) 
-        (init : 'a) : 'a = 
-      let f ((s : (node list) state), (acc : 'a)) 
+        (fn : 'a -> node list -> 'a)
+        (init : 'a) : 'a =
+      let f ((s : (node list) state), (acc : 'a))
                  (u : node) : (node list state * 'a) =
         let s : (node list) state = dfs_fold g u (fun acc v -> v :: acc) s in
         let tree : node list = List.rev s.acc in
-        ({s with acc = []}, if List.length tree = 0 then acc else fn acc tree) in 
+        ({s with acc = []}, if List.length tree = 0 then acc else fn acc tree) in
       let ((_: (node list) state), (trees : 'a)) = List.fold_left f ((initial_state g []), init) vs in
       trees
 

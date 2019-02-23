@@ -17,10 +17,11 @@
     <title>Implementing a new GHC Language Extension</title>
   </head>
   <body>
-    <p>This note describes the mechanics of adding a new language extension to the GHC compiler. The example code will illustrate adding a <code>Foo</code> extension.
+    <h1>Adding a new GHC language extension</h1>
+    <p>This note summarizes the essential mechanics of adding a new language extension to the GHC compiler. The example code will illustrate adding a <code class="code">Foo</code> extension.
     </p>
     <h2>Implementing the extension</h2>
-    <p>The first step is adding a <code>Foo</code> constructor to the <code>Extension</code> type in <code>libraries/ghc-boot-th/GHC/LanguageExtensions/Type.hs</code> like so:
+    <p>The first step is to add a <code class="code">Foo</code> constructor to the <code class="code">Extension</code> type in <code class="code">libraries/ghc-boot-th/GHC/LanguageExtensions/Type.hs</code>.
 <pre><code class="code">data Extension
     = Cpp
     | OverlappingInstances
@@ -28,15 +29,77 @@
     | Foo
 </code></pre>
     </p>
-    <p>The next job is to extend the constant list <code>xFlagsDeps</code> in <code>compiler/main/DynFlags.hs</code>.
+    <p>The next job is to extend <code class="code">xFlagsDeps</code> in <code class="code">compiler/main/DynFlags.hs</code>.
 <pre><code class="code">xFlagsDeps = [
   flagSpec "AllowAmbiguousTypes" LangExt.AllowAmbiguousTypes,
   ...
   flagSpec "Foo"                 LangExt.Foo
 ]</code></pre>
     </p>
-    <p>Believe it or not, that's all it takes. With these two changes, it is now possible to enable <code>Foo</code> in Haskell source files by writing <code>{-# LANGUAGE Foo #-}</code> or from a compile command by passing the argument <code>-XFoo</code>.
+    <p>That's all it takes. With these two changes, it is now possible to enable <code class="code">Foo</code> in Haskell source files by writing <code class="code">{-# LANGUAGE Foo #-}</code> or from a compile command by passing the argument <code class="code">-XFoo</code>.
     </p>
     <h2>Testing for the extension</h2>
+    <h3>Lexer</h3>
+    <p>In <code>compiler/parser/Lexer.x</code>, locate <code class="code">data ExtBits</code> and add a constructor for <code class="code">Foo</code>.
+<pre><code class="code">data ExtBits
+  = FfiBit
+  | ...
+  | FooBit
+</code></pre>
+Next, extend the <code class="code">where</code> clause of function <code class="code">mkParserFlags'</code> with cases for <code class="code">Foo</code>.
+<pre><code class="code">langExtBits =
+        FfiBit                      `xoptBit` LangExt.ForeignFunctionInterface
+    .|. InterruptibleFfiBit         `xoptBit` LangExt.InterruptibleFFI
+
+    ...
+
+    .|. FooBit                      `xoptBit` LangExt.FooBit
+  </code>
+</pre>The function <code class="code">xtest</code> is then the basic building block for testing if <code class="code">Foo</code> is enabled. For example, this specific function tests a bitmap for the on/off status of the <code class="code">Foo</code> bit.
+<pre><code class="code">fooEnabled :: ExtsBitMap -> Bool
+fooEnabled = xtest FooBit
+</code></pre></pre>In practice, testing for a language extension in the lexer is called from a function computing a lexer action. Suppose <code class="code">foo</code> to be such a function and the action it computes depends somehow on whether the <code class="code">Foo</code> language extension is in effect. Putting it all together, schematically it will have the following form.
+<pre><code class="code">foo :: (FastString -> Token) -> Action
+foo con span buf len = do
+    exts <- getExts
+    if FooBit `xtest` exts then
+       ...
+    else
+       ...
+</code></pre>
+</p>
+<h3>Parser</h3>
+<p>This utility computes a monadic expression testing for the on/off state of a bit in a parser state monad.
+<pre><code class="code">extension :: (ExtsBitmap -> Bool) -> P Bool
+extension p = P $ \s -> POk s (p $! (pExtsBitmap . options) s)
+</code></pre>An expression of this kind can be evaluated in the semantic action of a parse rule in <code>compiler/parser/Parser.y</code>. Here's an example of how one might be used.
+<pre><code class="code">foo :: { () }
+  : 'foo'  {}
+  | {- empty -}    {% do
+                         foo_required <- extension fooEnabled
+                         when foo_required $ do
+                           loc <- fileSrcSpan
+                           parseErrorSDoc loc $ text "Missing foo"
+                    }
+</code></pre>
+  </p>
+  <h3>Renaming, type-checking and de-sugaring</h3>
+  <p>All of Renaming, typechecking and desurgaring occur in the contexts of <code class="code">TcRnIf _ _</code> monads. Function <code class="code">xoptM :: Extension -> TcRnIf gbl lcl Bool</code> is provided for extension testing in such contexts. Here's a schematic of how such a test might be used in a renaming function.
+<pre><code class="code">import GHC.LanguageExtensions
+
+updateFoos :: [AvailInfo] -> RnM (TcGlbEnv, TcLclEnv)
+updateFoos info = do {
+  (gbl_env, lcl_env) <- getEnvs
+  opt_Foo <- xoptM Foo
+  if not opt_Foo then
+    return (globals, locals)
+  else
+    let globals' = ...
+        locals' = ...
+    return (globals', locals')
+}
+</pre>
+  </p>
+<h3></h3>
   </body>
 </html>
