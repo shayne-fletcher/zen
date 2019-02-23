@@ -14,14 +14,14 @@
       }
       pre.verbatim, pre.codepre { }
     </style>
-    <title>Implementing a new GHC Language Extension</title>
+    <title>Adding a GHC Language Extension</title>
   </head>
   <body>
-    <h1>Adding a new GHC language extension</h1>
-    <p>This note summarizes the essential mechanics of adding a new language extension to the GHC compiler. The example code will illustrate adding a <code class="code">Foo</code> extension.
+    <h1>Adding a GHC language extension</h1>
+    <p>This note summarizes the essential mechanics of adding a new language extension to GHC. The example code will illustrate adding a <code class="code">Foo</code> extension.
     </p>
     <h2>Implementing the extension</h2>
-    <p>The first step is to add a <code class="code">Foo</code> constructor to the <code class="code">Extension</code> type in <code class="code">libraries/ghc-boot-th/GHC/LanguageExtensions/Type.hs</code>.
+    <p>The first step is to add a <code class="code">Foo</code> constructor to the <code class="code">Extension</code> type in <code>libraries/ghc-boot-th/GHC/LanguageExtensions/Type.hs</code>.
 <pre><code class="code">data Extension
     = Cpp
     | OverlappingInstances
@@ -29,7 +29,7 @@
     | Foo
 </code></pre>
     </p>
-    <p>The next job is to extend <code class="code">xFlagsDeps</code> in <code class="code">compiler/main/DynFlags.hs</code>.
+    <p>The next job is to extend <code class="code">xFlagsDeps</code> in <code>compiler/main/DynFlags.hs</code>.
 <pre><code class="code">xFlagsDeps = [
   flagSpec "AllowAmbiguousTypes" LangExt.AllowAmbiguousTypes,
   ...
@@ -46,19 +46,19 @@
   | ...
   | FooBit
 </code></pre>
-Next, extend the <code class="code">where</code> clause of function <code class="code">mkParserFlags'</code> with cases for <code class="code">Foo</code>.
+Next, extend the <code class="code">where</code> clause of function <code class="code">mkParserFlags'</code> with a case for <code class="code">Foo</code>.
 <pre><code class="code">langExtBits =
-        FfiBit                      `xoptBit` LangExt.ForeignFunctionInterface
-    .|. InterruptibleFfiBit         `xoptBit` LangExt.InterruptibleFFI
+        FfiBit `xoptBit` LangExt.ForeignFunctionInterface
+    .|. InterruptibleFfiBit `xoptBit` LangExt.InterruptibleFFI
 
     ...
 
-    .|. FooBit                      `xoptBit` LangExt.FooBit
+    .|. FooBit `xoptBit` LangExt.FooBit
   </code>
 </pre>The function <code class="code">xtest</code> is then the basic building block for testing if <code class="code">Foo</code> is enabled. For example, this specific function tests a bitmap for the on/off status of the <code class="code">Foo</code> bit.
 <pre><code class="code">fooEnabled :: ExtsBitMap -> Bool
 fooEnabled = xtest FooBit
-</code></pre></pre>In practice, testing for a language extension in the lexer is called from a function computing a lexer action. Suppose <code class="code">foo</code> to be such a function and the action it computes depends somehow on whether the <code class="code">Foo</code> language extension is in effect. Putting it all together, schematically it will have the following form.
+</code></pre>In practice, testing for a language extension in the lexer is called from a function computing a lexer action. Suppose <code class="code">foo</code> to be such a function and the action it computes depends somehow on whether the <code class="code">Foo</code> language extension is in effect. Putting it all together, schematically it will have the following form.
 <pre><code class="code">foo :: (FastString -> Token) -> Action
 foo con span buf len = do
     exts <- getExts
@@ -89,7 +89,7 @@ extension p = P $ \s -> POk s (p $! (pExtsBitmap . options) s)
 
 updateFoos :: [AvailInfo] -> RnM (TcGlbEnv, TcLclEnv)
 updateFoos info = do {
-  (gbl_env, lcl_env) <- getEnvs
+  (globals, locals) <- getEnvs
   opt_Foo <- xoptM Foo
   if not opt_Foo then
     return (globals, locals)
@@ -97,9 +97,7 @@ updateFoos info = do {
     let globals' = ...
         locals' = ...
     return (globals', locals')
-}
-</pre>
+}</code></pre>
   </p>
-<h3></h3>
   </body>
 </html>
