@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Names</title>
+  </head>
+  <body>
+    <h1>Names</h1>
+    <p>An <code class="code">OccName</code> is a basic type, a pairing of a string, with a <code class="code">Namespace</code>.
+<pre><code class="code">data NameSpace = VarName        -- Variables, including "real" data constructors
+               | DataName       -- "Source" data constructors
+               | TvName         -- Type variables
+               | TcClsName      -- Type constructors and classes; Haskell has them
+                                -- in the same name space for now.
+               deriving( Eq, Ord )
+
+data OccName = OccName
+    { occNameSpace  :: !NameSpace
+    , occNameFS     :: !FastString
+    }
+</code></pre>
+A <code class="code">RdrName</code> (<code>compiler/basicTypes/RdrName.hs</code>) is a wrapped <code class="code">OccName</code>.
+<pre><code class="code">data RdrName
+  = Unqual OccName
+  | Qual ModuleName OccName
+  | Orig Module OccName
+  | Exact Name
+  deriving Data
+</code></pre><code class="code">Orig</code> and <code class="code">Exact</code> reader names are thrown up by GHC either from generating code by when parsing builtin syntax. <code class="code">Qual</code> (qualified) and <code class="code">Unqual</code> (unqualified) reader names are the more common. <code class="code">Name</code>s are unique, unambiguous and contain information about where the named thing comes from.
+<pre><code class="code">data NameSort
+  = External Module
+
+  | WiredIn Module TyThing BuiltInSyntax
+        -- A variant of External, for wired-in things
+
+  | Internal            -- A user-defined Id or TyVar
+                        -- defined in the module being compiled
+
+  | System              -- A system-defined Id or TyVar.  Typically the
+                        -- OccName is very uninformative (like 's')
+            }
+
+-- | A unique, unambiguous name for something, containing information about where
+-- that thing originated.
+data Name = Name {
+                n_sort :: NameSort,     -- What sort of name it is
+                n_occ  :: !OccName,     -- Its occurrence name
+                n_uniq :: {-# UNPACK #-} !Unique,
+                n_loc  :: !SrcSpan      -- Definition site</code></pre>
+</p>
+<p>The function <code class="code">newTopSrcBinder</code> (<code>compiler/rename/RnEnv.hs</code>) computes a <code class="code">Name</code> from a <code class="code">Located RdrName</code>. It does this via function <code class="code">newGlobalBinder</code> (<code>compiler/iface/IfaceEnv.hs</code>).
+<pre><code class="code">do { this_mod <- getModule
+   ; traceRn "newTopSrcBinder" (ppr this_mod $$ ppr rdr_name $$ ppr loc)
+   ; newGlobalBinder this_mod (rdrNameOcc rdr_name) loc }
+</code></pre>
+</p>
+  </body>
+</html>
