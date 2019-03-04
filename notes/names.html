@@ -94,5 +94,188 @@ data NameCache
   -> (NameCache, Name)
 </code></pre> which, in the event of a cache miss, takes a unique from the supply, makes a new name and extends the name cache.
 </p>
+<h1>Renamer</h1>
+    <p>As explained in the <a href="https://ghc.haskell.org/trac/ghc/wiki/Commentary/Compiler/Renamer">GHC compiler commentary</a>, it's the renamer's job to figure out <code class="code">Name</code>s from <code class="code">ReaderName</code>s. The entry point to the renamer is <code class="code">tcRnModuleTcRnM</code> (<code>compiler/typecheck/TcRnDriver.hs</code>) which calls out to <code class="code">tcRnSrcDecls</code> which calls out to <code class="code">rnTopSrcDecls</code> which in turn calls <code class="code">rnSrcDecls</code> (<code>compiler/rename/RnSource.hs</code>) and is where all the action is. The renaming algorithm works in stages, each stage depending on the stages that go before it.
+</p>
+<h2>Stage 1</h2>
+<p>
+The first stage is top level binders excluding value bindings (so that is, types, classes, data constructors and record fields). This bit is done by a call to the function <code class="code">getLocalNonValBinders</code> (<code>compiler/rename/RnNames.hs</code>). The work of <code class="code">getLocalNonValBinders</code> itself is split into three parts.
+</p><h3>Part 1</h3><p>Here we show the code for the first part, the part that processes type or class declarations.
+<pre><code class="code">getLocalNonValBinders fixity_env
+     (HsGroup { hs_valds  = binds,
+                hs_tyclds = tycl_decls,
+                hs_fords  = foreign_decls })
+  = do  { -- Process all type/class decls *except* family instances
+        ; let inst_decls = tycl_decls >>= group_instds
+        ; overload_ok <- xoptM LangExt.DuplicateRecordFields
+        ; (tc_avails, tc_fldss)
+            <- fmap unzip $ mapM (new_tc overload_ok)
+                                 (tyClGroupTyClDecls tycl_decls)
+        ; traceRn "getLocalNonValBinders 1" (ppr tc_avails)
+        ; envs <- extendGlobalRdrEnvRn tc_avails fixity_env
+        ...
+</code></pre>In a module that just contains
+<pre><code class="code">module Foo where
+data R = R {f :: Integer}
+</code></pre>function <code class="code">new_tc</code> will only be invoked once.
+<pre><code class="code">new_tc :: Bool -> LTyClDecl GhcPs
+       -> RnM (AvailInfo, [(Name, [FieldLabel])])
+new_tc overload_ok tc_decl -- NOT for type/data instances
+    = do { let (bndrs, flds) = hsLTyClDeclBinders tc_decl
+         ; names@(main_name : sub_names) <- mapM newTopSrcBinder bndrs
+         ; flds' <- mapM (newRecordSelector overload_ok sub_names) flds
+         ; let fld_env = case unLoc tc_decl of
+                 DataDecl { tcdDataDefn = d } -> mk_fld_env d names flds'
+                 _                            -> []
+         ; return (AvailTC main_name names flds', fld_env) }
+</code></pre><code class="code">hsLtyClDeclBinders tc_decl</code> returns all the binding names of the declaration. The first component represents all binding names except record fields, the second represents field occurrences. The head of the first component is guaranteed to be the name of the declaration. We know of course the action of <code class="code">newTopSrcBinder</code> it maps <code class="code">Located RdrName</code>s to <code class="code">Name</code>s updating the <code class="code">NameCache</code> as it does so. In our case there will be two reader names, the first <code class="code">R</code> corresponding to the type <code class="code">R</code>, the second <code class="code">R</code> corresponding to the data constructor <code class="code">R</code>. You can see this in the renamer trace.
+<pre>newTopSrcBinder
+  Main
+  R
+  Foo.hs:4:1-27
+newTopSrcBinder
+  Main
+  R
+  Foo.hs:4:10-27
+</pre>Fields are processed by <code class="code">newRecordSelector</code> is in source file <code>compiler/rename/RnNames.hs</code>. The argument <code class="code">sub_names</code> is a list of the data constructor <code class="code">Name</code>s. Frankly, all that matters is that list be non-empty - only the head is used (the first data constructor). The non-pathological equation is this.
+<pre class="code"><code>newRecordSelector :: Bool -> [Name] -> LFieldOcc GhcPs -> RnM FieldLabel
+newRecordSelector overload_ok (dc:_) (L loc (FieldOcc _ (L _ fld)))
+  = do { selName <- newTopSrcBinder $ L loc $ field
+       ; return $ qualFieldLbl { flSelector = selName } }
+  where
+    fieldOccName = occNameFS $ rdrNameOcc fld
+    qualFieldLbl = mkFieldLabelOccs fieldOccName (nameOccName dc) overload_ok
+    field | isExact fld = fld -- Not the common case
+                              -- See the source for details.
+          | otherwise   = mkRdrUnqual (flSelector qualFieldLbl)
+                    </code></pre><code class="code">fld</code> in <code class="code">FieldOcc _ (L _ fld)</code> is a record with a <code class="code">rdrNameFieldOcc</code> of type <code class="code">Located RdrName</code>, <code class="code">rdrNameOcc fld</code> produces the <code class="code">OccName</code> from the <code class="code">RdrName</code>. Remember, <code class="code">OccName</code>s are pairs of a namespace and a string. <code class="code">occNameFS</code> extracts the string so <code class="code">fieldOccName</code> is the just the field label. <code class="code">mkFieldLabelOccs</code> is in <code>basicTypes/FieldLabel.hs</code>
+<pre><code class="code">mkFieldLabelOccs :: FieldLabelString -> OccName -> Bool -> FieldLbl OccName
+mkFieldLabelOccs lbl dc is_overloaded
+  = FieldLabel { flLabel = lbl, flIsOverloaded = is_overloaded
+               , flSelector = sel_occ }
+  where
+    str     = ":" ++ unpackFS lbl ++ ":" ++ occNameString dc
+    sel_occ | is_overloaded = mkRecFldSelOcc str
+            | otherwise     = mkVarOccFS lbl
+</code></pre>The <code class="code">flSelector</code> field here is an <code class="code">OccName</code> in the <code class="code">VarName</code> namespace. The string associated with the <code class="code">OccName</code> can differ from the <code class="code">flLabel</code> string in the event the language extension <code class="code">DuplicteRecordFields</code> is in effect. Mangling is taken care of by <code class="code">mkRecFldSelOcc</code> (<code>compiler/basicTypes/OccName.hs</code>). If overloading were enabled, the field <code class="code">f</code> in <code class="code">R {f :: Integer}</code> would get mangled to <code class="code">$sel:f:R</code>. Returning attention to <code class="code">newRecordSelector</code> it is then apparent that in the normal case, an unqualified reader name is made is of the selector name computed by <code class="code">mkFieldLabelOccs</code>, upgraded to a <code class="code">Name</code> by <code class="code">newTopSrcBinder</code> and a <code class="code">FieldLabel</code> with that name made the result. Of course, on our example, that call to <code class="code">newTopSrcBinder</code> for <code class="code">f</code> can be observed (in this case with <code class="code">DuplicateRecordFields</code> in effect) in the renamer trace too.
+<pre>newTopSrcBinder
+  Foo
+  $sel:f:R
+  Foo.hs:4:14
+</pre>Going back now to <code class="code">new_tc</code>, the last bit of the procedure reads as follows.
+<pre><code class="code">
+             ; let fld_env = case unLoc tc_decl of
+                     DataDecl { tcdDataDefn = d } -> mk_fld_env d names flds'
+                     _                            -> []
+</code></pre> That is, if the argument <code class="code">tc_decl</code> under consideration is a data declaration, a <code class="code">fld_env</code> is computed for it by <code class="code">mk_fld_env</code>, a function with this signature.
+<pre><code class="code"> mk_fld_env
+ :: HsDataDefn GhcPs
+    -> [Name]
+    -> [FieldLabel]
+    -> [(Name, [FieldLabel])]
+</code></pre> The role of this function is to compute the mapping from constructor names to fields. Its convenient to be done at this point but otherwise doesn't relate to renaming and so there's no further analysis of this here. Finally, the results of <code class="code">new_tc </code> are returned <code class="code">; return (AvailTC main_name names flds', fld_env) }
+</code>, the names harvested as a value of type <code class="code">AvailInfo</code> (<code>compiler/basicTypes/Avail.hs</code>).
+<pre><code class="code">-- | Records what things are "available", i.e. in scope
+data AvailInfo = Avail Name -- ^ an ordinary identifier in scope
+               | AvailTC Name
+                         [Name]
+                         [FieldLabel]
+                                  -- ^ A type or class in scope.
+                deriving( Eq, Data )
+-- | A collection of 'AvailInfo' - several things that are \"available\"
+type Avails = [AvailInfo]
+</code></pre> Types and class declarations processed in this way, the first significant part of <code class="code">getLocalNonValBinders</code> is done and the first summary trace <code class="code">traceRn "getLocalNonValBinders 1" (ppr tc_avails)</code> printed. For the running <code class="code">Foo</code> example, it reads like this.
+<pre><code class="code">getLocalNonValBinders 1 [Foo.R{Foo.R, Foo.R; f}]</code></pre>Interpreting such a list works like this : each element is an <code class="code">AvailInfo</code> of case <code class="code">AvailTC</code>. In our case,  there is only one corresponding to the type <code class="code">R</code>. <code class="code">R</code> is the name of the type, which comes first then all of the remaining names harvested from the type: the constructor and the field label. The fields are disambiguated from the other type pieces by a '<code>;</code>'.
+</p>
+<h4><code class="code">GlobalRdrEnv</code></h4>
+<p>The next line of interest in <code class="code">getLocalNonValBinders</code> signalling the end of its first part is this.
+<pre><code class="code">; envs <- extendGlobalRdrEnvRn tc_avails fixity_env</code></pre>The type <code class="code">TcGblEnv</code> describes the top-level of a module. It is a rather large structure but here the focus is on the embedded <code class="code">GlobalRdrEnv</code> (and <code class="code">FixityEnv</code>) fields. The <code class="code">GlobalRdrEnv</code>is the top-level environment, used during renaming. It is in short a mapping from <code class="code">OccNames</code> to <code class="code">GlobalRdrElt</code> lists.
+<pre><code class="code">
+-- | Global Reader Environment
+type GlobalRdrEnv = OccEnv [GlobalRdrElt]
+
+-- | Global Reader Element
+data GlobalRdrElt
+  = GRE { gre_name :: Name
+        , gre_par  :: Parent
+        , gre_lcl :: Bool          -- ^ True <=> the thing was defined locally
+        , gre_imp :: [ImportSpec]  -- ^ In scope through these imports
+    } deriving (Data, Eq)
+</code></pre>With these definitions in hand we can look now to the function <code class="code">extendGlobalRdrEnvRn</code> (<code>compiler/rename/RnNames.hs</code>). Assuming no shadowing (not in a TemplateHaskell "decl. bracket" or GHCi), in essence it reads as follows.
+<pre><code class="code">extendGlobalRdrEnvRn avails new_fixities
+  = do  { (gbl_env, lcl_env) <- getEnvs
+        ; let rdr_env  = tcg_rdr_env gbl_env
+              ...
+        ; rdr_env2 <- foldM add_gre rdr_env new_gres
+        ; let fix_env' = ...
+              gbl_env' = gbl_env { tcg_rdr_env = rdr_env2, tcg_fix_env = fix_env' }
+        ; traceRn "extendGlobalRdrEnvRn 2" (pprGlobalRdrEnv True rdr_env2)
+        ; return (gbl_env', ...) }
+    where
+     ...
+                      </code></pre>So, the workhorses here are <code class="code">new_gres</code> and <code class="code">add_gre</code>. The former, <code class="code">new_gres</code> is defined like this.
+<pre><code class="code">new_gres :: [GlobalRdrElt]  -- New LocalDef GREs, derived from avails
+new_gres = concatMap localGREsFromAvail avails
+</code></pre>The gist of <code class="code">localGREsFromAvail</code>(<code>compiler/basicTypes/RdrName.hs</code>) is the function <code class="code">gresFromAvail</code> with provenance set to <code class="code">Nothing</code>. That of course is absolutely correct for definitions local to the module.
+<pre><code class="code">gresFromAvail :: (Name -> Maybe ImportSpec) -> AvailInfo -> [GlobalRdrElt]
+gresFromAvail prov_fn avail
+  = map mk_gre (availNonFldNames avail) ++ map mk_fld_gre (availFlds avail)
+  where
+    mk_gre n
+      = case prov_fn n of  -- Nothing => bound locally
+                           -- Just is => imported from 'is'
+          Nothing -> GRE { gre_name = n, gre_par = mkParent n avail
+                         , gre_lcl = True, gre_imp = [] }
+          Just is -> GRE { gre_name = n, gre_par = mkParent n avail
+                         , gre_lcl = False, gre_imp = [is] }
+
+    mk_fld_gre (FieldLabel { flLabel = lbl, flIsOverloaded = is_overloaded
+                           , flSelector = n })
+      = case prov_fn n of  -- Nothing => bound locally
+                           -- Just is => imported from 'is'
+          Nothing -> GRE { gre_name = n, gre_par = FldParent (availName avail) mb_lbl
+                         , gre_lcl = True, gre_imp = [] }
+          Just is -> GRE { gre_name = n, gre_par = FldParent (availName avail) mb_lbl
+                         , gre_lcl = False, gre_imp = [is] }
+      where
+        mb_lbl | is_overloaded = Just lbl
+               | otherwise     = Nothing
+</code></pre>The definition for <code class="code">mkParent</code> is natural and obvious.
+<pre><code class="code">mkParent :: Name -> AvailInfo -> Parent
+mkParent _ (Avail _)           = NoParent
+mkParent n (AvailTC m _ _) | n == m    = NoParent
+                         | otherwise = ParentIs m
+</code></pre><code class="code">availName</code> is the main name of the available (that is the type or class).
+<pre><code class="code">availName :: AvailInfo -> Name
+availName (Avail n)     = n
+availName (AvailTC n _ _) = n
+</code></pre>The purpose of <code class="code">add_gre</code> of course is to extend the <code class="code">GlobalRdrEnv</code> with a <code class="code">GlobalRdrElt</code>.
+<pre><code class="code">add_gre env gre
+  | not (null dups)    -- Same OccName defined twice
+  = do { addDupDeclErr (gre : dups); return env }
+
+  | otherwise
+  = return (extendGlobalRdrEnv env gre)
+  where
+    name = gre_name gre
+    occ  = nameOccName name
+    dups = filter isLocalGRE (lookupGlobalRdrEnv env occ)
+</code></pre>Before returning, <code class="code">extendGlobalRdrEnvRn</code> outputs the following trace statement.
+<pre><code class="code">        ; traceRn "extendGlobalRdrEnvRn 2" (pprGlobalRdrEnv True rdr_env2)
+        ; return (gbl_env', lcl_env3) }
+</code></pre>This is what that trace looks like on the running example (three elements : the type <code class="code">R</code>, the constructor <code class="code">R</code> and the field with selector name <code class="code">$sel:f:r</code>).
+<pre><code class="code">extendGlobalRdrEnvRn 2
+  GlobalRdrEnv (locals only) {
+    R (unique cESf70):
+      Foo.R
+        defined at Foo.hs:4:1
+    R (unique dESf70):
+      Foo.R parent:Foo.R
+        defined at Foo.hs:4:10
+    $sel:f:R (unique iESf72):
+      Foo.$sel:f:R fldparent:Foo.R:Just f
+        defined at Foo.hs:4:14 }
+</code></pre>
+</p>
   </body>
 </html>
