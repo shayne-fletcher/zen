@@ -18,7 +18,7 @@
   </head>
   <body>
     <h1>Names</h1>
-    <p>An <code class="code">OccName</code> is a basic type, a pairing of a string, with a <code class="code">Namespace</code>.
+    <p>An <code class="code">OccName</code> (<code>compiler/basicTypes/OccName.hs</code>) is a basic type, a pairing of a string with a <code class="code">Namespace</code>.
 <pre><code class="code">data NameSpace = VarName        -- Variables, including "real" data constructors
                | DataName       -- "Source" data constructors
                | TvName         -- Type variables
@@ -38,7 +38,7 @@ A <code class="code">RdrName</code> (<code>compiler/basicTypes/RdrName.hs</code>
   | Orig Module OccName
   | Exact Name
   deriving Data
-</code></pre><code class="code">Orig</code> and <code class="code">Exact</code> reader names are thrown up by GHC either from generating code by when parsing builtin syntax. <code class="code">Qual</code> (qualified) and <code class="code">Unqual</code> (unqualified) reader names are the more common. <code class="code">Name</code>s are unique, unambiguous and contain information about where the named thing comes from.
+</code></pre><code class="code">Orig</code> and <code class="code">Exact</code> reader names are thrown up by GHC either from generating code by when parsing builtin syntax. <code class="code">Qual</code> (qualified) and <code class="code">Unqual</code> (unqualified) reader names are the more common. <code class="code">Name</code>s (<code>compiler/basicTypes/Name.hs</code>) are unique, unambiguous and contain information about where the named thing comes from.
 <pre><code class="code">data NameSort
   = External Module
 
@@ -64,7 +64,35 @@ data Name = Name {
 <pre><code class="code">do { this_mod <- getModule
    ; traceRn "newTopSrcBinder" (ppr this_mod $$ ppr rdr_name $$ ppr loc)
    ; newGlobalBinder this_mod (rdrNameOcc rdr_name) loc }
-</code></pre>
+</code></pre>The effect of <code class="code">newGlobalBinder</code> is to make a <code class="code">Name</code> for a thing given its module and <code class="code">OccName</code>. It does this by associating a global unique with the <code class="code">OccName</code> in its defining <code>Module</code>'s <code class="code">NameCache</code> (<code>compiler/basicTypes/NameCache.hs</code>) (an <code class="code">OccEnv</code> is a map keyed off <code class="code">OccNames</code>, a <code class="code">ModuleEnv</code> a map keyed off <code class="code">Modules</code>).
+<pre class="code"><code>newtype OccEnv a = A (UniqFM a)
+  deriving Data
+
+-- | Per-module cache of original 'OccName's given 'Name's
+type OrigNameCache   = ModuleEnv (OccEnv Name)
+
+-- | The NameCache makes sure that there is just one Unique assigned for
+-- each original name; i.e. (module-name, occ-name) pair and provides
+-- something of a lookup mechanism for those names.
+data NameCache
+ = NameCache {  nsUniqs :: !UniqSupply,
+                -- ^ Supply of uniques
+                nsNames :: !OrigNameCache
+                -- ^ Ensures that one original name gets one unique
+   }
+</code></pre>The code for <code class="code">newGlobalBinder</code> is,
+<pre><code class="code">newGlobalBinder mod occ loc
+  = do { name <- updNameCacheTc mod occ $ \name_cache ->
+                 allocateGlobalBinder name_cache mod occ loc
+       ; traceIf (text "newGlobalBinder" <+>
+                  (vcat [ ppr mod <+> ppr occ <+> ppr loc, ppr name]))
+       ; return name }
+</code></pre> where <code class="code">allocateGlobalBinder</code> (<code>compiler/iface/IfaceEnv.hs</code>) has this signature
+<pre><code class="code">allocateGlobalBinder
+  :: NameCache
+  -> Module -> OccName -> SrcSpan
+  -> (NameCache, Name)
+</code></pre> which, in the event of a cache miss, takes a unique from the supply, makes a new name and extends the name cache.
 </p>
   </body>
 </html>
