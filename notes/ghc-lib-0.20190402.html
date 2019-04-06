@@ -1,0 +1,34 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Announcing <code>ghc-lib</code> 0.20190404</title>
+  </head>
+  <body>
+    <h1>Announcing <code>ghc-lib</code> 0.20190404</h1>
+    <p>On behalf of <a href="https://www.digitalasset.com/">Digital Asset</a> I am excited to share with you the latest release of <code>ghc-lib</code>.</p>
+    <p>As described in detail in the <code>ghc-lib</code> <a href="https://github.com/digital-asset/ghc-lib/blob/master/README.md">README</a>, the <code>ghc-lib</code> project lets you use the GHC API for parsing and analyzing Haskell code without tying you to a specific GHC version.
+    </p>
+    <h2>What's new</h2>
+    <p>The GHC <a href="https://gitlab.haskell.org/ghc">source code</a> in this release is updated to GHC HEAD as of April the 4<sup>th</sup>, 2019. Accordingly, the <a href="https://raw.githubusercontent.com/digital-asset/ghc-lib/master/examples/mini-hlint/src/Main.hs"><code>mini-hlint</code></a> example in the <a href="https://github.com/digital-asset/ghc-lib"><code>ghc-lib</code></a> repo was adjusted to accomodate GHC API changes to the <code class="code">ParseResult</code> datatype and parser error handling.</p>
+    <p>By far the biggest change though is this : the <code>ghc-lib</code> project now provides two packages, <code>ghc-lib-parser</code> and <code>ghc-lib</code>. The packages are released on Hackage, and can be installed as usual e.g. <code>cabal install ghc-lib</code>.
+    </p>
+    <p>Some projects don't require the ability to compile Haskell to GHC's <a href="https://ghc.haskell.org/trac/ghc/wiki/Commentary/Compiler/CoreSynType">Core language</a>. If lexical analysis alone is sufficient for your project's needs, then the <code>ghc-lib-parser</code> package alone will do for that. The build time for <code>ghc-lib-parser</code> is roughly half of the combined build times of <code>ghc-lib-parser</code> and <code>ghc-lib</code>. That is, in this case, switching to the new release will decrease the build time for your project. Note that if your project does require compiling Haskell to Core, then your project will now depend on both the <code>ghc-lib-parser</code> and <code>ghc-lib</code> packages.</p>
+    <p>The <code>ghc-lib</code> package "re-exports" the modules of the <code>ghc-lib</code> package. So, if you depend upon the <code>ghc-lib</code> package, you'll get the <code>ghc-lib-parser</code> modules "for free". Sadly though, at this time, package import syntax (and we do recommend using package import syntax for these packages) doesn't quite work like you'd expect so that if you, <code class="code">import "ghc-lib" DynFlags</code> for example, this will fail because <code class="code">DynFlags</code> is in fact in the <code>ghc-lib-parser</code> package. In this case, you'd write, <code class="code">import "ghc-lib-parser" DynFlags</code> and all would be well. The <a href="https://raw.githubusercontent.com/digital-asset/ghc-lib/master/examples/mini-compile/src/Main.hs"></code>mini-compile</code></a> example in the <a href="https://github.com/digital-asset/ghc-lib"><code>ghc-lib</code></a> repo demonstrates mixing modules from both packages.
+</p>
+<p><a href="https://www.digitalasset.com/">Digital Asset</a> make extensive use of the <code>ghc-lib</code> packages in the <a href="https://daml.com/">DAML</a> smart contract language compiler and hope you too continue to benefit from this project!
+</p>
+    </body>
+</html>
