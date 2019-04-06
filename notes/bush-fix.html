@@ -1,0 +1,54 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Bush fixing Travis and CI</title>
+  </head>
+  <body>
+    <h1>Bush fixing Travis and CI</h1>
+    <p>Ever had one of those days?
+<div class="separator" style="clear: both; text-align: left;"><a href="https://1.bp.blogspot.com/-wALjWAHCDqI/XJJ6gyJ9WEI/AAAAAAAACNE/aPSfNK7YcC8cBIywCFWpqQJbeouHQR73QCLcBGAs/s1600/commit-history.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="https://1.bp.blogspot.com/-wALjWAHCDqI/XJJ6gyJ9WEI/AAAAAAAACNE/aPSfNK7YcC8cBIywCFWpqQJbeouHQR73QCLcBGAs/s1600/commit-history.png" data-original-width="547" data-original-height="781" /></a></div>
+You are not alone!
+  </p>
+<p>This Saturday 9th March 2019, the GHC devs are going to announce that git://git.haskell.org/ghc.git has been decommissioned. The new official upstream GHC will be https://gitlab.haskell.org/ghc/ghc.
+</p>
+<p>Sadly (for us) this broke <a href="https://github.com/digital-asset/ghc-lib"><code>ghc-lib</code></a> CI's Travis linux configuration.
+</p>
+<p>What does our CI do? The <a href="https://github.com/digital-asset/ghc-lib/blob/master/CI.hs"><code>ghc-lib</code> CI script</a>  pulls down the latest GHC sources and builds and tests them as a ghc-lib.  The details of the problem are that Travis gives you a broken Ubuntu where cloning the official URL fails with a TLS “handshake error”. More generally, any Travis job that tries to <code>git clone</code> over the https protocol from a GitLab remote will fail the same way.
+</p>
+    <p>This <a href="https://github.com/digital-asset/ghc-lib/blob/3f128afd4198a3f2434610a01d8cdc9cab76d3a0/.travis.yml">.travis.yml</a> shows a workaround. The idea is to spin up a container before install that doesn’t have this problem and clone from there. The essential bits are:
+<pre><code class="code">services:
+- docker
+
+# [Why we git clone on linux here]
+# At this time, `git clone https://gitlab.haskell.org/ghc/ghc.git`
+# from within `CI.hs` does not work on on linux. This appears to be a
+# known Travis/ubuntu SSL verification issue. We've tried many less
+# drastic workarounds. This grand hack is the only way we've found so
+# far that can be made to work.
+before_install:
+- |
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      docker pull alpine/git
+      docker run -ti --rm -v ${HOME}:/root -v $(pwd):/git alpine/git clone https://gitlab.haskell.org/ghc/ghc.git /git/ghc --recursive
+    fi
+</code></pre>
+</p>
+<p>Note, MacOS docker services aren’t supported but that’s OK! The TLS handshake problem doesn’t exhibit in that configuration.
+</p>
+<p>Update : It turns out that while this issue exists in Ubuntu 14.04 which Travis uses by default, it is “fixed” in Ubuntu 16.04. So by writing <code class="copde">dist: xenial</code> in your <code>.travis.yml</code> file, the above workaround can be avoided.
+</p>
+  </body>
+</html>
