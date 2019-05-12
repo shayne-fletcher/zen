@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Handling GHC parser errors right</title>
+  </head>
+  <body>
+    <p>Did you know, a <code>POk</code> parse result from the GHC parser doesn't necessarily mean the parse was OK? This blog explains what's up with that. The source code below is from <a href="https://raw.githubusercontent.com/digital-asset/ghc-lib/master/examples/mini-hlint/src/Main.hs">this example</a> in the <a href="https://github.com/digital-asset/ghc-lib"><code>ghc-lib</code> repo</a>.
+    </p>
+    <p>Here is code that tries to make a parse tree of a Haskell module.
+<pre><code class="code">parse :: String -> DynFlags -> String -> ParseResult (Located (HsModule GhcPs))
+parse filename flags str =
+  unP Parser.parseModule parseState
+  where
+    location = mkRealSrcLoc (mkFastString filename) 1 1
+    buffer = stringToStringBuffer str
+    parseState = mkPState flags buffer location
+</code></pre>
+    </p>
+    <p>The way to call the above code is like this.
+<pre><code class="code">case parse file flags s of
+  PFailed s ->
+    report flags $ snd (getMessages s flags)
+  POk s m -> do
+    report flags $ fst (getMessages s flags)
+    analyzeModule flags m
+</code></pre>
+In the <code>PFailed s</code> case (where <code>s</code> is the parse state), the expression <code>snd (getMessages s flags)</code> retrieves the errors and we report them. In the <code>POk</code> case, we report warnings and do whatever it is we wanted to do with the parse tree <code>m</code> right?
+</p>
+    <p>Not quite. The problem is that the parser produces two sorts of errors : "fatal" and "non-fatal". Thus far, we have only considered the "fatal" ones.
+    </p>
+    <p>Fatal errors are such that production of a parse tree is impossible. Non-fatal parse errors are those that don't prevent construction of a parse tree. A parse that generates non-fatal errors is going to associate with a parse tree in some way non-conforming to the Haskell language specification.
+</p>
+    <p>The right way to write the <code>POk</code> case is like this.
+<pre><code class="code">POk s m -> do
+  let (warns, errs) = getMessages s flags
+  report flags warns
+  report flags errs
+  when (null errs) $ analyzeModule flags m
+</code></pre>
+The key point is <code>analyzeModule</code> is called only if there are absolutely no parse errors at all.
+    </p>
+    <p>A non-fatal error example is provided by the <a href="https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0049-module-qualified-syntax.rst"><code>ImportQualifiedPost</code> language extension</a> (see <a href="https://blog.shaynefletcher.org/2019/02/adding-ghc-language-extension.html">this post</a> for how to add a GHC language extension). Specifically, it is only legal to write <code>import M qualified</code> if the extension is in effect via pragma or the option <code>-XImportQualifiedPost</code>. In the event this syntax is used when the extension is not in effect, the user should see an error like
+<pre> test/MiniHlintTest_non_fatal_error.hs:6:18: error:
+     Found `qualified' in postpositive position.
+     To allow this, enable language extension 'ImportQualifiedPost'
+</pre>
+and further analysis of the parse abandoned.
+</p>
+  </body>
+</html>
