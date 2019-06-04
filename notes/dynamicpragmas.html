@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Have GHC parsing respect dynamic pragmas</title>
+  </head>
+  <body>
+    <p>This post about <a href="https://blog.shaynefletcher.org/2019/05/handling-ghc-parser-errors-right.html">Handling GHC parse errors</a> shows that using <code class="code">qualified</code> in postpostive position is a syntax error unless the <a href="https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0049-module-qualified-syntax.rst"><code class="code">ImportQualifiedPost</code></a> language extension is enabled. In that post, it is explained that the program
+<pre><code class="code">module M where
+import Data.List qualified
+</code></pre>
+is invalid whereas,
+<pre><code class="code">{#- LANGUAGE ImportQualifiedPost -#}
+module M where
+import Data.List qualified
+</code></pre>
+which enables the extension via a "dynamic pragma", is legit.
+</p>
+<p>
+Perhaps surprisingly, running the second of these programs through the parsing code presented in that post continues to generate the error
+<pre><code class="code">     Found `qualified' in postpositive position.
+     To allow this, enable language extension 'ImportQualifiedPost'
+</code></pre>
+Evidently, our parse-fu needs an upgrade to respect dynamic pragmas and that's what this post provides.
+    </p>
+<p>This code that exercises the GHC API to parse a module.
+<pre><code class="code">parse :: String -> DynFlags -> String -> ParseResult (Located (HsModule GhcPs))
+parse filename flags str =
+  unP Parser.parseModule parseState
+  where
+    location = mkRealSrcLoc (mkFastString filename) 1 1
+    buffer = stringToStringBuffer str
+    parseState = mkPState flags buffer location
+</code></pre>
+</p>
+</p>
+Note in the above, the second argument <code class="code">flags :: DynFlags</code>. In order for <code class="code">parse</code> to take into account extensions enabled by pragmas in the source argument <code class="code">str</code>, then <code class="code">flags</code> must be set up to do so <em>a priori</em>. That is, before jumping into <code class="code">parse</code>, a "first pass" must be made to sniff out flags. There is a GHC API for that. It's called <code class="code">parseDynamicFilePragma</code>.
+</p>
+<p>Here's a function to harvest flags from pragmas that makes that call to <code class="code">parseDynamicFlags</code>.
+<pre><code class="code">parsePragmasIntoDynFlags :: DynFlags -> FilePath -> String -> IO (Maybe DynFlags)
+parsePragmasIntoDynFlags flags filepath str =
+  catchErrors $ do
+    let opts = getOptions flags (stringToStringBuffer str) filepath
+    (flags, _, _) <- parseDynamicFilePragma flags opts
+    return $ Just flags
+  where
+    catchErrors :: IO (Maybe DynFlags) -> IO (Maybe DynFlags)
+    catchErrors act = handleGhcException reportErr
+                        (handleSourceError reportErr act)
+    reportErr e = do putStrLn $ "error : " ++ show e; return Nothing
+</code></pre>
+The main contribution of this function is to account for the complication that <code class="code">parseDynamicFilePragma</code> can throw two kinds of exceptions : <a href="https://hackage.haskell.org/package/ghc-8.6.5/docs/GHC.html#t:GhcException"><code class="code">GhcException</code></a> and <a href="https://hackage.haskell.org/package/ghc-8.6.5/docs/HscTypes.html#t:SourceError"><code class="code">SourceError</code></a>. The GHC API functions <a href="https://hackage.haskell.org/package/ghc/docs/Panic.html#v:handleGhcException"><code class="code">handleGhcException</code></a> and <a href="https://hackage.haskell.org/package/ghc/docs/GHC.html#v:handleSourceError"><code class="code">handleSourceError</code></a> are the means to achieve that.
+</p>
+<p>Putting it all together then, here's an outline of how to parse in the presence of dynamic pragmas.
+<pre><code class="code">      s <- readFile' file
+      flags <-
+        parsePragmasIntoDynFlags
+          (defaultDynFlags fakeSettings fakeLlvmConfig) file s
+      whenJust flags $ \flags ->
+         case parse file flags s of
+            PFailed s ->
+              report flags $ snd (getMessages s flags)
+            POk s m -> do
+              let (wrns, errs) = getMessages s flags
+              report flags wrns
+              report flags errs
+              when (null errs) $ analyzeModule flags m
+</code></pre>
+For a complete working program that utilizes this function, see <a href="https://raw.githubusercontent.com/digital-asset/ghc-lib/master/examples/mini-hlint/src/Main.hs">this example</a> in the <a href="https://github.com/digital-asset/ghc-lib"><code class="code">ghc-lib</code> repo</a>.
+</p>
+  </body>
+</html>
