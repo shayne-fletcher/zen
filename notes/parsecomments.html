@@ -1,0 +1,75 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Harvesting annotations from the GHC parser</title>
+  </head>
+  <body>
+<p>My <a href="http://blog.shaynefletcher.org/2019/06/have-ghc-parsing-respect-dynamic-pragmas.html">last post</a> on parsing in the presence of dynamic pragmas left us with this outline for calling the GHC parser.
+<pre><code class="code">      flags <-
+        parsePragmasIntoDynFlags
+          (defaultDynFlags fakeSettings fakeLlvmConfig) file s
+      whenJust flags $ \flags ->
+         case parse file flags s of
+            PFailed s ->
+              report flags $ snd (getMessages s flags)
+            POk s m -> do
+              let (wrns, errs) = getMessages s flags
+              report flags wrns
+              report flags errs
+              when (null errs) $ analyzeModule flags m
+</code></pre>
+</p>
+<p>Now, it's a fact that you'll not find in a GHC parse tree certain things like comments and the location of keywords (e.g. <code class="code">let</code>, <code class="code">in</code> and so on). Certainly, if you're writing refactoring tools (think programs like <a href="http://neilmitchell.blogspot.com/">Neil Mitchell</a>'s awesome <a href="https://github.com/ndmitchell/hlint#readme"><code>hlint</code></a> for example), access to these things is critical!
+</p>
+<p>So, how does one go about getting these program "annotations"? You guessed it... there's an API for that.
+</p>
+<p>If we assume the existence of a function <code class="code">analyzeModule :: DynFlags -> Located (HsModule GhcPs) -> ApiAnns -> IO ()</code> then, here's the gist of the code that exercises it:
+<pre><code class="code">            POk s m -> do
+              let (wrns, errs) = getMessages s flags
+              report flags wrns
+              report flags errs
+              when (null errs) $ analyzeModule flags m (harvestAnns s)
+</code></pre>
+Here, <code class="code">harvestAnns</code> is defined as
+<pre><code class="code">    harvestAnns pst =
+      ( Map.fromListWith (++) $ annotations pst
+      , Map.fromList ((noSrcSpan, comment_q pst) : annotations_comments pst)
+      )
+</code></pre>
+</p>
+<p>
+The type <a href="https://hackage.haskell.org/package/ghc-8.6.5/docs/ApiAnnotation.html#t:ApiAnns"><code class="code">ApiAnns</code></a> is a pair of maps : the first map contains keyword and punctuation locations, the second maps locations of comments to their values.
+</p>
+<p>You might think that's the end of this story but there's one twist left : the GHC lexer won't harvest comments by default - you have to tell it to do so by means of the <code class="code">Opt_KeepRawTokenStream</code> (general) flag (see the <a href="https://gitlab.haskell.org/ghc/ghc/wikis/api-annotations">GHC wiki</a> for details)!
+</p>
+<p>Taking the above into account, to parse with comments, the outline now becomes:
+<pre><code class="code">      flags <-
+        parsePragmasIntoDynFlags
+          (defaultDynFlags fakeSettings fakeLlvmConfig) file s
+      whenJust flags $ \flags ->
+         case parse file (flags `gopt_set` Opt_KeepRawTokenStream)s of
+            PFailed s ->
+              report flags $ snd (getMessages s flags)
+            POk s m -> do
+              let (wrns, errs) = getMessages s flags
+              report flags wrns
+              report flags errs
+              when (null errs) $ analyzeModule flags m (harvestAnns s)
+</code></pre>
+For a complete program demonstrating all of this see <a href="https://raw.githubusercontent.com/digital-asset/ghc-lib/master/examples/mini-hlint/src/Main.hs">this example</a> in the <a href="https://github.com/digital-asset/ghc-lib"><code>ghc-lib</code> repo</a>.
+</p>
+  </body>
+</html>
