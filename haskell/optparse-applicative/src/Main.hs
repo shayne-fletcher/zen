@@ -5,53 +5,60 @@ import Data.Version (showVersion)
 import Data.Semigroup ((<>))
 import Paths_optparse_scratch (version)
 
-data Ghclibgen_target = Ghclib_parser | Ghclib
+-- | A ghc-lib-gen target.
+data GhclibgenTarget = Ghclib_parser | Ghclib
 
-ghc_lib_parser :: Parser Ghclibgen_target
-ghc_lib_parser = flag' Ghclib_parser
-  ( long "ghc-lib-parser"
-  <> help "Generate a ghc-lib-parser Cabal file"
-  )
-
-ghc_lib :: Parser Ghclibgen_target
-ghc_lib = flag' Ghclib
-  ( long "ghc-lib"
-  <> help "Generate a ghc-lib Cabal file"
-  )
-
-ghclibgen_target :: Parser (Maybe Ghclibgen_target)
-ghclibgen_target = optional (ghc_lib_parser <|> ghc_lib)
-
-data Ghclibgen_opts = Ghclibgen_opts {
-    opts_root :: FilePath
-  , opts_component :: (Maybe Ghclibgen_target)
+-- | The type of ghc-lib-gen options.
+data GhclibgenOpts = GhclibgenOpts {
+    ghclibgenOpts_root :: !FilePath -- ^ Path to a GHC git repository.
+  , ghclibgenOpts_target :: !(Maybe GhclibgenTarget) -- ^ What target?
  }
 
-ghclibgen_opts :: Parser Ghclibgen_opts
-ghclibgen_opts =
-  Ghclibgen_opts
-  <$> argument str (metavar "GHC_ROOT")
-  <*> optional (ghc_lib_parser <|> ghc_lib)
+-- | A parser of the "--ghc-lib" target.
+ghclib :: Parser GhclibgenTarget
+ghclib = flag' Ghclib
+  ( long "ghc-lib"
+  <> help "Generate a ghc-lib.cabal"
+  )
 
-version_opt :: Parser (a -> a)
-version_opt =
+-- | A parser of the "--ghc-lib-parser" target.
+ghclibParser :: Parser GhclibgenTarget
+ghclibParser = flag' Ghclib_parser
+  ( long "ghc-lib-parser"
+  <> help "Generate a ghc-lib-parser.cabal"
+  )
+
+-- | A parser of "--version".
+ghclibgenVersion :: Parser (a -> a)
+ghclibgenVersion =
   infoOption
   (showVersion version)
   (long "version" <> help "Show version")
+
+-- | A parser of a ghc-lib-gen target: `target := | "--ghc-lib-parser"
+-- | "--ghc-lib" | /* nothing */`.
+ghclibgenTarget :: Parser (Maybe GhclibgenTarget)
+ghclibgenTarget = optional (ghclibParser <|> ghclib)
+
+-- | A parser of ghc-lib-gen options: `opts := STRING target`.
+ghclibgenOpts :: Parser GhclibgenOpts
+ghclibgenOpts = GhclibgenOpts
+  <$> argument str (metavar "GHC_ROOT")
+  <*> optional (ghclibParser <|> ghclib)
 
 main :: IO ()
 main = echo =<< execParser opts
   where
     opts =
       info
-      (helper <*> version_opt <*> ghclibgen_opts)
+      (helper <*> ghclibgenVersion <*> ghclibgenOpts)
       (fullDesc
         <> header "ghc-lib-gen - ghc-lib cabal file generator"
-        <> progDesc "Generate a Cabal file for a ghc-lib component"
+        <> progDesc "Generate a ghc-lib target Cabal file"
       )
 
-echo :: Ghclibgen_opts -> IO ()
-echo (Ghclibgen_opts root target) =
+echo :: GhclibgenOpts -> IO ()
+echo (GhclibgenOpts root target) =
   putStrLn $ root
     ++ " --"
     ++ case target of
