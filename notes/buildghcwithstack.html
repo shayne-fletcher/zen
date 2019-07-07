@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Building GHC with stack and hadrian</title>
+  </head>
+  <body>
+<p>
+By far the easiest way I know of to get a build of GHC is via the tools 'stack' and 'hadrian'<super>*</super>. The procedures below set out commands that I know first hand work<super>**</super> with machines provisioned by the CI systems Azure, Travis and Appveyor.
+</p>
+<h3>Setup</h3>
+<ul><li>Ubuntu:
+<pre><code class="code">curl -sSL https://get.haskellstack.org/ | sh
+stack setup
+</code></pre></li>
+<li>macOS:
+<pre><code class="code">/usr/bin/ruby -e \
+      "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+brew install autoconf automake gmp
+curl -sSL https://get.haskellstack.org/ | sh
+stack setup
+</code></pre></li>
+<li>Windows:
+<pre><code class="code">curl -sSL https://get.haskellstack.org/ | sh
+stack setup
+stack exec -- pacman -S autoconf automake-wrapper make patch python tar \
+      --noconfirm
+</code></pre></li>
+</ul>
+<h3>Build</h3>
+<ul><li>Ubuntu & macOS:
+<pre><code class="code">git clone --recursive https://gitlab.haskell.org/ghc/ghc.git
+cd ghc
+stack build --stack-yaml=hadrian/stack.yaml --only-dependencies
+hadrian/build.stack.sh --configure --flavour=quickest -j
+</code></pre></li>
+<li>Windows:
+<pre><code class="code">git clone --recursive https://gitlab.haskell.org/ghc/ghc.git
+cd ghc
+stack build --stack-yaml=hadrian/stack.yaml --only-dependencies
+hadrian/build.stack.bat --configure --flavour=quickest -j
+</code></pre></li>
+</ul>
+<br/>
+<hr/>
+[*] The simplicitly and uniformity of these commands make me an advocate of these tools and in particular, the hadrian <code>--configure</code> flag. Your mileage may vary.
+<br/>
+<br/>
+[**] Well, that is to say mostly work. The above is the ideal and has worked me for me reliably for the last year. Recently though, for one reason or another, there seem to have been a lot of breakages.
+  </body>
+</html>

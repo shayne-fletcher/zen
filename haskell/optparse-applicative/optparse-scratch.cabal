@@ -1,0 +1,25 @@
+cabal-version:       2.4
+name:                optparse-scratch
+version:             0.1.0.0
+synopsis:            Learn optparse-applicative
+license:             NONE
+license-file:        LICENSE
+author:              Shayne Fletcher
+maintainer:          shayne@shayne.fletcher.org
+category:            Language
+extra-source-files:  CHANGELOG.md
+
+
+executable optparse-scratch
+  main-is:            Main.hs
+  auto-generated:     Paths_optparse_scratch
+  other-modules:      Paths_optparse_scratch
+
+  -- other-extensions:
+
+  build-depends:       base ^>=4.12.0.0
+                     , optparse-applicative >= 0.14.1.0
+
+  hs-source-dirs:      src
+
+  default-language:    Haskell2010
