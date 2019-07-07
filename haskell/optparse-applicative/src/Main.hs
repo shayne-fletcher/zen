@@ -36,13 +36,14 @@ ghclibgen_opts =
 version_opt :: Parser (a -> a)
 version_opt =
   infoOption
-    (showVersion version)
-    (long "version" <> help "Show version")
+  (showVersion version)
+  (long "version" <> help "Show version")
 
 main :: IO ()
 main = echo =<< execParser opts
   where
-    opts =info
+    opts =
+      info
       (helper <*> version_opt <*> ghclibgen_opts)
       (fullDesc
         <> header "ghc-lib-gen - ghc-lib cabal file generator"
