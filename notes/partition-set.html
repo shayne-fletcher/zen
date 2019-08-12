@@ -1,0 +1,54 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Calculating the partitions of a set</title>
+  </head>
+  <body>
+<p>Having "solved" a bunch of these divide & conquer problems, I'm the first to admit to having being lulled into a false sense of security. At first glance, the problem of this post seemed deceptively simple and consequently I struggled with it, sort of "hand-waving", not really engaging my brain and  getting more and more frustrated how the dang thing wouldn't yield to my experience! I think the moral of the story is math doesn't care about your previous successes and so don't let your past practice trick you into laziness. Be guided by your experience but fully apply yourself to the problem at hand!</p>
+
+<p>Suppose a set of two elements <em>{2, 3}</em>. There are only two ways it can be partitioned: <em>(23), (3)(2)</em>. For meaning, you might think of these two partitions like this : in the first partition, there is a connection between the elements <em>2</em> and <em>3</em>, in the second, <em>2</em> and <em>3</em> are isolated from each other.</p>
+
+<p>Suppose a set of elements <em>{1, 2, 3}</em>. There are five partitions of this set : <em>(123), (23)(1), (13)(2), (3)(21), (3)(2)(1)</em> (I've carefully written them out this way to help with the elucidation). Maybe you want to break here and see if you can write an algorithm for calculating them before reading on?
+</p>
+<p>Observe that we can get the partitions of <em>{1, 2, 3}</em> from knowledge of the partitions of <em>{2, 3}</em> by looking at each partition of <em>{2, 3}</em> in turn and considering the partitions that would result by inclusion of the element <em>1</em>. So, for example, the partition <em>(23)</em> gives rise to the partitions <em>(123)</em> and <em>(23)(1)</em>. Similarly, the partition <em>(3)(2)</em> gives rise to the partitions <em>(13)(2)</em>, <em>(3)(21)</em> and <em>(3)(2)(1)</em>. We might characterize this process as computing new partitions of <em>{1, 2, 3}</em> from a partition <em>p</em> of <em>{2, 3}</em> as "extending" <em>p</em> .
+</p>
+<p>Suppose then we write a function <code class="code">extend x p</code> to capture the above idea. Let's start with the signature of <code class="code">extend</code>. What would it be? Taking <em>(23)(1)</em> as an exemplar, we see that a component of a partition can be represented as <code class="code">[a]</code> and so a partition itself then as <code class="code">[[a]]</code>. We know that <code class="code">extend</code> takes an element and a partition and returns a list of (new) partitions so it must have signature <code class="code">extend :: a -> [[a]] -> [[[a]]]</code> (yes, lists of lists of lists are somehow easy to get confused about).
+</p>
+<p>Now for writing the body of <code class="code">extend</code>. The base case is the easiest of course - extending the empty partition:
+  <pre><code class="code">extend x [] = [[[x]]]
+  </code></pre>
+That is, a singleton list of partitions containing one partition with one component. The inductive case is the partition obtained by "pushing" <code class="code">x</code> into the first component of <code class="code">p</code> together with the extensions that leave the first component of <code class="code">p</code> alone.
+<pre><code class="code">extend x (h : tl) = ((x : h) : tl) : map (h :) (extend x tl)
+</code></pre>
+</p>
+<p>We can now phrase the function <code class="code">partition</code> with signature <code class="code">partition :: [a] -> [[[a]]]</code> like this:
+<pre><code class="code">partition [] = [[]]
+partition (h : tl) = concatMap (extend h) (partition tl)
+</code></pre>
+The base case says, the only partition of the empty set is the the empty partition.
+</p>
+<p>Wrapping it all up, the algorithm in entirety is
+<pre><code class="code">partition :: [a] -> [[[a]]]
+partition [] = [[]]
+partition (h : tl) = concatMap (extend h) (partition tl)
+  where
+    extend :: a -> [[a]] -> [[[a]]]
+    extend x [] = [[[x]]]
+    extend x (h : tl) = ((x : h) : tl) : map (h :) (extend x tl)
+</code></pre>
+</p>
+</body>
+</html>
