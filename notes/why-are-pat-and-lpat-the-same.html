@@ -1,0 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>GHC Haskell Pats and LPats</title>
+  </head>
+  <body>
+    <p>In the <a href="http://www.jucs.org/jucs_23_1/trees_that_grow/jucs_23_01_0042_0062_najd.pdf">Trees that Grow"</a> paper, it is explained that GHC has a single data type <i>HsSyn</i> that crosses several compiler phases; a second data type <i>TH.Syntax</i> for Template Haskell and that other Haskell libraries e.g. <code>haskell-src-exts</code> defnining yet others. Ideally, <i>HsSyn</i> would be reused in Template Haskell and these third-party libraries and motivates the flexibilities offered by the TTG (Trees That Grow) techniques.
+    </p>
+    <p>Before GHC 8.8, patterns and located patterns were related in the following way:
+<pre><code class="code">type LPat = Located Pat
+data Pat p
+  = ...
+  | LazyPat (XLazyPat p) (LPat p)
+  ...
+</code></pre>
+That is, patterns with locations are represented by values of type <code>LPat</code> and patterns themselves as values of type <code>Pat</code>. Note that <code>LPat</code> values contain <code>Pat</code> values which in turn can contain <code>LPat</code> values hence the name "ping pong style" being given to this idiom.
+</p>
+<p>
+Since location annotations may (e.g. GHC native) or may not (e.g. <i>Template Haskell</i>) be present for a given application it is realized that "baking" locations into <i>HsSyn</i> is undesirable. For this reason, in 8.8 attempts were made to make their presence a strictly GHC "thing" in the following way:
+<pre><code class="code">type LPat p = Pat p
+data Pat p
+  = ...
+  | LazyPat (XLazyPat p) (LPat p)
+  | ...
+  | XPat (XXPat p)
+type instance XXPat (GhcPass p) = Located (Pat (GhcPass p))
+</code></pre>
+That is, in GHC under this approach, locations are stored in the extension constructor - patterns with locations are wrapped in <code>XPat</code> e.g. <code>XPat noExtField (L _ (VarPat noExt _))</code>. Of course, now, to get at the location you have to go through an indirection through <code>XPat</code>. For this, the functions <code>cL</code> and <code>dL</code> (and the bi-directional pattern synonym <code>LL</code>) were provided. Applications that don't want locations in the parse tree just don't make use of the <code>XPat</code> constructor.
+</p>
+<p>It turned out that the 8.8 approach wasn't as good an idea as it seemed; it was a bit more complicated than it needed to be and had some unexpected implications for the existing GHC source code base. It was realized that this following alternative approach yields the same benefits and is what we find in 8.10 and beyond:
+<pre><code class="code">type family XRec p (f :: * -> *) = r | r -> p f
+type instance XRec (GhcPass p) f = Located (f (GhcPass p))
+
+type LPat p = XRec p Pat
+data Pat p
+  = ...
+  | LazyPat (XLazyPat p) (LPat p)
+  | ...
+  | XPat (XXPat p)
+type instance XXPat   (GhcPass _) = NoExtCon
+</code></pre>
+Thus for GHC, ping-pong style is restored and applications other than GHC can define the <code>XRec</code> instance as simply <code>f p</code> so that locations are absent.
+</p>
+    <p>In practical terms, going from 8.8 to 8.10 <code>LL</code> becomes <code>L</code>, <code>dL -></code> is removed and <code>cL</code> is just <code>L</code>.
+    </p>
+  </body>
+</html>
