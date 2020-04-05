@@ -81,7 +81,7 @@ Armed by these rules, the lexing of operators looks like this:
 </code></pre>
 </p>
 <p>
-The actions <code class="code">varsyn_tight_infix</code>, <code class="code">varsym_prefix</code>, <code class="code">varsym_suffix</code> and <code class="code">varsym_loose_infix</code> are "fed" the operator and allow for language extension specific issuance of tokens (as opposed to issuance of general <code class="code">ITvarsym</code> tokens). For example, <code class="code">varsym_prefix</code> :
+The actions <code class="code">varsym_tight_infix</code>, <code class="code">varsym_prefix</code>, <code class="code">varsym_suffix</code> and <code class="code">varsym_loose_infix</code> are "fed" the operator and allow for language extension specific issuance of tokens (as opposed to issuance of general <code class="code">ITvarsym</code> tokens). For example, <code class="code">varsym_prefix</code> :
 <pre><code class=code>varsym_prefix :: Action
 varsym_prefix = sym $ \exts s ->
   if | TypeApplicationsBit `xtest` exts, s == fsLit "@"
