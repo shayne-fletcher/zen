@@ -36,13 +36,15 @@
   <li>Identifiers, literals and closing brackets <code class="code">)</code>, <code class="code">#)</code>, <code class="code">]</code>, <code class="code">|]</code>, <code class="code">}</code> are considered "closing tokens";</li>
   <li>Other tokens and whitespace are considered neither opening or closing.</li>
 </ul>
+</p>
+<p>
 The classification algorithm is defined by the following rules:
 <table>
-<tr><th><code class="code">precededByClosingToken</code></th><th><code class="code">followedByOpeningToken</code></th><th>Occurence</th></tr>
-<tr><td><code class="code">False</code></td><td><code class="code">True</code></td><td>prefix</td></tr>
-<tr><td><code class="code">True</code></td><td><code class="code">False</code></td><td>suffix</td></tr>
-<tr><td><code class="code">True</code></td><td><code class="code">True</code></td><td>tight infix</td></tr>
-<tr><td><code class="code">False</code></td><td><code class="code">False</code></td><td>loose infix</td></tr>
+<tr><th><code class="code">precededByClosingToken</code></th><th><code class="code">followedByOpeningToken</code></th><th>occurrence</th></tr>
+<tr><td align="center"><code class="code">False</code></td><td align="center"><code class="code">True</code></td><td align="center">prefix</td></tr>
+<tr><td align="center"><code class="code">True</code></td><td align="center"><code class="code">False</code></td><td align="center">suffix</td></tr>
+<tr><td align="center"><code class="code">True</code></td><td align="center"><code class="code">True</code></td><td align="center">tight infix</td></tr>
+<tr><td align="center"><code class="code">False</code></td><td align="center"><code class="code">False</code></td><td align="center">loose infix</td></tr>
 </table>
 </p>
 The implementation of <code class="code">precededByClosingToken</code> is very straightforward: look backwards one character in the lexing buffer.
