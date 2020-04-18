@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+      table, th, td {
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+      th, td {
+        padding: 10px;
+      }
+      </style>
+
+    <title>Syntactic ambiguity resolution in the GHC parser</title>
+  </head>
+  <body>
+    <h1></h1>
+<p>
+There are places in the Haskell grammar where it's not known apriori whether it's an expression a command or a pattern that is being parsed. This used to be handled by picking a parse (e.g. as an expression say) and if that choice later turned out to be wrong, "rejigging it" (transform the constructed parse tree to its analog in the pattern language). The problem with that approach is that it meant having conflated sub-languages meaning, for example, <code class="code">HsExpr</code> had to have pattern related constructors e.g. <code class="code">EWildPat</code>, <code class="code">EAsPat</code> (and further, these propogated into other compiler phases like the renamer and typechecker). This was the case until roughly a year ago before extraordinary work by Vladislav Zavialov who solved the ambiguity resolution issue by parsing into an abstraction with an overloaded representation:
+<pre><code class=code>class DisambECP b where ...
+newtype ECP = ECP { runECP_PV :: forall b. DisambECP b => PV (Located b) }
+</code></pre>
+This innovation might be considered to have come at a cost for developers familiar with the "old" parser however. That is, dealing with understanding the apparent complexity introduced by the ambiguity resolution system. This post attempts to provide some intuition about how the system works and hopefully will lead to the realization that it's not that hard to understand after all!
+</p>
+<p>Because this post is about building intuition, there are details that are glossed over or omitted entirely: the reader is encouraged to read Vlad's detailed explanatory comments in <code class="code">RdrHsSyn.hs</code> when neccessary to address that.
+</p>
+<p>We start with something familiar - the GHC parser monad:
+<pre><code class=code>newtype P a = P { unP :: PState -> ParseResult a }
+</code></pre>
+</p>
+<p>
+This fundamentally is a wrapper over a function <code class="code">PState -> ParseResult a</code>.
+</p>
+<p>
+The (let's call it the) "ECP system" introduces a new (and as we'll see, very related) concept. The parser validator monad:
+<pre><code class=code>newtype PV a = PV { unPV :: PV_Context -> PV_Accum -> PV_Result a }
+</code></pre>
+</p>
+<p>So a parser validator is a function similar in spirit to a parser where:
+<ul><li><code class="code">data PV_Context</code>: The type of essentially a wrapper around the lexer <code class="code">ParserFlags</code> value;</li>
+<li><code class="code">data PV_Accum</code>: The type of state accumulated during parsing validation (like errors & warnings , comments, annotations);</li>
+<li><code class="code">data PV_Result</code>:  The parser validator function's result type that is, <code class=code>data PV_Result a = PV_Ok PV_Accum a | PV_Failed PV_Accum</code>.</li>
+</ul>
+</p>
+<p>Of critical interest is how this type is made a monad.
+<pre><code class=code>instance Functor PV where
+  fmap = liftM
+
+instance Applicative PV where
+  pure a = a `seq` PV (\_ acc -> PV_Ok acc a)
+  (<*>) = ap
+</code></pre>
+</p>
+<p>The above reveals that an expression like <code class="code">return e</code> where <code>e</code> is of type <code class="code">Located b</code>, constructs a function that given arguments <code class="code">ctx</code> and <code class="code">acc</code> returns <code class="code">e</code>. The moral equivalent of <code class="code">const</code>.
+<pre><code class=code>instance Monad PV where
+  m >>= f = PV $ \ctx acc ->
+    case unPV m ctx acc of
+      PV_Ok acc' a -> unPV (f a) ctx acc'
+      PV_Failed acc' -> PV_Failed acc'
+</code></pre>
+</p>
+<p>The bind operation composes <code class="code">PV</code> actions threading context and accumlators through the application of their contained functions: given an <code class="code">m :: PV a</code> and a function <code class="code">f :: a -> PV b</code>, then <code class="code">m >>= f</code> constructs a <code class="code">PV b</code> that wraps a function that composes <code class="code">f</code> with the function in <code class="code">m</code>.
+</p>
+<p><code class="code">PV</code> is a bit more than a monad, it also satisfies the <code class="code">MonadP</code> class for monads that support parsing-related operations providing the ability to query for active language extensions, store warnings, errors, comments and annotations.
+<pre><code class=code>instance MonadP PV where
+  addError srcspan msg = ....
+    PV $ \ctx acc@PV_Accum{pv_messages=m} ->
+      let msg' = msg $$ pv_hint ctx in
+      PV_Ok acc{pv_messages=appendError srcspan msg' m} ()
+  addWarning option srcspan warning = ...
+  addFatalError srcspan msg =...
+  getBit ext =
+    PV $ \ctx acc ->
+      let b = ext `xtest` pExtsBitmap (pv_options ctx) in
+      PV_Ok acc $! b
+  addAnnotation (RealSrcSpan l _) a (RealSrcSpan v _) = ...
+  ...
+</code></pre>
+</p>
+<p>The function <code class="code">runPV</code> is the interpreter of a <code class="code">PV a</code>. To run a <code class="code">PV a</code> through this function is to produce a <code class="code">P a</code>.
+<pre><code class=code>runPV :: PV a -> P a
+</code></pre>
+</p>
+<p>That is, given a <code class="code">PV a</code> construct a function <code class="code">PState -> ParseResult a</code>.
+<pre><code class=code>runPV m =
+  P $ \s ->
+    let
+      pv_ctx = PV_Context {...} -- init context from parse state 's'
+      pv_acc = PV_Accum {...} -- init local state from parse state 's'
+      -- Define a function that builds a parse state from local state
+      mkPState acc' =
+        s { messages = pv_messages acc'
+          , annotations = pv_annotations acc'
+          , comment_q = pv_comment_q acc'
+          , annotations_comments = pv_annotations_comments acc' }
+    in
+      -- Invoke the function in m with context and state, harvest its revised state and
+      -- turn its outcome into a ParseResult.
+      case unPV m pv_ctx pv_acc of
+        PV_Ok acc' a -> POk (mkPState acc') a
+        PV_Failed acc' -> PFailed (mkPState acc')
+</code></pre>
+</p>
+<p>It is often the case that a production (or set of productions) might result different ASTs depending on the context. Ideally, we just want to write the productions once and reuse them across these different sub-languages (e.g. expressions vs. commands vs. patterns). For example, the production for a parenthesized "thing" is
+<pre><code class=code>'(' texp ')'
+</code></pre>
+</p>
+<p>In the context of a pattern we expect an AST with a <code class="code">ParPat _ p</code> node whereas in the context of an expression we want an AST with an <code class="code">HsPar _ e</code> node. To this end the <code class="code">DisambECP</code> class embodies an abstract set of operations for parse tree construction.
+<pre><code class=code>class DisambECP b where
+  ...
+
+  -- | Return a command without ambiguity, or fail in a non-command context.
+  ecpFromCmd' :: LHsCmd GhcPs -> PV (Located b)
+  -- | Return an expression without ambiguity, or fail in a non-expression context.
+  ecpFromExp' :: LHsExpr GhcPs -> PV (Located b)
+
+  ... Lots of operations like this
+  mkHsOpAppPV :: SrcSpan -> Located b -> Located (InfixOp b) -> Located b -> PV (Located b)
+  mkHsVarPV :: Located RdrName -> PV (Located b)
+
+  ...
+</code></pre>
+</p>
+<p>The idea is that in the semantic actions of the grammar we construct and compose parser validators in terms of these abstract functions. Running the <code class="code">PV</code>s produces parsers and at the point of execution of parsers we know the context (the nature of the AST we expect to recive) and the concrete choices for each of the abstract functions is thereby fixed (and then, on evaluation,  we get the parse result).
+</p>
+<p>The only wrinkle is in the return type of productions that produce parser validators. In general, they will have the form <code class="code">forall b. DisambECP b => PV (Located b)</code>. If they were monadic productions though we would be led to <code class="code">P (forall b. DisambECP b => PV (Located b)</code> and that dog don't hunt for GHC's lack of support for impredicative types. There is a standard work-around that can be employed though. This newtype is how impredicative types in monadic productions are avoided:
+<pre><code class=code>newtype ECP = ECP { runECP_PV :: forall b. DisambECP b => PV (Located b) }
+</code></pre>
+</p>
+<p>So here, <code class="code">ECP</code> is a wrapper around a <code class="code">PV (Located b)</code> value where <code class="code">b</code> can be of any type that satisifies the constraints of <code class="code">class DisamECP</code>. So, in a production that looks like
+<pre><code class=code>| ... {% return (ECP ...)}
+</code></pre>
+</p>
+<p>
+we are dealing with <code class="code">P ECP</code> whereas without a newtype we would be dealing with <code class="code">P (forall b. DisambECP b => PV (Located b))</code>.
+</p>
+<p>Now to produce a <code class="code">P (Located b)</code> from the <code class="code">PV (Located b)</code> in an <code class="code">ECP</code> we have this function:
+<pre><code class=code>runECP_P :: DisambECP b => ECP -> P (Located b)
+runECP_P p = runPV (runECP_PV p)
+</code></pre>
+</p>
+<p>It takes an <code class="code">ECP</code> value, projects out the parser validator contained therein and "runs" it to produce a function from <code class="code">PState -> ParseResult a</code> (a parser action).
+</p>
+<p>From the <code class="code">DisabmECP</code> instance for <code class="code">HsExpr GhcPs</code>, here's <code class="code">ecpFromCmd'</code>:
+<pre><code class=code>  ecpFromCmd' (L l c) = do
+    addError l $ vcat
+      [ text "Arrow command found where an expression was expected:",
+        nest 2 (ppr c) ]
+    return (L l hsHoleExpr)
+</code></pre>
+</p>
+<p>Makes perfect sense - you get a parser validator that when evaluated will store a (non-fatal) error and returns an expression "hole" (unbound variable called <code class="code">_</code>) so that parsing can continue.
+</p>
+<p>Continuing, the definition of <code class="code">ecpFromExp'</code>:
+<pre><code class=code>  ecpFromExp' = return
+</code></pre>
+</p>
+<p>Also sensible. Simply calculate a function that returns its provided <code class="code">acc</code> argument together with the given constant expression under a <code class="code">PV_Ok</code> result (see the definition of <code class="code">pure</code> in the <code class="code">Appliciatve</code> instance for <code class="code">PV</code> given above).
+</p>
+<p>Parenthesizing an expression for this <code class="code">DisambECP</code> instance means wrapping a <code class="code">HsPar</code> around the given <code class="code">e</code>:
+<pre><code class=code>  mkHsParPV l e = return $ L l (HsPar noExtField e)
+</code></pre>
+</p>
+<p>And so on. You get the idea.
+</p>
+<p>So how does this all fit together? Consider agin the production of parenthesized things:
+<pre><code class=code>        | '(' texp ')'  { ECP $
+                            runECP_PV $2 >>= \ $2 ->
+                            amms (mkHsParPV (comb2 $1 $>) $2) [mop $1,mcp $3] }
+</code></pre>
+</p>
+<p>We note that the <code class="code">texp</code> production calculates an <code class="code">ECP</code>. Stripping away for simplicity the annotation and source code location calculations in the semantic action, in essence we are left with this.
+<pre><code class=code>ECP $ runECP_PV $2 >>= \ $2 -> mkHsParPV $2
+</code></pre>
+</p>
+<p>The effect of <code class="code">runECP_PV</code> is to project out the <code class="code">forall b. DisambECP b => PV (Located b)</code> value from the result of <code class="code">texp</code>. Recalling that <code class="code">unPV</code> projects out the function that the <code class="code">PV</code> wrapper shields and by substition of the definition of bind, we obtain roughly:
+<pre><code class=code>  ECP $ PV $ \ctx acc ->
+                case unPV (runECP_PV $2) ctx acc of
+                  PV_Ok acc' a -> unPV (mkHsParPV a) ctx acc'
+                  PV_Failed acc' -> PV_Failed acc'
+</code></pre>
+</p>
+<p>The net effet is we construct a new parser validatior (function) from the parser validator (function) returned from the <code class="code">texp</code> production that puts parenthesis around whatever that function when evaluated produces. If used in a context where <code class="code">texp</code> generates a <code class="code">LPat GhcPs</code> that'll be a <code class="code">ParPat</code> node, if an <code class="code">LHsExpr GhcPs</code>, then a <code class="code">HsPar</code> node.
+
+</p>
+</body>
+</html>
