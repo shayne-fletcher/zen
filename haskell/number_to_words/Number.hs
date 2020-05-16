@@ -67,12 +67,12 @@ toWords n
   | n == 0 = "zero"
   | n < 10 = ones n
   | n < 20 = teens n
-  | n < 100 = tens (n `div` 10) ++ (test (n `mod` 10) $ \rem -> ones rem)
-  | n < 1000 = ones (n `div` 100) ++ " hundred " ++ (test (n `mod` 100) $ \rem -> toWords rem)
+  | n < 100 = tens (n `div` 10) ++ (test (n `mod` 10) ones)
+  | n < 1000 = ones (n `div` 100) ++ " hundred " ++ (test (n `mod` 100) toWords)
   | otherwise = intercalate " "
-        [ segment | (amt, unit) <- split n
-          , let segment = test amt $ \amt -> toWords amt ++ " " ++ unit
-        ]
+      [ segment | (amt, unit) <- split n
+        , let segment = test amt $ \amt -> toWords amt ++ " " ++ unit
+      ]
   where
     test rem f = if rem > 0 then f rem else ""
 
