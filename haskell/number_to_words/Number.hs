@@ -67,18 +67,14 @@ toWords n
   | n == 0 = "zero"
   | n < 10 = ones n
   | n < 20 = teens n
-  | n < 100 = tens (n `div` 10) ++ (test (n `mod` 10) ones)
-  | n < 1000 = ones (n `div` 100) ++ " hundred " ++ (test (n `mod` 100) toWords)
-  | otherwise = intercalate " "
-      [ segment | (amt, unit) <- split n
-        , let segment = test amt $ \amt -> toWords amt ++ " " ++ unit
-      ]
-  where
-    test rem f = if rem > 0 then f rem else ""
+  | n < 100 = tens (n `div` 10) ++ test (n `mod` 10) ones
+  | n < 1000 = ones (n `div` 100) ++ " hundred " ++ test (n `mod` 100) toWords
+  | otherwise = intercalate " " [ test amt $ (++ (" " ++ unit)) . toWords | (amt, unit) <- split n ]
+  where test rem f = if rem > 0 then f rem else ""
 
 main = do
   args <- getArgs
   when (length args == 1) $ do
     let num = read @Int $ head args
     putStrLn $ toWords num
-  pure ()
+  putStrLn "usage : number num"
