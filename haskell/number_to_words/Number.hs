@@ -77,4 +77,4 @@ main = do
   when (length args == 1) $ do
     let num = read @Int $ head args
     putStrLn $ toWords num
-  putStrLn "usage : number num"
+  pure ()
