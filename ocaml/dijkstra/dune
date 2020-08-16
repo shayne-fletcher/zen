@@ -1,0 +1,9 @@
+(executable
+ (modes byte exe)
+ (name shortest_path)
+ (public_name dijkstra)
+ (preprocess
+  (pps ppx_jane))
+ (libraries core
+            core_kernel.pairing_heap
+ ))

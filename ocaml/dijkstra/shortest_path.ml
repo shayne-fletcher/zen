@@ -1,3 +1,6 @@
+#require "Core" ;;
+#require "Core_kernel.Pairing_heap" ;;
+
 open Core
 
 (** Dijkstra's algorithm for the single source shortest paths
@@ -89,7 +92,7 @@ module Graph : GRAPH = struct
         ; d      :               float Map.t
         ; pred   :            vertex_t Map.t
         ; s      :                     Set.t
-        ; v_s    : (vertex_t * float) Heap.t
+        ; v_s    : (vertex_t * float) Pairing_heap.t
         }
 
         let init src g =
@@ -103,7 +106,7 @@ module Graph : GRAPH = struct
           ; s = Set.empty
           ; d
           ; pred = Map.empty
-          ; v_s = Heap.of_list (Map.to_alist d)
+          ; v_s = Pairing_heap.of_list (Map.to_alist d)
                 ~cmp:(fun (_, e1) (_, e2) -> Float.compare e1 e2)
           }
 
@@ -120,10 +123,10 @@ module Graph : GRAPH = struct
           let du = match Map.find d u with
             | Some du -> du
             | None -> raise (Error (`Relax u)) in
-          if dv > du +. w then
+          if Float.(dv > du +. w) then
             let dv = du +. w in
-            (match Heap.find_elt v_s ~f:(fun (n, _) -> V.equal n v) with
-            | Some tok -> ignore (Heap.update v_s tok (v, dv))
+            (match Pairing_heap.find_elt v_s ~f:(fun (n, _) -> V.equal n v) with
+            | Some tok -> ignore(Pairing_heap.update v_s tok (v, dv) : (vertex_t * float) Pairing_heap.Elt.t)
             | None -> raise (Error (`Relax v))
             );
             { state with
@@ -138,10 +141,10 @@ module Graph : GRAPH = struct
 
         let dijkstra_exn src g =
           let rec loop ({s; v_s; _} as state) =
-            match Heap.is_empty v_s with
+            match Pairing_heap.is_empty v_s with
             | true -> state
             | false ->
-              let u = fst (Heap.pop_exn v_s) in
+              let u = fst (Pairing_heap.pop_exn v_s) in
               loop (
                 List.fold (Map.find_exn g u)
                   ~init:{ state with s = Set.add s u }
@@ -186,10 +189,10 @@ let g : G.t =
           ]
   with
   | `Ok g -> g
-  | `Load_error e -> failwiths "Graph load error : %s" e G.sexp_of_load_error
+  | `Load_error _ -> failwith "Error" (* failwiths "Graph load error : %s" e G.sexp_of_load_error *)
 ;;
 let s = match (G.Dijkstra.dijkstra 's' g) with
   | `Ok s -> s
-  | `Error e -> failwiths "Error : %s" e G.Dijkstra.sexp_of_error
+  | `Error _ -> failwith "Error" (*failwiths "Error : %s" e G.Dijkstra.sexp_of_error*)
 ;; G.Dijkstra.d s
 ;; G.Dijkstra.shortest_paths s
