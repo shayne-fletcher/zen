@@ -29,7 +29,7 @@
 <p>
 There are places in the Haskell grammar where it's not known apriori whether it's an expression a command or a pattern that is being parsed. This used to be handled by picking a parse (e.g. as an expression say) and if that choice later turned out to be wrong, "rejigging it" (transform the constructed parse tree to its analog in the pattern language). The problem with that approach is that it meant having conflated sub-languages meaning, for example, <code class="code">HsExpr</code> had to have pattern related constructors e.g. <code class="code">EWildPat</code>, <code class="code">EAsPat</code> (and further, these propogated into other compiler phases like the renamer and typechecker). This was the case until roughly a year ago before extraordinary work by Vladislav Zavialov who solved the ambiguity resolution issue by parsing into an abstraction with an overloaded representation:
 <pre><code class=code>class DisambECP b where ...
-newtype ECP = ECP { runECP_PV :: forall b. DisambECP b => PV (Located b) }
+newtype ECP = ECP { unECP :: forall b. DisambECP b => PV (Located b) }
 </code></pre>
 This innovation might be considered to have come at a cost for developers familiar with the "old" parser however. That is, dealing with understanding the apparent complexity introduced by the ambiguity resolution system. This post attempts to provide some intuition about how the system works and hopefully will lead to the realization that it's not that hard to understand after all!
 </p>
@@ -135,7 +135,7 @@ instance Applicative PV where
 <p>The idea is that in the semantic actions of the grammar we construct and compose parser validators in terms of these abstract functions. Running the <code class="code">PV</code>s produces parsers and at the point of execution of parsers we know the context (the nature of the AST we expect to recive) and the concrete choices for each of the abstract functions is thereby fixed (and then, on evaluation,  we get the parse result).
 </p>
 <p>The only wrinkle is in the return type of productions that produce parser validators. In general, they will have the form <code class="code">forall b. DisambECP b => PV (Located b)</code>. If they were monadic productions though we would be led to <code class="code">P (forall b. DisambECP b => PV (Located b)</code> and that dog don't hunt for GHC's lack of support for impredicative types. There is a standard work-around that can be employed though. This newtype is how impredicative types in monadic productions are avoided:
-<pre><code class=code>newtype ECP = ECP { runECP_PV :: forall b. DisambECP b => PV (Located b) }
+<pre><code class=code>newtype ECP = ECP { unECP :: forall b. DisambECP b => PV (Located b) }
 </code></pre>
 </p>
 <p>So here, <code class="code">ECP</code> is a wrapper around a <code class="code">PV (Located b)</code> value where <code class="code">b</code> can be of any type that satisifies the constraints of <code class="code">class DisamECP</code>. So, in a production that looks like
@@ -145,9 +145,8 @@ instance Applicative PV where
 <p>
 we are dealing with <code class="code">P ECP</code> whereas without a newtype we would be dealing with <code class="code">P (forall b. DisambECP b => PV (Located b))</code>.
 </p>
-<p>Now to produce a <code class="code">P (Located b)</code> from the <code class="code">PV (Located b)</code> in an <code class="code">ECP</code> we have this function:
-<pre><code class=code>runECP_P :: DisambECP b => ECP -> P (Located b)
-runECP_P p = runPV (runECP_PV p)
+<p>Now to produce a <code class="code">P (Located b)</code> from the <code class="code">PV (Located b)</code> in an <code class="code">ECP</code> we can use this expression (of type <code class=code>DisambECP b => ECP -> P (Located b)</code>):
+<pre><code class="code">runPV (unECP p)
 </code></pre>
 </p>
 <p>It takes an <code class="code">ECP</code> value, projects out the parser validator contained therein and "runs" it to produce a function from <code class="code">PState -> ParseResult a</code> (a parser action).
@@ -176,17 +175,17 @@ runECP_P p = runPV (runECP_PV p)
 </p>
 <p>So how does this all fit together? Consider agin the production of parenthesized things:
 <pre><code class=code>        | '(' texp ')'  { ECP $
-                            runECP_PV $2 >>= \ $2 ->
+                            unECP $2 >>= \ $2 ->
                             amms (mkHsParPV (comb2 $1 $>) $2) [mop $1,mcp $3] }
 </code></pre>
 </p>
 <p>We note that the <code class="code">texp</code> production calculates an <code class="code">ECP</code>. Stripping away for simplicity the annotation and source code location calculations in the semantic action, in essence we are left with this.
-<pre><code class=code>ECP $ runECP_PV $2 >>= \ $2 -> mkHsParPV $2
+<pre><code class=code>ECP $ unECP $2 >>= \ $2 -> mkHsParPV $2
 </code></pre>
 </p>
-<p>The effect of <code class="code">runECP_PV</code> is to project out the <code class="code">forall b. DisambECP b => PV (Located b)</code> value from the result of <code class="code">texp</code>. Recalling that <code class="code">unPV</code> projects out the function that the <code class="code">PV</code> wrapper shields and by substition of the definition of bind, we obtain roughly:
+<p>The effect of <code class="code">unECP</code> is to project out the <code class="code">forall b. DisambECP b => PV (Located b)</code> value from the result of <code class="code">texp</code>. Recalling that <code class="code">unPV</code> projects out the function that the <code class="code">PV</code> wrapper shields and by substition of the definition of bind, we obtain roughly:
 <pre><code class=code>  ECP $ PV $ \ctx acc ->
-                case unPV (runECP_PV $2) ctx acc of
+                case unPV (unECP $2) ctx acc of
                   PV_Ok acc' a -> unPV (mkHsParPV a) ctx acc'
                   PV_Failed acc' -> PV_Failed acc'
 </code></pre>
