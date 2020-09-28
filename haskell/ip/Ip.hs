@@ -1,4 +1,3 @@
-{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Main where
