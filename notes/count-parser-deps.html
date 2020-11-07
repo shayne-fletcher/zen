@@ -1,0 +1,36 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      .img-container {
+        text-align: center;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>ghc-lib-parser module count</title>
+  </head>
+  <body>
+<h1>ghc-lib-parser module count</h1>
+<p>When a user installs a program like <a href="https://github.com/ndmitchell/hlint/blob/master/README.md">HLint</a> via Cabal, there's a good chance the user will pay the cost of building <code class="code">ghc-lib-parser</code>. The build time for <code class="code">ghc-lib-parser</code> is proportional to the number of modules that it contains, the less there are the faster it builds. Thus roughly, the fewer the modules that <code class="code">ghc-lib-parser</code> needs from GHC, the better the user experience for HLint installers.
+</p>
+<p>Back in September last year there was a bit of a <a href="https://mail.haskell.org/pipermail/ghc-devs/2019-September/018122.html">scare</a>. At that time, <code class="code">ghc-lib-parser</code> consisted of around 165 modules (and <code class="code">ghc-lib</code> had roughly 300). An MR landed that, unintentionally resulted in <code class="code">ghc-lib-parser</code> needing 543 modules (and <code class="code">ghc-lib</code> getting just 25). Fortunately a quick refactoring sorted that out (thanks <a href="https://twitter.com/sgraf1337">@sgraf1337</a>!) As <a href="https://twitter.com/mpickering_">@mpickering_</a> then <a href="https://mail.haskell.org/pipermail/ghc-devs/2019-September/018125.html">pointed out</a> "any fix should ensure adding a test to make sure it doesn't happen again". To that end, <a href="https://twitter.com/cocreature?s=20">@cocreature</a> and I managed to work the details of one which we can have a look at in a minute.
+</p>
+<p>Since a year has now elapsed since the test was introduced, it's interesting to see how the module count has changed over time. TL;DR it's not too bad - the number of modules has increased from around 165 a year ago to about 230 today:
+</p>
+<p>
+<div class="img-container"><img src="img/parser-deps.png" alt"Numer of modules vs. time" width="350" height="300"/></div>
+</p>
+<p>So how does the test work? To be comfortable in the knowledge that the number of modules needed in <code="code">ghc-lib-parser</code> will not signficantly change without anyone noticing, it's enough to have a program that counts them. That program when inserted into GHC's continuous integration system alerts the committer to a limit breaking change. How can we count them? We can use the GHC API to compute the transitive closue of the dependencies of <code class="code">GHC.Parser</code> and the count is the cardinality of that. The code is only a few lines. You can read the source <a href="https://gitlab.haskell.org/ghc/ghc/-/blob/master/testsuite/tests/parser/should_run/CountParserDeps.hs">here</a>.
+</p>
+</body>
+</html>
