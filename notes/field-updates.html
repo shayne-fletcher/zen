@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <style>
+      .code {
+      color : #465F91 ;
+      background-color: #F5F5F5;
+      }
+      pre {
+      margin-bottom: 4px;
+      font-family: monospace;
+      background-color: #F5F5F5;
+      }
+      pre.verbatim, pre.codepre { }
+    </style>
+    <title>Record Dot Syntax: Field updates</title>
+  </head>
+<body>
+<h1>Record Dot Syntax: Field updates</h1>
+
+<p>In the event a record is being constructed or updated, it's this production that's in play:
+<pre><code class="code">aexp1 :: { ECP }
+    :  aexp1 '{' fbinds '}'
+    {
+      getBit RecordDotSyntaxBit >>= \ dot ->
+      unECP $1 >>= \ $1 ->
+      $3 >>= \ $3 ->
+      mkHsRecordPV dot ... $1 (snd $3)
+    }
+</code></pre>
+The rule describes both construction and update. The idea is that the <code class="code">fbinds</code> rule harvests a list of field bindings and the <code class="code">mkHsRecordPV</code> function coalesces them with the constructor or expression to update into a <code class="code">PV (Located b)</code> (<code class="code">b</code> one of expression, pattern, command). The signature of this function is defined by
+<pre><code class="code">class b ~ (Body b) GhcPs => DisambECP b where
+  mkHsRecordPV ::
+    Bool -> -- Is RecordDotSyntax in effect?
+    SrcSpan ->
+    SrcSpan ->
+    Located b ->
+    ([Fbind b], Maybe SrcSpan) ->
+    PV (Located b)
+</code></pre>
+Since record dot syntax doesn't particpate in patterns or commands, our focus is restricted to the expression case.
+<pre><code class="code">instance DisambECP (HsExpr GhcPs) where
+  mkHsRecordPV l lrec a (fbinds, ddLoc) = do
+    r <- mkRecConstrOrUpdate a lrec (fbinds, ddLoc)
+    checkRecordSyntax (L l r)
+</code></pre>
+<code class="code">mkRecConstrOrUpdate</code> switches on it's first argument. In the event it's a "qcon", a construction is indicated.
+<pre><code class="code">mkRecConstrOrUpdate
+        :: LHsExpr GhcPs
+        -> SrcSpan
+        -> ([Fbind (HsExpr GhcPs)], Maybe SrcSpan)
+        -> PV (HsExpr GhcPs)
+mkRecConstrOrUpdate (L l (HsVar _ (L _ c))) _ (fs,dd)
+  | isRdrDataCon c
+  = return (mkRdrRecordCon (L l c) (mk_rec_fields fs dd))
+</code></pre>
+Since dot notation doesn't participate in record construction we have no further interest in it, it's the update case we care about. So what is a field binding? Before we got to it, what we've been writing as <code class="code">[Fbind (HsExpr GhcPs)]</code> was <code class="code">[LHsRecField GhcPs (LHsExpr GhcPs)]</code> a simple model of a record field. Then we had,
+<pre><code class="code">mkRecConstrOrUpdate exp _ (fs,dd)
+  | Just dd_loc <- dd = addFatalError $ Error ErrDotsInRecordUpdate [] dd_loc
+  | otherwise = return (mkRdrRecordUpd exp (map (fmap mk_rec_upd_field) fs))
+
+mkRdrRecordUpd :: LHsExpr GhcPs -> [LHsRecUpdField GhcPs] -> HsExpr GhcPs
+mkRdrRecordUpd exp flds
+  = RecordUpd { rupd_ext  = noExtField
+              , rupd_expr = exp
+              , rupd_flds = flds }
+</code></pre>
+The list of fbinds is bundled together with the (record) expression into a <code class="code">RecordUpd</code> syntax node for later renaming, typing and desugaring. As we'll see, with dot syntax enabled, generally what we compute in its place here now is a <code class="code">setField</code> expression.
+</p>
+<p>Record dot syntax adds new syntax for a field binding. Here are all the cases.
+<pre><code class="code">fbind   :: { forall b. DisambECP b => PV (Fbind b) }
+        : qvar '=' texp
+        | qvar
+        | field TIGHT_INFIX_PROJ fieldToUpdate '=' texp
+        | field TIGHT_INFIX_PROJ fieldToUpdate
+</code></pre>
+The last two productions are new and cannot be represented by a <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</code>. How do we represent them? As Haskell functions. Such a function takes the record expression to update on the left hand side and the result is a <code class="code">setField</code> representation of the result. <code class="code">Fbind b</code> accomodates these two alternatives.
+<pre><code class="code">data Fbind b = Fbind (LHsRecField GhcPs (Located b)) | Pbind (Located (Located b -> Located b))
+</code></pre>
+The first two productions compute cases of <code class="code">Fbind (LHsRecField GhcPs (Located b))</code>, the other two <code class="code">Pbind (Located (Located b -> Located b))</code>. To be concrete suppose the update "foo.bar.baz.quux = 43", then this is represented
+<pre><code class="code">L _ (\a -> setField@"foo" (a) (setField@"bar" (getField @"foo" (a))(setField@"baz" (getField @"bar" (getField @"foo" (a)))(setField@"quux" (getField @"baz" (getField @"bar" (getField @"foo" (a))))(43)))))
+</code></pre>
+</p>
+</body>
+</html>
