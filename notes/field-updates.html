@@ -98,5 +98,14 @@ type RecUpdProj p = ProjUpdate' p (LHsExpr p)
 type LHsRecUpdProj p = Located (RecUpdProj p)
 </code></pre>
 </p>
+<p>
+It's easy enough to convert an <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</code> to an <code class="code">LHsProjUpdate GhcPs (LHsExpr GhcPs)</code> by <code class="code">recUpdFieldToProjUpdate (fmap mk_rec_upd_field f)</code> where <code class="code">f</code> is such a field and
+<code class="code">recUpdFieldToProjUpdate :: LHsRecUpdField GhcPs -> LHsRecUpdProj GhcPs</code> is the function to consult. With this we can process <code class="code">Fbind (HsExpr GhcPs)</code> of both cases uniformly as <code class="code">LHsRecUpdProj GhcPs</code> values.
+<pre><code class="code">toProjUpdates :: [Fbind (HsExpr GhcPs)] -> [LHsRecUpdProj GhcPs]
+toProjUpdates = map (\case { Pbind p -> p
+                           ; Fbind f -> recUpdFieldToProjUpdate (fmap mk_rec_upd_field f)
+                    })
+</code></pre>
+</p>
 </body>
 </html>
