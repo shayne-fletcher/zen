@@ -55,7 +55,10 @@ mkRecConstrOrUpdate (L l (HsVar _ (L _ c))) _ (fs,dd)
   | isRdrDataCon c
   = return (mkRdrRecordCon (L l c) (mk_rec_fields fs dd))
 </code></pre>
-Since dot notation doesn't participate in record construction we have no further interest in it, it's the update case we care about. So what is a field binding? Before we got to it, what we've been writing as <code class="code">[Fbind (HsExpr GhcPs)]</code> was <code class="code">[LHsRecField GhcPs (LHsExpr GhcPs)]</code> a simple model of a record field. Then we had,
+Since dot notation doesn't participate in record construction we have no further interest in it, it's the update case we care about.
+</p>
+<p>
+ So what is a field binding? Before we got to it, what we've been writing as <code class="code">[Fbind (HsExpr GhcPs)]</code> was <code class="code">[LHsRecField GhcPs (LHsExpr GhcPs)]</code> a simple model of a record field. Then we had,
 <pre><code class="code">mkRecConstrOrUpdate exp _ (fs,dd)
   | Just dd_loc <- dd = addFatalError $ Error ErrDotsInRecordUpdate [] dd_loc
   | otherwise = return (mkRdrRecordUpd exp (map (fmap mk_rec_upd_field) fs))
@@ -66,7 +69,7 @@ mkRdrRecordUpd exp flds
               , rupd_expr = exp
               , rupd_flds = flds }
 </code></pre>
-The list of fbinds is bundled together with the (record) expression into a <code class="code">RecordUpd</code> syntax node for later renaming, typing and desugaring. As we'll see, with dot syntax enabled, generally what we compute in its place here now is a <code class="code">setField</code> expression.
+The list of fbinds is bundled together with the record expression being updated into a <code class="code">RecordUpd</code> syntax node for later renaming, typing and desugaring. As we'll see, with dot syntax enabled, generally what we compute in its place here now is a <code class="code">setField</code> expression.
 </p>
 <p>Record dot syntax adds new syntax for a field binding. Here are all the cases.
 <pre><code class="code">fbind   :: { forall b. DisambECP b => PV (Fbind b) }
@@ -75,11 +78,24 @@ The list of fbinds is bundled together with the (record) expression into a <code
         | field TIGHT_INFIX_PROJ fieldToUpdate '=' texp
         | field TIGHT_INFIX_PROJ fieldToUpdate
 </code></pre>
-The last two productions are new and cannot be represented by a <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</code>. How do we represent them? As Haskell functions. Such a function takes the record expression to update on the left hand side and the result is a <code class="code">setField</code> representation of the result. <code class="code">Fbind b</code> accomodates these two alternatives.
-<pre><code class="code">data Fbind b = Fbind (LHsRecField GhcPs (Located b)) | Pbind (Located (Located b -> Located b))
+The last two productions are new and cannot be represented by <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</code>s. How do we represent them? As Haskell functions. To be concrete suppose the update "foo.bar.baz.quux = 43", then this is represented
+<pre><code class="code">\a -> setField@"foo" (a) (setField@"bar" (getField @"foo" (a))(setField@"baz" (getField @"bar" (getField @"foo" (a)))(setField@"quux" (getField @"baz" (getField @"bar" (getField @"foo" (a))))(43))))
 </code></pre>
-The first two productions compute cases of <code class="code">Fbind (LHsRecField GhcPs (Located b))</code>, the other two <code class="code">Pbind (Located (Located b -> Located b))</code>. To be concrete suppose the update "foo.bar.baz.quux = 43", then this is represented
-<pre><code class="code">L _ (\a -> setField@"foo" (a) (setField@"bar" (getField @"foo" (a))(setField@"baz" (getField @"bar" (getField @"foo" (a)))(setField@"quux" (getField @"baz" (getField @"bar" (getField @"foo" (a))))(43)))))
+Such a function takes a record expression argument to a <code class="code">setField</code> encoded expression of the result. <code class="code">Fbind b</code> accomodates these two alternatives.
+<pre><code class="code">data Fbind b = Fbind (LHsRecField GhcPs (Located b))
+             | Pbind (LHsProjUpdate GhcPs (Located b))
+</code></pre>
+The first two productions compute cases of <code class="code">Fbind (LHsRecField GhcPs (Located b))</code>, the other two, <code class="code">Pbind (LHsProjUpdate GhcPs (Located b))</code>. Here's how we define <code class="code">LHsProjUpdate p arg</code> and some associated type aliases we'll see in use later.
+<pre><code class="code">data ProjUpdate' p arg =
+  ProjUpdate {
+      pb_fIELDS :: [Located FastString]
+    , pb_arg :: arg -- Field's new value e.g. 42
+    , pb_func :: arg -> arg
+    }
+type ProjUpdate p arg = ProjUpdate' p arg
+type LHsProjUpdate p arg = Located (ProjUpdate p arg)
+type RecUpdProj p = ProjUpdate' p (LHsExpr p)
+type LHsRecUpdProj p = Located (RecUpdProj p)
 </code></pre>
 </p>
 </body>
