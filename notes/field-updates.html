@@ -14,10 +14,72 @@
       }
       pre.verbatim, pre.codepre { }
     </style>
-    <title>Record Dot Syntax: Field updates</title>
+    <title>Record Dot Syntax</title>
   </head>
 <body>
-<h1>Record Dot Syntax: Field updates</h1>
+<h1>Record Dot Syntax</h1>
+<p>
+The <a href="https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0282-record-dot-syntax.rst#lexing-and-parsing"><code class="code">RecordDotSyntax</code> proposal</a> defines these hitherto new terms:
+<ul>
+<li>A field selector is an expression like <code class="code">.a</code> or <code class="code">.a.b</code></li>
+<li>A field selection is an expression like <code class="code">r.a</code> or <code class="code">(f x).a.b</code></li>
+<li>A field update is an expression like <code class="code">r{a=12}</code> or <code class="code">r{a.b = "foo"}</code> (or like <code class="code">r{a}</code> in so called "punned" field updates)</li>
+</ul>
+To each there corresponds a new syntax. Here, for each in turn, implementation notes are presented.
+</p>
+<h2>Field selectors</h2>
+<p>
+Field selectors may not be naked. They are parsed as sections. When desugared they are compositions of <code class="code">getField</code> lambda expressions.
+<pre><code class="code">aexp2   :: { ECP }
+       ...
+        | '(' projection ')'
+            { ECP $
+                let (loc, (anns, fIELDS)) = $2
+                     span = combineSrcSpans (combineSrcSpans (getLoc $1) loc) (getLoc $3)
+                     expr = mkProjection span (reverse fIELDS)
+                     in amms (ecpFromExp' expr) ([mop $1] ++ reverse anns ++ [mcp $3])
+            }
+</code></pre>
+The expression language embodied by <code class="code">data HsExpr p</code> is extended with the following new case into which they parse.
+<pre><code class="code">| Projection
+       { proj_ext :: XProjection p
+       , proj_fIELDS :: [Located FastString]
+       , proj_projection :: LHsExpr p -- Equivalent 'getField' term.
+       }
+</code></pre>
+</p>
+
+<h2>Field selections</h2>
+
+<p>
+For example, <code class="code">z.x</code> is rendered as <code class="code">getField @"x" z</code>. The production that produces values of this alternative is this.
+<pre><code class="code">fexp    :: { ECP }
+        -- See Note [Whitespace-sensitive operator parsing] in GHC.Parser.Lexer
+        | fexp TIGHT_INFIX_PROJ field
+            {% runPV (unECP $1) >>= \ $1 ->
+               -- Suppose lhs is an application term e.g. 'f a'
+               -- and rhs is '.b'. Usually we want the parse 'f
+               -- (a.b)' rather than '(f a).b.'. However, if lhs
+               -- is a projection 'r.a' (say) then we want the
+               -- parse '(r.a).b'.
+               fmap ecpFromExp $ ams (case $1 of
+                   L _ (HsApp _ f arg) | not $ isGetField f ->
+                     let l = comb2 arg $3 in
+                     L (getLoc f `combineSrcSpans` l)
+                       (HsApp noExtField f (mkGetField l arg $3))
+                   _ -> mkGetField (comb2 $1 $>) $1 $3) [mj AnnDot $2] }
+</code></pre>
+Field selections are encoded into the following new <code class="code">data HsExpr p</code> alternative.
+<pre><code class="code">  | GetField
+       { gf_ext :: XGetField p
+       , gf_expr :: LHsExpr p
+       , gf_fIELD :: Located FastString
+       , gf_getField :: LHsExpr p -- Equivalent 'getField' term.
+       }
+</code></pre>
+</p>
+
+<h2>Field updates</h2>
 
 <p>In the event a record is being constructed or updated, it's this production that's in play:
 <pre><code class="code">aexp1 :: { ECP }
@@ -58,7 +120,7 @@ mkRecConstrOrUpdate (L l (HsVar _ (L _ c))) _ (fs,dd)
 Since dot notation doesn't participate in record construction we have no further interest in it, it's the update case we care about.
 </p>
 <p>
- So what is a field binding? Before we got to it, what we've been writing as <code class="code">[Fbind (HsExpr GhcPs)]</code> was <code class="code">[LHsRecField GhcPs (LHsExpr GhcPs)]</code> a simple model of a record field. Then we had,
+ So what is a field binding? Before we got to it, what we've been writing as <code class="code">[Fbind (HsExpr GhcPs)]</code> was <code class="code">[LHsRecField GhcPs (LHsExpr GhcPs)]</code> that is, a list of updates, each update modeled by a record field. Then we had,
 <pre><code class="code">mkRecConstrOrUpdate exp _ (fs,dd)
   | Just dd_loc <- dd = addFatalError $ Error ErrDotsInRecordUpdate [] dd_loc
   | otherwise = return (mkRdrRecordUpd exp (map (fmap mk_rec_upd_field) fs))
@@ -106,6 +168,19 @@ toProjUpdates = map (\case { Pbind p -> p
                            ; Fbind f -> recUpdFieldToProjUpdate (fmap mk_rec_upd_field f)
                     })
 </code></pre>
+Finally we arrive at the new <code class="code">data HsExpr p</code> constructor syntax.
+<pre><code class="code">-- We call this RecordDotUpd in sympathy with RecordUpd.
+  -- e.g. a{foo.bar.baz=1, quux} = RecordDotUpd {
+  --   rdupd_ext=noExtField, rdupd_expr=a, rdupd_updates=[...], rdupd_setField=setField@"quux" (setField@"foo"...a... 1) quux
+  -- },
+  | RecordDotUpd
+    { rdupd_ext :: XRecordDotUpd
+    , rdupd_expr :: LHsExpr GhcPs
+    , rdupd_updates :: [LHsProjUpdate GhcPs (LHsExpr GhcPs)]
+    , rdupd_setField :: LHsExpr GhcPs -- Equivalent 'setField' term.
+    }
+</code></pre>
+The trick to producing them is to substitute <code class="code">mkRdrRecorUpd'</code> for <code class="code">mkRdrRecorUpd</code>.
 </p>
 </body>
 </html>
