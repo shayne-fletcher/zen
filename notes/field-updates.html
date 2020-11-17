@@ -25,7 +25,7 @@ The <a href="https://github.com/ghc-proposals/ghc-proposals/blob/master/proposal
 <li>A field selection is an expression like <code class="code">r.a</code> or <code class="code">(f x).a.b</code></li>
 <li>A field update is an expression like <code class="code">r{a=12}</code> or <code class="code">r{a.b = "foo"}</code> (or like <code class="code">r{a}</code> in so called "punned" field updates)</li>
 </ul>
-To each there corresponds a new syntax. Here, for each in turn, implementation notes are presented.
+To each there corresponds a new expression syntax: <code class="code">GetField</code>, <code class="code">Projection</code> and <code class="code">RecordDotUpd</code> alternatives of <code class="code">data HsExpr p</code> respectively. Here, for each in turn, implementation notes are presented.
 </p>
 <h2>Field selectors</h2>
 <p>
@@ -69,7 +69,7 @@ For example, <code class="code">z.x</code> is rendered as <code class="code">get
                        (HsApp noExtField f (mkGetField l arg $3))
                    _ -> mkGetField (comb2 $1 $>) $1 $3) [mj AnnDot $2] }
 </code></pre>
-Field selections are encoded into the following new <code class="code">data HsExpr p</code> alternative.
+Field selections are encoded into the following case.
 <pre><code class="code">  | GetField
        { gf_ext :: XGetField p
        , gf_expr :: LHsExpr p
@@ -180,7 +180,7 @@ Finally we arrive at the new <code class="code">data HsExpr p</code> constructor
     , rdupd_setField :: LHsExpr GhcPs -- Equivalent 'setField' term.
     }
 </code></pre>
-The trick to producing them is to substitute <code class="code">mkRdrRecorUpd'</code> for <code class="code">mkRdrRecorUpd</code>.
+The trick to producing them is to substitute <code class="code">mkRdrRecordUpd'</code> for <code class="code">mkRdrRecordUpd</code>.
 </p>
 </body>
 </html>
