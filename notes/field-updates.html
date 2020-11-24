@@ -28,7 +28,7 @@ The <a href="https://github.com/ghc-proposals/ghc-proposals/blob/master/proposal
 To each there corresponds a new expression syntax, alternatives of <code class="code">data HsExpr p</code>: <code class="code">GetField</code>, <code class="code">Projection</code> and <code class="code">RecordDotUpd</code>  respectively.
 </p>
 <p>
-The new syntax contains everthing you need to desguar into <code class="code">getField</code>/<code class="code">setField</code> encodings. Today we compute those encodings at parse time anyway. As the program matures, this will stop.
+The new syntax contains everthing you need to desguar into <code class="code">getField</code>/<code class="code">setField</code> encodings. Today we compute those encodings at parse time anyway. As the program matures, this may stop and desugaring delayed to a later point.
 </p>
 <h2>Field selectors</h2>
 <p>
@@ -95,7 +95,7 @@ Field selections are <code class="code">getField</code> expressions with no free
       mkHsRecordPV dot ... $1 (snd $3)
     }
 </code></pre>
-The rule describes both record constructions and updates. The <code class="code">fbinds</code> rule produces a list of field bindings and the <code class="code">mkHsRecordPV</code> function coalesces them into an aggregate, a <code class="code">PV (Located b)</code> (where in effect, <code class="code">b</code> ranges over <code class="code">HsExpr</code>, <code class="code">HsPat</code> and <code class="code">HsCmd</code>). It has this signature.
+The rule describes both record constructions and updates. The <code class="code">fbinds</code> rule produces a list of field bindings and the <code class="code">mkHsRecordPV</code> function coalesces them into an aggregate, a <code class="code">PV (Located b)</code> (where, <code class="code">b</code> ranges over <code class="code">HsExpr GhcPs</code>, <code class="code">HsPat GhcPs</code> and <code class="code">HsCmd GhcPs</code>). It has this signature.
 <pre><code class="code">class b ~ (Body b) GhcPs => DisambECP b where
   mkHsRecordPV ::
     Bool -> -- Is RecordDotSyntax in effect?
@@ -124,7 +124,7 @@ mkRecConstrOrUpdate (L l (HsVar _ (L _ c))) _ (fs,dd)
 Since dot notation doesn't participate in record construction we have no further interest in it, it's the update case we care about.
 </p>
 <p>
-  So what is a field binding? Before we got to it, what we've been writing as <code class="code">[Fbind (HsExpr GhcPs)]</code> was <code class="code">[LHsRecField GhcPs (LHsExpr GhcPs)]</code> and the essence of a <code>RecordUpd</code> value.
+  So what is a field binding? Before we got to it, what we've been writing as <code class="code">[Fbind (HsExpr GhcPs)]</code> was <code class="code">[LHsRecField GhcPs (LHsExpr GhcPs)]</code> and the essence of a <code class="code">RecordUpd</code> value.
 <pre><code class="code">mkRecConstrOrUpdate exp _ (fs,dd)
   | Just dd_loc <- dd = addFatalError $ Error ErrDotsInRecordUpdate [] dd_loc
   | otherwise = return (mkRdrRecordUpd exp (map (fmap mk_rec_upd_field) fs))
@@ -142,19 +142,15 @@ The list of field bindings is bundled with the expression to update. When dot sy
         | field TIGHT_INFIX_PROJ fieldToUpdate '=' texp
         | field TIGHT_INFIX_PROJ fieldToUpdate
 </code></pre>
-The last two productions are the new ones. Unlike the first two, their result can't be modeled like by <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</code>s. How do we represent them? As Haskell functions. To be concrete, here's an example of the encoding. The update "foo.bar.baz.quux = 43", is given by the expression
-<pre><code class="code">\a -> setField@"foo" (a) (setField@"bar" (getField @"foo" (a))(setField@"baz" (getField @"bar" (getField @"foo" (a)))(setField@"quux" (getField @"baz" (getField @"bar" (getField @"foo" (a))))(43))))
-</code></pre>
-Such a function takes a record expression argument to a <code class="code">setField</code> encoded expression of the result. <code class="code">Fbind b</code> accomodates these two alternatives.
+The last two productions are the new ones. Unlike the first two, their result can't be modeled like by <code class="code">LHsRecField p (Located b)</code>s. In these cases we use <code class="code">LHsProjUpdate p (Located b)</code> instead. <code class="code">Fbind b</code> accomodates these two alternatives.
 <pre><code class="code">data Fbind b = Fbind (LHsRecField GhcPs (Located b))
              | Pbind (LHsProjUpdate GhcPs (Located b))
 </code></pre>
-The first two productions compute cases of <code class="code">Fbind (LHsRecField GhcPs (Located b))</code>, the other two, <code class="code">Pbind (LHsProjUpdate GhcPs (Located b))</code>. Here's how we define <code class="code">LHsProjUpdate p arg</code> and some associated type aliases we'll see in use later.
+The first two productions compute cases of <code class="code">Fbind (LHsRecField GhcPs (Located b))</code>, the other two, <code class="code">Pbind (LHsProjUpdate GhcPs (Located b))</code>. Here's how <code class="code">LHsProjUpdate p arg</code> is defined.
 <pre><code class="code">data ProjUpdate' p arg =
   ProjUpdate {
       pb_fIELDS :: [Located FastString]
     , pb_arg :: arg -- Field's new value e.g. 42
-    , pb_func :: arg -> arg
     }
 type ProjUpdate p arg = ProjUpdate' p arg
 type LHsProjUpdate p arg = Located (ProjUpdate p arg)
@@ -163,7 +159,7 @@ type LHsRecUpdProj p = Located (RecUpdProj p)
 </code></pre>
 </p>
 <p>
-It's easy enough to convert an <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</code> to an <code class="code">LHsProjUpdate GhcPs (LHsExpr GhcPs)</code> where <code class="code">recUpdFieldToProjUpdate :: LHsRecUpdField GhcPs -> LHsRecUpdProj GhcPs</code> is the function to consult. With this we can process <code class="code">Fbind (HsExpr GhcPs)</code> of both cases uniformly as <code class="code">LHsRecUpdProj GhcPs</code> values. Given that togther with the preceding types, we can finally present the new <code class="code">data HsExpr p</code> constructor syntax for record updates.
+It's easy to convert an <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</code> to an <code class="code">LHsProjUpdate GhcPs (LHsExpr GhcPs)</code> where <code class="code">recUpdFieldToProjUpdate :: LHsRecUpdField GhcPs -> LHsRecUpdProj GhcPs</code> is the function to consult. With this we can process both alternatives of <code class="code">Fbind (HsExpr GhcPs)</code> uniformly. We can now present the new <code class="code">data HsExpr p</code> constructor syntax for record updates when <code class="code">RecordDotSyntax</code> is enabled.
 <pre><code class="code">-- We call this RecordDotUpd in sympathy with RecordUpd.
   -- e.g. a{foo.bar.baz=1, quux} = RecordDotUpd {
   --   rdupd_ext=noExtField, rdupd_expr=a, rdupd_updates=[...], rdupd_setField=setField@"quux" (setField@"foo"...a... 1) quux
