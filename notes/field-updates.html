@@ -142,7 +142,7 @@ The list of field bindings is bundled with the expression to update. When dot sy
         | field TIGHT_INFIX_PROJ fieldToUpdate '=' texp
         | field TIGHT_INFIX_PROJ fieldToUpdate
 </code></pre>
-The last two productions are the new ones. Unlike the first two, their result can't be modeled like by <code class="code">LHsRecField p (Located b)</code>s. In these cases we use <code class="code">LHsProjUpdate p (Located b)</code> instead. <code class="code">Fbind b</code> accomodates these two alternatives.
+The last two productions are the new ones. Unlike the first two, their result can't be modeled like by <code class="code">LHsRecField GhcPs (Located b)</code>s. In these cases we use <code class="code">LHsProjUpdate GhcPs (Located b)</code> instead. <code class="code">Fbind b</code> accomodates these two alternatives.
 <pre><code class="code">data Fbind b = Fbind (LHsRecField GhcPs (Located b))
              | Pbind (LHsProjUpdate GhcPs (Located b))
 </code></pre>
