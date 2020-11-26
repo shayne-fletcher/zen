@@ -32,7 +32,7 @@ The new syntax contains everthing you need to desguar into <code class="code">ge
 </p>
 <h2>Field selectors</h2>
 <p>
-A field selector is a field selection with a hole. Field selectors may not be naked. The term <code class="code">(.x)</code> is sugar for <code class="code">λa &rarr; getField @"x" a</code>. A projection with multiple components is modeled by function composition.
+A field selector is a field selection with a hole. Field selectors may not be naked.
 <pre><code class="code">aexp2   :: { ECP }
        ...
         | '(' projection ')'
@@ -46,17 +46,17 @@ A field selector is a field selection with a hole. Field selectors may not be na
 <code class="code">mkProjection</code> calculates values of this <code class="code">data HsExpr p</code> case.
 <pre><code class="code">| Projection
        { proj_ext :: XProjection p
-       , proj_fIELDS :: [Located FastString]
-       , proj_projection :: LHsExpr p -- Equivalent 'getField' term.
+       , proj_flds :: [Located FastString]
+       , proj_proj :: LHsExpr p -- Desugared equivalent 'getField' term.
        }
 </code></pre>
-It's the <code class="code">proj_projection</code> field that carries the desugared term we're currently calculating when parsing. Like we were saying in the introduction, this field can be omitted (you can recover it anytime from <code class="code">proj_fIELDS</code>). This property will be the case for any fields of desugared expressions in the remaining syntax too and we won't mention this again.
+It's the <code class="code">proj_proj</code> field that carries the desugared term we're currently calculating when parsing. Like we were saying in the introduction, this field can be omitted (you can recover it anytime from <code class="code">proj_flds</code>). This property will be the case for any fields of desugared expressions in the remaining syntax too and we won't mention this again.
 </p>
 
 <h2>Field selections</h2>
 
 <p>
-Field selections are <code class="code">getField</code> expressions with no free variables. For example, <code class="code">z.x</code> is rendered as <code class="code">getField @"x" z</code>.
+Field selections are parsed by this rule.
 <pre><code class="code">fexp    :: { ECP }
         -- See Note [Whitespace-sensitive operator parsing] in GHC.Parser.Lexer
         | fexp TIGHT_INFIX_PROJ field
@@ -77,8 +77,8 @@ Field selections are <code class="code">getField</code> expressions with no free
 <pre><code class="code">  | GetField
        { gf_ext :: XGetField p
        , gf_expr :: LHsExpr p
-       , gf_fIELD :: Located FastString
-       , gf_getField :: LHsExpr p -- Equivalent 'getField' term.
+       , gf_field :: Located FastString
+       , gf_getField :: LHsExpr p -- Desugared equivalent 'getField' term.
        }
 </code></pre>
 </p>
@@ -149,7 +149,7 @@ The last two productions are the new ones. Unlike the first two, their result ca
 The first two productions compute cases of <code class="code">Fbind (LHsRecField GhcPs (Located b))</code>, the other two, <code class="code">Pbind (LHsProjUpdate GhcPs (Located b))</code>. Here's how <code class="code">LHsProjUpdate p arg</code> is defined.
 <pre><code class="code">data ProjUpdate' p arg =
   ProjUpdate {
-      pb_fIELDS :: [Located FastString]
+      pu_flds :: [Located FastString]
     , pb_arg :: arg -- Field's new value e.g. 42
     }
 type ProjUpdate p arg = ProjUpdate' p arg
@@ -168,7 +168,7 @@ It's easy to convert an <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</co
     { rdupd_ext :: XRecordDotUpd
     , rdupd_expr :: LHsExpr GhcPs
     , rdupd_updates :: [LHsRecUpdProj GhcPs]
-    , rdupd_setField :: LHsExpr GhcPs -- Equivalent 'setField' term.
+    , rdupd_setField :: LHsExpr GhcPs -- Desugared equivalent 'setField' term.
     }
 </code></pre>
 In symmetry with <code class="code">mkRdrRecordUpd</code>, the function for producing values of this kind is named <code class="code">mkRdrRecordDotUpd</code>.
