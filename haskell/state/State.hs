@@ -27,6 +27,32 @@ instance Monad Identity where
 
 --
 
+newtype Reader cfg a = Reader { runReader :: cfg -> a }
+
+instance Functor (Reader cfg) where
+  fmap :: (a -> b) -> Reader cfg a -> Reader cfg b
+  fmap f x = Reader $ \cfg ->  f (runReader x cfg)
+
+instance Applicative (Reader cfg) where
+  pure :: a -> Reader cfg a
+  pure a = Reader $ \_ -> a
+
+  (<*>) :: Reader cfg (a -> b) -> Reader cfg a -> Reader cfg b
+  f <*> x = Reader $ \cfg ->
+    let f' = runReader f cfg
+        x' = runReader x cfg
+    in f' x'
+
+instance Monad (Reader cfg) where
+  return :: a -> Reader cfg a
+  return = pure
+
+  (>>=) :: Reader cfg a -> (a -> Reader cfg b) -> Reader cfg b
+  x >>= f = Reader $ \cfg ->
+    let x' = runReader x cfg in runReader (f x') cfg
+
+--
+
 newtype State s a = State { runState :: s -> (s, a) }
 
 get :: State s s
@@ -37,7 +63,9 @@ put s = State $ \s -> (s, ())
 
 instance Functor (State s) where
   fmap :: (a -> b) -> State s a -> State s b
-  fmap f x = State $ \s -> let (s', a) = runState x s in (s', f a)
+  fmap f x = State $ \s ->
+    let (s', a) = runState x s
+    in (s', f a)
 
 instance Applicative (State s) where
   pure :: a -> State s a
@@ -78,6 +106,9 @@ instance Monad m => Applicative (StateT s m) where
     pure (f' a', s'')
 
 instance Monad m => Monad (StateT s m) where
+  return :: a -> StateT s m a
+  return = pure
+
   (>>=) :: StateT s m a -> (a -> StateT s m b) -> StateT s m b
   x >>= f =  StateT $ \s -> do
     ~(x', s') <- runStateT x s
