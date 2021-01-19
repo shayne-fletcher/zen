@@ -31,7 +31,7 @@ newtype Reader cfg a = Reader { runReader :: cfg -> a }
 
 instance Functor (Reader cfg) where
   fmap :: (a -> b) -> Reader cfg a -> Reader cfg b
-  fmap f x = Reader $ \cfg ->  f (runReader x cfg)
+  fmap f x = Reader $ \cfg -> f (runReader x cfg)
 
 instance Applicative (Reader cfg) where
   pure :: a -> Reader cfg a
