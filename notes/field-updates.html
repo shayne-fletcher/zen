@@ -28,7 +28,7 @@ The <a href="https://github.com/ghc-proposals/ghc-proposals/blob/master/proposal
 To each there corresponds a new expression syntax, alternatives of <code class="code">data HsExpr p</code>: <code class="code">GetField</code>, <code class="code">Projection</code> and <code class="code">RecordDotUpd</code>  respectively.
 </p>
 <p>
-The new syntax contains everthing you need to desguar into <code class="code">getField</code>/<code class="code">setField</code> encodings. Today we compute those encodings at parse time anyway. As the program matures, this may stop and desugaring delayed to a later point.
+The new syntax contains everthing you need to desguar into <code class="code">getField</code>/<code class="code">setField</code> encodings.
 </p>
 <h2>Field selectors</h2>
 <p>
@@ -47,10 +47,8 @@ A field selector is a field selection with a hole. Field selectors may not be na
 <pre><code class="code">| Projection
        { proj_ext :: XProjection p
        , proj_flds :: [Located FastString]
-       , proj_proj :: LHsExpr p -- Desugared equivalent 'getField' term.
        }
 </code></pre>
-It's the <code class="code">proj_proj</code> field that carries the desugared term we're currently calculating when parsing. Like we were saying in the introduction, this field can be omitted (you can recover it anytime from <code class="code">proj_flds</code>). This property will be the case for any fields of desugared expressions in the remaining syntax too and we won't mention this again.
 </p>
 
 <h2>Field selections</h2>
@@ -78,7 +76,6 @@ Field selections are parsed by this rule.
        { gf_ext :: XGetField p
        , gf_expr :: LHsExpr p
        , gf_field :: Located FastString
-       , gf_getField :: LHsExpr p -- Desugared equivalent 'getField' term.
        }
 </code></pre>
 </p>
@@ -135,7 +132,7 @@ mkRdrRecordUpd exp flds
               , rupd_expr = exp
               , rupd_flds = flds }
 </code></pre>
-The list of field bindings is bundled with the expression to update. When dot syntax is enabled, field bindings are generalized and desguared to <code class="code">setField</code> expressions (actually, chains of structurally regular patterns of <code class="code">get_field</code> and <code class="code">set_field</code>, the results of folds over dot syntax). Record dot adds two new productions. Here are all cases now.
+The list of field bindings is bundled with the expression to update. When dot syntax is enabled, field bindings are generalized. Record dot adds two new productions. Here are all the cases now.
 <pre><code class="code">fbind   :: { forall b. DisambECP b => PV (Fbind b) }
         : qvar '=' texp
         | qvar
@@ -162,13 +159,12 @@ type LHsRecUpdProj p = Located (RecUpdProj p)
 It's easy to convert an <code class="code">LHsRecField GhcPs (LHsExpr GhcPs)</code> to an <code class="code">LHsProjUpdate GhcPs (LHsExpr GhcPs)</code> where <code class="code">recUpdFieldToProjUpdate :: LHsRecUpdField GhcPs -> LHsRecUpdProj GhcPs</code> is the function to consult. With this we can process both alternatives of <code class="code">Fbind (HsExpr GhcPs)</code> uniformly. We can now present the new <code class="code">data HsExpr p</code> constructor syntax for record updates when <code class="code">RecordDotSyntax</code> is enabled.
 <pre><code class="code">-- We call this RecordDotUpd in sympathy with RecordUpd.
   -- e.g. a{foo.bar.baz=1, quux} = RecordDotUpd {
-  --   rdupd_ext=noExtField, rdupd_expr=a, rdupd_updates=[...], rdupd_setField=setField@"quux" (setField@"foo"...a... 1) quux
+  --   rdupd_ext=noExtField, rdupd_expr=a, rdupd_updates=[...]
   -- },
   | RecordDotUpd
     { rdupd_ext :: XRecordDotUpd
     , rdupd_expr :: LHsExpr GhcPs
     , rdupd_updates :: [LHsRecUpdProj GhcPs]
-    , rdupd_setField :: LHsExpr GhcPs -- Desugared equivalent 'setField' term.
     }
 </code></pre>
 In symmetry with <code class="code">mkRdrRecordUpd</code>, the function for producing values of this kind is named <code class="code">mkRdrRecordDotUpd</code>.
