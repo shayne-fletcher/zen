@@ -46,6 +46,8 @@ done
 
 ## Rebasing
 
+- Do your rebasing on the `wip/T18599-rebase` branch
+  - When you're satisfied with it you can `git push -f origin wip/T18599-rebase:wip/T18599`
 ### Prepare
 - Its a good idea to update master and build before embarking on rebasing
 - This wil uncover any problems with the build before you get into rebasing
