@@ -133,4 +133,5 @@ sed -i '' 's/    ITdot                  -> TkOperator/    ITdot                 
   ```
 --
 
-- Today on master: `d1b7f181b60ba3ac191183f1512e66793d28ac08`
+- To toggle draft status of an MR, enter `/wip` in a comment (no other text)
+  - It's a toggle; put the MR back into draft by `/wip` again.
