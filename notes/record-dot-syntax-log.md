@@ -112,13 +112,13 @@
     git branch -D wip/T18599
     git checkout 010f0320dff64e3f86091ba4691bc69ce6999647
     git checkout -b wip/T18599
-    sed -i '' 's/    ITdot                  -> TkOperator/    ITdot                  -> TkOperator\
-        ITproj              {} -> TkOperator/g' \
-        haddock-api/src/Haddock/Backends/Hyperlinker/Parser.hs
+sed -i '' 's/    ITdot                  -> TkOperator/    ITdot                  -> TkOperator\
+    ITproj              {} -> TkOperator/g' \
+    haddock-api/src/Haddock/Backends/Hyperlinker/Parser.hs
     git add .
     git commit -m "Add ITproj to parser"
     git push origin wip/T18599:wip/T18599
-    git log | awk 'NR==1'{print $2}' # Get the commit SHA
+    git log | awk 'NR==1{print $2}' # Get the commit SHA
   ```
 - The resulting commit SHA is `847eab3ab471c6097eadec7bd7818e0b4b79fb87`.
 - Onto the rebase:
@@ -131,3 +131,6 @@
     # ... Deal with the remaining rebase conflicts (wasn't easy but then, wasn't hard either)
     git rebase --continue
   ```
+--
+
+- Today on master: `d1b7f181b60ba3ac191183f1512e66793d28ac08`
