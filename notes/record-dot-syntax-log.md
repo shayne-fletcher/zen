@@ -127,7 +127,7 @@ sed -i '' 's/    ITdot                  -> TkOperator/    ITdot                 
     git checkout wip/T18599
     git checkout -b wip/T18599-rebase
     git fetch origin&&git rebase origin/wip/T19154
-    (cd utils/haddock&&git checkout 847eab3ab471c6097eadec7bd7818e0b4b79fb87) && git add utils/haddock
+    (cd utils/haddock&&git fetch origin&&git checkout 847eab3ab471c6097eadec7bd7818e0b4b79fb87) && git add utils/haddock
     # ... Deal with the remaining rebase conflicts (wasn't easy but then, wasn't hard either)
     git rebase --continue
   ```
@@ -135,3 +135,16 @@ sed -i '' 's/    ITdot                  -> TkOperator/    ITdot                 
 
 - To toggle draft status of an MR, enter `/wip` in a comment (no other text)
   - It's a toggle; put the MR back into draft by `/wip` again.
+
+---
+## Record dot syntax landing 2021-03-06
+
+- [!4532](https://gitlab.haskell.org/ghc/ghc/-/merge_requests/4532)
+- Commit SHA: `06f1170bed5237766b53306a9ad088e4b151939e`
+- With `wip/T18599`:
+
+  - Depends on:
+
+    - [haddock `wip/T18599`](https://gitlab.haskell.org/ghc/haddock/-/tree/wip/T18599)
+    - Commit SHA: `0bf811ba98af90f852066734977aacb898ba8e69`
+- [Pipeline](https://gitlab.haskell.org/ghc/ghc/-/pipelines/32554)
