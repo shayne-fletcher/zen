@@ -56,3 +56,8 @@ Sometimes it's desirable to force the situation though and explicitly make them 
       package ghc-lib-parser-ex
         flags: -auto +no-ghc-lib
     ```
+
+When working with Cabal in the HLint repository one can configure with command line constraints like this:
+```
+cabal new-build --constraint "hlint -ghc-lib" --constraint "ghc-lib-parser-ex -auto +no-ghc-lib"
+```
