@@ -110,7 +110,7 @@ pub mod ffi {
     }
 
     extern "Rust" {
-        fn parse_cpp(s: String) -> Result<SharedPtr<Cpp_repr>>;
+        fn parse(s: String) -> Result<SharedPtr<Cpp_repr>>;
     }
 }
 
@@ -129,7 +129,7 @@ impl ExprSyn for CppRepr_t {
     }
 }
 
-pub fn parse_cpp(s: String) -> Result<CppRepr_t, String> {
+pub fn parse(s: String) -> Result<CppRepr_t, String> {
     match parse::expr::<CppRepr_t>(s.as_str()) {
         Ok((_s, rep)) => Ok(rep),
         Err(e) => Err(format!("{}", e)),
