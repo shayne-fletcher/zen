@@ -6,11 +6,12 @@ edition = "2018"
 
 [lib]
 name = "arith_final_tagless"
+crate_type = ["staticlib"]
 path = "src/lib.rs"
 
-[[bin]]
-name = "arith_final_tagless_exe"
-path = "src/main.rs"
+# [[bin]]
+# name = "arith_final_tagless_exe"
+# path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

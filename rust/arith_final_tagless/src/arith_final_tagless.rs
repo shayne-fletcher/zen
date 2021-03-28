@@ -108,6 +108,10 @@ pub mod ffi {
         fn neg(e: SharedPtr<Cpp_repr>) -> SharedPtr<Cpp_repr>;
         fn add(l: SharedPtr<Cpp_repr>, r: SharedPtr<Cpp_repr>) -> SharedPtr<Cpp_repr>;
     }
+
+    extern "Rust" {
+        fn parse_cpp(s: String) -> Result<SharedPtr<Cpp_repr>>;
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -122,5 +126,12 @@ impl ExprSyn for CppRepr_t {
     }
     fn add(t1: CppRepr_t, t2: CppRepr_t) -> CppRepr_t {
         ffi::add(t1, t2)
+    }
+}
+
+pub fn parse_cpp(s: String) -> Result<CppRepr_t, String> {
+    match parse::expr::<CppRepr_t>(s.as_str()) {
+        Ok((_s, rep)) => Ok(rep),
+        Err(e) => Err(format!("{}", e)),
     }
 }
