@@ -1,3 +1,5 @@
+use cxx::SharedPtr;
+
 pub trait ExprSyn: Clone {
     fn lit(n: i64) -> Self;
     fn neg(t: Self) -> Self;
@@ -93,5 +95,32 @@ impl ExprSyn for String {
     }
     fn add(t1: String, t2: String) -> String {
         format!("({} + {})", t1, t2)
+    }
+}
+
+#[cxx::bridge]
+pub mod ffi {
+    unsafe extern "C++" {
+        include!("arith_final_tagless/include/cpp_repr.hpp");
+        type Cpp_repr;
+
+        fn lit(i: i64) -> SharedPtr<Cpp_repr>;
+        fn neg(e: SharedPtr<Cpp_repr>) -> SharedPtr<Cpp_repr>;
+        fn add(l: SharedPtr<Cpp_repr>, r: SharedPtr<Cpp_repr>) -> SharedPtr<Cpp_repr>;
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub type CppRepr_t = SharedPtr<ffi::Cpp_repr>;
+
+impl ExprSyn for CppRepr_t {
+    fn lit(i: i64) -> CppRepr_t {
+        ffi::lit(i)
+    }
+    fn neg(t: CppRepr_t) -> CppRepr_t {
+        ffi::neg(t)
+    }
+    fn add(t1: CppRepr_t, t2: CppRepr_t) -> CppRepr_t {
+        ffi::add(t1, t2)
     }
 }

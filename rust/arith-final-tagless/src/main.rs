@@ -13,4 +13,8 @@ fn main() {
         Ok((s, x)) => println!("s = {}, x = {:?}", s, x),
         Err(e) => println!("{}", e),
     }
+    match arith_final_tagless::parse::expr::<arith_final_tagless::CppRepr_t>("8 + -(1 + 2)") {
+        Ok((s, _x)) => println!("s = {}", s),
+        Err(e) => println!("{}", e),
+    }
 }
