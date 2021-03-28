@@ -148,3 +148,160 @@ sed -i '' 's/    ITdot                  -> TkOperator/    ITdot                 
     - [haddock `wip/T18599`](https://gitlab.haskell.org/ghc/haddock/-/tree/wip/T18599)
     - Commit SHA: `0bf811ba98af90f852066734977aacb898ba8e69`
 - [Pipeline](https://gitlab.haskell.org/ghc/ghc/-/pipelines/32554)
+
+--
+
+# Record update syntax
+
+Task : [Refactor `RecordUpd` task](https://gitlab.haskell.org/ghc/ghc/-/issues/19463).
+
+- At the time `RecordDotSyntax` landed, `RecordUpd` was defined like this:
+
+  ```
+  | RecordUpd
+      { rupd_ext  :: XRecordUpd p
+      , rupd_expr :: LHsExpr p
+      , rupd_flds :: Either [LHsRecUpdField p] [LHsRecUpdProj p]
+      }
+  ```
+
+- Where:
+
+  - `HsRecField' id arg`:
+
+    ```
+    data HsRecField' id arg = HsRecField {
+        hsRecFieldLbl :: Located id
+      , hsRecFieldArg :: arg
+      , hsRecPun :: Bool
+    }
+    ```
+  - `LHsRecUpdField p`:
+
+    ```
+    type LHsRecField' p arg = Located (HsRecField' p arg)
+    type LHsRecField  p arg = Located (HsRecField  p arg)
+    type LHsRecUpdField p = Located (HsRecUpdField p)
+    type HsRecField p arg = HsRecField' (FieldOcc p) arg
+    type HsRecUpdField p  = HsRecField' (AmbiguousFieldOcc p) (LHsExpr p)
+    ```
+  - `LHsRecUpdProj p`:
+
+    ```
+    newtype FieldLabelStrings = FieldLabelStrings [Located FieldLabelString]
+    type RecProj arg = HsRecField' FieldLabelStrings arg
+    type LHsRecProj p arg = Located (RecProj arg)
+    type RecUpdProj p = RecProj (LHsExpr p)
+    type LHsRecUpdProj p = Located (RecUpdProj p)
+    ```
+
+- The critical change to make is the representation of `HsRecUpdField` to one based on a `NonEmpty` list of `AmbiguousFieldOcc`:
+
+  ```
+    type HsRecUpdField p = HsRecField' (NonEmpty (AmbiguousFieldOcc p)) (LHsExpr p)
+  ```
+
+- Then all field updates are encoded as `HsRecUpdField`s:
+  - Normal updates are singleton `AmbigousFieldOcc p` lists
+  - Record dot updates are encoded into non-singleton `AmbiguousFieldOcc p` lists
+
+  ```
+  | RecordUpd
+      { rupd_ext  :: XRecordUpd p
+      , rupd_expr :: LHsExpr p
+      , rupd_flds :: [LHsRecUpdField p]
+      }
+  ```
+- The switch to in-tree annotations introduces a new syntactic element `HsFieldLabel`
+
+  ```
+  type family XCHsFieldLabel  x
+  type family XXHsFieldLabel  x
+
+  type instance XCHsFieldLabel (GhcPass _) = ApiAnn' AnnFieldLabel
+
+  data AnnFieldLabel
+    = AnnFieldLabel {
+        afDot :: Maybe AnnAnchor
+        } deriving Data
+
+  data HsFieldLabel p
+    = HsFieldLabel
+      { hflExt   :: XCHsFieldLabel p
+      , hflLabel :: Located FieldLabelString
+      }
+    | XHsFieldLabel !(XXHsFieldLabel p)
+  ```
+  (see `GHC.Parser.Annotation` for `ApiAnn'`)
+- The very abridged detail of in-tree annotations is this:
+
+  - In `Language.Haskell.Syntax.Extension`:
+
+    ```
+    type family XRec p a = r | r -> a
+    type family Anno a = b -- See Note [XRec and Anno in the AST] in GHC.Parser.Annotation
+    ```
+  - In `GHC.Hs.Extension` type instances:
+
+    ```
+    type instance XRec (GhcPass p) a = GenLocated (Anno a) a
+    type instance Anno RdrName = SrcSpanAnnN
+    type instance Anno Name    = SrcSpanAnnN
+    type instance Anno Id      = SrcSpanAnnN
+    ```
+  - In `Ghc.Hs.Pat` type instances:
+
+    ```
+    type instance Anno (HsRecField' p arg) = SrcSpanAnnA
+    type instance Anno (HsRecField' (GhcPass p) (LocatedA (HsExpr (GhcPass p)))) = SrcSpanAnnA
+    type instance Anno (HsRecField  (GhcPass p) arg) = SrcSpanAnnA
+
+    -- type instance Anno (HsRecUpdField p) = SrcSpanAnnA
+    type instance Anno (HsRecField' (AmbiguousFieldOcc p) (LocatedA (HsExpr p))) = SrcSpanAnnA
+
+    type instance Anno (AmbiguousFieldOcc GhcTc) = SrcSpanAnnA
+    ```
+  (`SrcSpanAnnA` is annotations for items appearing in a list e.g. commas, semiclons).
+- In this context, `LHsRecUpdProj` is updated to read:
+
+  ```
+  newtype FieldLabelStrings p = FieldLabelStrings [Located (HsFieldLabel p)]
+  type RecProj p arg = HsRecField' (FieldLabelStrings p) arg
+  type LHsRecProj p arg = XRec p (RecProj p arg)
+  type RecUpdProj p = RecProj p (LHsExpr p)
+  type LHsRecUpdProj p = XRec p (RecUpdProj p)
+  ```
+- So, if we were to update the using the same fix strategy as before to work today, we'd:
+
+  - Change `HsFieldLabel` to contain a `RdrName` (not `FastString`)
+    ```
+    data HsFieldLabel p
+     = HsFieldLabel {
+          hflExt   :: XCHsFieldLabel p
+        , hflLabel :: Located RdrName
+       }
+     | XHsFieldLabel !(XXHsFieldLabel p)
+   ```
+
+  - Then update `AmbiguousFieldOcc` (or whatever replaces it) to contain `LocatedN HsFieldLabel` (not `LocatedN RdrName`):
+
+    ```
+    data AmbiguousFieldOcc pass
+      = Unambiguous (XUnambiguous pass) (LocatedN HsFieldLabel)
+      | Ambiguous   (XAmbiguous pass)   (LocatedN HsFieldLabel)
+      | XAmbiguousFieldOcc !(XXAmbiguousFieldOcc pass)
+    ```
+  - Change `HsRecUpdField` to a `NonEmpty (AmbiguousFieldOcc p)` representation:
+
+    ```
+    type HsRecUpdField p = HsRecField' (NonEmpty (AmbiguousFieldOcc p)) (LHsExpr p)
+    ```
+  - Finally:
+
+    ```
+    | RecordUpd
+        { rupd_ext  :: XRecordUpd p
+        , rupd_expr :: LHsExpr p
+        , rupd_flds :: [LHsRecUpdField p]
+        }
+   ```
