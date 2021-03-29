@@ -5,7 +5,7 @@
 
 int main() {
   char const* prompt = "\n% ";
-  std::cout << "Additive expression evalutator (type ^D to exit)" << prompt;
+  std::cout << "Additive expression evalutator (type CTRL+D to exit)" << prompt;
 
   std::string line;
   while(std::getline(std::cin, line)) {
