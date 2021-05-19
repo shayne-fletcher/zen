@@ -63,6 +63,8 @@
 ### Dealing with Haddock
 - I found the best thing to do is:
   - Work out the commit SHA that ghc `origin/master` is on (`X` say)
+    - Here's one way:
+      - `cd utils && git ls-tree master | grep haddock | awk '{ print $3 }'`
   - Rebuild the Record Dot Syntax branch off that commit:
 
     ```
@@ -305,3 +307,107 @@ Task : [Refactor `RecordUpd` task](https://gitlab.haskell.org/ghc/ghc/-/issues/1
         , rupd_flds :: [LHsRecUpdField p]
         }
    ```
+--
+
+```
+    -- Maybe reuse?
+    data FieldOcc pass = FieldOcc { extFieldOcc     :: XCFieldOcc pass
+                                , rdrNameFieldOcc :: LocatedN RdrName
+                                 -- ^ See Note [Located RdrNames] in "GHC.Hs.Expr"
+                                }
+
+
+   -- We need somewhere to store annotations and maybe a resolved name.
+   type Family F
+   type instance F (GhcPass GhcPs) = NoExtField
+   type instance F (GhcPass GhcRn) = Maybe Name
+   type instance XCHsFieldLabel (GhcPass p) = (F p, ApiAnn' AnnFieldLabel)
+
+   -- Then a field label is a located field with that store.
+   data HsFieldLabel p
+    = HsFieldLabel {
+         hflExt   :: XCHsFieldLabel p
+       , hflLabel :: Located RdrName
+      }
+    | XHsFieldLabel !(XXHsFieldLabel p)
+
+    -- Finally we get something like,
+    type HsRecUpdField p = HsRecField' (NonEmpty (LocatedN (HsFieldLabel p))) (LHsExpr p)
+
+
+    -- Adam was musing on...
+    data FieldOcc context pass = FIeldOcc { extFieldOcc :: G context pass ,  rdrNameFieldOcc :: Located RdrName }
+    type instance G NoDotCtx (GhcPass GhcRn) = Name
+```
+
+--
+# Representation of field selector occurences
+- [Issue](https://gitlab.haskell.org/ghc/ghc/-/issues/19720)
+- [MR](https://gitlab.haskell.org/ghc/ghc/-/merge_requests/5598)
+- Branch wip/T19720
+  ```
+  git clean -xdf && git submodule foreach git clean -xdf
+  git fetch origin && git merge origin/master
+  git checkout -b wip/T19720
+  git push origin wip/T19720:wip/T19720
+  git submodule update --init --recursive
+  ./boot && ./configure && make -j
+  ```
+- Ghc independent syntax `type family XCFieldOcc x`: `Language/Haskell/Syntax/Extension.hs`
+- Ghc independent syntax `type family XXFieldOcc x`: `Language/Haskell/Syntax/Extension.hs`
+- Ghc indepedent syntax `data FieldOcc`: `Language/Haskell/Syntax/Type.hs`
+
+- Ghc *dependent* syntax
+  - `GHC/Hs/Type.hs`
+  ```
+  type instance XCFieldOcc GhcPs = NoExtField
+  type instance XCFieldOcc GhcRn = Name
+  type instance XCFieldOcc GhcTc = Id
+
+  type instance XXFieldOcc (GhcPass _) = NoExtCon
+  ```
+
+## First job
+- Replace occurrences of:
+  - `extFieldOcc` with `foExt`
+  - `rdrNameFieldOcc` with `foLabel`
+- Ghc independent syntax: `Language/Haskell/Syntax/Expr.hs`: `HsRecFld`
+- Annotation refresher
+```
+{- Values of this type go along with src spans -}
+data EpAnn ann
+  = EpAnn { entry   :: Anchor
+           -- ^ Base location for the start of the syntactic element
+           -- holding the annotations.
+           , anns     :: ann -- ^ Annotations added by the Parser
+           , comments :: EpAnnComments
+              -- ^ Comments enclosed in the SrcSpan of the element
+              -- this `EpAnn` is attached to
+           }
+  | EpAnnNotUsed -- ^ No Annotation for generated code,
+                  -- e.g. from TH, deriving, etc.
+        deriving (Data, Eq, Functor)
+
+{- Pair of an a and a src span -}
+data SrcSpanAnn' a = SrcSpanAnn { ann :: a, locA :: SrcSpan }
+{- This is the common case; use with EpAnn -}
+type SrcAnn ann = SrcSpanAnn' (EpAnn ann)
+{- We use EpAnn NameAnn  for names -}
+type SrcSpanAnnN = SrcAnn NameAnn
+{- EpAnn NameAnn, SrcSpan
+type LocatedN = GenLocated SrcSpanAnnN -- (L pair thing)
+```
+- Renaming in haddock
+```
+#!/usr/bin/env bash
+
+/usr/bin/find . -name "*.hs" -exec grep -l sed -i'' 's/extFieldOcc/foExt/g' {} \;
+/usr/bin/find . -name "*.hs" -exec grep -l sed -i'' 's/rdrNameFieldOcc/foLabel/g' {} \;
+/usr/bin/find . -name "*.hs" -exec grep -l sed -i'' 's/HsRecFld/HsRecSel/g' {} \;
+/usr/bin/find . -name "*.hs" -exec grep -l sed -i'' 's/XRecFld/XRecSel/g' {} \;
+```
+- Depends on:
+-    - [haddock `wip/T19720`](https://gitlab.haskell.org/ghc/haddock/-/tree/wip/T19720)
+-    - Commit SHA: `32e6defa428df872aae7abdc080e67e185dcce87`
+- Clean build:
+  - `git clean -xdf && git submodule foreach git clean -xdf && git submodule update --init --recursive && ./boot && ./configure && make -j`
