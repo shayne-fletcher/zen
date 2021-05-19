@@ -1,3 +1,7 @@
+# Annotations in GHC
+
+Starting with ghc-9.2.1, parse trees contain "annotations" (these are, for example, comments and the locations of keywords). This note is a summary overview of where and how they're represented.
+
 ## Annotations on syntactic elements
 
 An `EpaLocation` is a span giving the exact location of a keyword in parsed source.
@@ -49,7 +53,7 @@ Annotations don't just get attached to syntactic elements in their extension fie
 ```
 data SrcSpanAnn' a = SrcSpanAnn { ann :: a, locA :: SrcSpan }
 ```
-Usually we use `SrcSpanAnn'` with `EpAnn` and call that combination a `SrcAnn`.
+Usually `SrcSpanAnn'` is used with `EpAnn` and that combination is named a `SrcAnn`.
 ```
 data SrcAnn ann = SrcSpanAnn' (EpAnn ann)
 ```
@@ -63,7 +67,7 @@ type SrcSpanAnnL = SrcAnn AnnList
 type SrcSpanAnnP = SrcAnn AnnPragma
 type SrcSpanAnnC = SrcAnn AnnContext
 ```
-Of these you could think of `SrcSpanAnnA` as being a sort of "default" annotation.
+Of these, `SrcSpanAnnA` is used as a sort of "default" annotation.
 
 What do you do with generalized `SrcSpan` types like these? You locate things with them.
 ```
