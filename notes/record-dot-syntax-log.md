@@ -411,3 +411,26 @@ type LocatedN = GenLocated SrcSpanAnnN -- (L pair thing)
 -    - Commit SHA: `32e6defa428df872aae7abdc080e67e185dcce87`
 - Clean build:
   - `git clean -xdf && git submodule foreach git clean -xdf && git submodule update --init --recursive && ./boot && ./configure && make -j`
+
+--
+
+- Replace
+  ```
+    instance OutputableBndr (Located (FieldLabelStrings p)) where
+      pprInfixOcc = pprInfixOcc . unLoc
+      pprPrefixOcc = pprInfixOcc . unLoc
+
+    instance OutputableBndr (FieldLabelStrings p) where
+      pprInfixOcc = pprFieldLabelStrings
+      pprPrefixOcc = pprFieldLabelStrings
+  ```
+  with
+  ```
+  instance (a ~ XRec p (FieldLabelStrings p), Outputable a, UnXRec p) => OutputableBndr a where
+    pprInfixOcc = pprInfixOcc . unXRec @p
+    pprPrefixOcc = pprPrefixOcc . unXRec @p
+
+  instance {-# OVERLAPPING #-} (UnXRec p, Outputable (XRec p FieldLabelString)) => OutputableBndr (FieldLabelStrings p) where
+    pprInfixOcc = pprFieldLabelStrings
+    pprPrefixOcc = pprFieldLabelStrings
+  ```

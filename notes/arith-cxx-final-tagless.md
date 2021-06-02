@@ -17,7 +17,7 @@ Additive expression syntax we'll define by this grammar:
 ```
 
 The key idea of the program is this: Don't define an abstract syntax tree type, values of which are produced by parsing. Rather, as parsing unfolds, call functions defined by the the folllowing trait.
-```
+```rust
 pub trait ExprSyn: Clone {
     fn lit(n: i64) -> Self;
     fn neg(t: Self) -> Self;
@@ -26,7 +26,7 @@ pub trait ExprSyn: Clone {
 ```
 
 With that understood, we implement the parser as a Rust library in the following way.
-```
+```rust
 pub mod parse {
     use nom::{
         branch::alt,
@@ -72,7 +72,7 @@ pub mod parse {
 ```
 
 To wire that up to C++ we need express a CXX "bridge".
-```
+```rust
 use cxx::SharedPtr;
 
 #[cxx::bridge]
@@ -93,7 +93,7 @@ pub mod ffi {
 ```
 
 The header file `cpp_repr.hpp` referenced by the bridge contains these prototypes.
-```
+```c++
 #pragma once
 
 #include <memory>
@@ -111,7 +111,7 @@ cpp_repr_t add(cpp_repr_t t, cpp_repr_t u);
 ```
 
 The existence of that header is enough to finish off the Rust library.
-```
+```rust
 #[allow(non_camel_case_types)]
 pub type CppRepr_t = SharedPtr<ffi::Cpp_repr>;
 
@@ -138,7 +138,7 @@ pub fn parse(s: String) -> Result<CppRepr_t, String> {
 ## Evaluator
 
 We put the C++ part of the implementation in `cpp_repr.cpp` in a separate library.
-```
+```c++
 #include <iostream>
 
 #include "arith_final_tagless/include/cpp_repr.hpp"
@@ -159,7 +159,7 @@ cpp_repr_t add(cpp_repr_t t, cpp_repr_t u) {
 ## Interpreter
 
 The REPL in `main.cpp` brings the Rust and C++ libraries together into an executable.
-```
+```c++
 #include <iostream>
 
 #include "rust/cxx.h" // 'rust::Error'
@@ -184,4 +184,4 @@ int main() {
 }
 ```
 
-That's it! If this is interesting to you and you'd like to go deeper into the technical details like, how to write the build scripts and so on for a program like this, the source is online [here](https://github.com/shayne-fletcher/zen/tree/master/rust/arith_final_tagless).
+Source and build scripts and so on for this project [here](https://github.com/shayne-fletcher/zen/tree/master/rust/arith_final_tagless).
