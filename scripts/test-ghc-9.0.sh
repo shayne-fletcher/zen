@@ -38,12 +38,14 @@ do
     tar xvf $f
     rm $f
 done
+cp -R $ghc_lib_dir/examples/test-utils ./test-utils-$version_tag
 cp -R $ghc_lib_dir/examples/mini-hlint ./mini-hlint-$version_tag
 cp -R $ghc_lib_dir/examples/mini-compile ./mini-compile-$version_tag
 cat > cabal.project<<EOF
 packages:  ghc-lib-parser-$version_tag
          , ghc-lib-$version_tag
          , ghc-lib-parser-ex-$version_tag
+         , test-utils-$version_tag
          , mini-hlint-$version_tag
          , mini-compile-$version_tag
 package ghc-lib-parser-ex
