@@ -18,3 +18,6 @@ stack runhaskell --package extra --package optparse-applicative CI.hs -- \
 # If the above worked out, update CI.hs.
 today=`date +'%Y-%m-%d'`
 sed -i '' "s/current = \".*\" -- .*/current = \"$HEAD\" -- $today/g" CI.hs
+
+# Report.
+grep "current = .*" CI.hs
