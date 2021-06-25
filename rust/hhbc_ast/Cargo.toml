@@ -1,0 +1,18 @@
+[package]
+name = "ast-gen"
+version = "0.0.1"
+authors = ["me <me@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "ast"
+crate_type = ["staticlib"]
+path = "src/lib.rs"
+
+[dependencies]
+libc = "0.2.97"
+bumpalo = "3.7.0"
+bitflags = "1.0"
+
+[build-dependencies]
+cbindgen = "0.19.0"
