@@ -11,6 +11,9 @@ HEAD=`cd ghc && \
       git remote prune origin && \
       git log origin/master -n 1 | head -n 1 | awk '{ print $2 }'`
 
+# If there's a new release, let's have it.
+stack upgrade
+
 # Build and test ghc-lib against at that commit.
 stack runhaskell --package extra --package optparse-applicative CI.hs -- \
       --ghc-flavor $HEAD --no-checkout
