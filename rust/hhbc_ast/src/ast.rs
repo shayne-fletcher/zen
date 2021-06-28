@@ -774,6 +774,21 @@ pub enum InstructMisc<'arena> {
     RaiseClassStringConversionWarning,
 }
 
+#[derive(Clone, Debug)]
+#[repr(C)]
+pub enum GenCreationExecution {
+    CreateCont,
+    ContEnter,
+    ContRaise,
+    Yield,
+    YieldK,
+    ContCheck(CheckStarted),
+    ContValid,
+    ContKey,
+    ContGetReturn,
+    ContCurrent,
+}
+
 // --
 
 #[no_mangle]
@@ -838,6 +853,7 @@ pub unsafe extern "C" fn foo_07<'arena>(
     _: ClassKind,
     _: OpSilence,
     _: InstructMisc<'arena>,
+    _: GenCreationExecution,
 ) {
     unimplemented!()
 }
