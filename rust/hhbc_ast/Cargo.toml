@@ -11,7 +11,7 @@ path = "src/lib.rs"
 
 [dependencies]
 libc = "0.2.97"
-bumpalo = "3.7.0"
+bumpalo = {version="3.7.0", features=["collections"]}
 bitflags = "1.0"
 
 [build-dependencies]

@@ -1,95 +1,130 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
-use std::slice::from_raw_parts;
+mod hhbc_ffi {
+    use std::cmp::Ordering;
+    use std::hash::{Hash, Hasher};
+    use std::slice::from_raw_parts;
+    use std::slice::from_raw_parts_mut;
 
-#[derive(Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
-#[repr(C)]
-pub enum option_t<T> {
-    Just(T),
-    Nothing,
-}
-use option_t::*;
-impl<T: Clone> Clone for option_t<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        match self {
-            Just(x) => Just(x.clone()),
-            Nothing => Nothing,
+    #[derive(Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+    #[repr(C)]
+    pub enum Maybe<T> {
+        Just(T),
+        Nothing,
+    }
+    use self::Maybe::*;
+    impl<T: Clone> Clone for Maybe<T> {
+        #[inline]
+        fn clone(&self) -> Self {
+            match self {
+                Just(x) => Just(x.clone()),
+                Nothing => Nothing,
+            }
+        }
+        #[inline]
+        fn clone_from(&mut self, source: &Self) {
+            match (self, source) {
+                (Just(to), Just(from)) => to.clone_from(from),
+                (to, from) => *to = from.clone(),
+            }
         }
     }
-    #[inline]
-    fn clone_from(&mut self, source: &Self) {
-        match (self, source) {
-            (Just(to), Just(from)) => to.clone_from(from),
-            (to, from) => *to = from.clone(),
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+    #[repr(C)]
+    pub struct Pair<U, V>(pub U, pub V);
+
+    #[derive(Debug)]
+    #[repr(C)]
+    pub struct SliceMut<'arena, T> {
+        pub data: *mut T,
+        pub len: usize,
+        pub alloc: &'arena bumpalo::Bump,
+    }
+    impl<'arena, T: Clone> Clone for SliceMut<'arena, T> {
+        fn clone(&self) -> Self {
+            unsafe {
+                let alloc: &'arena bumpalo::Bump = self.alloc;
+                let mut vec = bumpalo::collections::Vec::from_iter_in(
+                    from_raw_parts_mut(self.data, self.len).iter().cloned(),
+                    alloc,
+                );
+                let slice = vec.as_mut_slice();
+                SliceMut {
+                    data: slice.as_mut_ptr(),
+                    len: slice.len(),
+                    alloc: self.alloc,
+                }
+            }
         }
     }
+    impl<'arena, T: Copy> Copy for SliceMut<'arena, T> {}
+
+    #[derive(Clone, Copy, Debug)]
+    #[repr(C)]
+    pub struct Slice<'arena, T> {
+        pub data: *const T,
+        pub len: usize,
+        pub marker: std::marker::PhantomData<&'arena ()>,
+    }
+    impl<'arena, T: PartialEq> PartialEq for Slice<'arena, T> {
+        fn eq(&self, other: &Self) -> bool {
+            unsafe {
+                let left = from_raw_parts(self.data, self.len);
+                let right = from_raw_parts(other.data, other.len);
+                left.eq(right)
+            }
+        }
+    }
+    impl<'arena, T: Eq> Eq for Slice<'arena, T> {}
+    impl<'arena, T: Hash> Hash for Slice<'arena, T> {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            unsafe {
+                let me = from_raw_parts(self.data, self.len);
+                me.hash(state);
+            }
+        }
+    }
+    impl<'arena, T: Ord> Ord for Slice<'arena, T> {
+        fn cmp(&self, other: &Self) -> Ordering {
+            unsafe {
+                let left = from_raw_parts(self.data, self.len);
+                let right = from_raw_parts(other.data, other.len);
+                left.cmp(right)
+            }
+        }
+    }
+    impl<'arena, T: PartialOrd> PartialOrd for Slice<'arena, T> {
+        fn partial_cmp(&self, other: &Self) -> std::option::Option<Ordering> {
+            unsafe {
+                let left = from_raw_parts(self.data, self.len);
+                let right = from_raw_parts(other.data, other.len);
+                left.partial_cmp(right)
+            }
+        }
+    }
+
+    fn to_slice<'a, T>(t: &'a [T]) -> Slice<'a, T> {
+        Slice {
+            data: t.as_ptr(),
+            len: t.len(),
+            marker: std::marker::PhantomData,
+        }
+    }
+
+    pub type Str<'arena> = Slice<'arena, u8>;
+    // C++:
+    // std::string slice_to_string(Str s) {
+    //    std::string {s.data, s.data + s.len}
+    // }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-#[repr(C)]
-pub struct pair<U, V>(pub U, pub V);
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct slice_t<'arena, T> {
-    pub data: *const T,
-    pub len: usize,
-    pub marker: std::marker::PhantomData<&'arena ()>,
-}
-impl<'arena, T: PartialEq> PartialEq for slice_t<'arena, T> {
-    fn eq(&self, other: &Self) -> bool {
-        unsafe {
-            let left = from_raw_parts(self.data, self.len);
-            let right = from_raw_parts(other.data, other.len);
-            left.eq(right)
-        }
-    }
-}
-impl<'arena, T: Eq> Eq for slice_t<'arena, T> {}
-impl<'arena, T: Hash> Hash for slice_t<'arena, T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        unsafe {
-            let me = from_raw_parts(self.data, self.len);
-            me.hash(state);
-        }
-    }
-}
-impl<'arena, T: Ord> Ord for slice_t<'arena, T> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        unsafe {
-            let left = from_raw_parts(self.data, self.len);
-            let right = from_raw_parts(other.data, other.len);
-            left.cmp(right)
-        }
-    }
-}
-impl<'arena, T: PartialOrd> PartialOrd for slice_t<'arena, T> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        unsafe {
-            let left = from_raw_parts(self.data, self.len);
-            let right = from_raw_parts(other.data, other.len);
-            left.partial_cmp(right)
-        }
-    }
-}
-
-fn to_slice_t<'a, T>(t: &'a [T]) -> slice_t<'a, T> {
-    slice_t {
-        data: t.as_ptr(),
-        len: t.len(),
-        marker: std::marker::PhantomData,
-    }
-}
-
-pub type Str<'arena> = slice_t<'arena, u8>;
-// C++:
-// std::string slice_to_string(Str s) {
-//    std::string {s.data, s.data + s.len}
-// }
+use hhbc_ffi::Maybe;
+use hhbc_ffi::Pair;
+use hhbc_ffi::Slice;
+use hhbc_ffi::SliceMut;
+use hhbc_ffi::Str;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
@@ -121,50 +156,53 @@ pub type TypedefNum = isize;
 pub type ClassNum = isize;
 pub type ConstNum = isize;
 
-mod class {
-    use super::Str;
-    //hhbc_id::class::Type<'arena>
-    #[derive(Copy, Clone, Debug)]
-    #[repr(C)]
-    pub struct Type<'arena>(pub Str<'arena>);
+mod hhbc_by_ref_id {
+    pub mod class {
+        use super::super::Str;
+        //hhbc_id::class::Type<'arena>
+        #[derive(Copy, Clone, Debug)]
+        #[repr(C)]
+        pub struct Type<'arena>(pub Str<'arena>);
+    }
+    pub mod function {
+        use super::super::Str;
+        //hhbc_id::function::Type<'arena>
+        #[derive(Copy, Clone, Debug)]
+        #[repr(C)]
+        pub struct Type<'arena>(pub Str<'arena>);
+    }
+    pub mod method {
+        use super::super::Str;
+        //hhbc_id::method::Type<'arena>
+        #[derive(Copy, Clone, Debug)]
+        #[repr(C)]
+        pub struct Type<'arena>(pub Str<'arena>);
+    }
+    pub mod prop {
+        use super::super::Str;
+        //hhbc_id::prop::Type<'arena>
+        #[derive(Copy, Clone, Debug)]
+        #[repr(C)]
+        pub struct Type<'arena>(pub Str<'arena>);
+    }
+    pub mod r#const {
+        use super::super::Str;
+        //hhbc_id::r#const::Type<'arena>
+        #[derive(Copy, Clone, Debug)]
+        #[repr(C)]
+        pub struct Type<'arena>(pub Str<'arena>);
+    }
 }
-mod function {
-    use super::Str;
-    //hhbc_id::function::Type<'arena>
-    #[derive(Copy, Clone, Debug)]
-    #[repr(C)]
-    pub struct Type<'arena>(pub Str<'arena>);
-}
-mod method {
-    use super::Str;
-    //hhbc_id::method::Type<'arena>
-    #[derive(Copy, Clone, Debug)]
-    #[repr(C)]
-    pub struct Type<'arena>(pub Str<'arena>);
-}
-mod prop {
-    use super::Str;
-    //hhbc_id::prop::Type<'arena>
-    #[derive(Copy, Clone, Debug)]
-    #[repr(C)]
-    pub struct Type<'arena>(pub Str<'arena>);
-}
-mod r#const {
-    use super::Str;
-    //hhbc_id::r#const::Type<'arena>
-    #[derive(Copy, Clone, Debug)]
-    #[repr(C)]
-    pub struct Type<'arena>(pub Str<'arena>);
-}
-pub type ClassId<'arena> = class::Type<'arena>;
-pub type FunctionId<'arena> = function::Type<'arena>;
-pub type MethodId<'arena> = method::Type<'arena>;
-pub type ConstId<'arena> = method::Type<'arena>;
-pub type PropId<'arena> = prop::Type<'arena>;
+
+pub type ClassId<'arena> = hhbc_by_ref_id::class::Type<'arena>;
+pub type FunctionId<'arena> = hhbc_by_ref_id::function::Type<'arena>;
+pub type MethodId<'arena> = hhbc_by_ref_id::method::Type<'arena>;
+pub type ConstId<'arena> = hhbc_by_ref_id::method::Type<'arena>;
+pub type PropId<'arena> = hhbc_by_ref_id::prop::Type<'arena>;
 
 pub type NumParams = usize;
 
-pub type ByRefs<'arena> = slice_t<'arena, bool>;
+pub type ByRefs<'arena> = Slice<'arena, bool>;
 
 bitflags::bitflags! {
     #[repr(C)]
@@ -194,8 +232,8 @@ pub struct FcallArgs<'arena>(
     pub NumParams,
     pub NumParams,
     pub ByRefs<'arena>,
-    pub option_t<hhbc_by_ref_label::Label>,
-    pub option_t<Str<'arena>>,
+    pub Maybe<hhbc_by_ref_label::Label>,
+    pub Maybe<Str<'arena>>,
 );
 
 mod iterator {
@@ -221,14 +259,14 @@ mod local {
 #[repr(C)]
 pub struct IterArgs<'arena> {
     pub iter_id: iterator::Id,
-    pub key_id: option_t<local::Type<'arena>>,
+    pub key_id: Maybe<local::Type<'arena>>,
     pub val_id: local::Type<'arena>,
 }
 
 pub type ClassrefId = isize;
 /// Conventionally this is "A_" followed by an integer
 pub type AdataId<'arena> = Str<'arena>; //&'arena str;
-pub type ParamLocations<'arena> = slice_t<'arena, isize>; //&'arena [isize];
+pub type ParamLocations<'arena> = Slice<'arena, isize>; //&'arena [isize];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
@@ -343,8 +381,8 @@ mod hhbc_by_ref_runtime {
         pub struct F64([u8; 8]);
     }
 
-    use super::pair;
-    use super::slice_t;
+    use super::Pair;
+    use super::Slice;
     use super::Str;
 
     #[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -363,13 +401,11 @@ mod hhbc_by_ref_runtime {
         // Classic PHP arrays with explicit (key,value) entries
         HhasAdata(Str<'arena>),
         // Hack arrays: vectors, keysets, and dictionaries
-        Vec(slice_t<'arena, TypedValue<'arena>>),
-        Keyset(slice_t<'arena, TypedValue<'arena>>),
-        Dict(slice_t<'arena, pair<TypedValue<'arena>, TypedValue<'arena>>>),
+        Vec(Slice<'arena, TypedValue<'arena>>),
+        Keyset(Slice<'arena, TypedValue<'arena>>),
+        Dict(Slice<'arena, Pair<TypedValue<'arena>, TypedValue<'arena>>>),
     }
 }
-
-pub type Str_slice<'arena> = slice_t<'arena, Str<'arena>>; //&'arena [&'arena str];
 
 #[derive(Clone, Debug)]
 #[repr(C)]
@@ -390,11 +426,11 @@ pub enum InstructLitConst<'arena> {
     Keyset(AdataId<'arena>),
     /// capacity hint
     NewDictArray(isize),
-    NewStructDict(Str_slice<'arena>),
+    NewStructDict(Slice<'arena, Str<'arena>>),
     NewVec(isize),
     NewKeysetArray(isize),
     NewPair,
-    NewRecord(ClassId<'arena>, Str_slice<'arena>),
+    NewRecord(ClassId<'arena>, Slice<'arena, Str<'arena>>),
     AddElemC,
     AddNewElemC,
     NewCol(CollectionType),
@@ -476,10 +512,6 @@ pub enum Switchkind {
     Unbounded,
 }
 
-pub type Label_slice<'arena> = slice_t<'arena, hhbc_by_ref_label::Label>;
-pub type Str_Label_pair_slice<'arena> =
-    slice_t<'arena, pair<Str<'arena>, hhbc_by_ref_label::Label>>;
-
 #[derive(Clone, Debug)]
 #[repr(C)]
 pub enum InstructControlFlow<'arena> {
@@ -491,10 +523,10 @@ pub enum InstructControlFlow<'arena> {
     Switch(
         Switchkind,
         isize,
-        Label_slice<'arena>, //bumpalo::collections::Vec<'arena, hhbc_by_ref_label::Label>,
+        SliceMut<'arena, hhbc_by_ref_label::Label>, //bumpalo::collections::Vec<'arena, hhbc_by_ref_label::Label>,
     ),
     /// litstr id / offset vector
-    SSwitch(Str_Label_pair_slice<'arena>), //bumpalo::collections::Vec<'arena, (&'arena str, hhbc_by_ref_label::Label)>),
+    SSwitch(SliceMut<'arena, Pair<Str<'arena>, hhbc_by_ref_label::Label>>), //bumpalo::collections::Vec<'arena, (&'arena str, hhbc_by_ref_label::Label)>),
     RetC,
     RetCSuspended,
     RetM(NumParams),
@@ -760,15 +792,15 @@ pub enum InstructMisc<'arena> {
     UGetCUNop,
     MemoGet(
         hhbc_by_ref_label::Label,
-        option_t<pair<local::Type<'arena>, isize>>,
+        Maybe<Pair<local::Type<'arena>, isize>>,
     ),
     MemoGetEager(
         hhbc_by_ref_label::Label,
         hhbc_by_ref_label::Label,
-        option_t<pair<local::Type<'arena>, isize>>,
+        Maybe<Pair<local::Type<'arena>, isize>>,
     ),
-    MemoSet(option_t<pair<local::Type<'arena>, isize>>),
-    MemoSetEager(option_t<pair<local::Type<'arena>, isize>>),
+    MemoSet(Maybe<Pair<local::Type<'arena>, isize>>),
+    MemoSetEager(Maybe<Pair<local::Type<'arena>, isize>>),
     LockObj,
     ThrowNonExhaustiveSwitch,
     RaiseClassStringConversionWarning,
@@ -787,6 +819,56 @@ pub enum GenCreationExecution {
     ContKey,
     ContGetReturn,
     ContCurrent,
+}
+
+#[derive(Clone, Debug)]
+#[repr(C)]
+pub enum AsyncFunctions<'arena> {
+    WHResult,
+    Await,
+    AwaitAll(Maybe<Pair<local::Type<'arena>, isize>>),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(C)]
+pub enum InstructTry {
+    TryCatchBegin,
+    TryCatchMiddle,
+    TryCatchEnd,
+}
+
+#[derive(Clone, Debug)]
+#[repr(C)]
+pub struct Srcloc {
+    pub line_begin: isize,
+    pub col_begin: isize,
+    pub line_end: isize,
+    pub col_end: isize,
+}
+
+#[derive(Clone, Debug)]
+#[repr(C)]
+pub enum Instruct<'arena> {
+    IBasic(InstructBasic),
+    IIterator(InstructIterator<'arena>),
+    ILitConst(InstructLitConst<'arena>),
+    IOp(InstructOperator<'arena>),
+    IContFlow(InstructControlFlow<'arena>),
+    ISpecialFlow(InstructSpecialFlow<'arena>),
+    ICall(InstructCall<'arena>),
+    IMisc(InstructMisc<'arena>),
+    IGet(InstructGet<'arena>),
+    IMutator(InstructMutator<'arena>),
+    IIsset(InstructIsset<'arena>),
+    IBase(InstructBase<'arena>),
+    IFinal(InstructFinal<'arena>),
+    ILabel(hhbc_by_ref_label::Label),
+    ITry(InstructTry),
+    IComment(Str<'arena>),
+    ISrcLoc(Srcloc),
+    IAsync(AsyncFunctions<'arena>),
+    IGenerator(GenCreationExecution),
+    IIncludeEvalDefine(InstructIncludeEvalDefine),
 }
 
 // --
@@ -854,6 +936,10 @@ pub unsafe extern "C" fn foo_07<'arena>(
     _: OpSilence,
     _: InstructMisc<'arena>,
     _: GenCreationExecution,
+    _: AsyncFunctions<'arena>,
+    _: InstructTry,
+    _: Srcloc,
+    _: Instruct<'arena>,
 ) {
     unimplemented!()
 }
