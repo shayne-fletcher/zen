@@ -1,0 +1,36 @@
+use std::io::prelude::*;
+use std::io::{self};
+use term::*;
+
+fn prompt() {
+    print!("\n% ");
+    io::stdout().flush().expect("")
+}
+
+fn main() {
+    println!("Additive expressions (Ctrl+D to exit)");
+    prompt();
+    let mut buf = String::new();
+    loop {
+        match io::stdin().read_line(&mut buf) {
+            Ok(0) => break,
+            Ok(_) => match parse(buf.lines().next().unwrap().to_string().as_bytes()) {
+                Ok(t) => {
+                    println!("{:?}", t);
+                    buf.clear();
+                    prompt()
+                }
+                Err(s) => {
+                    eprintln!("Error: {}", s);
+                    buf.clear();
+                    prompt()
+                }
+            },
+            Err(e) => {
+                eprintln!("{}", e);
+                buf.clear();
+                break;
+            }
+        }
+    }
+}
