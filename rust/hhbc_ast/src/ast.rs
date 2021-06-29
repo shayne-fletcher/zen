@@ -1,6 +1,9 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 
+use std::cmp::Ordering;
+
+// This is more general than hhbc. Perhaps: `ffi`, `ffi_utils`?
 mod hhbc_ffi {
     use std::cmp::Ordering;
     use std::hash::{Hash, Hasher};
@@ -59,7 +62,6 @@ mod hhbc_ffi {
             }
         }
     }
-    impl<'arena, T: Copy> Copy for SliceMut<'arena, T> {}
 
     #[derive(Clone, Copy, Debug)]
     #[repr(C)]
@@ -188,6 +190,13 @@ mod hhbc_by_ref_id {
     pub mod r#const {
         use super::super::Str;
         //hhbc_id::r#const::Type<'arena>
+        #[derive(Copy, Clone, Debug)]
+        #[repr(C)]
+        pub struct Type<'arena>(pub Str<'arena>);
+    }
+    pub mod record {
+        use super::super::Str;
+        //hhbc_id::record::Type<'arena>
         #[derive(Copy, Clone, Debug)]
         #[repr(C)]
         pub struct Type<'arena>(pub Str<'arena>);
@@ -405,6 +414,13 @@ mod hhbc_by_ref_runtime {
         Keyset(Slice<'arena, TypedValue<'arena>>),
         Dict(Slice<'arena, Pair<TypedValue<'arena>, TypedValue<'arena>>>),
     }
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub enum InstrSeq<'a> {
+    List(SliceMut<'a, Instruct<'a>>),
+    Concat(SliceMut<'a, InstrSeq<'a>>),
 }
 
 #[derive(Clone, Debug)]
@@ -940,6 +956,382 @@ pub unsafe extern "C" fn foo_07<'arena>(
     _: InstructTry,
     _: Srcloc,
     _: Instruct<'arena>,
+    _: InstrSeq<'arena>,
 ) {
     unimplemented!()
+}
+
+// --
+
+#[derive(Debug)]
+pub struct DocComment(pub String); // pub struct DocComment(pub Rc<Pstring>);
+
+#[derive(Debug)]
+pub struct HhasAdata<'arena> {
+    pub id: String,
+    pub value: hhbc_by_ref_runtime::TypedValue<'arena>,
+}
+
+mod hhas_pos {
+    /// Span, emitted as prefix to classes and functions
+    #[derive(Clone, Copy, Debug, Default)]
+    pub struct Span(pub usize, pub usize);
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Ctx {
+    Defaults,
+    // Shared
+    WriteThisProps,
+    WriteProps,
+    // Rx hierarchy
+    RxLocal,
+    RxShallow,
+    Rx,
+    // Policied hierarchy
+    PoliciedOfLocal,
+    PoliciedOfShallow,
+    PoliciedOf,
+    PoliciedLocal,
+    PoliciedShallow,
+    Policied,
+    Controlled,
+    ReadGlobals,
+    Globals,
+    // Pure
+    Pure,
+}
+
+#[derive(Debug)]
+pub struct HhasCtxConstant {
+    pub name: String,
+    pub coeffects: Vec<Ctx>,
+    pub is_abstract: bool,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct HhasCoeffects {
+    static_coeffects: Vec<Ctx>,
+    unenforced_static_coeffects: Vec<String>,
+    fun_param: Vec<usize>,
+    cc_param: Vec<(usize, String)>,
+    cc_this: Vec<Vec<String>>,
+    cc_reified: Vec<(bool, usize, Vec<String>)>,
+    closure_parent_scope: bool,
+    generator_this: bool,
+    caller: bool,
+}
+
+#[derive(Default, Debug)]
+pub struct HhasBodyEnv {
+    pub is_namespaced: bool,
+    //pub class_info: Option<(ast_defs::ClassKind, String)>,
+    pub parent_name: Option<String>,
+}
+
+mod hhas_type {
+    #[derive(Clone, Debug)]
+    pub struct Info {
+        pub user_type: Option<String>,
+        pub type_constraint: constraint::Type,
+    }
+    pub mod constraint {
+        use bitflags::bitflags;
+
+        #[derive(Clone, Default, Debug)]
+        pub struct Type {
+            pub name: Option<String>,
+            pub flags: Flags,
+        }
+
+        bitflags! {
+            #[derive(Default)]
+            pub struct Flags: u8 {
+                const NULLABLE =         0b0000_0001;
+                const EXTENDED_HINT =    0b0000_0100;
+                const TYPE_VAR =         0b0000_1000;
+                const SOFT =             0b0001_0000;
+                const TYPE_CONSTANT =    0b0010_0000;
+                const DISPLAY_NULLABLE = 0b0100_0000;
+                const UPPERBOUND =       0b1000_0000;
+            }
+        }
+    }
+}
+
+#[derive(Debug)] //Cannot be Default...
+pub struct HhasBody<'arena> {
+    pub body_instrs: InstrSeq<'arena>, //... because InstrSeq not Default.
+    pub decl_vars: Vec<String>,
+    pub num_iters: usize,
+    pub num_closures: u32,
+    pub is_memoize_wrapper: bool,
+    pub is_memoize_wrapper_lsb: bool,
+    pub upper_bounds: Vec<(String, Vec<hhas_type::Info>)>,
+    pub shadowed_tparams: Vec<String>,
+    pub params: Vec<HhasParam<'arena>>,
+    pub return_type_info: Option<hhas_type::Info>,
+    pub doc_comment: Option<DocComment>,
+    pub env: Option<HhasBodyEnv>,
+}
+
+mod hhas_function {
+    bitflags::bitflags! {
+        pub struct Flags: u8 {
+            const ASYNC =          1 << 1;
+            const GENERATOR =      1 << 2;
+            const PAIR_GENERATOR = 1 << 3;
+            const NO_INJECTION =   1 << 4;
+            const INTERCEPTABLE =  1 << 5;
+            const MEMOIZE_IMPL =   1 << 6;
+            const RX_DISABLED =    1 << 7;
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct HhasFunction<'arena> {
+    pub attributes: Vec<HhasAttribute<'arena>>,
+    pub name: hhbc_by_ref_id::function::Type<'arena>,
+    pub body: HhasBody<'arena>,
+    pub span: hhas_pos::Span,
+    pub coeffects: HhasCoeffects,
+    pub flags: hhas_function::Flags,
+}
+
+#[derive(Debug)]
+pub enum TraitReqKind {
+    MustExtend,
+    MustImplement,
+}
+
+mod hhas_property {
+    bitflags::bitflags! {
+        pub struct HhasPropertyFlags: u16 {
+            const IS_ABSTRACT = 1 << 0;
+            const IS_STATIC = 1 << 1;
+            const IS_DEEP_INIT = 1 << 2;
+            const IS_CONST = 1 << 3;
+            const IS_LSB = 1 << 4;
+            const IS_NO_BAD_REDECLARE = 1 << 5;
+            const HAS_SYSTEM_INITIAL = 1 << 6;
+            const NO_IMPLICIT_NULL = 1 << 7;
+            const INITIAL_SATISFIES_TC = 1 << 8;
+            const IS_LATE_INIT = 1 << 9;
+            const IS_READONLY = 1 << 10;
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct HhasProperty<'arena> {
+    pub name: hhbc_by_ref_id::prop::Type<'arena>,
+    pub flags: hhas_property::HhasPropertyFlags,
+    pub attributes: Vec<HhasAttribute<'arena>>,
+    //pub visibility: Visibility,
+    pub initial_value: Option<hhbc_by_ref_runtime::TypedValue<'arena>>,
+    pub initializer_instrs: Option<InstrSeq<'arena>>,
+    pub type_info: hhas_type::Info,
+    pub doc_comment: Option<DocComment>,
+}
+
+#[derive(Debug)]
+pub struct HhasMethod<'arena> {
+    pub attributes: Vec<HhasAttribute<'arena>>,
+    //pub visibility: Visibility,
+    pub name: hhbc_by_ref_id::method::Type<'arena>,
+    pub body: HhasBody<'arena>,
+    pub span: hhas_pos::Span,
+    pub coeffects: HhasCoeffects,
+    pub flags: hhas_method::HhasMethodFlags,
+}
+
+mod hhas_method {
+    bitflags::bitflags! {
+        pub struct HhasMethodFlags: u16 {
+            const IS_STATIC = 1 << 1;
+            const IS_FINAL = 1 << 2;
+            const IS_ABSTRACT = 1 << 3;
+            const IS_ASYNC = 1 << 4;
+            const IS_GENERATOR = 1 << 5;
+            const IS_PAIR_GENERATOR = 1 << 6;
+            const IS_CLOSURE_BODY = 1 << 7;
+            const IS_INTERCEPTABLE = 1 << 8;
+            const IS_MEMOIZE_IMPL = 1 << 9;
+            const RX_DISABLED = 1 << 10;
+            const NO_INJECTION = 1 << 11;
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct HhasTypeConstant<'arena> {
+    pub name: String,
+    pub initializer: Option<hhbc_by_ref_runtime::TypedValue<'arena>>,
+    pub is_abstract: bool,
+}
+
+#[derive(Debug)]
+pub struct HhasClass<'a, 'arena> {
+    pub attributes: Vec<HhasAttribute<'arena>>,
+    pub base: Option<hhbc_by_ref_id::class::Type<'arena>>,
+    pub implements: Vec<hhbc_by_ref_id::class::Type<'arena>>,
+    pub enum_includes: Vec<hhbc_by_ref_id::class::Type<'arena>>,
+    pub name: hhbc_by_ref_id::class::Type<'arena>,
+    pub span: hhas_pos::Span,
+    pub uses: Vec<&'a str>,
+    // Deprecated - kill please
+    pub use_aliases: Vec<(
+        Option<hhbc_by_ref_id::class::Type<'arena>>,
+        hhbc_by_ref_id::class::Type<'arena>,
+        Option<hhbc_by_ref_id::class::Type<'arena>>,
+        //&'a Vec<tast::UseAsVisibility>,
+    )>,
+    // Deprecated - kill please
+    pub use_precedences: Vec<(
+        hhbc_by_ref_id::class::Type<'arena>,
+        hhbc_by_ref_id::class::Type<'arena>,
+        Vec<hhbc_by_ref_id::class::Type<'arena>>,
+    )>,
+    pub enum_type: Option<hhas_type::Info>,
+    pub methods: Vec<HhasMethod<'arena>>,
+    pub properties: Vec<HhasProperty<'arena>>,
+    pub constants: Vec<HhasConstant<'arena>>,
+    pub type_constants: Vec<HhasTypeConstant<'arena>>,
+    pub ctx_constants: Vec<HhasCtxConstant>,
+    pub requirements: Vec<(hhbc_by_ref_id::class::Type<'arena>, TraitReqKind)>,
+    pub upper_bounds: Vec<(String, Vec<hhas_type::Info>)>,
+    pub doc_comment: Option<DocComment>,
+    pub flags: HhasClassFlags,
+}
+
+bitflags::bitflags! {
+    pub struct HhasClassFlags: u16 {
+        const IS_FINAL = 1 << 1;
+        const IS_SEALED = 1 << 2;
+        const IS_ABSTRACT = 1 << 3;
+        const IS_INTERFACE = 1 << 4;
+        const IS_TRAIT = 1 << 5;
+        const IS_XHP = 1 << 6;
+        const IS_CONST = 1 << 7;
+        const NO_DYNAMIC_PROPS = 1 << 8;
+        const NEEDS_NO_REIFIEDINIT = 1 << 9;
+    }
+}
+
+#[derive(Debug)]
+pub struct Field<'a, 'arena>(
+    pub &'a str,
+    pub hhas_type::Info,
+    pub Option<hhbc_by_ref_runtime::TypedValue<'arena>>,
+);
+
+#[derive(Debug)]
+pub struct HhasRecord<'a, 'arena> {
+    pub name: hhbc_by_ref_id::record::Type<'arena>,
+    pub is_abstract: bool,
+    pub base: Option<hhbc_by_ref_id::record::Type<'arena>>,
+    pub fields: Vec<Field<'a, 'arena>>,
+    pub span: hhas_pos::Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct HhasParam<'arena> {
+    pub name: String,
+    pub is_variadic: bool,
+    pub is_inout: bool,
+    pub user_attributes: Vec<HhasAttribute<'arena>>,
+    pub type_info: Option<hhas_type::Info>,
+    // I think about the best we can do is send a pretty-print of the
+    // expression here.
+    //pub default_value: Option<(Label, tast::Expr)>,
+}
+
+#[derive(Debug)]
+pub struct Typedef<'arena> {
+    pub name: hhbc_by_ref_id::class::Type<'arena>,
+    pub attributes: Vec<HhasAttribute<'arena>>,
+    pub type_info: hhas_type::Info,
+    pub type_structure: hhbc_by_ref_runtime::TypedValue<'arena>,
+    pub span: hhas_pos::Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct HhasAttribute<'arena> {
+    pub name: String,
+    pub arguments: Vec<hhbc_by_ref_runtime::TypedValue<'arena>>,
+}
+
+/// Data structure for keeping track of symbols (and includes) we encounter in
+///the course of emitting bytecode for an AST. We split them into these four
+/// categories for the sake of HHVM, which has lookup function corresponding to each.
+#[derive(Clone, Debug, Default)]
+pub struct HhasSymbolRefs {
+    pub includes: IncludePathSet,
+    pub constants: SSet,
+    pub functions: SSet,
+    pub classes: SSet,
+}
+
+/// NOTE(hrust): order matters (hhbc_hhas write includes in sorted order)
+pub type IncludePathSet = std::collections::BTreeSet<IncludePath>;
+
+type SSet = std::collections::BTreeSet<String>;
+
+#[derive(Clone, Debug, Eq)]
+pub enum IncludePath {
+    Absolute(String),                    // /foo/bar/baz.php
+    SearchPathRelative(String),          // foo/bar/baz.php
+    IncludeRootRelative(String, String), // $_SERVER['PHP_ROOT'] . "foo/bar/baz.php"
+    DocRootRelative(String),
+}
+impl IncludePath {
+    fn extract_str(&self) -> (&str, &str) {
+        use IncludePath::*;
+        match self {
+            Absolute(s) | SearchPathRelative(s) | DocRootRelative(s) => (s, ""),
+            IncludeRootRelative(s1, s2) => (s1, s2),
+        }
+    }
+}
+impl Ord for IncludePath {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.extract_str().cmp(&other.extract_str())
+    }
+}
+impl PartialOrd for IncludePath {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl PartialEq for IncludePath {
+    fn eq(&self, other: &Self) -> bool {
+        self.extract_str().eq(&other.extract_str())
+    }
+}
+
+#[derive(Debug)]
+pub struct HhasConstant<'arena> {
+    pub name: hhbc_by_ref_id::r#const::Type<'arena>,
+    pub value: Option<hhbc_by_ref_runtime::TypedValue<'arena>>,
+    pub initializer_instrs: Option<InstrSeq<'arena>>,
+    pub is_abstract: bool,
+}
+
+#[derive(Debug)]
+pub enum Pos {
+    Pos,
+} // oxidized::pos::Pos
+
+#[derive(Default, Debug)]
+pub struct HhasProgram<'a, 'arena> {
+    pub adata: Vec<HhasAdata<'arena>>,
+    pub functions: Vec<HhasFunction<'arena>>,
+    pub classes: Vec<HhasClass<'a, 'arena>>,
+    pub record_defs: Vec<HhasRecord<'a, 'arena>>,
+    pub typedefs: Vec<Typedef<'arena>>,
+    pub file_attributes: Vec<HhasAttribute<'arena>>,
+    pub symbol_refs: HhasSymbolRefs,
+    pub constants: Vec<HhasConstant<'arena>>,
+    pub fatal: Option<(FatalOp, Pos, String)>,
 }
