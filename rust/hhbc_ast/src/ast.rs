@@ -70,6 +70,12 @@ mod hhbc_ffi {
         pub len: usize,
         pub marker: std::marker::PhantomData<&'arena ()>,
     }
+    impl<'a, T> AsRef<[T]> for Slice<'a, T> {
+        fn as_ref(&self) -> &[T] {
+            unsafe { std::slice::from_raw_parts(self.data, self.len) }
+        }
+    }
+
     impl<'arena, T: PartialEq> PartialEq for Slice<'arena, T> {
         fn eq(&self, other: &Self) -> bool {
             unsafe {
@@ -890,7 +896,7 @@ pub enum Instruct<'arena> {
 // --
 
 #[no_mangle]
-pub unsafe extern "C" fn foo_07<'arena>(
+pub unsafe extern "C" fn foo_07<'a, 'arena>(
     _: FcallFlags,
     _: CheckStarted,
     _: FreeIterator,
@@ -957,6 +963,7 @@ pub unsafe extern "C" fn foo_07<'arena>(
     _: Srcloc,
     _: Instruct<'arena>,
     _: InstrSeq<'arena>,
+    //    _: HhasProgram<'a, 'arena>,
 ) {
     unimplemented!()
 }
@@ -1324,6 +1331,7 @@ pub enum Pos {
 } // oxidized::pos::Pos
 
 #[derive(Default, Debug)]
+#[repr(C)]
 pub struct HhasProgram<'a, 'arena> {
     pub adata: Vec<HhasAdata<'arena>>,
     pub functions: Vec<HhasFunction<'arena>>,
@@ -1335,3 +1343,19 @@ pub struct HhasProgram<'a, 'arena> {
     pub constants: Vec<HhasConstant<'arena>>,
     pub fatal: Option<(FatalOp, Pos, String)>,
 }
+
+/*
+#[derive(Debug)]
+#[repr(C)]
+pub struct HhasProgram<'arena> {
+    pub adata: Slice<'arena, HhasAdata<'arena>>,
+    pub functions: Slice<'arena, HhasFunction<'arena>>,
+    pub classes: Slice<'arena, HhasClass<'arena>>,
+    pub record_defs: Slice<'arena, HhasRecord<'arena>>,
+    pub typedefs: Slice<'arena, Typedef<'arena>>,
+    pub file_attributes: Slice<'arena, HhasAttribute<'arena>>,
+    pub symbol_refs: HhasSymbolRefs<'arena>,
+    pub constants: Slice<'arena, HhasConstant<'arena>>,
+    pub fatal: Maybe<(FatalOp, Pos, Str<'arena>)>,
+}
+*/
