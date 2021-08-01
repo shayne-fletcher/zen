@@ -53,5 +53,5 @@ package ghc-lib-parser-ex
 EOF
 rm -rf dist-newstyle
 cabal new-build all
-cabal new-run mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
-cabal new-run mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
+cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
+cabal new-run exe:mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
