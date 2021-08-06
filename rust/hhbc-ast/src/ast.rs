@@ -3,12 +3,9 @@
 
 use std::cmp::Ordering;
 
-// This is more general than hhbc. Perhaps: `ffi`, `ffi_utils`?
-mod hhbc_ffi {
+mod ffi {
     use std::cmp::Ordering;
     use std::hash::{Hash, Hasher};
-    use std::slice::from_raw_parts;
-    use std::slice::from_raw_parts_mut;
 
     #[derive(Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
     #[repr(C)]
@@ -40,26 +37,37 @@ mod hhbc_ffi {
 
     #[derive(Debug)]
     #[repr(C)]
-    pub struct SliceMut<'arena, T> {
+    pub struct SliceMut<'a, T> {
         pub data: *mut T,
         pub len: usize,
-        pub alloc: &'arena bumpalo::Bump,
+        pub alloc: usize, // *const bumpalo::Bump
+        pub marker: std::marker::PhantomData<&'a ()>,
     }
-    impl<'arena, T: Clone> Clone for SliceMut<'arena, T> {
-        fn clone(&self) -> Self {
-            unsafe {
-                let alloc: &'arena bumpalo::Bump = self.alloc;
-                let mut vec = bumpalo::collections::Vec::from_iter_in(
-                    from_raw_parts_mut(self.data, self.len).iter().cloned(),
-                    alloc,
-                );
-                let slice = vec.as_mut_slice();
-                SliceMut {
-                    data: slice.as_mut_ptr(),
-                    len: slice.len(),
-                    alloc: self.alloc,
-                }
+    impl<'a, T> SliceMut<'a, T> {
+        pub fn new(alloc: &'a bumpalo::Bump, t: &'a mut [T]) -> Self {
+            SliceMut {
+                data: t.as_mut_ptr(),
+                len: t.len(),
+                alloc: alloc as *const bumpalo::Bump as usize,
+                marker: std::marker::PhantomData,
             }
+        }
+    }
+    impl<'a, T> AsRef<[T]> for SliceMut<'a, T> {
+        fn as_ref<'r>(&'r self) -> &'r [T] {
+            unsafe { std::slice::from_raw_parts(self.data, self.len) }
+        }
+    }
+    impl<'a, T> AsMut<[T]> for SliceMut<'a, T> {
+        fn as_mut<'r>(&'r mut self) -> &'r mut [T] {
+            unsafe { std::slice::from_raw_parts_mut(self.data, self.len) }
+        }
+    }
+    impl<'a, T: 'a + Clone> Clone for SliceMut<'a, T> {
+        fn clone(&self) -> Self {
+            let alloc: &'a bumpalo::Bump =
+                unsafe { (self.alloc as *const bumpalo::Bump).as_ref().unwrap() };
+            SliceMut::new(alloc, alloc.alloc_slice_clone(self.as_ref()))
         }
     }
 
@@ -70,17 +78,25 @@ mod hhbc_ffi {
         pub len: usize,
         pub marker: std::marker::PhantomData<&'arena ()>,
     }
+    impl<'a, T: 'a> Slice<'a, T> {
+        fn new(t: &'a [T]) -> Slice<'a, T> {
+            Slice {
+                data: t.as_ptr(),
+                len: t.len(),
+                marker: std::marker::PhantomData,
+            }
+        }
+    }
     impl<'a, T> AsRef<[T]> for Slice<'a, T> {
         fn as_ref(&self) -> &[T] {
             unsafe { std::slice::from_raw_parts(self.data, self.len) }
         }
     }
-
     impl<'arena, T: PartialEq> PartialEq for Slice<'arena, T> {
         fn eq(&self, other: &Self) -> bool {
             unsafe {
-                let left = from_raw_parts(self.data, self.len);
-                let right = from_raw_parts(other.data, other.len);
+                let left = std::slice::from_raw_parts(self.data, self.len);
+                let right = std::slice::from_raw_parts(other.data, other.len);
                 left.eq(right)
             }
         }
@@ -89,7 +105,7 @@ mod hhbc_ffi {
     impl<'arena, T: Hash> Hash for Slice<'arena, T> {
         fn hash<H: Hasher>(&self, state: &mut H) {
             unsafe {
-                let me = from_raw_parts(self.data, self.len);
+                let me = std::slice::from_raw_parts(self.data, self.len);
                 me.hash(state);
             }
         }
@@ -97,8 +113,8 @@ mod hhbc_ffi {
     impl<'arena, T: Ord> Ord for Slice<'arena, T> {
         fn cmp(&self, other: &Self) -> Ordering {
             unsafe {
-                let left = from_raw_parts(self.data, self.len);
-                let right = from_raw_parts(other.data, other.len);
+                let left = std::slice::from_raw_parts(self.data, self.len);
+                let right = std::slice::from_raw_parts(other.data, other.len);
                 left.cmp(right)
             }
         }
@@ -106,18 +122,10 @@ mod hhbc_ffi {
     impl<'arena, T: PartialOrd> PartialOrd for Slice<'arena, T> {
         fn partial_cmp(&self, other: &Self) -> std::option::Option<Ordering> {
             unsafe {
-                let left = from_raw_parts(self.data, self.len);
-                let right = from_raw_parts(other.data, other.len);
+                let left = std::slice::from_raw_parts(self.data, self.len);
+                let right = std::slice::from_raw_parts(other.data, other.len);
                 left.partial_cmp(right)
             }
-        }
-    }
-
-    fn to_slice<'a, T>(t: &'a [T]) -> Slice<'a, T> {
-        Slice {
-            data: t.as_ptr(),
-            len: t.len(),
-            marker: std::marker::PhantomData,
         }
     }
 
@@ -128,11 +136,7 @@ mod hhbc_ffi {
     // }
 }
 
-use hhbc_ffi::Maybe;
-use hhbc_ffi::Pair;
-use hhbc_ffi::Slice;
-use hhbc_ffi::SliceMut;
-use hhbc_ffi::Str;
+use ffi::{Maybe, Pair, Slice, SliceMut, Str};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
@@ -963,7 +967,6 @@ pub unsafe extern "C" fn foo_07<'a, 'arena>(
     _: Srcloc,
     _: Instruct<'arena>,
     _: InstrSeq<'arena>,
-    //    _: HhasProgram<'a, 'arena>,
 ) {
     unimplemented!()
 }
@@ -1331,7 +1334,7 @@ pub enum Pos {
 } // oxidized::pos::Pos
 
 #[derive(Default, Debug)]
-#[repr(C)]
+//#[repr(C)]
 pub struct HhasProgram<'a, 'arena> {
     pub adata: Vec<HhasAdata<'arena>>,
     pub functions: Vec<HhasFunction<'arena>>,

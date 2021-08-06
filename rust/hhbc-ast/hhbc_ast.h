@@ -815,7 +815,7 @@ template<typename T>
 struct SliceMut {
   T *data;
   uintptr_t len;
-  const Bump *alloc;
+  uintptr_t alloc;
 };
 
 struct InstructControlFlow {
