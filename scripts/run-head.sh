@@ -39,6 +39,43 @@ sed -i '' "s/current = \".*\" -- .*/current = \"$HEAD\" -- $today/g" CI.hs
 # Report.
 grep "current = .*" CI.hs
 
-# Try building these packages with Cabal.
 version="0.""`date +'%Y%m%d'`"
-(cd ~/tmp&& test-ghc-lib.sh ghc-8.10.7 $version)
+
+# Build and test ghc-lib-parser-ex with this ghc-lib-parser.
+
+cd ../ghc-lib-parser-ex
+branch=`git rev-parse --abbrev-ref HEAD`
+if [[ "$branch" != "master" ]]; then
+  echo "Not on master. Trying 'git checkout master'"
+  git checkout master
+fi
+git fetch origin
+git checkout .
+git merge origin/master
+
+# Delete the local stack working dirs, including extra-deps, git
+# dependencies and the compiler output. Does not delete any snapshot
+# packages, compilers or programs installed using `stack install`.
+# Essentially a shortcut for `stack clean --full`.
+DOLLAR="$"
+locals="locals"
+sha=`shasum -a 256 /users/shayne/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
+echo $sha
+cat > stack-head.yaml <<EOF
+resolver: nightly-2021-03-31 # ghc-8.10.4
+extra-deps:
+  - archive: /users/shayne/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
+    sha256: "$sha"
+ghc-options:
+    "$DOLLAR$locals": -ddump-to-file -ddump-hi -Wall -Wno-name-shadowing -Wunused-imports
+flags:
+  ghc-lib-parser-ex:
+    auto: false
+    no-ghc-lib: false
+packages:
+  - .
+EOF
+eval "$runhaskell -- --stack-yaml stack-head.yaml"
+
+# Try 'cabal newbuild all' w/ghc-9.0.1.
+(cd ~/tmp&& test-ghc-9.0.sh ghc-9.0.1 $version)
