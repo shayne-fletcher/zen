@@ -2,6 +2,15 @@
 
 # Run the ghc-lib build script against the GHC HEAD commit.
 
+if ! [[ -d ./ghc ]]
+then
+    echo "There is no ghc checkout here to update. Building with 'ghc-flavor' set to 'ghc-master' to get started."
+    stack="stack runhaskell --package extra --package optparse-applicative CI.hs -- --ghc-flavor=ghc-master"
+    eval $stack
+    echo "Run again."
+    eval "run-head.sh"
+fi
+
 set -euxo pipefail
 
 # Get the latest commit SHA.
