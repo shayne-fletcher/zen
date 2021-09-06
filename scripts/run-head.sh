@@ -53,18 +53,15 @@ git fetch origin
 git checkout .
 git merge origin/master
 
-# Delete the local stack working dirs, including extra-deps, git
-# dependencies and the compiler output. Does not delete any snapshot
-# packages, compilers or programs installed using `stack install`.
-# Essentially a shortcut for `stack clean --full`.
+HOME=$HOME
 DOLLAR="$"
 locals="locals"
-sha=`shasum -a 256 /users/shayne/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
+sha=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
 echo $sha
 cat > stack-head.yaml <<EOF
 resolver: nightly-2021-03-31 # ghc-8.10.4
 extra-deps:
-  - archive: /users/shayne/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
+  - archive: $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
     sha256: "$sha"
 ghc-options:
     "$DOLLAR$locals": -ddump-to-file -ddump-hi -Wall -Wno-name-shadowing -Wunused-imports
