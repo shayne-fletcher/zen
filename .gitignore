@@ -22,3 +22,4 @@ html
 _build
 *.install
 *.depend
+scripts/run-head

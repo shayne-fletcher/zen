@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-runhead="run-head.sh"
 runhaskell="stack runhaskell --package extra --package optparse-applicative CI.hs"
 
 # If there's a new release, let's have it.
@@ -12,8 +11,7 @@ then
     echo "Building with ghc-flavor 'ghc-master' to get started."
     eval "$runhaskell -- --ghc-flavor ghc-master"
 
-    echo "Now restarting to build on the latest GHC commit."
-    eval $runhead
+    echo "Now restarting build at the latest GHC commit."
 fi
 
 # Run the ghc-lib build script against the GHC HEAD commit.
@@ -53,7 +51,6 @@ git fetch origin
 git checkout .
 git merge origin/master
 
-HOME=$HOME
 DOLLAR="$"
 locals="locals"
 sha=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
