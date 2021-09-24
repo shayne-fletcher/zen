@@ -22,10 +22,8 @@ set -euxo pipefail
 HEAD=`cd ghc && \
       git checkout . && \
       git fetch origin && \
+      git remote prune origin && \
       git log origin/master -n 1 | head -n 1 | awk '{ print $2 }'`
-
-# Clean up local references to deleted branches
-git remote prune origin
 
 # Build and test ghc-lib against at that commit.
 eval "$runhaskell -- --ghc-flavor $HEAD --no-checkout"
