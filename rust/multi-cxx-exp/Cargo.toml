@@ -1,0 +1,17 @@
+[package]
+name = "multi-cxx-exp"
+version = "0.1.0"
+authors = ["Shayne Fletcher <shayne@shaynefletcher.org>"]
+edition = "2018"
+
+[lib]
+name = "multi_cxx"
+crate_type = ["staticlib"]
+path = "src/lib.rs"
+
+[dependencies]
+cxx = "1.0"
+nom = "6.1.2"
+
+[build-dependencies]
+cxx-build = "1.0"
