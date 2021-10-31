@@ -69,5 +69,5 @@ packages:
 EOF
 eval "$runhaskell -- --stack-yaml stack-head.yaml"
 
-# Try 'cabal newbuild all' w/ghc-9.0.1.
-(cd ~/tmp&& test-ghc-9.0.sh ghc-9.0.1 $version)
+# Try 'cabal newbuild all' w/ghc-9.2.1.
+(cd ~/tmp&& test-ghc-9.0.sh ghc-9.2.1 $version)
