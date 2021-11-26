@@ -22,7 +22,7 @@ set -euxo pipefail
 HEAD=`cd ghc && \
       git checkout . && \
       git fetch origin && \
-      git remote prune origin && \
+      git remote prune origin > /dev/null 2>&1 && \
       git log origin/master -n 1 | head -n 1 | awk '{ print $2 }'`
 
 # Build and test ghc-lib against at that commit.
