@@ -77,7 +77,7 @@ sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-par
 cd ../sf-hlint
 branch=`git rev-parse --abbrev-ref HEAD`
 
-If [[ "$branch" != "ghc-next" ]]; then
+if [[ "$branch" != "ghc-next" ]]; then
   echo "Not on ghc-next. Trying 'git checkout ghc-next'"
   git checkout ghc-next
 fi
