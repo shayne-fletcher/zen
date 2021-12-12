@@ -26,6 +26,11 @@ HEAD=`cd ghc && \
       git fetch origin && \
       git remote prune origin > /dev/null 2>&1 && \
       git log origin/master -n 1 | head -n 1 | awk '{ print $2 }'`
+if test -z "$HEAD"
+then
+    echo "\$HEAD is empty. Trying over."
+    run-head
+fi
 
 today=`date -u +'%Y-%m-%d'`
 version="0.""`date -u +'%Y%m%d'`"
@@ -71,7 +76,8 @@ sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-par
 
 cd ../sf-hlint
 branch=`git rev-parse --abbrev-ref HEAD`
-if [[ "$branch" != "ghc-next" ]]; then
+
+If [[ "$branch" != "ghc-next" ]]; then
   echo "Not on ghc-next. Trying 'git checkout ghc-next'"
   git checkout ghc-next
 fi
