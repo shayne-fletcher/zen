@@ -4,8 +4,12 @@ runhaskell="stack runhaskell --package extra --package optparse-applicative CI.h
 DOLLAR="$"
 locals="locals"
 
-# If there's a new release, let's have it.
-stack upgrade
+if ! [[ -f ./ghc-lib-gen.cabal ]]
+then
+    echo "Missing 'ghc-lib-gen.cabal'."
+    echo "This script should be executed from a ghc-lib checkout directory."
+    exit 1
+fi
 
 if ! [[ -d ./ghc ]]
 then
@@ -16,15 +20,16 @@ then
     echo "Now restarting build at the latest GHC commit."
 fi
 
+# If there's a new release, let's have it.
+stack upgrade
+
 # Run the ghc-lib build script against the GHC HEAD commit.
 
 set -euxo pipefail
 
 # Get the latest commit SHA.
+(cd ghc && git checkout . && git fetch origin && git remote prune origin)
 HEAD=`cd ghc && \
-      git checkout . && \
-      git fetch origin && \
-      git remote prune origin > /dev/null 2>&1 && \
       git log origin/master -n 1 | head -n 1 | awk '{ print $2 }'`
 if test -z "$HEAD"
 then
@@ -74,6 +79,11 @@ EOF
 eval "$runhaskell -- --stack-yaml stack-head.yaml --version-tag $version"
 sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
 
+# Try 'cabal newbuild all' w/ghc-9.2.1.
+(cd ~/tmp&& test-ghc-9.0.sh ghc-9.2.1 $version)
+
+# Hlint
+
 cd ../sf-hlint
 branch=`git rev-parse --abbrev-ref HEAD`
 
@@ -106,6 +116,3 @@ EOF
 # Build & test hlint
 eval "stack --stack-yaml stack-head.yaml build"
 eval "stack --stack-yaml stack-head.yaml run -- --test"
-
-# Try 'cabal newbuild all' w/ghc-9.2.1.
-#(cd ~/tmp&& test-ghc-9.0.sh ghc-9.2.1 $version)

@@ -52,6 +52,6 @@ package ghc-lib-parser-ex
     flags: -auto -no-ghc-lib
 EOF
 rm -rf dist-newstyle
-cabal new-build all
+cabal new-build -j8 all
 cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
 cabal new-run exe:mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
