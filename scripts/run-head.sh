@@ -27,10 +27,13 @@ stack upgrade
 
 set -euxo pipefail
 
+# It's common for the git fetch step to report errors of the form
+# "fatal: remote error: upload-pack: not our ref SHA culminating with
+# "Errors during submodule fetch:..." and exit with a non-zero code.
+# The --recurse-submodules=no is an attempt to prevent this.
+(cd ghc && git checkout . && git fetch origin --recurse-submodules=no && git remote prune origin)
 # Get the latest commit SHA.
-(cd ghc && git checkout . && git fetch origin && git remote prune origin)
-HEAD=`cd ghc && \
-      git log origin/master -n 1 | head -n 1 | awk '{ print $2 }'`
+HEAD=$(cd ghc && git log origin/master -n 1 | head -n 1 | awk '{ print $2 }')
 if test -z "$HEAD"
 then
     echo "\$HEAD is empty. Trying over."
