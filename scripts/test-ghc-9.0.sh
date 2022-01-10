@@ -48,6 +48,8 @@ packages:  ghc-lib-parser-$version_tag
          , test-utils-$version_tag
          , mini-hlint-$version_tag
          , mini-compile-$version_tag
+package ghc-lib-parser
+    ghc-options: -haddock
 package ghc-lib-parser-ex
     flags: -auto -no-ghc-lib
 EOF
