@@ -147,11 +147,11 @@ impl<'a> Walkable<'a> for Term {
     fn recurse(&'a self, v: &mut dyn Visitor<'a>) {
         match *self {
             Term::Neg(ref t) => {
-                v.visit_term(&**t);
+                t.accept(v);
             }
             Term::Add(ref s, ref t) => {
-                v.visit_term(&**s);
-                v.visit_term(&**t);
+                s.accept(v);
+                t.accept(v);
             }
             _ => {}
         }
