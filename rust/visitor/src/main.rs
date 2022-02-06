@@ -7,6 +7,9 @@ use visitor::expr::*;
 struct Harvest<'a> {
     pub acc: Vec<&'a Term>,
 }
+fn harvest(t: &Term) -> Vec<&Term> {
+    Harvest::new(&t).acc
+}
 impl<'a> Harvest<'a> {
     fn new(t: &'a Term) -> Harvest<'a> {
         let mut h = Harvest { acc: Vec::new() };
@@ -20,12 +23,8 @@ impl<'a> Visitor<'a> for Harvest<'a> {
     }
     fn visit_term(&mut self, t: &'a Term) {
         self.acc.push(t);
-        t.recurse(self.object());
+        t.recurse(self.object())
     }
-}
-
-fn harvest(t: &Term) -> Vec<&Term> {
-    Harvest::new(&t).acc
 }
 
 pub fn main() {
