@@ -1,20 +1,17 @@
 extern crate visitor;
-use std::marker::PhantomData;
 use visitor::expr::*;
 
 /////////1/////////2/////////3/////////4/////////5/////////6/////////7/////////8
 //
 
 struct Harvest<'a> {
-    pub terms: Vec<&'a Term>,
-    pub phantom: PhantomData<&'a Term>,
+    pub acc: Vec<&'a Term>,
 }
 impl<'a> Harvest<'a> {
-    fn new() -> Harvest<'a> {
-        Harvest {
-            terms: Vec::new(),
-            phantom: PhantomData,
-        }
+    fn new(t: &'a Term) -> Harvest<'a> {
+        let mut h = Harvest { acc: Vec::new() };
+        t.accept(&mut h);
+        h
     }
 }
 impl<'a> Visitor<'a> for Harvest<'a> {
@@ -22,14 +19,15 @@ impl<'a> Visitor<'a> for Harvest<'a> {
         self
     }
     fn visit_term(&mut self, t: &'a Term) {
-        self.terms.push(t);
+        self.acc.push(t);
         t.recurse(self.object());
     }
 }
 
+fn harvest(t: &Term) -> Vec<&Term> {
+    Harvest::new(&t).acc
+}
+
 pub fn main() {
-    let t = parse("1 + 2 + (3 +(-8))").unwrap();
-    let mut harvest = Harvest::new();
-    harvest.visit_term(&t);
-    println!("{:?}", harvest.terms);
+    println!("{:?}", harvest(&(parse("1 + 2 + (3 +(-8))").unwrap())))
 }
