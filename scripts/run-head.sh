@@ -82,8 +82,8 @@ EOF
 eval "$runhaskell -- --stack-yaml stack-head.yaml --version-tag $version"
 sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
 
-# Try 'cabal newbuild all' w/ghc-9.2.1.
-(cd ~/tmp&& test-ghc-9.0.sh ghc-9.2.1 $version)
+# Try 'cabal newbuild all' w/ghc-9.2.2.
+(cd ~/tmp&& test-ghc-9.0.sh ghc-9.2.2 $version)
 
 # Hlint
 
