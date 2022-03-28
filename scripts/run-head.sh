@@ -87,7 +87,7 @@ sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-par
 
 # Hlint
 
-cd ../sf-hlint
+cd ../hlint
 branch=`git rev-parse --abbrev-ref HEAD`
 
 if [[ "$branch" != "ghc-next" ]]; then

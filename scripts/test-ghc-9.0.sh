@@ -48,12 +48,12 @@ packages:  ghc-lib-parser-$version_tag
          , test-utils-$version_tag
          , mini-hlint-$version_tag
          , mini-compile-$version_tag
-package ghc-lib-parser
-    ghc-options: -haddock
+-- package ghc-lib-parser
+--   ghc-options: -haddock
 package ghc-lib-parser-ex
     flags: -auto -no-ghc-lib
 EOF
 rm -rf dist-newstyle
-CPATH="/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/ffi":$CPATH cabal new-build -j8 all
+C_INCLUDE_PATH=`xcrun --show-sdk-path`/usr/include/ffi cabal new-build -j8 all
 cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
 cabal new-run exe:mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
