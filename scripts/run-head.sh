@@ -56,13 +56,13 @@ grep "current = .*" CI.hs
 
 cd ../ghc-lib-parser-ex
 branch=`git rev-parse --abbrev-ref HEAD`
-if [[ "$branch" != "master" ]]; then
-  echo "Not on master. Trying 'git checkout master'"
-  git checkout master
+if [[ "$branch" != "ghc-next" ]]; then
+  echo "Not on ghc-next. Trying 'git checkout ghc-next'"
+  git checkout ghc-next
 fi
-git fetch origin
-git checkout .
-git merge origin/master
+# We assume ghc-next is a copy of origin managed with a strategy of
+# periodic rebase on master and force-push. Don't try to fetch and
+# merge.
 
 cat > stack-head.yaml <<EOF
 resolver: lts-18.20 # ghc-8.10.7
@@ -89,12 +89,13 @@ sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-par
 
 cd ../hlint
 branch=`git rev-parse --abbrev-ref HEAD`
-
 if [[ "$branch" != "ghc-next" ]]; then
   echo "Not on ghc-next. Trying 'git checkout ghc-next'"
   git checkout ghc-next
 fi
-# Think about rebasing on master here?
+# We assume ghc-next is a copy of origin managed with a strategy of
+# periodic rebase on master and force-push. Don't try to fetch and
+# merge. We might one day perhaps automate rebasing on master here?
 
 cat > stack-head.yaml <<EOF
 resolver: lts-18.20 # ghc-8.10.7
