@@ -53,6 +53,13 @@ packages:  ghc-lib-parser-$version_tag
 package ghc-lib-parser-ex
     flags: -auto -no-ghc-lib
 EOF
+
+packages=("ghc-lib-parser-$version_tag" "ghc-lib-$version_tag" "ghc-lib-parser-ex-$version_tag")
+for p in "${packages[@]}";
+do
+(cd "$p" && cabal check)
+done
+
 rm -rf dist-newstyle
 C_INCLUDE_PATH=`xcrun --show-sdk-path`/usr/include/ffi cabal new-build -j8 all
 cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
