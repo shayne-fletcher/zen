@@ -65,7 +65,7 @@ fi
 # merge.
 
 cat > stack-head.yaml <<EOF
-resolver: lts-18.20 # ghc-8.10.7
+resolver: lts-19.8 # ghc-9.0.2
 extra-deps:
   - archive: $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
     sha256: "$sha_ghc_lib_parser"
