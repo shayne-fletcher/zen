@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+GHC_FLAVOR=""
+if [ ! -z "$1" ]
+then
+  GHC_FLAVOR="$1"
+fi
+
 runhaskell="stack runhaskell --package extra --package optparse-applicative CI.hs"
 DOLLAR="$"
 locals="locals"
@@ -31,38 +37,65 @@ set -euxo pipefail
 # "fatal: remote error: upload-pack: not our ref SHA culminating with
 # "Errors during submodule fetch:..." and exit with a non-zero code.
 # The --recurse-submodules=no is an attempt to prevent this.
-(cd ghc && git checkout . && git fetch origin --recurse-submodules=no && git remote prune origin)
-# Get the latest commit SHA.
-HEAD=$(cd ghc && git log origin/master -n 1 | head -n 1 | awk '{ print $2 }')
-if test -z "$HEAD"
+(cd ghc && git checkout . && git fetch origin --tags --recurse-submodules=no && git remote prune origin)
+if [ -z "$GHC_FLAVOR" ]
 then
-    echo "\$HEAD is empty. Trying over."
-    run-head
+  # Get the latest commit SHA.
+  HEAD=$(cd ghc && git log origin/master -n 1 | head -n 1 | awk '{ print $2 }')
+  if test -z "$HEAD"
+  then
+      echo "\$HEAD is empty. Trying over."
+      run-head
+  fi
 fi
 
 today=`date -u +'%Y-%m-%d'`
-version="0.""`date -u +'%Y%m%d'`"
 
-# Build and test ghc-lib against at that commit.
-eval "$runhaskell -- --ghc-flavor $HEAD --no-checkout"
+if [ -z "$GHC_FLAVOR"]
+then
+  version="0.""`date -u +'%Y%m%d'`"
+else
+  flavor=$([[ "$GHC_FLAVOR" =~ (ghc\-)([0-9])\.([0-9])\.([0-9]) ]] && echo "${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.${BASH_REMATCH[4]}")
+  version="$flavor"".""$(date -u +'%Y%m%d')"
+fi    
+
+# Build and test ghc-lib at either HEAD or the given flavor.
+if [ -z "$GHC_FLAVOR"]
+then
+  eval "$runhaskell -- --ghc-flavor $HEAD --no-checkout"
+else
+  eval "$runhaskell -- --ghc-flavor $GHC_FLAVOR --no-checkout"
+fi
+       
 sha_ghc_lib_parser=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
 
-# If the above worked out, update CI.hs.
-sed -i '' "s/current = \".*\" -- .*/current = \"$HEAD\" -- $today/g" CI.hs
-# Report.
-grep "current = .*" CI.hs
-
+if [ -z "$GHC_FLAVOR" ]
+then
+    # If the above worked out, update CI.hs.
+    sed -i '' "s/current = \".*\" -- .*/current = \"$HEAD\" -- $today/g" CI.hs
+    # Report.
+    grep "current = .*" CI.hs
+fi
 # Build and test ghc-lib-parser-ex with this ghc-lib-parser.
 
 cd ../ghc-lib-parser-ex
-branch=`git rev-parse --abbrev-ref HEAD`
-if [[ "$branch" != "ghc-next" ]]; then
-  echo "Not on ghc-next. Trying 'git checkout ghc-next'"
-  git checkout ghc-next
+if [ -z "$GHC_FLAVOR" ]
+then
+   # We assume ghc-next is a copy of origin managed with a strategy of
+   # periodic rebase on master and force-push. Don't try to fetch and
+   # merge.
+  branch=`git rev-parse --abbrev-ref HEAD`
+  if [[ "$branch" != "ghc-next" ]]; then
+    echo "Not on ghc-next. Trying 'git checkout ghc-next'"
+    git checkout ghc-next
+  fi
+else
+  branch=`git rev-parse --abbrev-ref HEAD`
+  if [[ "$branch" != "master" ]]; then
+    echo "Not on master. Trying 'git checkout master'"
+    git checkout master
+  fi
 fi
-# We assume ghc-next is a copy of origin managed with a strategy of
-# periodic rebase on master and force-push. Don't try to fetch and
-# merge.
 
 cat > stack-head.yaml <<EOF
 resolver: nightly-2022-05-27 # ghc-9.2.2
@@ -82,20 +115,33 @@ EOF
 eval "$runhaskell -- --stack-yaml stack-head.yaml --version-tag $version"
 sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
 
-# Try 'cabal newbuild all' w/ghc-9.2.2.
-(cd ~/tmp&& test-ghc-9.0.sh ghc-9.2.2 $version)
+# Try 'cabal newbuild all' w/ghc-9.2.3.
+(cd ~/tmp&& test-ghc-9.0.sh ghc-9.2.3 $version)
 
 # Hlint
 
 cd ../hlint
-branch=`git rev-parse --abbrev-ref HEAD`
-if [[ "$branch" != "ghc-next" ]]; then
-  echo "Not on ghc-next. Trying 'git checkout ghc-next'"
-  git checkout ghc-next
+if [ -z "$GHC_FLAVOR" ]
+then
+   # We assume ghc-next is a copy of origin managed with a strategy of
+   # periodic rebase on master and force-push. Don't try to fetch and
+   # merge.
+  branch=`git rev-parse --abbrev-ref HEAD`
+  if [[ "$branch" != "ghc-next" ]]; then
+    echo "Not on ghc-next. Trying 'git checkout ghc-next'"
+    git checkout ghc-next
+  fi
+else
+  if [[ "$GHC_FLAVOR" == "ghc-9.4.1" ]];
+  then
+    branch=`git rev-parse --abbrev-ref HEAD`
+    if [[ "$branch" != "ghc-9.4" ]];
+    then
+      echo "Not on ghc-9.4. Trying 'git checkout ghc-9.4'"
+      git checkout ghc-9.4
+    fi
+  fi
 fi
-# We assume ghc-next is a copy of origin managed with a strategy of
-# periodic rebase on master and force-push. Don't try to fetch and
-# merge. We might one day perhaps automate rebasing on master here?
 
 cat > stack-head.yaml <<EOF
 resolver: nightly-2022-05-27 # ghc-9.2.2
