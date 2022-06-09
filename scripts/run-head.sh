@@ -110,8 +110,6 @@ flags:
   ghc-lib-parser-ex:
     auto: false
     no-ghc-lib: false
-# Allow out-of-bounds ghc-lib-parser.
-allow-newer: true
 packages:
   - .
 EOF

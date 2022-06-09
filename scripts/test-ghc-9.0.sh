@@ -53,12 +53,10 @@ packages:  ghc-lib-parser-$version_tag
 EOF
 
 packages=("ghc-lib-parser-$version_tag" "ghc-lib-$version_tag" "ghc-lib-parser-ex-$version_tag" "mini-hlint-$version_tag" "mini-compile-$version_tag")
-set +e
 for p in "${packages[@]}";
 do
 (cd "$p" && cabal check)
 done
-set -e
 
 rm -rf dist-newstyle
 C_INCLUDE_PATH=`xcrun --show-sdk-path`/usr/include/ffi cabal new-build -j --ghc-option=-j all 
