@@ -9,6 +9,7 @@ fi
 runhaskell="stack runhaskell --package extra --package optparse-applicative CI.hs"
 DOLLAR="$"
 locals="locals"
+everything="everything"
 
 if ! [[ -f ./ghc-lib-gen.cabal ]]
 then
@@ -103,15 +104,19 @@ extra-deps:
   - archive: $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
     sha256: "$sha_ghc_lib_parser"
 ghc-options:
+    "$DOLLAR$everything": -O0 -j
     "$DOLLAR$locals": -ddump-to-file -ddump-hi -Wall -Wno-name-shadowing -Wunused-imports
 flags:
   ghc-lib-parser-ex:
     auto: false
     no-ghc-lib: false
+# Allow out-of-bounds ghc-lib-parser.
+allow-newer: true
 packages:
   - .
 EOF
 
+runhaskell="stack runhaskell --stack-yaml stack-head.yaml --package extra --package optparse-applicative CI.hs"
 eval "$runhaskell -- --stack-yaml stack-head.yaml --version-tag $version"
 sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
 
@@ -152,7 +157,9 @@ extra-deps:
     sha256: "$sha_ghc_lib_parser"
   - archive: $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz
     sha256: "$sha_ghc_lib_parser_ex"
-ghc-options: {"$DOLLAR$locals": -ddump-to-file -ddump-hi -Werror=unused-imports -Werror=unused-local-binds -Werror=unused-top-binds -Werror=orphans}
+ghc-options:
+    "$DOLLAR""everything": -O0 -j
+    "$DOLLAR$locals": -ddump-to-file -ddump-hi -Werror=unused-imports -Werror=unused-local-binds -Werror=unused-top-binds -Werror=orphans
 flags:
  hlint:
    ghc-lib: true

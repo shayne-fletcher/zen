@@ -22,6 +22,8 @@ echo "cabal-install version: $(cabal -V)"
 echo "ghc: $(which ghc)"
 echo "ghc version : $(ghc -V)"
 
+rm -rf ~/tmp/ghc-lib/*
+
 version_tag=$2
 ghc_lib_dir=~/project/sf-ghc-lib
 ghc_lib_parser_ex_dir=~/project/ghc-lib-parser-ex
@@ -48,19 +50,17 @@ packages:  ghc-lib-parser-$version_tag
          , test-utils-$version_tag
          , mini-hlint-$version_tag
          , mini-compile-$version_tag
--- package ghc-lib-parser
---   ghc-options: -haddock
-package ghc-lib-parser-ex
-    flags: -auto -no-ghc-lib
 EOF
 
-packages=("ghc-lib-parser-$version_tag" "ghc-lib-$version_tag" "ghc-lib-parser-ex-$version_tag")
+packages=("ghc-lib-parser-$version_tag" "ghc-lib-$version_tag" "ghc-lib-parser-ex-$version_tag" "mini-hlint-$version_tag" "mini-compile-$version_tag")
+set +e
 for p in "${packages[@]}";
 do
 (cd "$p" && cabal check)
 done
+set -e
 
 rm -rf dist-newstyle
-C_INCLUDE_PATH=`xcrun --show-sdk-path`/usr/include/ffi cabal new-build -j8 all
+C_INCLUDE_PATH=`xcrun --show-sdk-path`/usr/include/ffi cabal new-build -j --ghc-option=-j --ghc-option=-O0 --verbose=1 all 
 cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
 cabal new-run exe:mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
