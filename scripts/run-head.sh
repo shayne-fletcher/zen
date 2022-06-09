@@ -104,7 +104,7 @@ extra-deps:
   - archive: $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
     sha256: "$sha_ghc_lib_parser"
 ghc-options:
-    "$DOLLAR$everything": -O0 -j
+    "$DOLLAR$everything": -j
     "$DOLLAR$locals": -ddump-to-file -ddump-hi -Wall -Wno-name-shadowing -Wunused-imports
 flags:
   ghc-lib-parser-ex:
@@ -158,7 +158,7 @@ extra-deps:
   - archive: $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz
     sha256: "$sha_ghc_lib_parser_ex"
 ghc-options:
-    "$DOLLAR""everything": -O0 -j
+    "$DOLLAR$everything": -j
     "$DOLLAR$locals": -ddump-to-file -ddump-hi -Werror=unused-imports -Werror=unused-local-binds -Werror=unused-top-binds -Werror=orphans
 flags:
  hlint:

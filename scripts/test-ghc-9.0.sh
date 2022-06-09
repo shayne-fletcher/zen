@@ -61,6 +61,6 @@ done
 set -e
 
 rm -rf dist-newstyle
-C_INCLUDE_PATH=`xcrun --show-sdk-path`/usr/include/ffi cabal new-build -j --ghc-option=-j --ghc-option=-O0 --verbose=1 all 
+C_INCLUDE_PATH=`xcrun --show-sdk-path`/usr/include/ffi cabal new-build -j --ghc-option=-j all 
 cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
 cabal new-run exe:mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
