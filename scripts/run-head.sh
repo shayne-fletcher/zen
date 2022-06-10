@@ -38,7 +38,7 @@ set -euxo pipefail
 # "fatal: remote error: upload-pack: not our ref SHA culminating with
 # "Errors during submodule fetch:..." and exit with a non-zero code.
 # The --recurse-submodules=no is an attempt to prevent this.
-(cd ghc && git checkout . && git fetch origin --tags --recurse-submodules=no && git remote prune origin)
+(cd ghc && git checkout . && git fetch origin --prune --tags --recurse-submodules=no)
 if [ -z "$GHC_FLAVOR" ]
 then
   # Get the latest commit SHA.

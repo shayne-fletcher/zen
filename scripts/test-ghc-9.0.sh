@@ -14,6 +14,9 @@ then
 fi
 
 ghc_version=$1
+[[ ! -f "$HOME/$ghc_version/bin/ghc" ]] && \
+    echo "$HOME/$ghc_version/bin/ghc not found" && \
+    exit 1
 PATH="$HOME/$ghc_version/bin:$PATH"
 export PATH
 
@@ -59,6 +62,15 @@ do
 done
 
 rm -rf dist-newstyle
-C_INCLUDE_PATH=`xcrun --show-sdk-path`/usr/include/ffi cabal new-build -j --ghc-option=-j all 
+
+cmd="cabal new-build all -j --ghc-option=-j"
+ghc_version=$(ghc -V | tail -c 6)
+if [[ "$ghc_version" == "9.2.2" ]]; then
+  ffi_inc_path="C_INCLUDE_PATH=$(xcrun --show-sdk-path)/usr/include/ffi"
+  eval "$ffi_inc_path" "$cmd"
+else
+  eval "$cmd"
+fi
+    
 cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
 cabal new-run exe:mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
