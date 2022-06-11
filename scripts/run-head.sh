@@ -59,18 +59,18 @@ if [ -z "$GHC_FLAVOR" ]; then
 fi
 
 today=$(date -u +'%Y-%m-%d')
-if [ -z "$GHC_FLAVOR"]; then
+if [[ -z "$GHC_FLAVOR" \
+   || "$GHC_FLAVOR" == "ghc-master" ]]; then
   version="0.""`date -u +'%Y%m%d'`"
 else
   flavor=$([[ "$GHC_FLAVOR" =~ (ghc\-)([0-9])\.([0-9])\.([0-9]) ]] && echo "${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.${BASH_REMATCH[4]}")
   version="$flavor"".""$(date -u +'%Y%m%d')"
 fi
 
+# ghc-lib
+
 cmd="$runhaskell -- --no-checkout --ghc-flavor "
-# Build and test ghc-lib at either HEAD or the given flavor.
-[ -z "$GHC_FLAVOR" ] && \
-    eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"
-       
+[ -z "$GHC_FLAVOR" ] && eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"
 sha_ghc_lib_parser=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
 
 if [ -z "$GHC_FLAVOR" ]; then
@@ -84,7 +84,13 @@ fi
 
 cd ../ghc-lib-parser-ex
 branch=$(git rev-parse --abbrev-ref HEAD)
-if [ -z "$GHC_FLAVOR" ]; then
+
+if [[ -z "$GHC_FLAVOR" \
+   || "$GHC_FLAVOR" == "ghc-master" ]]; then
+  if [[ "$branch" != "ghc-next" ]]; then
+    echo "Not on ghc-next. Trying 'git checkout ghc-next'"
+    git checkout ghc-next
+  fi
   if [[ "$branch" != "ghc-next" ]]; then
     echo "Not on ghc-next. Trying 'git checkout ghc-next'"
     git checkout ghc-next
@@ -115,7 +121,7 @@ runhaskell="stack runhaskell $stack_yaml --package extra --package optparse-appl
 eval "$runhaskell -- $stack_yaml --version-tag $version"
 sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
 
-# Try 'cabal newbuild all' w/ghc-9.2.3.
+# `cabal new-build all`
 
 (cd ~/tmp&& test-ghc-9.0.sh --ghc-version=ghc-9.2.3 --version-tag=$version)
 
@@ -123,7 +129,8 @@ sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-par
 
 cd ../hlint
 branch=$(git rev-parse --abbrev-ref HEAD)
-if [ -z "$GHC_FLAVOR" ]; then
+if [[ -z "$GHC_FLAVOR" \
+   || "$GHC_FLAVOR" == "ghc-master" ]]; then
   if [[ "$branch" != "ghc-next" ]]; then
     echo "Not on ghc-next. Trying 'git checkout ghc-next'"
     git checkout ghc-next

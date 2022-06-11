@@ -34,23 +34,23 @@ echo "ghc version : $(ghc -V)"
 
 ghc_lib_dir=~/project/sf-ghc-lib
 ghc_lib_parser_ex_dir=~/project/ghc-lib-parser-ex
-build_dir=~/tmp/ghc-lib/$version_tag
+build_dir="~/tmp/ghc-lib/$version_tag"
 
-rm -rf $build_dir/$ghc_version
-mkdir -p $build_dir/$ghc_version
-cd $build_dir/$ghc_version
-cp $ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz .
-cp $ghc_lib_dir/ghc-lib-$version_tag.tar.gz .
-cp $ghc_lib_parser_ex_dir/ghc-lib-parser-ex-$version_tag.tar.gz .
+rm -rf "$build_dir/$ghc_version"
+mkdir -p "$build_dir/$ghc_version"
+cd "$build_dir/$ghc_version"
+cp "$ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz" .
+cp "$ghc_lib_dir/ghc-lib-$version_tag.tar.gz" .
+cp "$ghc_lib_parser_ex_dir/ghc-lib-parser-ex-$version_tag.tar.gz" .
 gunzip *.gz
 for f in $(ls *.tar)
 do
     tar xvf $f
     rm $f
 done
-cp -R $ghc_lib_dir/examples/test-utils ./test-utils-$version_tag
-cp -R $ghc_lib_dir/examples/mini-hlint ./mini-hlint-$version_tag
-cp -R $ghc_lib_dir/examples/mini-compile ./mini-compile-$version_tag
+cp -R "$ghc_lib_dir/examples/test-utils" "./test-utils-$version_tag"
+cp -R "$ghc_lib_dir/examples/mini-hlint" "./mini-hlint-$version_tag"
+cp -R "$ghc_lib_dir/examples/mini-compile" "./mini-compile-$version_tag"
 cat > cabal.project<<EOF
 packages:  ghc-lib-parser-$version_tag
          , ghc-lib-$version_tag
@@ -67,15 +67,10 @@ do
 done
 
 rm -rf dist-newstyle
-
 cmd="cabal new-build all -j --ghc-option=-j"
+ffi_inc_path="C_INCLUDE_PATH=$(xcrun --show-sdk-path)/usr/include/ffi"
 ghc_version=$(ghc -V | tail -c 6)
-if [[ "$ghc_version" == "9.2.2" ]]; then
-  ffi_inc_path="C_INCLUDE_PATH=$(xcrun --show-sdk-path)/usr/include/ffi"
-  eval "$ffi_inc_path" "$cmd"
-else
-  eval "$cmd"
-fi
+[[ "$ghc_version" == "9.2.2" ]] && eval "$ffi_inc_path" "$cmd" ||  eval "$cmd"
     
 cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
 cabal new-run exe:mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
