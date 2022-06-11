@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
 
-set -euxo pipefail
+# Build a cabal project composed from a set of .tar.gz sdists of
+# ghc-lib-parser, ghc-lib, ghc-lib-parser-ex and hlint. Choice of
+# ghc-lib version & build compiler are provided as arguments. The name
+# of the script is historical.
 
-if [ -z "$1" ]
-then
-    echo "Missing ghc-version"
-    exit 1
-fi
-if [ -z "$2" ]
-then
-    echo "Missing version-tag"
-    exit 1
-fi
+set -exo pipefail
 
-ghc_version=$1
+prog=$(basename "$0")
+usage="usage: $prog --ghc-version=ARG --version-tag=ARG"
+
+[ ! -z "$1" ] && [[ "$1" =~ "--help" ]] && \
+    echo "usage: $usage" && exit 0
+[ ! -z "$1" ] && [[ "$1" =~ --ghc-version=(.*)$ ]] &&  \
+    ghc_version="${BASH_REMATCH[1]}" || \
+        { echo "Missing ghc-version" && echo "$usage" && exit 1; }
+[ ! -z "$2" ] && [[ "$2" =~ --version-tag=(.*)$ ]] && \
+    version_tag="${BASH_REMATCH[1]}" || \
+        { echo "Missing version-tag" && echo "$usage" && exit 1; }
+
+set -u 
+
 [[ ! -f "$HOME/$ghc_version/bin/ghc" ]] && \
     echo "$HOME/$ghc_version/bin/ghc not found" && \
-    exit 1
+    exit 2
 PATH="$HOME/$ghc_version/bin:$PATH"
 export PATH
 
@@ -25,13 +32,11 @@ echo "cabal-install version: $(cabal -V)"
 echo "ghc: $(which ghc)"
 echo "ghc version : $(ghc -V)"
 
-rm -rf ~/tmp/ghc-lib/*
-
-version_tag=$2
 ghc_lib_dir=~/project/sf-ghc-lib
 ghc_lib_parser_ex_dir=~/project/ghc-lib-parser-ex
 build_dir=~/tmp/ghc-lib/$version_tag
 
+rm -rf $build_dir/$ghc_version
 mkdir -p $build_dir/$ghc_version
 cd $build_dir/$ghc_version
 cp $ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz .
