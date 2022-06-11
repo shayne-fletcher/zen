@@ -73,6 +73,8 @@ ghc_version_number=$(ghc -V | tail -c 6)
 [[ "$ghc_version_number" == "9.2.2" ]] && eval "$ffi_inc_path" "$cmd" ||  eval "$cmd"
     
 cabal_project="$build_dir/$ghc_version/cabal.project"
-(cd "mini-hlint-$version_tag" && cabal new-run exe:mini-hlint --project-file="$cabal_project" -- test/MiniHlintTest.hs)
-(cd "mini-compile-$version_tag" && cabal new-run exe:mini-compile --project-file="$cabal_project" -- test/MiniCompileTest.hs | tail -10)
-(cd "hlint-$version_tag" && cabal new-run exe:hlint --project-file="$cabal_project" -- --test)
+project="--project-file $cabal_project"
+run="cabal new-run exe"
+(cd "mini-hlint-$version_tag" && eval "$run:mini-hlint" "$project" "--" "test/MiniHlintTest.hs")
+(cd "mini-compile-$version_tag" && eval "$run:mini-compile" "$project" "--" "test/MiniCompileTest.hs" "|" "tail" "-10")
+(cd "hlint-$version_tag" && eval "$run:hlint" "$project" "--" "--test")
