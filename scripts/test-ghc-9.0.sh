@@ -32,16 +32,19 @@ echo "cabal-install version: $(cabal -V)"
 echo "ghc: $(which ghc)"
 echo "ghc version : $(ghc -V)"
 
-ghc_lib_dir=~/project/sf-ghc-lib
-ghc_lib_parser_ex_dir=~/project/ghc-lib-parser-ex
-build_dir="~/tmp/ghc-lib/$version_tag"
+ghc_lib_dir="$HOME/project/sf-ghc-lib"
+ghc_lib_parser_ex_dir="$HOME/project/ghc-lib-parser-ex"
+hlint_dir="$HOME/project/hlint"
+build_dir="$HOME/tmp/ghc-lib/$version_tag"
 
 rm -rf "$build_dir/$ghc_version"
 mkdir -p "$build_dir/$ghc_version"
+
 cd "$build_dir/$ghc_version"
 cp "$ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz" .
 cp "$ghc_lib_dir/ghc-lib-$version_tag.tar.gz" .
 cp "$ghc_lib_parser_ex_dir/ghc-lib-parser-ex-$version_tag.tar.gz" .
+cp "$hlint_dir/hlint-$version_tag.tar.gz" .
 gunzip *.gz
 for f in $(ls *.tar)
 do
@@ -52,25 +55,24 @@ cp -R "$ghc_lib_dir/examples/test-utils" "./test-utils-$version_tag"
 cp -R "$ghc_lib_dir/examples/mini-hlint" "./mini-hlint-$version_tag"
 cp -R "$ghc_lib_dir/examples/mini-compile" "./mini-compile-$version_tag"
 cat > cabal.project<<EOF
-packages:  ghc-lib-parser-$version_tag
-         , ghc-lib-$version_tag
-         , ghc-lib-parser-ex-$version_tag
-         , test-utils-$version_tag
-         , mini-hlint-$version_tag
-         , mini-compile-$version_tag
+packages:    */*.cabal
+constraints: hlint +ghc-lib, ghc-lib-parser-ex -auto -no-ghc-lib
 EOF
 
-packages=("ghc-lib-parser-$version_tag" "ghc-lib-$version_tag" "ghc-lib-parser-ex-$version_tag" "mini-hlint-$version_tag" "mini-compile-$version_tag")
+packages=("ghc-lib-parser-$version_tag" "ghc-lib-$version_tag" "ghc-lib-parser-ex-$version_tag" "mini-hlint-$version_tag" "mini-compile-$version_tag" "hlint-$version_tag")
 for p in "${packages[@]}";
 do
 (cd "$p" && cabal check)
 done
 
 rm -rf dist-newstyle
-cmd="cabal new-build all -j --ghc-option=-j"
+flags="--ghc-option=-j"
+cmd="cabal new-build all $flags"
 ffi_inc_path="C_INCLUDE_PATH=$(xcrun --show-sdk-path)/usr/include/ffi"
-ghc_version=$(ghc -V | tail -c 6)
-[[ "$ghc_version" == "9.2.2" ]] && eval "$ffi_inc_path" "$cmd" ||  eval "$cmd"
+ghc_version_number=$(ghc -V | tail -c 6)
+[[ "$ghc_version_number" == "9.2.2" ]] && eval "$ffi_inc_path" "$cmd" ||  eval "$cmd"
     
-cabal new-run exe:mini-hlint -- mini-hlint-$version_tag/test/MiniHlintTest.hs
-cabal new-run exe:mini-compile -- mini-compile-$version_tag/test/MiniCompileTest.hs | tail -10
+cabal_project="$build_dir/$ghc_version/cabal.project"
+(cd "mini-hlint-$version_tag" && cabal new-run exe:mini-hlint --project-file="$cabal_project" -- test/MiniHlintTest.hs)
+(cd "mini-compile-$version_tag" && cabal new-run exe:mini-compile --project-file="$cabal_project" -- test/MiniCompileTest.hs | tail -10)
+(cd "hlint-$version_tag" && cabal new-run exe:hlint --project-file="$cabal_project" -- --test)

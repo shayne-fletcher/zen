@@ -21,7 +21,8 @@ fi
 
 set -u
 
-runhaskell="stack runhaskell --package extra --package optparse-applicative CI.hs"
+packages="--package extra --package optparse-applicative"
+runhaskell="stack runhaskell $packages"
 DOLLAR="$"
 locals="locals"
 everything="everything"
@@ -35,7 +36,7 @@ fi
 if ! [[ -d ./ghc ]]; then
     echo "There is no ghc checkout here to update."
     echo "Building with ghc-flavor 'ghc-master' to get started."
-    eval "$runhaskell -- --ghc-flavor ghc-master"
+n    eval "$runhaskell CI.hs -- --ghc-flavor ghc-master"
 
     echo "Now restarting build at the latest GHC commit."
 fi
@@ -69,7 +70,7 @@ fi
 
 # ghc-lib
 
-cmd="$runhaskell -- --no-checkout --ghc-flavor "
+cmd="$runhaskell CI.hs -- --no-checkout --ghc-flavor "
 [ -z "$GHC_FLAVOR" ] && eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"
 sha_ghc_lib_parser=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
 
@@ -82,7 +83,7 @@ fi
 
 # ghc-lib-parser-ex
 
-cd ../ghc-lib-parser-ex
+cd ../ghc-lib-parser-ex && git checkout .
 branch=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ -z "$GHC_FLAVOR" \
@@ -117,17 +118,12 @@ packages:
 EOF
 
 stack_yaml="--stack-yaml stack-head.yaml"
-runhaskell="stack runhaskell $stack_yaml --package extra --package optparse-applicative CI.hs"
-eval "$runhaskell -- $stack_yaml --version-tag $version"
+eval "$runhaskell $stack_yaml CI.hs -- $stack_yaml --version-tag $version"
 sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
-
-# `cabal new-build all`
-
-(cd ~/tmp&& test-ghc-9.0.sh --ghc-version=ghc-9.2.3 --version-tag=$version)
 
 # Hlint
 
-cd ../hlint
+cd ../hlint && git checkout .
 branch=$(git rev-parse --abbrev-ref HEAD)
 if [[ -z "$GHC_FLAVOR" \
    || "$GHC_FLAVOR" == "ghc-master" ]]; then
@@ -170,6 +166,19 @@ flags:
 allow-newer: true
 EOF
 
-# Build & test hlint
 eval "stack $stack_yaml build"
 eval "stack $stack_yaml run -- --test"
+
+# It's so annoying. I just cannot get 'allow-newer' to work in this
+# context. Well, never mind; take the approach of constraining the
+# bounds exactly. It's kind of more explicitly saying what we mean
+# anyway.
+sed -i '' "s/^version:.*\$/version:            $version/g" hlint.cabal
+sed -i '' "s/^.*ghc-lib-parser ==.*\$/          ghc-lib-parser == $version/g" hlint.cabal
+sed -i '' "s/^.*ghc-lib-parser-ex >=.*\$/          ghc-lib-parser-ex == $version/g" hlint.cabal
+eval "stack $stack_yaml sdist . --tar-dir ."
+
+# `cabal new-build all`
+
+(cd ~/tmp&& test-ghc-9.0.sh --ghc-version=ghc-9.2.3 --version-tag=$version)
+
