@@ -180,5 +180,12 @@ eval "stack $stack_yaml sdist . --tar-dir ."
 
 # `cabal new-build all`
 
-(cd ~/tmp&& test-ghc-9.0.sh --ghc-version=ghc-9.2.3 --version-tag=$version)
+(cd ~/tmp && test-ghc-9.0.sh                                   \
+     --ghc-version=ghc-9.2.3                                   \
+     --version-tag="$version"                                  \
+     --ghc-lib-dir="$HOME/project/sf-ghc-lib"                  \
+     --ghc-lib-parser-ex-dir="$HOME/project/ghc-lib-parser-ex" \
+     --hlint-dir="$HOME/project/hlint"                         \
+     --build-dir="$HOME/tmp/ghc-lib/$version"                  \
+)
 

@@ -8,16 +8,47 @@
 set -exo pipefail
 
 prog=$(basename "$0")
-usage="usage: $prog --ghc-version=ARG --version-tag=ARG"
+opt_args="
+opts:
+    --ghc-lib-dir=ARG
+    --ghc-lib-parser-ex-dir=ARG
+    --hlint-dir=ARG
+    --build-dir=ARG"
+usage="usage: $prog --ghc-version=ARG --version-tag=ARG [opts]""
+
+$opt_args"
 
 [ ! -z "$1" ] && [[ "$1" =~ "--help" ]] && \
-    echo "usage: $usage" && exit 0
+    echo "$usage" && exit 0
 [ ! -z "$1" ] && [[ "$1" =~ --ghc-version=(.*)$ ]] &&  \
     ghc_version="${BASH_REMATCH[1]}" || \
         { echo "Missing ghc-version" && echo "$usage" && exit 1; }
 [ ! -z "$2" ] && [[ "$2" =~ --version-tag=(.*)$ ]] && \
     version_tag="${BASH_REMATCH[1]}" || \
         { echo "Missing version-tag" && echo "$usage" && exit 1; }
+
+[ ! -z "$3" ] && [[ "$3" =~ --ghc-lib-dir=(.*)$ ]] && ghc_lib_dir="${BASH_REMATCH[1]}"
+[ -z "$ghc_lib_dir" ] && \
+    ghc_lib_dir="$HOME/project/sf-ghc-lib" && \
+    echo "Missing 'ghc-lib-dir': defaulting to $ghc_lib_dir"
+[ ! -e  "$ghc_lib_dir" ] && { echo "\"$ghc_lib_dir\" does not exist" && exit 1;  }
+
+[ ! -z "$4" ] && [[ "$4" =~ --ghc-lib-parser-ex-dir=(.*)$ ]] && ghc_lib_parser_ex_dir="${BASH_REMATCH[1]}"
+[ -z "$ghc_lib_parser_ex_dir" ] && \
+    ghc_lib_parser_ex_dir="$HOME/project/ghc-lib-parser-ex" && \
+    echo "Missing 'ghc-lib-parser-ex-dir': defaulting to $ghc_lib_parser_ex_dir"
+[ ! -e  "$ghc_lib_parser_ex_dir" ] && { echo "\"$ghc_lib_parser_ex_dir\" does not exist" && exit 1;  }
+
+[ ! -z "$5" ] && [[ "$5" =~ --hlint-dir=(.*)$ ]] && hlint_dir="${BASH_REMATCH[1]}"
+[ -z "$hlint_dir" ] && \
+    hlint_dir="$HOME/project/hlint" && \
+    echo "Missing 'hlint-dir': defaulting to $hlint_dir"
+[ ! -e  "$hlint_dir" ] && { echo "\"$hlint_dir\" does not exist" && exit 1;  }
+
+[ ! -z "$6" ] && [[ "$6" =~ --build-dir=(.*)$ ]] && build_dir="${BASH_REMATCH[1]}"
+[ -z "$build_dir" ] && \
+    build_dir="$HOME/tmp/ghc-lib/$version_tag" && \
+    echo "Missing 'build-dir': defaulting to $build_dir"
 
 set -u 
 
@@ -32,14 +63,9 @@ echo "cabal-install version: $(cabal -V)"
 echo "ghc: $(which ghc)"
 echo "ghc version : $(ghc -V)"
 
-ghc_lib_dir="$HOME/project/sf-ghc-lib"
-ghc_lib_parser_ex_dir="$HOME/project/ghc-lib-parser-ex"
-hlint_dir="$HOME/project/hlint"
-build_dir="$HOME/tmp/ghc-lib/$version_tag"
-
 rm -rf "$build_dir/$ghc_version"
 mkdir -p "$build_dir/$ghc_version"
-
+    
 cd "$build_dir/$ghc_version"
 cp "$ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz" .
 cp "$ghc_lib_dir/ghc-lib-$version_tag.tar.gz" .
