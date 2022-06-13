@@ -68,9 +68,6 @@ fi
 
 # ghc-lib
 
-echo "GHC_FLAVOR: $GHC_FLAVOR"
-echo "HEAD: $HEAD"
-
 cmd="$runhaskell CI.hs -- --no-checkout --ghc-flavor "
 [ -z "$GHC_FLAVOR" ] && eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"
 sha_ghc_lib_parser=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
