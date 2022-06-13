@@ -14,8 +14,6 @@ then
         echo "$usage" && exit 0
     elif [[ "$1" =~ --ghc-flavor=(.*)$ ]]; then
       GHC_FLAVOR="${BASH_REMATCH[1]}"
-    else
-      echo "Missing ghc-flavor" && echo "$usage" && exit 1
     fi
 fi
 
@@ -69,6 +67,9 @@ else
 fi
 
 # ghc-lib
+
+echo "GHC_FLAVOR: $GHC_FLAVOR"
+echo "HEAD: $HEAD"
 
 cmd="$runhaskell CI.hs -- --no-checkout --ghc-flavor "
 [ -z "$GHC_FLAVOR" ] && eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"

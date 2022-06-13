@@ -52,9 +52,7 @@ $opt_args"
 
 set -u 
 
-[[ ! -f "$HOME/$ghc_version/bin/ghc" ]] && \
-    echo "$HOME/$ghc_version/bin/ghc not found" && \
-    exit 2
+[[ ! -f "$HOME/$ghc_version/bin/ghc" ]] && { echo "$HOME/$ghc_version/bin/ghc not found" && exit 1; }
 PATH="$HOME/$ghc_version/bin:$PATH"
 export PATH
 
@@ -63,35 +61,31 @@ echo "cabal-install version: $(cabal -V)"
 echo "ghc: $(which ghc)"
 echo "ghc version : $(ghc -V)"
 
-rm -rf "$build_dir/$ghc_version"
 mkdir -p "$build_dir/$ghc_version"
-    
 cd "$build_dir/$ghc_version"
-cp "$ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz" .
-cp "$ghc_lib_dir/ghc-lib-$version_tag.tar.gz" .
-cp "$ghc_lib_parser_ex_dir/ghc-lib-parser-ex-$version_tag.tar.gz" .
-cp "$hlint_dir/hlint-$version_tag.tar.gz" .
-gunzip *.gz
-for f in $(ls *.tar)
-do
-    tar xvf $f
-    rm $f
+packages=(                                                      \
+ "$ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz"              \
+ "$ghc_lib_dir/ghc-lib-$version_tag.tar.gz"                     \
+ "$ghc_lib_dir/test-utils-$version_tag.tar.gz"                  \
+ "$ghc_lib_dir/mini-hlint-$version_tag.tar.gz"                  \
+ "$ghc_lib_dir/mini-compile-$version_tag.tar.gz"                \
+ "$ghc_lib_parser_ex_dir/ghc-lib-parser-ex-$version_tag.tar.gz" \
+ "$hlint_dir/hlint-$version_tag.tar.gz"                         \
+)
+set +e # remember to remove this later
+for f in "${packages[@]}"; do
+  tar xvf "$f"
+  base=$(basename "$f")
+  (cd "${base%.tar.gz}" && cabal check)
 done
-cp -R "$ghc_lib_dir/examples/test-utils" "./test-utils-$version_tag"
-cp -R "$ghc_lib_dir/examples/mini-hlint" "./mini-hlint-$version_tag"
-cp -R "$ghc_lib_dir/examples/mini-compile" "./mini-compile-$version_tag"
+set -e
+
 cat > cabal.project<<EOF
 packages:    */*.cabal
 constraints: hlint +ghc-lib, ghc-lib-parser-ex -auto -no-ghc-lib
 EOF
 
-packages=("ghc-lib-parser-$version_tag" "ghc-lib-$version_tag" "ghc-lib-parser-ex-$version_tag" "mini-hlint-$version_tag" "mini-compile-$version_tag" "hlint-$version_tag")
-for p in "${packages[@]}";
-do
-(cd "$p" && cabal check)
-done
-
-rm -rf dist-newstyle
+cabal new-clean
 flags="--ghc-option=-j"
 cmd="cabal new-build all $flags"
 ffi_inc_path="C_INCLUDE_PATH=$(xcrun --show-sdk-path)/usr/include/ffi"
@@ -104,3 +98,7 @@ run="cabal new-run exe"
 (cd "mini-hlint-$version_tag" && eval "$run:mini-hlint" "$project" "--" "test/MiniHlintTest.hs")
 (cd "mini-compile-$version_tag" && eval "$run:mini-compile" "$project" "--" "test/MiniCompileTest.hs" "|" "tail" "-10")
 (cd "hlint-$version_tag" && eval "$run:hlint" "$project" "--" "--test")
+
+exit 0
+
+
