@@ -1,23 +1,58 @@
 #!/usr/bin/env bash
 
 # Build and test ghc-lib at either HEAD or the given flavor.
+#
+# - Full run
+#   - `run-head --ghc-flavor=""`, the quickest though is
+# - Quickest
+#   - `run-head --ghc-flavor="" "--no-checkout --no-builds --no-cabal`
 
 set -exo pipefail
 
 prog=$(basename "$0")
-usage="usage: $prog [--ghc-flavor=ARG]"
+opt_args="
+ARG can be a flavor or the empty string e.g. --ghc-flavor=\"\"
+OPTS is a quoted string with contents e.g: \"--no-checkout --no-builds --no-cabal\""
+usage="usage: $prog --ghc-flavor=ARG OPTS""
+$opt_args"
 
 GHC_FLAVOR=""
+# ARG
 if [ ! -z "$1" ]
 then
     if [[ "$1" == "--help" ]]; then
         echo "$usage" && exit 0
     elif [[ "$1" =~ --ghc-flavor=(.*)$ ]]; then
       GHC_FLAVOR="${BASH_REMATCH[1]}"
+    else
+        echo "missing ghc-flavor. perahps try --ghc-flavor=\"\"?"
+        echo "$usage" && exit 0
     fi
 fi
 
+# OPTS
+opts=""
+if [ ! -z "$2" ]; then
+    opts="$2"
+fi
+
 set -u
+
+no_checkout=""
+if [[ "$opts" == *"--no-checkout"* ]]; then
+  no_checkout="--no-checkout"
+  echo "cloning ghc skipped."
+fi
+no_builds=""
+if [[ "$opts" == *"--no-builds"* ]]; then
+  no_builds="--no-builds"
+  echo "ghc-lib package & examples building skipped."
+fi
+no_cabal=""
+if [[ "$opts" == *"--no-cabal"* ]]; then
+  no_cabal="--no-cabal"
+  echo "hlint stack as a cabal.project building skipped."
+fi
 
 packages="--package extra --package optparse-applicative"
 runhaskell="stack runhaskell $packages"
@@ -68,7 +103,7 @@ fi
 
 # ghc-lib
 
-cmd="$runhaskell CI.hs -- --no-checkout --ghc-flavor "
+cmd="$runhaskell CI.hs -- $no_checkout $no_builds --ghc-flavor "
 [ -z "$GHC_FLAVOR" ] && eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"
 sha_ghc_lib_parser=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
 
@@ -116,7 +151,7 @@ packages:
 EOF
 
 stack_yaml="--stack-yaml stack-head.yaml"
-eval "$runhaskell $stack_yaml CI.hs -- $stack_yaml --version-tag $version"
+eval "$runhaskell $stack_yaml CI.hs -- $no_builds $stack_yaml --version-tag $version"
 sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
 
 # Hlint
@@ -167,6 +202,19 @@ EOF
 eval "stack $stack_yaml build"
 eval "stack $stack_yaml run -- --test"
 
+# --
+# - phase: test-ghc-9.0.sh
+#   (test building the hlint stack as a cabal.project)
+
+if [ "$no_cabal" == --no-cabal ]; then
+  echo "hlint as a cabal.project skipped (and now my watch is ended)."
+  exit 0
+else
+  echo "--
+  hlint as a cabal.project.
+"
+fi
+
 # It's so annoying. I just cannot get 'allow-newer' to work in this
 # context. Well, never mind; take the approach of constraining the
 # bounds exactly. It's kind of more explicitly saying what we mean
@@ -186,4 +234,3 @@ eval "stack $stack_yaml sdist . --tar-dir ."
      --hlint-dir="$HOME/project/hlint"                         \
      --build-dir="$HOME/tmp/ghc-lib/$version"                  \
 )
-
