@@ -25,7 +25,9 @@ then
     elif [[ "$1" =~ --ghc-flavor=(.*)$ ]]; then
       GHC_FLAVOR="${BASH_REMATCH[1]}"
     else
-        echo "missing ghc-flavor. perahps try --ghc-flavor=\"\"?"
+        # there is some "first" argument but it's not a ghc-flavor as
+        # far as we can tell
+        echo "ghc-flavor expected in first argument"
         echo "$usage" && exit 0
     fi
 fi
