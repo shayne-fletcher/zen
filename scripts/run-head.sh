@@ -92,6 +92,12 @@ if [ -z "$GHC_FLAVOR" ]; then
   if [ -z "$HEAD" ]; then
       echo "\$HEAD is empty. Trying over." && run-head
   fi
+  # If $HEAD agrees with the "last tested at" SHA in CI.hs stop here.
+  current=$(grep "current = .*" CI.hs | grep -o "\".*\"" | cut -d "\"" -f 2)
+  if [[ "$current" == "$HEAD" ]]; then
+    echo "The last \"tested at\" SHA (\"$current\") hasn't changed"
+    exit 0
+  fi
 fi
 
 today=$(date -u +'%Y-%m-%d')
