@@ -6,6 +6,10 @@
 #   - `run-head --ghc-flavor=""`, the quickest though is
 # - Quickest
 #   - `run-head --ghc-flavor="" "--no-checkout --no-builds --no-cabal`
+#
+# Judging by the resolvers involved in the stack-head.yaml's we
+# generate below, it looks like the minimum flavor we expect right now
+# is ghc-9.2.3.
 
 set -exo pipefail
 
@@ -111,6 +115,8 @@ fi
 
 # ghc-lib
 
+# for ghc-lib, we use the prevailing stack.yaml which at this time
+# uses ghc-9.0.2
 cmd="$runhaskell CI.hs -- $no_checkout $no_builds --ghc-flavor "
 [ -z "$GHC_FLAVOR" ] && eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"
 sha_ghc_lib_parser=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
@@ -127,23 +133,33 @@ fi
 cd ../ghc-lib-parser-ex && git checkout .
 branch=$(git rev-parse --abbrev-ref HEAD)
 
+# if the flavor indicates ghc's master branch get on
+# ghc-lib-parser-ex's 'ghc-next' branch ...
 if [[ -z "$GHC_FLAVOR" \
    || "$GHC_FLAVOR" == "ghc-master" ]]; then
   if [[ "$branch" != "ghc-next" ]]; then
     echo "Not on ghc-next. Trying 'git checkout ghc-next'"
     git checkout ghc-next
   fi
-  if [[ "$branch" != "ghc-next" ]]; then
-    echo "Not on ghc-next. Trying 'git checkout ghc-next'"
+# ... else if the flavor indicates ghc's 9.4 branch get on
+# ghc-lib-parser-ex's 'ghc-9.4' branch...
+elif [[ "$GHC_FLAVOR" == "ghc-9.4.1" ]]; then
+  if [[ "$branch" != "ghc-9.4" ]]; then
+    echo "Not on ghc-9.4. Trying 'git checkout ghc-9.4'"
     git checkout ghc-next
   fi
-elif [[ "$branch" != "master" ]]; then
-  echo "Not on master. Trying 'git checkout master'"
-  git checkout master
+#... else it's a released flavor, get on branch ghc-lib-parser-ex's
+#'master' branch
+else
+  if [[ "$branch" != "master" ]]; then
+      echo "Not on master. Trying 'git checkout master'"
+      git checkout master
+  fi
 fi
-
+# the choice of resolver here indicates we don't expect flavors <
+# 9.2.3
 cat > stack-head.yaml <<EOF
-resolver: nightly-2022-05-27 # ghc-9.2.2
+resolver: nightly-2022-06-10 # ghc-9.2.3
 extra-deps:
   - archive: $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
     sha256: "$sha_ghc_lib_parser"
@@ -166,26 +182,32 @@ sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-par
 
 cd ../hlint && git checkout .
 branch=$(git rev-parse --abbrev-ref HEAD)
+# if the flavor indicates ghc's master branch get on hlint's
+# 'ghc-next' branch ...
 if [[ -z "$GHC_FLAVOR" \
    || "$GHC_FLAVOR" == "ghc-master" ]]; then
   if [[ "$branch" != "ghc-next" ]]; then
     echo "Not on ghc-next. Trying 'git checkout ghc-next'"
     git checkout ghc-next
   fi
-elif [[ "$GHC_FLAVOR" == "ghc-9.2.3" \
-   || "$GHC_FLAVOR" == "ghc-9.2.4" \
- ]]; then
-  if [[ "$branch" != "master" ]]; then
-    echo "Not on master. Trying 'git checkout master'"
-    git checkout master
-  fi
+# ... else if the flavor indicates ghc's 9.4 branch get on hlint's
+# 'ghc-9.4'...
 elif [[ "$GHC_FLAVOR" == "ghc-9.4.1" ]]; then
   if [[ "$branch" != "ghc-9.4" ]]; then
     echo "Not on ghc-9.4. Trying 'git checkout ghc-9.4'"
     git checkout ghc-9.4
   fi
+#... else it's a released flavor, get on branch hlint's 'master'
+#branch
+else
+  if [[ "$branch" != "master" ]]; then
+      echo "Not on master. Trying 'git checkout master'"
+      git checkout master
+  fi
 fi
 
+# the choice of resolver here indicates we don't expect flavors <
+# 9.2.3
 cat > stack-head.yaml <<EOF
 resolver: nightly-2022-06-10 # ghc-9.2.3
 packages:
