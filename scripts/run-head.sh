@@ -141,13 +141,6 @@ if [[ -z "$GHC_FLAVOR" \
     echo "Not on ghc-next. Trying 'git checkout ghc-next'"
     git checkout ghc-next
   fi
-# ... else if the flavor indicates ghc's 9.4 branch get on
-# ghc-lib-parser-ex's 'ghc-9.4' branch...
-elif [[ "$GHC_FLAVOR" == "ghc-9.4.1" ]]; then
-  if [[ "$branch" != "ghc-9.4" ]]; then
-    echo "Not on ghc-9.4. Trying 'git checkout ghc-9.4'"
-    git checkout ghc-next
-  fi
 #... else it's a released flavor, get on branch ghc-lib-parser-ex's
 #'master' branch
 else
@@ -157,9 +150,9 @@ else
   fi
 fi
 # the choice of resolver here indicates we don't expect flavors <
-# 9.2.3
+# 9.2.4
 cat > stack-head.yaml <<EOF
-resolver: nightly-2022-06-10 # ghc-9.2.3
+resolver: nightly-2022-08-04 # ghc-9.2.4
 extra-deps:
   - archive: $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
     sha256: "$sha_ghc_lib_parser"
@@ -190,13 +183,11 @@ if [[ -z "$GHC_FLAVOR" \
     echo "Not on ghc-next. Trying 'git checkout ghc-next'"
     git checkout ghc-next
   fi
-# ... else if the flavor indicates ghc's 9.4 branch get on hlint's
-# 'ghc-9.4'...
+# ... else if the flavor indicates ghc's 9.4, well there's a
+# ghc-lib-parser now for that...
 elif [[ "$GHC_FLAVOR" == "ghc-9.4.1" ]]; then
-  if [[ "$branch" != "ghc-9.4" ]]; then
-    echo "Not on ghc-9.4. Trying 'git checkout ghc-9.4'"
-    git checkout ghc-9.4
-  fi
+  echo "I suggest cd hlint && git checkout 9.4 && stack build"
+  exit 1
 #... else it's a released flavor, get on branch hlint's 'master'
 #branch
 else
@@ -207,9 +198,9 @@ else
 fi
 
 # the choice of resolver here indicates we don't expect flavors <
-# 9.2.3
+# 9.2.4
 cat > stack-head.yaml <<EOF
-resolver: nightly-2022-06-10 # ghc-9.2.3
+resolver: nightly-2022-08-04 # ghc-9.2.4
 packages:
   - .
 extra-deps:
@@ -258,7 +249,7 @@ eval "stack $stack_yaml sdist . --tar-dir ."
 # `cabal new-build all`
 
 (cd ~/tmp && test-ghc-9.0.sh                                   \
-     --ghc-version=ghc-9.2.3                                   \
+     --ghc-version=ghc-9.2.4                                   \
      --version-tag="$version"                                  \
      --ghc-lib-dir="$HOME/project/sf-ghc-lib"                  \
      --ghc-lib-parser-ex-dir="$HOME/project/ghc-lib-parser-ex" \
