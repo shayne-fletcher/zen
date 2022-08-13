@@ -59,6 +59,23 @@ if [[ "$opts" == *"--no-cabal"* ]]; then
   no_cabal="--no-cabal"
   echo "hlint stack as a cabal.project building skipped."
 fi
+stack_yaml=""
+stack_yaml_flag=""
+if [[ "$opts" =~ (.*)--stack-yaml=([^[:space:]]+) ]]; then
+  stack_yaml="${BASH_REMATCH[2]}"
+  stack_yaml_flag="--stack-yaml $stack_yaml"
+fi
+resolver=""
+resolver_flag=""
+if [[ "$opts" =~ (.*)--resolver=([^[:space:]]+) ]]; then
+  resolver="${BASH_REMATCH[2]}"
+  resolver_flag="--resolver $resolver"
+fi
+
+echo "stack-yaml: $stack_yaml"
+echo "stack-yaml flag: $stack_yaml_flag"
+echo "resolver: $resolver"
+echo "resolver: $resolver_flag"
 
 packages="--package extra --package optparse-applicative"
 runhaskell="stack runhaskell $packages"
@@ -75,8 +92,7 @@ fi
 if ! [[ -d ./ghc ]]; then
     echo "There is no ghc checkout here to update."
     echo "Building with ghc-flavor 'ghc-master' to get started."
-n    eval "$runhaskell CI.hs -- --ghc-flavor ghc-master"
-
+    eval "$runhaskell $stack_yaml_flag $resolver_flag CI.hs -- $stack_yaml_flag $resolver_flag --ghc-flavor ghc-master"
     echo "Now restarting build at the latest GHC commit."
 fi
 
@@ -115,9 +131,7 @@ fi
 
 # ghc-lib
 
-# for ghc-lib, we use the prevailing stack.yaml which at this time
-# uses ghc-9.0.2
-cmd="$runhaskell CI.hs -- $no_checkout $no_builds --ghc-flavor "
+cmd="$runhaskell $stack_yaml_flag $resolver_flag CI.hs -- $stack_yaml_flag $resolver_flag $no_checkout $no_builds --ghc-flavor "
 [ -z "$GHC_FLAVOR" ] && eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"
 sha_ghc_lib_parser=`shasum -a 256 $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
 
@@ -149,10 +163,28 @@ else
       git checkout master
   fi
 fi
-# the choice of resolver here indicates we don't expect flavors <
-# 9.2.4
-cat > stack-head.yaml <<EOF
-resolver: nightly-2022-08-04 # ghc-9.2.4
+
+# If a resolver hasn't been set, set it now to this.
+[[ -z "$resolver" ]] && resolver=nightly-2022-08-04 # ghc-9.2.4
+
+# This an elaborate step to create a config file'stack-head.yaml'.
+#
+# If a stack-yaml argument was provided, seed its contents from it
+# otherwise, assume a curated $resolver and create it from scratch.
+if [[ ! -z "$stack_yaml" ]]; then
+  cat "$stack_yaml" | \
+  # Delete any pre-existing ghc-lib-parser extra dependency.
+  sed -e "s;^.*ghc-lib-parser.*$;;g" | \
+  sed -e "s;^extra-deps:$;\
+extra-deps:\n\
+  # ghc-lib-parser\n\
+  - archive: ${HOME}/project/sf-ghc-lib/ghc-lib-parser-${version}.tar.gz\n\
+    sha256: \"${sha_ghc_lib_parser}\";\
+g" | \
+  sed -e "s;^resolver:.*$;resolver: ${resolver};g" > stack-head.yaml
+else
+  cat > stack-head.yaml <<EOF
+resolver: $resolver
 extra-deps:
   - archive: $HOME/project/sf-ghc-lib/ghc-lib-parser-$version.tar.gz
     sha256: "$sha_ghc_lib_parser"
@@ -166,9 +198,13 @@ flags:
 packages:
   - .
 EOF
+fi
 
-stack_yaml="--stack-yaml stack-head.yaml"
-eval "$runhaskell $stack_yaml CI.hs -- $no_builds $stack_yaml --version-tag $version"
+stack_yaml=stack-head.yaml
+stack_yaml_flag="--stack-yaml $stack_yaml"
+# No need to pass $resolver_flag here, we fixed the resolver in
+# 'stack-head.yaml'.
+eval "$runhaskell $stack_yaml_flag CI.hs -- $no_builds $stack_yaml_flag --version-tag $version"
 sha_ghc_lib_parser_ex=`shasum -a 256 $HOME/project/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
 
 # Hlint
@@ -183,11 +219,6 @@ if [[ -z "$GHC_FLAVOR" \
     echo "Not on ghc-next. Trying 'git checkout ghc-next'"
     git checkout ghc-next
   fi
-# ... else if the flavor indicates ghc's 9.4, well there's a
-# ghc-lib-parser now for that...
-elif [[ "$GHC_FLAVOR" == "ghc-9.4.1" ]]; then
-  echo "I suggest cd hlint && git checkout 9.4 && stack build"
-  exit 1
 #... else it's a released flavor, get on branch hlint's 'master'
 #branch
 else
@@ -197,10 +228,11 @@ else
   fi
 fi
 
-# the choice of resolver here indicates we don't expect flavors <
-# 9.2.4
+# We're stuck with only curated resolvers for hlint at this time.
+resolver=nightly-2022-08-04 # ghc-9.2.4
+
 cat > stack-head.yaml <<EOF
-resolver: nightly-2022-08-04 # ghc-9.2.4
+resolver: $resolver
 packages:
   - .
 extra-deps:
@@ -221,8 +253,9 @@ flags:
 allow-newer: true
 EOF
 
-eval "stack $stack_yaml build"
-eval "stack $stack_yaml run -- --test"
+# Again, it would be wrong to pass $resolver_flag here.
+eval "stack" "$stack_yaml_flag" "build"
+eval "stack" "$stack_yaml_flag" "run" "--" "--test"
 
 # --
 # - phase: test-ghc-9.0.sh
@@ -244,12 +277,13 @@ fi
 sed -i '' "s/^version:.*\$/version:            $version/g" hlint.cabal
 sed -i '' "s/^.*ghc-lib-parser ==.*\$/          ghc-lib-parser == $version/g" hlint.cabal
 sed -i '' "s/^.*ghc-lib-parser-ex >=.*\$/          ghc-lib-parser-ex == $version/g" hlint.cabal
-eval "stack $stack_yaml sdist . --tar-dir ."
+eval "stack" "$stack_yaml_flag" "sdist" "." "--tar-dir" "."
 
 # `cabal new-build all`
 
+cabal update
 (cd ~/tmp && test-ghc-9.0.sh                                   \
-     --ghc-version=ghc-9.2.4                                   \
+     --ghc-version=ghc-9.4.1                                   \
      --version-tag="$version"                                  \
      --ghc-lib-dir="$HOME/project/sf-ghc-lib"                  \
      --ghc-lib-parser-ex-dir="$HOME/project/ghc-lib-parser-ex" \

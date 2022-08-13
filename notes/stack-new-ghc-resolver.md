@@ -16,7 +16,7 @@ you'll see something like
 ```
 if there isn't yet a resolver for ghc-x.y.z.
 
-The default set of resolvers `stack` "knows" about are those enumerated in the file [stack-setup-2.yaml]( https://github.com/commercialhaskell/stackage-content/blob/master/stack/stack-setup-2.yaml) in the [commericalhaskell/stackage-content](https://github.com/commercialhaskell/stackage-content) repository.
+The default set of resolvers `stack` "knows about" are those enumerated in the file [stack-setup-2.yaml]( https://github.com/commercialhaskell/stackage-content/blob/master/stack/stack-setup-2.yaml) in the [commericalhaskell/stackage-content](https://github.com/commercialhaskell/stackage-content) repository.
 
 ## Create a local stack setup file
 
@@ -33,7 +33,7 @@ The default set of resolvers `stack` "knows" about are those enumerated in the f
 ```bash
          shasum -a 256 ghc-x.y.z-x86_64-apple-darwin.tar.xz
 ```
-- Now, create `stack-setup-2-ghc-x.y.z.yaml` with contents along the lines of 
+- Now, create `stack-setup-2-ghc-x.y.z.yaml` with contents along the lines of
 ```yaml
         ghc:
           macosx:
@@ -44,6 +44,14 @@ The default set of resolvers `stack` "knows" about are those enumerated in the f
               sha256: f2e8366fd3754dd9388510792aba2d2abecb1c2f7f1e5555f6065c3c5e2ffec4
 ```
 
+*Update: Here's an even easier way.*
+```yaml
+    ghc:
+     macosx:
+        x.y.z:
+          url: /path/to/ghc-x.y.z-x86_64-apple-darwin.tar.xz
+```
+
 ## Install GHC version `x.y.z` via the setup file
 
 The following `stack setup` command will use the setup file created above to download and install ghc-x.y.z:
@@ -52,4 +60,3 @@ The following `stack setup` command will use the setup file created above to dow
 ```
 
 Once `stack` has got GHC installed, there's no further any need to pass a `setup-info-yaml` argument to subsequent `stack` commands, it's ready to go!
-
