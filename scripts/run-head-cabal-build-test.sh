@@ -18,39 +18,41 @@ usage="usage: $prog --ghc-version=ARG --version-tag=ARG [opts]""
 
 $opt_args"
 
-[ ! -z "$1" ] && [[ "$1" =~ "--help" ]] && \
-    echo "$usage" && exit 0
-[ ! -z "$1" ] && [[ "$1" =~ --ghc-version=(.*)$ ]] &&  \
-    ghc_version="${BASH_REMATCH[1]}" || \
-        { echo "Missing ghc-version" && echo "$usage" && exit 1; }
-[ ! -z "$2" ] && [[ "$2" =~ --version-tag=(.*)$ ]] && \
-    version_tag="${BASH_REMATCH[1]}" || \
-        { echo "Missing version-tag" && echo "$usage" && exit 1; }
-
-[ ! -z "$3" ] && [[ "$3" =~ --ghc-lib-dir=(.*)$ ]] && ghc_lib_dir="${BASH_REMATCH[1]}"
+[ -n "$1" ] && [[ "$1" =~ "--help" ]] && echo "$usage" && exit 0
+if [ -n "$1" ] && [[ "$1" =~ --ghc-version=(.*)$ ]]; then
+    ghc_version="${BASH_REMATCH[1]}"
+else
+    echo "Missing ghc-version" && echo "$usage" && exit 1
+fi
+if [ -n "$2" ] && [[ "$2" =~ --version-tag=(.*)$ ]]; then
+   version_tag="${BASH_REMATCH[1]}"
+else
+    echo "Missing version-tag" && echo "$usage" && exit 1
+fi
+[ -n "$3" ] && [[ "$3" =~ --ghc-lib-dir=(.*)$ ]] && ghc_lib_dir="${BASH_REMATCH[1]}"
 [ -z "$ghc_lib_dir" ] && \
     ghc_lib_dir="$HOME/project/sf-ghc-lib" && \
     echo "Missing 'ghc-lib-dir': defaulting to $ghc_lib_dir"
 [ ! -e  "$ghc_lib_dir" ] && { echo "\"$ghc_lib_dir\" does not exist" && exit 1;  }
 
-[ ! -z "$4" ] && [[ "$4" =~ --ghc-lib-parser-ex-dir=(.*)$ ]] && ghc_lib_parser_ex_dir="${BASH_REMATCH[1]}"
+[ -n "$4" ] && [[ "$4" =~ --ghc-lib-parser-ex-dir=(.*)$ ]] && ghc_lib_parser_ex_dir="${BASH_REMATCH[1]}"
 [ -z "$ghc_lib_parser_ex_dir" ] && \
     ghc_lib_parser_ex_dir="$HOME/project/ghc-lib-parser-ex" && \
     echo "Missing 'ghc-lib-parser-ex-dir': defaulting to $ghc_lib_parser_ex_dir"
 [ ! -e  "$ghc_lib_parser_ex_dir" ] && { echo "\"$ghc_lib_parser_ex_dir\" does not exist" && exit 1;  }
 
-[ ! -z "$5" ] && [[ "$5" =~ --hlint-dir=(.*)$ ]] && hlint_dir="${BASH_REMATCH[1]}"
+[ -n "$5" ] && [[ "$5" =~ --hlint-dir=(.*)$ ]] && hlint_dir="${BASH_REMATCH[1]}"
 [ -z "$hlint_dir" ] && \
     hlint_dir="$HOME/project/hlint" && \
     echo "Missing 'hlint-dir': defaulting to $hlint_dir"
 [ ! -e  "$hlint_dir" ] && { echo "\"$hlint_dir\" does not exist" && exit 1;  }
 
-[ ! -z "$6" ] && [[ "$6" =~ --build-dir=(.*)$ ]] && build_dir="${BASH_REMATCH[1]}"
+[ -n "$6" ] && [[ "$6" =~ --build-dir=(.*)$ ]] && build_dir="${BASH_REMATCH[1]}"
 [ -z "$build_dir" ] && \
     build_dir="$HOME/tmp/ghc-lib/$version_tag" && \
     echo "Missing 'build-dir': defaulting to $build_dir"
 
-set -u 
+set -u
 
 [[ ! -f "$HOME/$ghc_version/bin/ghc" ]] && { echo "$HOME/$ghc_version/bin/ghc not found" && exit 1; }
 PATH="$HOME/$ghc_version/bin:$PATH"
@@ -90,8 +92,12 @@ flags="--ghc-option=-j"
 cmd="cabal new-build all $flags"
 ffi_inc_path="C_INCLUDE_PATH=$(xcrun --show-sdk-path)/usr/include/ffi"
 ghc_version_number=$(ghc -V | tail -c 6)
-[[ "$ghc_version_number" == "9.2.2" ]] && eval "$ffi_inc_path" "$cmd" ||  eval "$cmd"
-    
+if [[ "$ghc_version_number" == "9.2.2" ]]; then
+    eval "$ffi_inc_path" "$cmd"
+else
+    eval "$cmd"
+fi
+
 cabal_project="$build_dir/$ghc_version/cabal.project"
 project="--project-file $cabal_project"
 run="cabal new-run exe"
@@ -100,5 +106,3 @@ run="cabal new-run exe"
 (cd "hlint-$version_tag" && eval "$run:hlint" "$project" "--" "--test")
 
 exit 0
-
-

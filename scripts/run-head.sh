@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Build and test ghc-lib at either HEAD or the given flavor.
+# Build and test ghc-lib at HEAD or the given flavor.
 #
 # - Never run before?
 #  - `run-head --init=/path/to/repo-dir`
@@ -24,7 +24,7 @@ $opt_args"
 
 GHC_FLAVOR=""
 # ARG
-if [ ! -z "$1" ]
+if [ -n "$1" ]
 then
     if [[ "$1" == "--help" ]]; then
         echo "$usage" && exit 0
@@ -44,7 +44,7 @@ fi
 
 # OPTS
 opts=""
-if [ ! -z "$2" ]; then
+if [ -n "$2" ]; then
     opts="$2"
 fi
 
@@ -94,7 +94,7 @@ DOLLAR="$"
 locals="locals"
 everything="everything"
 
-cd $repo_dir/ghc-lib
+cd "$repo_dir"/ghc-lib
 
 if ! [[ -f ./ghc-lib-gen.cabal ]]; then
     echo "Missing 'ghc-lib-gen.cabal'."
@@ -136,7 +136,7 @@ fi
 today=$(date -u +'%Y-%m-%d')
 if [[ -z "$GHC_FLAVOR" \
    || "$GHC_FLAVOR" == "ghc-master" ]]; then
-  version="0.""`date -u +'%Y%m%d'`"
+  version="0.""$(date -u +'%Y%m%d')"
 else
   flavor=$([[ "$GHC_FLAVOR" =~ (ghc\-)([0-9])\.([0-9])\.([0-9]) ]] && echo "${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.${BASH_REMATCH[4]}")
   version="$flavor"".""$(date -u +'%Y%m%d')"
@@ -145,8 +145,12 @@ fi
 # ghc-lib
 
 cmd="$runhaskell $stack_yaml_flag $resolver_flag CI.hs -- $stack_yaml_flag $resolver_flag $no_checkout $no_builds --ghc-flavor "
-[ -z "$GHC_FLAVOR" ] && eval "$cmd" "$HEAD" || eval "$cmd" "$GHC_FLAVOR"
-sha_ghc_lib_parser=`shasum -a 256 $repo_dir/ghc-lib/ghc-lib-parser-$version.tar.gz | awk '{ print $1 }'`
+if [ -z "$GHC_FLAVOR" ]; then
+    eval "$cmd" "$HEAD"
+else
+    eval "$cmd" "$GHC_FLAVOR"
+fi
+sha_ghc_lib_parser=$(shasum -a 256 "$repo_dir"/ghc-lib/ghc-lib-parser-"$version".tar.gz | awk '{ print $1 }')
 
 if [ -z "$GHC_FLAVOR" ]; then
     # If the above worked out, update CI.hs.
@@ -184,7 +188,8 @@ fi
 #
 # If a stack-yaml argument was provided, seed its contents from it
 # otherwise, assume a curated $resolver and create it from scratch.
-if [[ ! -z "$stack_yaml" ]]; then
+if [[ -n "$stack_yaml" ]]; then
+  # shellcheck disable=SC2002
   cat "$stack_yaml" | \
   # Delete any pre-existing ghc-lib-parser extra dependency.
   sed -e "s;^.*ghc-lib-parser.*$;;g" | \
@@ -218,7 +223,7 @@ stack_yaml_flag="--stack-yaml $stack_yaml"
 # No need to pass $resolver_flag here, we fixed the resolver in
 # 'stack-head.yaml'.
 eval "$runhaskell $stack_yaml_flag CI.hs -- $no_builds $stack_yaml_flag --version-tag $version"
-sha_ghc_lib_parser_ex=`shasum -a 256 $repo_dir/ghc-lib-parser-ex/ghc-lib-parser-ex-$version.tar.gz | awk '{ print $1 }'`
+sha_ghc_lib_parser_ex=$(shasum -a 256 "$repo_dir"/ghc-lib-parser-ex/ghc-lib-parser-ex-"$version".tar.gz | awk '{ print $1 }')
 
 # Hlint
 
@@ -292,12 +297,13 @@ sed -i '' "s/^.*ghc-lib-parser ==.*\$/          ghc-lib-parser == $version/g" hl
 sed -i '' "s/^.*ghc-lib-parser-ex >=.*\$/          ghc-lib-parser-ex == $version/g" hlint.cabal
 eval "stack" "$stack_yaml_flag" "sdist" "." "--tar-dir" "."
 
-# `cabal new-build all`
-
+# Refresh the cabal package index, build a multi-package project of
+# ghc-lib, ghc-lib-parser-ex, examples, hlint and cabal new-build all.
+# Also, run mini-hlint, mini-compile and the hlint test suite.
 cabal update
 tmp_dir="$HOME/tmp"
 mkdir -p "$tmp_dir"
-(cd $HOME/tmp && test-ghc-9.0.sh                           \
+(cd "$HOME"/tmp && run-head-cabal-build-test.sh            \
      --ghc-version=ghc-9.4.1                               \
      --version-tag="$version"                              \
      --ghc-lib-dir="$repo_dir/ghc-lib"                     \

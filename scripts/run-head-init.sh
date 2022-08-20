@@ -11,17 +11,16 @@ $opt_args"
 
 repo_dir=""
 # ARG
-if [ ! -z "$1" ]
+if [ -n "$1" ]
 then
     if [[ "$1" == "--help" ]]; then
         echo "$usage" && exit 0
     elif [[ "$1" =~ --repo-dir=(.*)$ ]]; then
       repo_dir="${BASH_REMATCH[1]}"
     else
-        # there is some "first" argument but it's not a repo-dir as
-        # far as we can tell
-        echo "repo-dir expected in first argument"
-        echo "$usage" && exit 0
+        # There is some "first" argument but it's not a repo-dir as
+        # far as we can tell.
+        printf "repo-dir expected in first argument\n%s" "$usage\n" && exit 0
     fi
 fi
 
