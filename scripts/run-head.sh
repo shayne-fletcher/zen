@@ -6,12 +6,13 @@
 #  - `run-head --init=/path/to/repo-dir`
 #    - this will clone ghc-lib, ghc-lib-parser-ex and hlint into the
 #      given path
-#    - thereafter pass `--repo-dir=/path/to/repo-dir` to `run-head`
-#      (default if omitted:`$HOME/project`)
+#    - thereafter pass (in `opts`) `--repo-dir=/path/to/repo-dir` to
+#      `run-head` (default if omitted:`$HOME/project`)
+
 # - Full run
 #   - `run-head --ghc-flavor=""`, the quickest though is
 # - Quickest
-#   - `run-head --ghc-flavor="" "--no-checkout --no-builds --no-cabal`
+#   - `run-head --ghc-flavor="" "--no-checkout --no-builds --no-cabal --no-haddock`
 
 set -exo pipefail
 
@@ -80,6 +81,11 @@ fi
 repo_dir="$HOME/project"
 if [[ "$opts" =~ (.*)--repo-dir=([^[:space:]]+) ]]; then
   repo_dir="${BASH_REMATCH[2]}"
+fi
+with_haddock_flag="--with-hadock"
+if [[ "$opts" == *"--no-haddock"* ]]; then
+  with_haddock_flag=""
+  echo "generation haddocks skipped."
 fi
 
 echo "stack-yaml: $stack_yaml"
@@ -297,10 +303,13 @@ sed -i '' "s/^.*ghc-lib-parser ==.*\$/          ghc-lib-parser == $version/g" hl
 sed -i '' "s/^.*ghc-lib-parser-ex >=.*\$/          ghc-lib-parser-ex == $version/g" hlint.cabal
 eval "stack" "$stack_yaml_flag" "sdist" "." "--tar-dir" "."
 
-# Refresh the cabal package index, build a multi-package project of
-# ghc-lib, ghc-lib-parser-ex, examples, hlint and cabal new-build all.
-# Also, run mini-hlint, mini-compile and the hlint test suite.
-cabal update
+# - Generate a cabal.project of
+#   - ghc-lib, ghc-lib-parser-ex, examples, hlint
+#     - (somwhere like ~/tmp/ghc-lib/ghc-lib-9.4.2.20220821/ghc-9.4.1/cabal.project
+# - and `cabal new-build all`.
+# - Maybe produce haddocks too
+#   - Depending on the contents of `$with_haddock_flag`. Also,
+# - Run mini-hlint, mini-compile and the hlint test suite.
 tmp_dir="$HOME/tmp"
 mkdir -p "$tmp_dir"
 (cd "$HOME"/tmp && run-head-cabal-build-test.sh            \
@@ -310,4 +319,5 @@ mkdir -p "$tmp_dir"
      --ghc-lib-parser-ex-dir="$repo_dir/ghc-lib-parser-ex" \
      --hlint-dir="$repo_dir/hlint"                         \
      --build-dir="$tmp_dir/ghc-lib/$version"               \
+     "$with_haddock_flag"                                  \
 )

@@ -2,8 +2,11 @@
 
 # Build a cabal project composed from a set of .tar.gz sdists of
 # ghc-lib-parser, ghc-lib, ghc-lib-parser-ex and hlint. Choice of
-# ghc-lib version & build compiler are provided as arguments. The name
-# of the script is historical.
+# ghc-lib version & build compiler are provided as arguments.
+#
+# This script relies on
+#  -  $HOME/$ghc_version/bin
+#  -  /Users/shayne/.cabal/bin being in PATH
 
 set -exo pipefail
 
@@ -13,7 +16,8 @@ opts:
     --ghc-lib-dir=ARG
     --ghc-lib-parser-ex-dir=ARG
     --hlint-dir=ARG
-    --build-dir=ARG"
+    --build-dir=ARG
+    --with-haddock"
 usage="usage: $prog --ghc-version=ARG --version-tag=ARG [opts]""
 
 $opt_args"
@@ -52,19 +56,31 @@ fi
     build_dir="$HOME/tmp/ghc-lib/$version_tag" && \
     echo "Missing 'build-dir': defaulting to $build_dir"
 
+with_haddock=false
+[ -n "$7" ] && [[ "$7" =~ --with-haddock$ ]] && with_haddock=true
+
 set -u
 
 [[ ! -f "$HOME/$ghc_version/bin/ghc" ]] && { echo "$HOME/$ghc_version/bin/ghc not found" && exit 1; }
 PATH="$HOME/$ghc_version/bin:$PATH"
 export PATH
 
+# Make sure cabal-install is up-to-date with the most recent
+# available. At this time there aren't build plans for compilers >
+# ghc-9.2.4.
+(PATH=$HOME/ghc-9.2.4/bin:$PATH; export PATH && \
+     cabal update && \
+     cabal new-install cabal-install --overwrite-policy=always \
+)
+
 echo "cabal-install: $(which cabal)"
 echo "cabal-install version: $(cabal -V)"
 echo "ghc: $(which ghc)"
 echo "ghc version : $(ghc -V)"
 
-mkdir -p "$build_dir/$ghc_version"
-cd "$build_dir/$ghc_version"
+build_dir_for_this_ghc="$build_dir/ghc_version"
+mkdir -p "$build_dir_for_this_ghc"
+cd "$build_dir_for_this_ghc"
 packages=(                                                      \
  "$ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz"              \
  "$ghc_lib_dir/ghc-lib-$version_tag.tar.gz"                     \
@@ -82,12 +98,30 @@ for f in "${packages[@]}"; do
 done
 set -e
 
+haddock=""
+if [ $with_haddock ]; then
+  DOLLAR="$"
+  pkg="pkg"
+  # shellcheck disable=SC2154
+  haddock="haddock-all: true
+haddock-hyperlink-source: true
+haddock-executables: true
+haddock-html-location: http://hackage.haskell.org/packages/archive/$DOLLAR$pkg/latest/doc/html
+"
+fi
+
+# Requires cabal-instal >= 3.8.1.0
+# (reference https://cabal.readthedocs.io/en/3.8/index.html)
 cat > cabal.project<<EOF
 packages:    */*.cabal
 constraints: hlint +ghc-lib, ghc-lib-parser-ex -auto -no-ghc-lib
+$haddock
 EOF
 
+# clean
 cabal new-clean
+
+# cabal new-build all
 flags="--ghc-option=-j"
 cmd="cabal new-build all $flags"
 ffi_inc_path="C_INCLUDE_PATH=$(xcrun --show-sdk-path)/usr/include/ffi"
@@ -98,7 +132,13 @@ else
     eval "$cmd"
 fi
 
-cabal_project="$build_dir/$ghc_version/cabal.project"
+# cabal new-haddock all
+if [ "$with_haddock" ]; then
+  eval "cabal" "new-haddock" "all"
+fi
+
+# run tests
+cabal_project="$build_dir_for_this_ghc/cabal.project"
 project="--project-file $cabal_project"
 run="cabal new-run exe"
 (cd "mini-hlint-$version_tag" && eval "$run:mini-hlint" "$project" "--" "test/MiniHlintTest.hs")
