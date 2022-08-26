@@ -313,7 +313,7 @@ eval "stack" "$stack_yaml_flag" "sdist" "." "--tar-dir" "."
 tmp_dir="$HOME/tmp"
 mkdir -p "$tmp_dir"
 (cd "$HOME"/tmp && run-head-cabal-build-test.sh            \
-     --ghc-version=ghc-9.4.1                               \
+     --ghc-version=ghc-9.4.2                               \
      --version-tag="$version"                              \
      --ghc-lib-dir="$repo_dir/ghc-lib"                     \
      --ghc-lib-parser-ex-dir="$repo_dir/ghc-lib-parser-ex" \

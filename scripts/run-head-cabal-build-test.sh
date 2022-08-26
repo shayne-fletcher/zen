@@ -78,7 +78,7 @@ echo "cabal-install version: $(cabal -V)"
 echo "ghc: $(which ghc)"
 echo "ghc version : $(ghc -V)"
 
-build_dir_for_this_ghc="$build_dir/ghc_version"
+build_dir_for_this_ghc="$build_dir/$ghc_version"
 mkdir -p "$build_dir_for_this_ghc"
 cd "$build_dir_for_this_ghc"
 packages=(                                                      \
