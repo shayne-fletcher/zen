@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -exo pipefail
+set -euo pipefail
 
 prog=$(basename "$0")
 opt_args="
@@ -32,7 +32,41 @@ fi
 
 pushd "$repo_dir"
 
-if [[ ! -d "ghc-lib" ]]; then
+if [ ! -d "ghc" ]; then
+    git clone https://gitlab.haskell.org/ghc/ghc.git --recursive
+    pushd "ghc"
+    git fetch origin --tags
+    popd
+else
+   # update checkout to origin/master HEAD. not used right now.
+   if [ false ]; then
+       echo "updating ghc..."
+       pushd "ghc"
+       git clean -xdf && \
+           git submodule foreach git clean -xdf && \
+           git submodule foreach git checkout . && \
+           git checkout .
+       git fetch origin
+       git merge origin/master
+       git submodule update --init --recursive
+       popd
+   else
+       echo "skip clone ghc.."
+   fi
+fi
+
+exit 0
+
+if [ ! -d "stack" ]; then
+    git clone git@github.com:commercialhaskell/stack.git
+    pushd "stack"
+    git fetch origin --tags
+    popd
+else
+    echo "skip clone stack..."
+fi
+
+if [ ! -d "ghc-lib" ]; then
     git clone git@github.com:shayne-fletcher/ghc-lib.git
     pushd "ghc-lib"
     git fetch origin --tags
@@ -41,16 +75,23 @@ if [[ ! -d "ghc-lib" ]]; then
     git fetch origin --tags
     popd
     popd
+else
+    echo "skip clone ghc-lib..."
 fi
-if [[ ! -d "ghc-lib-parser-ex" ]]; then
+
+if [ ! -d "ghc-lib-parser-ex" ]; then
     git clone git@github.com:shayne-fletcher/ghc-lib-parser-ex.git
     pushd "ghc-lib-parser-ex"
     git fetch origin --tags
     popd
+else
+    echo "skip clone ghc-lib-parser-ex..."
 fi
-if [[ ! -d "hlint" ]]; then
+if [ ! -d "hlint" ]; then
     git clone git@github.com:ndmitchell/hlint.git
     pushd "hlint"
     git fetch origin --tags
     popd
+else
+    echo "skip clone hlint..."
 fi

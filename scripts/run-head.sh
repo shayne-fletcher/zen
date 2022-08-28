@@ -4,12 +4,12 @@
 #
 # - Never run before?
 #  - `run-head --init=/path/to/repo-dir`
-#    - this will clone ghc-lib, ghc-lib-parser-ex and hlint into the
-#      given path
+#    - this will clone ghc, stack, ghc-lib, ghc-lib-parser-ex and
+#      hlint into the given path (no use is made of ghc at this time)
 #    - thereafter pass (in `opts`) `--repo-dir=/path/to/repo-dir` to
 #      `run-head` (default if omitted:`$HOME/project`)
 
-# - Full run
+# - Full
 #   - `run-head --ghc-flavor=""`, the quickest though is
 # - Quickest
 #   - `run-head --ghc-flavor="" "--no-checkout --no-builds --no-cabal --no-haddock`
@@ -19,7 +19,7 @@ set -exo pipefail
 prog=$(basename "$0")
 opt_args="
 ARG can be a flavor or the empty string e.g. --ghc-flavor=\"\"
-OPTS is a quoted string with contents e.g: \"--no-checkout --no-builds --no-cabal\""
+OPTS is a quoted string with contents e.g: \"--no-checkout --no-builds --no-cabal --no-haddock\""
 usage="usage: $prog --ghc-flavor=ARG OPTS""
 $opt_args"
 
@@ -100,6 +100,15 @@ DOLLAR="$"
 locals="locals"
 everything="everything"
 
+# If there's a new release, let's have it.
+if [ 1 ]; then
+  cd "$repo_dir/stack"
+  git fetch origin && git merge origin/master
+  stack --stack-yaml=stack-macos.yaml install
+else
+  stack upgrade # Upgrade to the latest official
+fi
+
 cd "$repo_dir"/ghc-lib
 
 if ! [[ -f ./ghc-lib-gen.cabal ]]; then
@@ -114,9 +123,6 @@ if ! [[ -d ./ghc ]]; then
     eval "$runhaskell $stack_yaml_flag $resolver_flag CI.hs -- $stack_yaml_flag $resolver_flag --ghc-flavor ghc-master"
     echo "Now restarting build at the latest GHC commit."
 fi
-
-# If there's a new release, let's have it.
-stack upgrade
 
 # It's common for the git fetch step to report errors of the form
 # "fatal: remote error: upload-pack: not our ref SHA culminating with
@@ -195,6 +201,7 @@ fi
 # If a stack-yaml argument was provided, seed its contents from it
 # otherwise, assume a curated $resolver and create it from scratch.
 if [[ -n "$stack_yaml" ]]; then
+  echo "Seeding stack-head.yaml from $stack_yaml"
   # shellcheck disable=SC2002
   cat "$stack_yaml" | \
   # Delete any pre-existing ghc-lib-parser extra dependency.
@@ -309,7 +316,8 @@ eval "stack" "$stack_yaml_flag" "sdist" "." "--tar-dir" "."
 # - and `cabal new-build all`.
 # - Maybe produce haddocks too
 #   - Depending on the contents of `$with_haddock_flag`. Also,
-# - Run mini-hlint, mini-compile and the hlint test suite.
+# - Run ghc-lib-test-mini-hlint, ghc-lib-test-mini-compile and the
+#   hlint test suite.
 tmp_dir="$HOME/tmp"
 mkdir -p "$tmp_dir"
 (cd "$HOME"/tmp && run-head-cabal-build-test.sh            \

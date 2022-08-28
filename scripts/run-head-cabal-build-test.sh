@@ -84,9 +84,9 @@ cd "$build_dir_for_this_ghc"
 packages=(                                                      \
  "$ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz"              \
  "$ghc_lib_dir/ghc-lib-$version_tag.tar.gz"                     \
- "$ghc_lib_dir/test-utils-$version_tag.tar.gz"                  \
- "$ghc_lib_dir/mini-hlint-$version_tag.tar.gz"                  \
- "$ghc_lib_dir/mini-compile-$version_tag.tar.gz"                \
+ "$ghc_lib_dir/ghc-lib-test-utils-$version_tag.tar.gz"                  \
+ "$ghc_lib_dir/ghc-lib-test-mini-hlint-$version_tag.tar.gz"                  \
+ "$ghc_lib_dir/ghc-lib-test-mini-compile-$version_tag.tar.gz"                \
  "$ghc_lib_parser_ex_dir/ghc-lib-parser-ex-$version_tag.tar.gz" \
  "$hlint_dir/hlint-$version_tag.tar.gz"                         \
 )
@@ -141,8 +141,8 @@ fi
 cabal_project="$build_dir_for_this_ghc/cabal.project"
 project="--project-file $cabal_project"
 run="cabal new-run exe"
-(cd "mini-hlint-$version_tag" && eval "$run:mini-hlint" "$project" "--" "test/MiniHlintTest.hs")
-(cd "mini-compile-$version_tag" && eval "$run:mini-compile" "$project" "--" "test/MiniCompileTest.hs" "|" "tail" "-10")
+(cd "ghc-lib-test-mini-hlint-$version_tag" && eval "$run:ghc-lib-test-mini-hlint" "$project" "--" "test/MiniHlintTest.hs")
+(cd "ghc-lib-test-mini-compile-$version_tag" && eval "$run:ghc-lib-test-mini-compile" "$project" "--" "test/MiniCompileTest.hs" "|" "tail" "-10")
 (cd "hlint-$version_tag" && eval "$run:hlint" "$project" "--" "--test")
 
 exit 0
