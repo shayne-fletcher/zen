@@ -82,11 +82,12 @@ build_dir_for_this_ghc="$build_dir/$ghc_version"
 mkdir -p "$build_dir_for_this_ghc"
 cd "$build_dir_for_this_ghc"
 packages=(                                                      \
+ "$ghc_lib_dir/ghc-lib-gen-$version_tag.tar.gz"                 \
  "$ghc_lib_dir/ghc-lib-parser-$version_tag.tar.gz"              \
  "$ghc_lib_dir/ghc-lib-$version_tag.tar.gz"                     \
- "$ghc_lib_dir/ghc-lib-test-utils-$version_tag.tar.gz"                  \
- "$ghc_lib_dir/ghc-lib-test-mini-hlint-$version_tag.tar.gz"                  \
- "$ghc_lib_dir/ghc-lib-test-mini-compile-$version_tag.tar.gz"                \
+ "$ghc_lib_dir/ghc-lib-test-utils-$version_tag.tar.gz"          \
+ "$ghc_lib_dir/ghc-lib-test-mini-hlint-$version_tag.tar.gz"     \
+ "$ghc_lib_dir/ghc-lib-test-mini-compile-$version_tag.tar.gz"   \
  "$ghc_lib_parser_ex_dir/ghc-lib-parser-ex-$version_tag.tar.gz" \
  "$hlint_dir/hlint-$version_tag.tar.gz"                         \
 )

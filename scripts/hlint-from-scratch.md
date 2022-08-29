@@ -2,11 +2,15 @@
 
 Scripts for building `HLint` from GHC `HEAD` (and other flavors).
 
+---
+
 ## `hlint-from-scratch-init.sh`
 
 Use `hlint-from-scratch --init=<repo-dir>` to get git clones before using `hlint-from-scratch` to build for the first time.
 
 Other invocations of `hlint-from-scratch` accept a repo-dir argument. If missing `"$HOME"/project` is assumed.
+
+---
 
 ## `hlint-from-scratch.sh`
 
@@ -75,10 +79,13 @@ Example: Start from `ghc-lib` built from a warm GHC master commit. Do the minimu
 run-head --ghc-flavor="ghc-master" "--no-checkout --no-builds --no-cabal --no-haddock --stack-yaml=stack-exact.yaml --resolver=ghc-9.4.2"
 ```
 
+---
+
 ## `hlint-from-scratch-cabal-build-and-test.sh`
 
 This step harvests the "sdists" from the repo-dir clones produced by the stack build:
 
+ - `ghc-lib-gen-$version.gz`
  - `ghc-lib-parser-$version.gz`
  - `ghc-lib-$version.tar.gz`
  - `ghc-lib-test-utils-$version.tar.gz`
@@ -95,6 +102,7 @@ They are extracted into a temporary directory (root hardcoded to `"$HOME"/tmp/gh
 └── ghc-9.4.2
     ├── cabal.project
     ├── ghc-lib-0.20220827
+    ├── ghc-lib-gen-0.20220827
     ├── ghc-lib-parser-0.20220827
     ├── ghc-lib-parser-ex-0.20220827
     ├── ghc-lib-test-mini-compile-0.20220827
@@ -106,3 +114,5 @@ They are extracted into a temporary directory (root hardcoded to `"$HOME"/tmp/gh
 ```
 
 The `.cabal` files in the collection of packages express constraints on each other's versions. A `cabal.project` file is generated & `cabal new-build all` is invoked. If `--no-haddock` is not provided, `cabal new-haddock all` is invoked. If the build is successful, the `ghc-lib` & `hlint` tests are executed.
+
+---
