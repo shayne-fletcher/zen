@@ -100,7 +100,7 @@ done
 set -e
 
 haddock=""
-if [ $with_haddock ]; then
+if [ "$with_haddock" ]; then
   DOLLAR="$"
   pkg="pkg"
   # shellcheck disable=SC2154
@@ -134,7 +134,7 @@ else
 fi
 
 # cabal new-haddock all
-if [ "$with_haddock" ]; then
+if "$with_haddock"; then
   eval "cabal" "new-haddock" "all"
 fi
 
