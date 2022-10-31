@@ -1,0 +1,20 @@
+[package]
+name = "asdl-rec"
+version = "0.0.1"
+authors = ["<authors>"]
+edition = "2021"
+
+[[bin]]
+doc = false
+name = "asdl-rec"
+
+[build-dependencies]
+cfgrammar = "0.12"
+lrlex = "0.12"
+lrpar = "0.12"
+
+[dependencies]
+cfgrammar = "0.12"
+clap = { version = "4.0.18", features = ["derive"] }
+lrlex = "0.12"
+lrpar = "0.12"
