@@ -110,7 +110,7 @@ They are extracted into a temporary directory (root hardcoded to `"$HOME"/tmp/gh
     ├── ghc-lib-test-utils-0.20220827
     └── hlint-0.20220827
 
-9 directories, 1 file
+8 directories, 1 file
 ```
 
 The `.cabal` files in the collection of packages express constraints on each other's versions. A `cabal.project` file is generated & `cabal new-build all` is invoked. If `--no-haddock` is not provided, `cabal new-haddock all` is invoked. If the build is successful, the `ghc-lib` & `hlint` tests are executed.

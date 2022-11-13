@@ -1,0 +1,41 @@
+cabal-version:      3.0
+name:               aiu
+version:            0.1.0.0
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Shayne Fletcher
+maintainer:         shayne@shaynefletcher.org
+category:           Language
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall
+       -- -ddump-deriv
+
+executable aiu3
+    import:           warnings
+    main-is:          Main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:    base ^>=4.17.0.0
+    hs-source-dirs:   app/aiu3
+    default-language: GHC2021
+
+executable aiu2
+    import:           warnings
+    main-is:          Main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:    base ^>=4.17.0.0
+    hs-source-dirs:   app/aiu2
+    default-language: GHC2021
+
+executable aiu
+    import:           warnings
+    main-is:          Main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:    base ^>=4.17.0.0
+    hs-source-dirs:   app/aiu
+    default-language: GHC2021
