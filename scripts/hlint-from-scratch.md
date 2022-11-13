@@ -2,15 +2,11 @@
 
 Scripts for building `HLint` from GHC `HEAD` (and other flavors).
 
----
-
 ## `hlint-from-scratch-init.sh`
 
 Use `hlint-from-scratch --init=<repo-dir>` to get git clones before using `hlint-from-scratch` to build for the first time.
 
 Other invocations of `hlint-from-scratch` accept a repo-dir argument. If missing `"$HOME"/project` is assumed.
-
----
 
 ## `hlint-from-scratch.sh`
 
@@ -78,8 +74,6 @@ Example: Start from `ghc-lib` built from a warm GHC master commit. Do the minimu
 ```bash
 run-head --ghc-flavor="ghc-master" "--no-checkout --no-builds --no-cabal --no-haddock --stack-yaml=stack-exact.yaml --resolver=ghc-9.4.2"
 ```
-
----
 
 ## `hlint-from-scratch-cabal-build-and-test.sh`
 
