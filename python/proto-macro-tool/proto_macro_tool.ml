@@ -1,15 +1,15 @@
-let read_file (filename : string) : string =
-  In_channel.with_open_bin filename (fun input -> In_channel.input_all input)
+let read_file (fn : string) : string =
+  In_channel.with_open_bin fn (fun inp -> In_channel.input_all inp)
 
-let write_file (filename : string) (contents : string) : unit =
-  Out_channel.with_open_bin filename (fun output ->
-      Out_channel.output_string output contents)
+let write_file (fn : string) (cs : string) : unit =
+  Out_channel.with_open_bin fn (fun outp -> Out_channel.output_string outp cs)
 
 let copy_file (src : string) (dst : string) : unit =
   write_file dst (read_file src)
 
-let rec mkdirs (pre : string) (path : string) : unit =
-  if Filename.concat path "" <> pre then mkdirs pre (Filename.dirname path);
+let rec mkdirs (prefix : string) (path : string) : unit =
+  if Filename.concat path "" <> prefix then
+    mkdirs prefix (Filename.dirname path);
   if not (Sys.file_exists path) then Sys.mkdir path 0o777
 
 let copy_files (out_dir : string) (srcfiles : string list)
@@ -20,12 +20,12 @@ let copy_files (out_dir : string) (srcfiles : string list)
       copy_file src dst)
     (List.combine srcfiles dstfiles)
 
-let replace_prefix (old_prefix : string) (new_prefix : string)
-    (files : string list) : string list =
-  let n = String.length old_prefix in
+let replace_prefix (before : string) (after : string) (fs : string list) :
+    string list =
+  let n = String.length before in
   List.map
-    (fun f -> Filename.concat new_prefix (String.sub f n (String.length f - n)))
-    files
+    (fun f -> Filename.concat after (String.sub f n (String.length f - n)))
+    fs
 
 let really_alias_files
     ((lib, srcdir, outdir, srcfiles) : string * string * string * string list) :
@@ -53,11 +53,11 @@ let really_alias_map
   in
   write_file out content
 
-let command = ref ""
-let lib = ref ""
-let out = ref ""
-let srcdir = ref ""
-let srcfiles = ref []
+let command: string ref = ref ""
+let lib: string ref = ref ""
+let out: string ref = ref ""
+let srcdir: string ref = ref ""
+let srcfiles: string list ref = ref []
 
 let ensure_trailing_slash (s : string) : string =
   if not (String.ends_with ~suffix:"/" s) then Filename.concat s "" else s
