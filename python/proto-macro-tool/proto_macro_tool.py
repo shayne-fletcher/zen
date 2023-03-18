@@ -18,7 +18,7 @@ class ProtoMacroTool(object):
         parser = argparse.ArgumentParser(
             usage='''proto_macro_tool.py <command> [<args>]
 Commands:
-alias_files    Alias modues (e.g. copy 'a.ml',.. to 'mylib__A.ml',..).
+alias_files    Make aliased module files (e.g. copy 'a.ml',.. to 'mylib__A.ml',..).
 alias_map      Generate an alias map ('.mli' file) (e.g. write 'module A = Mylib__A',..).
 ''')
         parser.add_argument('command', help='proto_macro_tool.py commands')
