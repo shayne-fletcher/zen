@@ -1,3 +1,28 @@
+type args =
+  | Args of {
+      lib : string;
+      srcdir : string;
+      out : string;
+      srcfiles : string list;
+    }
+
+let command : string ref = ref ""
+let lib : string ref = ref ""
+let out : string ref = ref ""
+let srcdir : string ref = ref ""
+let srcfiles : string list ref = ref []
+
+let read_args () : args =
+  let lib = !lib in
+  let srcdir = Filename.concat !srcdir "" in
+  let out = !out in
+  let srcfiles =
+    List.filter
+      (fun f -> Sys.file_exists f && String.starts_with ~prefix:srcdir f)
+      !srcfiles
+  in
+  Args { lib; srcdir; out; srcfiles }
+
 let read_file (fn : string) : string =
   In_channel.with_open_bin fn (fun inp -> In_channel.input_all inp)
 
@@ -7,16 +32,15 @@ let write_file (fn : string) (cs : string) : unit =
 let copy_file (src : string) (dst : string) : unit =
   write_file dst (read_file src)
 
-let rec mkdirs (prefix : string) (path : string) : unit =
-  if Filename.concat path "" <> prefix then
-    mkdirs prefix (Filename.dirname path);
-  if not (Sys.file_exists path) then Sys.mkdir path 0o777
+let rec mkdirs (path : string) : unit =
+  if not (Sys.file_exists path) then (
+    mkdirs (Filename.dirname path);
+    Sys.mkdir path 0o777)
 
-let copy_files (out_dir : string) (srcfiles : string list)
-    (dstfiles : string list) : unit =
+let copy_files (srcfiles : string list) (dstfiles : string list) : unit =
   List.iter
     (fun (src, dst) ->
-      mkdirs out_dir (Filename.dirname dst);
+      mkdirs (Filename.dirname dst);
       copy_file src dst)
     (List.combine srcfiles dstfiles)
 
@@ -27,14 +51,11 @@ let replace_prefix (before : string) (after : string) (fs : string list) :
     (fun f -> Filename.concat after (String.sub f n (String.length f - n)))
     fs
 
-let really_alias_files
-    ((lib, srcdir, outdir, srcfiles) : string * string * string * string list) :
-    unit =
-  copy_files outdir srcfiles (replace_prefix srcdir outdir srcfiles)
+let alias_files (Args { srcdir; out = outdir; srcfiles } : args) : unit =
+  copy_files srcfiles
+    (replace_prefix srcdir (Filename.concat outdir "") srcfiles)
 
-let really_alias_map
-    ((lib, _srcdir, out, srcfiles) : string * string * string * string list) :
-    unit =
+let alias_map (Args { lib; out = outfile; srcfiles } : args) : unit =
   let lib = String.capitalize_ascii lib in
   let modules =
     List.sort_uniq String.compare
@@ -51,64 +72,29 @@ let really_alias_map
             (fun m -> Printf.sprintf "module %s = %s__%s" m lib m)
             modules))
   in
-  write_file out content
-
-let command: string ref = ref ""
-let lib: string ref = ref ""
-let out: string ref = ref ""
-let srcdir: string ref = ref ""
-let srcfiles: string list ref = ref []
-
-let ensure_trailing_slash (s : string) : string =
-  if not (String.ends_with ~suffix:"/" s) then Filename.concat s "" else s
-
-let alias_files () : unit =
-  let lib = !lib in
-  let srcdir = ensure_trailing_slash !srcdir in
-  let out = ensure_trailing_slash !out in
-  let srcfiles =
-    List.filter
-      (fun f -> Sys.file_exists f && String.starts_with ~prefix:srcdir f)
-      !srcfiles
-  in
-  really_alias_files (lib, srcdir, out, srcfiles)
-
-let alias_map () : unit =
-  let lib = !lib in
-  let srcdir = ensure_trailing_slash !srcdir in
-  let out = !out in
-  let srcfiles =
-    List.filter
-      (fun f -> Sys.file_exists f && String.starts_with ~prefix:srcdir f)
-      !srcfiles
-  in
-  really_alias_map (lib, srcdir, out, srcfiles)
-
-let go () : unit =
-  match !command with
-  | "alias-files" -> alias_files ()
-  | "alias-map" -> alias_map ()
-  | cmd -> Printf.printf "Unrecognized command: '%s'" cmd
+  write_file outfile content
 
 let usage : string =
   {|proto_macro_tool.opt -c <command> [<args>]
 
-   Commands:
-   alias-files  Make aliased module files (e.g. copy 'a.ml',.. to 'mylib__A.ml',..).
-   alias-map    Generate an alias map ('.mli' file) (e.g. write 'module A = Mylib__A',..).
+Commands:
+  alias-files  Make aliased module files (e.g. copy 'a.ml',.. to 'mylib__A.ml',..).
+  alias-map    Generate an alias map ('.mli' file) (e.g. write 'module A = Mylib__A',..).
 
-   Args:|}
+Args:|}
 
 let args : (string * Arg.spec * string) list =
   [
     ("-c", Arg.Set_string command, "Command");
-    ("-l", Arg.Set_string lib, "Library name");
+    ("-l", Arg.Set_string lib, "Library");
     ("-s", Arg.Set_string srcdir, "Source root directory");
-    ("-o", Arg.Set_string out, "Output file or directory name");
+    ("-o", Arg.Set_string out, "Output file or directory");
   ]
 
-let files (filename : string) : unit = srcfiles := filename :: !srcfiles
-
 let (_ : unit) =
-  Arg.parse args files usage;
-  go ()
+  Arg.parse args (fun f -> srcfiles := f :: !srcfiles) usage;
+  let args = read_args () in
+  match !command with
+  | "alias-files" -> alias_files args
+  | "alias-map" -> alias_map args
+  | _ -> Printf.printf "Unrecognized command: '%s'" !command
