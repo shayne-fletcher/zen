@@ -44,16 +44,22 @@ let copy_files (srcfiles : string list) (dstfiles : string list) : unit =
       copy_file src dst)
     (List.combine srcfiles dstfiles)
 
-let replace_prefix (before : string) (after : string) (fs : string list) :
-    string list =
-  let n = String.length before in
+let rename_files (lib : string) (pre : string) (pre' : string)
+    (fs : string list) : string list =
+  let n = String.length pre in
   List.map
-    (fun f -> Filename.concat after (String.sub f n (String.length f - n)))
+    (fun f ->
+      let f' =
+        Filename.concat (Filename.dirname f)
+          (lib ^ "__" ^ String.capitalize_ascii (Filename.basename f))
+      in
+      Filename.concat pre' (String.sub f' n (String.length f' - n)))
     fs
 
-let alias_files (Args { srcdir; out = outdir; srcfiles } : args) : unit =
-  copy_files srcfiles
-    (replace_prefix srcdir (Filename.concat outdir "") srcfiles)
+let alias_files (Args { lib; srcdir; out; srcfiles } : args) : unit =
+  let outdir = Filename.concat out "" in
+  let dstfiles = rename_files lib srcdir outdir srcfiles in
+  copy_files srcfiles dstfiles
 
 let alias_map (Args { lib; out = outfile; srcfiles } : args) : unit =
   let lib = String.capitalize_ascii lib in
