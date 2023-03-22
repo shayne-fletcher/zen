@@ -27,7 +27,9 @@ let read_file (fn : string) : string =
   In_channel.with_open_bin fn (fun inp -> In_channel.input_all inp)
 
 let write_file (fn : string) (cs : string) : unit =
-  Out_channel.with_open_bin fn (fun outp -> Out_channel.output_string outp cs)
+  Out_channel.(
+    with_open_gen [ Open_binary; Open_wronly; Open_creat; Open_trunc ] 0o444 fn
+      (fun outp -> output_string outp cs))
 
 let copy_file (src : string) (dst : string) : unit =
   write_file dst (read_file src)
