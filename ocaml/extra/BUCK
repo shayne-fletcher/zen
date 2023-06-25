@@ -1,9 +1,6 @@
 # buildifier: disable=no-effect
 ocaml_library(
   name = "extra",
-  srcs = [
-      "list.mli",
-      "list.ml",
-  ],
+  srcs = glob ( ["*.ml*"] ),
   visibility = ["PUBLIC"],
 ) if not host_info().os.is_windows else None

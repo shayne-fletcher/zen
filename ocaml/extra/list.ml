@@ -1,18 +1,18 @@
 let explode : string -> char list =
  fun s ->
-  let n = String.length s in
+  let n = Stdlib.String.length s in
   let rec loop acc i =
-    if i = n then List.rev acc else loop (String.get s i :: acc) (i + 1)
+    if i = n then List.rev acc else loop (Stdlib.String.get s i :: acc) (i + 1)
   in
   loop [] 0
 
 let implode : char list -> string =
  fun l ->
-  let n = List.length l in
-  let buf = Bytes.create n in
-  let f i c = Bytes.set buf i c in
-  List.iteri f l;
-  Bytes.to_string buf
+  let n = Stdlib.List.length l in
+  let buf = Stdlib.Bytes.create n in
+  let f i c = Stdlib.Bytes.set buf i c in
+  Stdlib.List.iteri f l;
+  Stdlib.Bytes.to_string buf
 
 let bimap : ('a -> 'b) -> ('c -> 'd) -> 'a * 'c -> 'b * 'd =
  fun f g (x, y) -> (f x, g y)
@@ -26,14 +26,9 @@ let rec strip_prefix (pre : 'a list) (ys : 'a list) : 'a list option =
   | x :: xs, y :: ys when x == y -> strip_prefix xs ys
   | _, _ -> None
 
-let rec strip_prefix_s (pre : string) (ys : string) : string option =
-  Option.map implode (strip_prefix (explode pre) (explode ys))
-
 let strip_suffix (a : 'a list) (b : 'a list) : 'a list option =
-  Option.map List.rev (strip_prefix (List.rev a) (List.rev b))
-
-let strip_suffix_s (a : string) (b : string) : string option =
-  Option.map implode (strip_suffix (explode a) (explode b))
+  Option.map Stdlib.List.rev
+    (strip_prefix (Stdlib.List.rev a) (Stdlib.List.rev b))
 
 let rec strip_infix (needle : 'a list) (haystack : 'a list) :
     ('a list * 'a list) option =
@@ -43,16 +38,6 @@ let rec strip_infix (needle : 'a list) (haystack : 'a list) :
       match strip_prefix needle haystack with
       | Some rest -> Some ([], rest)
       | None -> Option.map (first (fun cs -> x :: cs)) (strip_infix needle xs))
-
-(* e.g
-   [strip_infix "::" "a::b::c" == Some ("a", "b::c")]
-   [strip_infix "/" "foobar" == None]
-*)
-let strip_infix_s (needle : string) (haystack : string) :
-    (string * string) option =
-  Option.map
-    (fun p -> bimap implode implode p)
-    (strip_infix (explode needle) (explode haystack))
 
 (*
 -- | Replace a subsequence everywhere it occurs.
