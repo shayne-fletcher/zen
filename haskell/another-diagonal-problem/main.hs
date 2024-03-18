@@ -1,3 +1,5 @@
+import Data.Foldable(traverse_)
+
 {-
   1, 2, 3
   4, 5, 6
@@ -6,6 +8,11 @@
   1, 2, 3
      4, 5, 6
         7, 8, 9
+
+      3
+    2 5 6
+  1 4 7 8 9
+
 -}
 diag :: [[a]] -> [[a]]
 diag [] = []
@@ -18,4 +25,4 @@ main = do
        , [4, 5, 6]
        , [7, 8, 9]
        ]
- putStrLn$ show (diag m)
+ traverse_ print (diag m)
