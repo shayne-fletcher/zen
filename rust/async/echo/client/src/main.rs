@@ -10,6 +10,8 @@ async fn main() -> std::io::Result<()> {
     let mut stdout = tokio::io::stdout();
     let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
 
+    //let _ = reader.lines();
+
     loop {
         stdout.write_all(b"> ").await?;
         stdout.flush().await.ok();
@@ -25,7 +27,7 @@ async fn main() -> std::io::Result<()> {
 
         stream.write_all(&line[..n - 1]).await?;
 
-        let mut buf = [0; 8];
+        let mut buf = [0; 1024];
         let n = stream.read(&mut buf).await?;
         stdout.write_all(&buf[..n]).await?;
         stdout.flush().await.unwrap();

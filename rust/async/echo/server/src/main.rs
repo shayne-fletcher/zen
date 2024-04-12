@@ -14,7 +14,7 @@ async fn main() -> std::io::Result<()> {
                 if n == 0 {
                     break;
                 }
-                stream.write_all(&buf).await?;
+                stream.write_all(&buf[..n]).await?;
             }
             Ok::<(), std::io::Error>(())
         });
