@@ -15,8 +15,8 @@ impl Philosopher {
     fn new(name: &str, left: usize, right: usize) -> Self {
         Self {
             name: name.to_owned(),
-            left: left,
-            right: right,
+            left,
+            right,
         }
     }
 
@@ -32,17 +32,15 @@ impl Philosopher {
 
 #[tokio::main]
 async fn main() {
-    let table = Arc::new(
-        Table {
-            forks: vec![
-                Mutex::new(()),
-                Mutex::new(()),
-                Mutex::new(()),
-                Mutex::new(()),
-                Mutex::new(()),
-            ],
-        }
-    );
+    let table = Arc::new(Table {
+        forks: vec![
+            Mutex::new(()),
+            Mutex::new(()),
+            Mutex::new(()),
+            Mutex::new(()),
+            Mutex::new(()),
+        ],
+    });
 
     let philosophers = vec![
         Philosopher::new("Judith Butler", 0, 1),
@@ -63,5 +61,4 @@ async fn main() {
     for handle in handles {
         handle.await.unwrap();
     }
-
 }
