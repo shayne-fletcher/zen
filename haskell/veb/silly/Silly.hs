@@ -1,16 +1,17 @@
 import Data.Bits
 
 data Tree = Leaf Bool | Node Tree Tree Bool
-  deriving Show
+  deriving (Show)
+
+-- Huet zipper http://www.st.cs.uni-sb.de/edu/seminare/2005/advanced-fp/docs/huet-zipper.pdf
+data Ctx = Top | L Ctx Tree | R Tree Ctx
+  deriving (Show)
+
+type Loc = (Tree, Ctx)
 
 getMark :: Tree -> Bool
 getMark (Leaf m) = m
 getMark (Node _ _ m) = m
-
-data Ctx = Top | L Ctx Tree | R Tree Ctx
-  deriving Show
-
-type Loc = (Tree, Ctx)
 
 left :: Loc -> Loc
 left (Node l r _, c) = (l, L c r)
@@ -51,7 +52,7 @@ path n h = path_rec top n 0
     path_rec :: (Tree -> Loc) -> Int -> Int -> (Tree -> Loc)
     path_rec acc n i =
       if i == h then acc else path_rec (dir n i h . acc) n (i + 1)
-    -- In `dir x i n`, `x` has length `n` bits, `i` is the bit
+    -- In `dir x i n`, `x` has length `n` bits, `i` is the bit under
     -- consideration. e.g. when n = 4, x can represent values 0..15.
     -- If x = 13 (0b1101) say, we compute `right . right . left .
     -- right`
