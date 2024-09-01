@@ -1,4 +1,5 @@
 import Data.Bits
+import Debug.Trace
 
 data Tree = Leaf Bool | Node Tree Tree Bool
   deriving (Show)
@@ -38,13 +39,18 @@ mark (Leaf _, c) = (Leaf True, c)
 mark (Node l r _, c) = (Node l r True, c)
 
 make :: Int -> Tree
-make h = make_rec h
+make h =
+  let (t, num_nodes) = make_rec h
+   in Debug.Trace.trace ("tree of " <> show num_nodes <> " nodes") t
   where
-    make_rec :: Int -> Tree
+    make_rec :: Int -> (Tree, Int)
     make_rec level =
       case level of
-        0 -> Leaf False
-        _ -> Node (make_rec (level - 1)) (make_rec (level - 1)) False
+        0 -> (Leaf False, 1)
+        _ ->
+          let (l, c1) = make_rec (level - 1)
+              (r, c2) = make_rec (level - 1)
+           in (Node l r False, 1 + c1 + c2)
 
 path :: Int -> Int -> (Tree -> Loc)
 path n h = path_rec top n 0
@@ -65,9 +71,25 @@ path n h = path_rec top n 0
         k = n - 1
         mask = 1 `shiftL` k
 
+fold :: (a -> Tree -> a) -> a -> Tree -> a
+fold f acc n@(Node l r _) =
+  let acc' = fold f acc l
+      acc'' = fold f acc' r
+   in f acc'' n
+fold f acc n@(Leaf _) = f acc n
+
 main = do
-  let h = 2
-  putStrLn $ show (fst (upmost (mark $ path 3 h $ make h)))
+  let h = 16
+      t = make h
+      t' = fst . upmost . mark $ path 3 h t
+      leaves = fold f [] t
+  putStrLn $ "n = " <> show (length leaves)
+  case t of
+    Node _ _ True -> putStrLn "root marked"
+    Node _ _ False -> putStrLn "root not marked"
+    _ -> error "failure"
+  where
+    f acc n = case n of Node {} -> acc; Leaf {} -> n : acc
 
 {-
 {-# LANGUAGE RecordWildCards #-}
