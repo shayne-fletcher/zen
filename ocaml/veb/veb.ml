@@ -6,6 +6,23 @@ type node = Leaf |
       mark: bool;
     }
 
+make (h: int) : node
+make h = make_rec (h + 1) Nothing
+  where
+    make_rec :: Int -> Maybe Node -> Node
+    make_rec level p =
+      case level of
+        0 -> Nil
+        _ ->
+          let n =
+                Node {
+                  parent = p,
+                  left = make_rec (level - 1) (Just n),
+                  right = make_rec (level - 1) (Just n),
+                  marked = False
+                }
+          in n
+
 let rec t =
   Node {
       parent = None;
@@ -39,7 +56,7 @@ let rec t =
                   }
               in rn
         end;
-      mark = false
+n      mark = false
     }
 
 let rec fold f acc t =

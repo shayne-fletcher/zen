@@ -5,6 +5,10 @@ import Debug.Trace
 data Tree = Leaf Bool | Node Tree Tree Bool
   deriving (Show)
 
+height :: Tree -> Int
+height (Leaf _) = 0
+height (Node l _ _) = height l + 1
+
 -- Huet zipper http://www.st.cs.uni-sb.de/edu/seminare/2005/advanced-fp/docs/huet-zipper.pdf
 data Ctx = Top | L Ctx Tree | R Tree Ctx
   deriving (Show)
@@ -42,8 +46,8 @@ mark (Node l r _, c) = (Node l r True, c)
 make :: Int -> Tree
 make h =
   let (t, n) = make_rec (Debug.Trace.trace ("h = " <> show h) h)
-  in assert (n == 2^(h + 1) - 1)
-    (Debug.Trace.trace ("tree of " <> show n <> " nodes") t)
+  in assert (height t == h) (assert (n == 2^(h + 1) - 1)
+    (Debug.Trace.trace ("tree of " <> show n <> " nodes") t))
   where
     make_rec :: Int -> (Tree, Int)
     make_rec level =
@@ -77,7 +81,7 @@ fold :: (a -> Tree -> a) -> a -> Tree -> a
 fold f acc n@(Node l r _) =
   let acc' = fold f acc l
       acc'' = fold f acc' r
-   in f acc'' n
+  in f acc'' n
 fold f acc n@(Leaf _) = f acc n
 
 main = do
