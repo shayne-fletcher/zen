@@ -1,3 +1,4 @@
+import Control.Exception
 import Data.Bits
 import Debug.Trace
 
@@ -40,17 +41,18 @@ mark (Node l r _, c) = (Node l r True, c)
 
 make :: Int -> Tree
 make h =
-  let (t, num_nodes) = make_rec h
-   in Debug.Trace.trace ("tree of " <> show num_nodes <> " nodes") t
+  let (t, n) = make_rec (Debug.Trace.trace ("h = " <> show h) h)
+  in assert (n == 2^(h + 1) - 1)
+    (Debug.Trace.trace ("tree of " <> show n <> " nodes") t)
   where
     make_rec :: Int -> (Tree, Int)
     make_rec level =
       case level of
         0 -> (Leaf False, 1)
-        _ ->
-          let (l, c1) = make_rec (level - 1)
-              (r, c2) = make_rec (level - 1)
-           in (Node l r False, 1 + c1 + c2)
+        _ -> (Node l r False, 1 + c1 + c2)
+          where
+            (l, c1) = make_rec (level - 1)
+            (r, c2) = make_rec (level - 1)
 
 path :: Int -> Int -> (Tree -> Loc)
 path n h = path_rec top n 0
@@ -84,6 +86,7 @@ main = do
       t' = fst . upmost . mark $ path 3 h t
       leaves = fold f [] t
   putStrLn $ "n = " <> show (length leaves)
+
   case t of
     Node _ _ True -> putStrLn "root marked"
     Node _ _ False -> putStrLn "root not marked"
