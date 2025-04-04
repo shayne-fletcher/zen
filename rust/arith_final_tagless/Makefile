@@ -1,5 +1,5 @@
 all: target/debug/libcpp_repr.a target/debug/libarith_final_tagless.a
-	g++ -std=c++14 src/main.cpp -I .. -I target/cxxbridge -L ./target/debug/ -larith_final_tagless -lcpp_repr -o run
+	g++ -std=c++14 src/main.cpp -I .. -I target/cxxbridge -L ./target/debug/ -larith_final_tagless -ldl -lcpp_repr -lpthread -o run
 	LD_LIBRARY_PATH=./target/debug/ ./run
 
 target/debug:
