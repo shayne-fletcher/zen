@@ -1,0 +1,14 @@
+[package]
+name = "systemd-properties-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+
+# async runtime for #[tokio::main]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+# zbus for D-Bus; we enable the tokio backend
+zbus = { version = "5", features = ["tokio"] }
+zbus_names = "4.2.0"
